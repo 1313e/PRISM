@@ -28,19 +28,20 @@ What can PRISM do for your model?
 What characterizes PRISM?
 -------------------------
 - Written in pure Python 2/3, for versatility;
+- Compatible with both Windows and UNIX-based machines;
 - Accepts any type of model and comparison data;
 - Built as a plug-and-play tool;
 - Easily linked to any model by writing a single custom ModelLink class;
 - Suited for both simple and advanced projects.
 
 
-Installation
-============
-PRISM is written in pure Python and (currently) does not require any extensions.
+Installation and Usage
+======================
+PRISM can be easily installed by either pulling the repository and running the setup-file with ``python setup.py install`` or by installing it directly from the PyPI system with ``pip install prism_tool``.
 
 Dependencies
 ------------
-PRISM requires:
+PRISM requires the following non-standard dependencies:
 
 - ``python == 2.7`` or ``python >= 3.4``,
 - ``e13tools >= 0.4.2a0``,
