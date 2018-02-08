@@ -18,7 +18,13 @@ This makes PRISM an excellent alternative to ordinary MCMC methods for developer
 
 What can PRISM do for your model?
 ---------------------------------
-- 
+- Rapid analysis of your model, being several magnitudes faster than ordinary MCMC methods;
+- Provide an approximated version of the model;
+- Analyze and map out its physical behavior;
+- Detect inaccuracies and flaws;
+- Advise on important missing constraining data;
+- Massively reduce relevant parameter space by factors over 10,000, allowing existing MCMC methods to explore and obtain the optimal model realizations much faster.
+
 
 Installation
 ============
