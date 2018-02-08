@@ -42,9 +42,8 @@ PRISM can now be imported as a package with ``import prism``.
 
 Dependencies
 ------------
-PRISM requires the following non-standard dependencies:
+PRISM requires ``python == 2.7`` or ``python >= 3.4`` and the following non-standard dependencies (installed automatically when using ``pip``):
 
-- ``python == 2.7`` or ``python >= 3.4``,
 - ``e13tools >= 0.4.2a0``,
 - ``h5py >= 2.7.1``,
 - ``mlxtend >= 0.9.0``,
