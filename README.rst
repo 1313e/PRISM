@@ -8,7 +8,7 @@ Typically we probe the universe by making models that try to reconstruct reality
 Since our knowledge is limited, models tend to only tell part of the story.
 Commonly we utilize MCMC methods in order to check how closely this resembles reality.
 Although MCMC can precisely return the model realization that does this, it has a few drawbacks: It is slow, requires much additional knowledge about the model for a full Bayesian analysis, is vulnerable to irregularities and its convergence probability vs. speed depends on the initial conditions.
-This makes MCMC hard to use for complex models, eliminating the possibility for developers to discover new details about their model, be it new physics, interesting effects or mistakes.
+This makes MCMC hard to use for complex models, eliminating the possibility for developers to discover additional details about their model, be it new physics, interesting effects or mistakes.
 
 PRISM tries to tackle this problem by providing a different way for analyzing models.
 Instead of evaluating a model millions of times, often in regions of parameter space that do not contain interesting model realizations, PRISM constructs an approximate version of the model with polynomial functions based on a few thousand model evaluations.
