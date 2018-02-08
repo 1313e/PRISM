@@ -38,6 +38,7 @@ What characterizes PRISM?
 Installation and Usage
 ======================
 PRISM can be easily installed by either pulling the repository and running the setup-file with ``python setup.py install`` or by installing it directly from the PyPI system with ``pip install prism_tool``.
+PRISM can now be imported as a package with ``import prism``.
 
 Dependencies
 ------------
