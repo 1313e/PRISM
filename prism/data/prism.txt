@@ -1,0 +1,11 @@
+n_sam			: 500
+n_proj_samples		: 15
+n_hidden_samples	: 75
+n_eval_samples		: 600
+sigma			: 0.8
+l_corr			: 0.3
+impl_cut		: 0, 4.0, 3.8, 3.5
+criterion		: 'multi'
+method			: 'full'
+poly_order		: 3
+do_active_par		: True
