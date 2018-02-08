@@ -25,9 +25,18 @@ What can PRISM do for your model?
 - Advise on important missing constraining data;
 - Massively reduce relevant parameter space by factors over 10,000, allowing existing MCMC methods to explore and obtain the optimal model realizations much faster.
 
+What characterizes PRISM?
+-------------------------
+- Written in pure Python 2/3, for versatility;
+- Accepts any type of model and comparison data;
+- Built as a plug-and-play tool;
+- Easily linked to any model by writing a single custom ModelLink class;
+- Suited for both simple and advanced projects.
+
 
 Installation
 ============
+PRISM is written in pure Python and (currently) does not require any extensions.
 
 Dependencies
 ------------
