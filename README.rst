@@ -1,8 +1,27 @@
-PRISM
-=====
+PRISM, a "Probabilisic Regression Instrument for Simulating Models"
+===================================================================
+PRISM is a Python 2/3 package that provides an alternative method to MCMC for analyzing models.
 
-Probabilistic Regression Instrument for Simulating Models
+Introduction
+------------
+Typically we probe the universe by making models that try to reconstruct reality based on our scientific knowledge.
+Since our knowledge is limited, models tend to only tell part of the story.
+Commonly we utilize MCMC methods in order to check how closely this resembles reality.
+Although MCMC can precisely return the model realization that does this, it has a few drawbacks: It is slow, requires much additional knowledge about the model for a full Bayesian analysis, is vulnerable to irregularities and its convergence probability vs. speed depends on the initial conditions.
+This makes MCMC hard to use for complex models, eliminating the possibility for developers to discover new details about their model, be it new physics, interesting effects or mistakes.
 
+PRISM tries to tackle this problem by providing a different way for analyzing models.
+Instead of evaluating a model millions of times, often in regions of parameter space that do not contain interesting model realizations, PRISM constructs an approximate version of the model with polynomial functions based on a few thousand model evaluations.
+By utilizing this system, PRISM is capable of identifying large parts of parameter space as 'implausible' with only limited model knowledge.
+Additionally, PRISM will map out the behavior of a model, allowing developers to study its properties.
+This makes PRISM an excellent alternative to ordinary MCMC methods for developers that seek to analyze and optimize their models.
+
+What can PRISM do for your model?
+---------------------------------
+- 
+
+Installation
+============
 
 Dependencies
 ------------
