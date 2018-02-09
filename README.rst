@@ -57,6 +57,6 @@ PRISM requires ``python == 2.7`` or ``python >= 3.4`` and the following non-stan
 .. |Python| image:: https://img.shields.io/pypi/pyversions/prism_tool.svg
    :target: https://pypi.python.org/pypi/prism_tool
    :alt: Python Versions
-.. |License| image:: https://img.shields.io/badge/license-BSD--3-blue.svg
+.. |License| image:: https://img.shields.io/pypi/l/prism_tool.svg
    :target: https://raw.githubusercontent.com/1313e/PRISM/master/LICENSE
    :alt: BSD-3 License
