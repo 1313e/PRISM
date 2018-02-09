@@ -1,3 +1,5 @@
+|PyPI| |Python| |License|
+
 Model dispersion with PRISM, a "Probabilisic Regression Instrument for Simulating Models"
 =========================================================================================
 PRISM is a Python 2/3 package that provides an alternative method to MCMC for analyzing models.
@@ -48,3 +50,13 @@ PRISM requires ``python == 2.7`` or ``python >= 3.4`` and the following non-stan
 - ``h5py >= 2.7.1``,
 - ``mlxtend >= 0.9.0``,
 - ``sklearn >= 0.19.1``.
+
+.. |PyPI| image:: https://img.shields.io/pypi/v/prism_tool.svg
+   :target: https://pypi.python.org/pypi/prism_tool
+   :alt: PyPI Release
+.. |Python| image:: https://img.shields.io/pypi/pyversions/prism_tool.svg
+   :target: https://pypi.python.org/pypi/prism_tool
+   :alt: Python Versions
+.. |License| image:: https://img.shields.io/badge/license-BSD--3-blue.svg
+   :target: https://raw.githubusercontent.com/1313e/PRISM/master/LICENSE
+   :alt: BSD-3 License
