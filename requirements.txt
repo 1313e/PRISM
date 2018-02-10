@@ -1,4 +1,4 @@
-numpy>=1.8
+numpy>=1.8,<1.14
 setuptools>=36.3.0
 matplotlib>=1.4.3
 astropy>=1.3
