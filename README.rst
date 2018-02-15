@@ -2,7 +2,7 @@
 
 Model dispersion with PRISM, a "Probabilistic Regression Instrument for Simulating Models"
 =========================================================================================
-PRISM is a Python 2/3 package that provides an alternative method to MCMC for analyzing models.
+PRISM is a Python 2/3 package that provides an alternative method to MCMC for analyzing scientific models.
 
 Introduction
 ------------
