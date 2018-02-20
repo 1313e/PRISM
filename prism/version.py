@@ -5,4 +5,4 @@ Stores the different versions of the PRISM package.
 
 """
 
-version = '0.0.1a1'
+version = '0.0.2'

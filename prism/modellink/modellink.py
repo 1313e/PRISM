@@ -68,6 +68,9 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         if model_data is not None:
             self.model_data = model_data
 
+        # Save the model parameters and data as class properties
+        self._create_properties()
+
     @property
     def _default_model_parameters(self):
         return({})
@@ -182,6 +185,32 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                     self._model_data[1].append(data[1])
                     self._model_data[2].append(int(data[2]))
 
+    def _create_properties(self):
+        # Save model data as class properties
+        self._par_dim = len(self._model_parameters.keys())
+
+        # Create empty parameter name, ranges and estimate arrays
+        self._par_names = []
+        self._par_rng = np.zeros([self._par_dim, 2])
+        self._par_rng[:, 1] = 1
+        self._par_estimate = []
+
+        # Save parameter ranges
+        for i, (name, values) in enumerate(self._model_parameters.items()):
+            self._par_names.append(name)
+            self._par_rng[i] = (values[0], values[1])
+            try:
+                self._par_estimate.append(values[2] if
+                                          values[2] != np.infty else None)
+            except IndexError:
+                self._par_estimate.append(None)
+
+        # Save model data as class properties
+        self._n_data = len(self._model_data[0])
+        self._data_val = self._model_data[0]
+        self._data_err = self._model_data[1]
+        self._data_idx = self._model_data[2]
+
     @abc.abstractmethod
     def call_model(self, emul_i, model_parameters, data_idx):
         raise NotImplementedError
@@ -189,3 +218,80 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @abc.abstractmethod
     def get_md_var(self, emul_i, data_idx):
         raise NotImplementedError
+
+
+# %% CLASS PROPERTIES
+    # Model Parameters
+    @property
+    def par_dim(self):
+        """
+        Number of model parameters.
+
+        """
+
+        return(self._par_dim)
+
+    @property
+    def par_names(self):
+        """
+        List with model parameter names.
+
+        """
+
+        return(self._par_names)
+
+    @property
+    def par_rng(self):
+        """
+        Array containing the lower and upper values of the model parameters.
+
+        """
+
+        return(self._par_rng)
+
+    @property
+    def par_estimate(self):
+        """
+        Array containing user-defined estimated values of the model parameters.
+        Contains *None* in places where estimates were not provided.
+
+        """
+
+        return(self._par_estimate)
+
+    # Model Data
+    @property
+    def n_data(self):
+        """
+        Number of provided data points.
+
+        """
+
+        return(self._n_data)
+
+    @property
+    def data_val(self):
+        """
+        Array with values of provided data points.
+
+        """
+
+        return(self._data_val)
+
+    @property
+    def data_err(self):
+        """
+        Array with errors of provided data points.
+
+        """
+
+        return(self._data_err)
+
+    @property
+    def data_idx(self):
+        """
+        Array with user-defined data point identifiers.
+
+        """
+
+        return(self._data_idx)

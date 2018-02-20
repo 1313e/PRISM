@@ -1,4 +1,4 @@
-n_sam			: 500
+n_sam_init		: 500
 n_proj_samples		: 15
 n_hidden_samples	: 75
 n_eval_samples		: 600

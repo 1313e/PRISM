@@ -7,7 +7,7 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-from .modellink import ModelLink
+from modellink import ModelLink
 
 __all__ = ['SineWaveLink']
 
@@ -28,7 +28,7 @@ class SineWaveLink(ModelLink):
     def call_model(self, emul_i, model_parameters, data_idx):
         par = model_parameters
         mod_set =\
-            par['C']+0.1*par['B']*np.sin(par['A']*data_idx+par['D'])
+            par['C']+0.1*par['B']*np.sin(par['A']*np.array(data_idx)+par['D'])
 
         return(mod_set)
 

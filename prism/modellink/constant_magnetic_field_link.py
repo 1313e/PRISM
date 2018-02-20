@@ -7,7 +7,7 @@
 from __future__ import absolute_import, division, print_function
 
 # ModelLink imports
-from .modellink import ModelLink
+from modellink import ModelLink
 
 # Hammurapy imports
 import numpy as np
@@ -97,7 +97,7 @@ class Hammurapy_constant(observables_generator, Hammurapy):
         result_dict['TE_interp'] = 'T'
         result_dict['B_field_do_random'] = 'F'
         result_dict['do_rm'] = 'T'
-        result_dict['do_sync_emission'] = 'F'
+        result_dict['do_sync_emission'] = 'T'
         result_dict['do_dm'] = 'F'
         result_dict['do_dust'] = 'F'
         result_dict['do_tau'] = 'F'
