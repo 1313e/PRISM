@@ -38,7 +38,7 @@ from sklearn.pipeline import Pipeline as Pipeline_sk
 from sklearn.preprocessing import PolynomialFeatures as PF
 
 # PRISM imports
-from _internal import RequestError, move_logger, start_logger
+from _internal import RequestError, docstring_copy, move_logger, start_logger
 from modellink import ModelLink
 
 # All declaration
@@ -46,7 +46,7 @@ __all__ = ['Emulator']
 
 
 # %% EMULATOR CLASS DEFINITION
-# TODO: Write pydocs
+# TODO: Write docstrings
 class Emulator(object):
     """
     Defines the :class:`~Emulator` class of the PRISM package.
@@ -1187,7 +1187,16 @@ class Emulator(object):
                     % (emul_i))
 
         # Calculate covariance matrix
-        cov_mat = self._get_cov(emul_i, None, None)
+        # Since this calculation can cause memory issues, catch error and try
+        # slower but less memory-intensive method
+        try:
+            cov_mat = self._get_cov(emul_i, None, None)
+        except MemoryError:
+            cov_mat = np.zeros([self._n_data[emul_i], self._n_sam[emul_i],
+                                self._n_sam[emul_i]])
+            for i in range(self._n_sam[emul_i]):
+                cov_mat[:, i] = self._get_cov(emul_i, self._sam_set[emul_i][i],
+                                              None)
 
         # Make empty array of inverse covariance matrices
         cov_mat_inv = np.zeros_like(cov_mat)
@@ -1202,6 +1211,7 @@ class Emulator(object):
             logger.info("Calculating inverse of covariance matrix %s."
                         % (i))
 #            cov_mat_inv[i] = nearest_PD(self._get_inv_matrix(cov_mat[i]))
+            # TODO: Maybe I should put an error catch for memory overflow here?
             cov_mat_inv[i] = self._get_inv_matrix(cov_mat[i])
 
         # Save the covariance matrices to hdf5
@@ -1266,6 +1276,8 @@ class Emulator(object):
         self._load_data(self._emul_i)
 
     # Function that loads in the emulator data
+    # TODO: Write code that allows part of the data to be loaded in (crashing)
+    # and forces the pipeline to continue where data starts missing
     def _load_data(self, emul_i):
         """
         Loads in all the important emulator data corresponding to emulator

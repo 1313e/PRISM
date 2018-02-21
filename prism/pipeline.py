@@ -38,16 +38,17 @@ from sklearn.pipeline import Pipeline as Pipeline_skl
 from sklearn.preprocessing import PolynomialFeatures as PF
 
 # PRISM imports
-from _internal import RequestError, move_logger, start_logger
+from _internal import RequestError, docstring_copy, move_logger, start_logger
 from emulator import Emulator
 from modellink import ModelLink
+from projection import Projection
 
 # All declaration
 __all__ = ['Pipeline']
 
 
 # %% PIPELINE CLASS DEFINITION
-# TODO: Write pydocs
+# TODO: Write docstrings
 class Pipeline(object):
     """
     Defines the :class:`~Pipeline` class of the PRISM package.
@@ -160,7 +161,7 @@ class Pipeline(object):
         except Exception:
             raise
         else:
-            if self._emulator._prc[emul_i]:
+            if self._prc[emul_i]:
                 self.create_projection(emul_i)
                 self.details(emul_i)
 
@@ -280,26 +281,6 @@ class Pipeline(object):
         return(self._n_sam_init)
 
     @property
-    def n_proj_samples(self):
-        """
-        Number of emulator evaluations used to generate the grid for the
-        projection figures.
-
-        """
-
-        return(self._n_proj_samples)
-
-    @property
-    def n_hidden_samples(self):
-        """
-        Number of emulator evaluations used to generate the samples in every
-        grid point for the projection figures.
-
-        """
-
-        return(self._n_hidden_samples)
-
-    @property
     def n_eval_samples(self):
         """
         Base number of emulator evaluations used to scan the plausible
@@ -310,6 +291,14 @@ class Pipeline(object):
         """
 
         return(self._n_eval_samples)
+
+    @n_eval_samples.setter
+    def n_eval_samples(self, n_eval_samples):
+        if isinstance(n_eval_samples, int):
+            self._save_data('n_eval_samples', n_eval_samples)
+        else:
+            raise TypeError("Input argument 'n_eval_samples' must be of type "
+                            "'int'!")
 
     @property
     def impl_cut(self):
@@ -367,7 +356,7 @@ class Pipeline(object):
                 break
 
         # Save both impl_cut and cut_idx
-        self._save_data('impl_cut', [impl_cut, cut_idx])
+        self._save_data('impl_cut', [np.array(impl_cut), cut_idx])
 
         # Log end of process
         logger.info("Finished generating implausibility cut-off list.")
@@ -542,8 +531,6 @@ class Pipeline(object):
 
         # Read in all the pipeline attributes
         self._n_sam_init = file.attrs['n_sam_init']
-        self._n_proj_samples = file.attrs['n_proj_samples']
-        self._n_hidden_samples = file.attrs['n_hidden_samples']
         self._n_eval_samples = file.attrs['n_eval_samples']
         self._do_active_par = file.attrs['do_active_par']
         self._criterion = file.attrs['criterion'].decode('utf-8')
@@ -572,8 +559,6 @@ class Pipeline(object):
 
         # Create parameter dict with default parameters
         par_dict = {'n_sam_init': '500',
-                    'n_proj_samples': '15',
-                    'n_hidden_samples': '75',
                     'n_eval_samples': '600',
                     'criterion': "'multi'",
                     'do_active_par': 'True',
@@ -614,11 +599,6 @@ class Pipeline(object):
         # GENERAL
         # Number of starting samples
         self._n_sam_init = int(par_dict['n_sam_init'])
-
-        # Number of samples used for implausibility evaluations
-        self._n_proj_samples = int(par_dict['n_proj_samples'])
-        self._n_hidden_samples = int(par_dict['n_hidden_samples'])
-        self._n_eval_samples = int(par_dict['n_eval_samples'])
 
         # Set non-default parameter estimate
         self._modellink._par_estimate = self._modellink._par_rng[:, 0] +\
@@ -669,7 +649,7 @@ class Pipeline(object):
         """
 
         # Calculate n_eval_samples
-        return(emul_i*self._n_eval_samples*self._modellink._par_dim)
+        return(emul_i*self._n_eval_samples[emul_i]*self._modellink._par_dim)
 
     # Obtains the paths for the root directory, working directory, pipeline
     # hdf5-file and prism parameters file
@@ -877,6 +857,7 @@ class Pipeline(object):
         self._impl_sam = [[]]
         self._impl_cut = [[]]
         self._cut_idx = [[]]
+        self._n_eval_samples = [[]]
 
         if self._emulator._emul_i:
             # Open hdf5-file
@@ -884,10 +865,18 @@ class Pipeline(object):
 
             # Read in the data
             for i in range(1, self._emulator._emul_i+1):
-                self._prc.append(file['%s' % (i)].attrs['prc'])
-                self._impl_sam.append(file['%s/impl_sam' % (i)][()])
-                self._impl_cut.append(file['%s' % (i)].attrs['impl_cut'])
-                self._cut_idx.append(file['%s' % (i)].attrs['cut_idx'])
+                try:
+                    self._prc.append(file['%s' % (i)].attrs['prc'])
+                except KeyError:
+                    self._prc.append(0)
+                    self._impl_sam.append([])
+                    self._n_eval_samples.append(1)
+                else:
+                    self._impl_sam.append(file['%s/impl_sam' % (i)][()])
+                    self._impl_cut.append(file['%s' % (i)].attrs['impl_cut'])
+                    self._cut_idx.append(file['%s' % (i)].attrs['cut_idx'])
+                    self._n_eval_samples.append(
+                        file['%s' % (i)].attrs['n_eval_samples'])
 
             # Close hdf5-file
             self._close_hdf5(file)
@@ -961,6 +950,19 @@ class Pipeline(object):
                     data[0]
                 file['%s' % (self._emulator._emul_i)].attrs['cut_idx'] =\
                     data[1]
+
+        # N_EVAL_SAMPLES
+        elif keyword in ('n_eval_samples'):
+            try:
+                self._n_eval_samples[self._emulator._emul_i] = data
+            except IndexError:
+                self._n_eval_samples.append(data)
+            finally:
+                file['%s'
+                     % (self._emulator._emul_i)].attrs['n_eval_samples'] = data
+
+        else:
+            raise ValueError("Invalid keyword argument provided!")
 
         # Close hdf5
         self._close_hdf5(file)
@@ -1114,6 +1116,7 @@ class Pipeline(object):
 
     # This function performs an implausibility cut-off check on a given sample
     # TODO: Implement dynamic impl_cut
+    @staticmethod
     def _do_impl_check(self, emul_i, uni_impl_val):
         """
         Performs an implausibility cut-off check on the provided implausibility
@@ -1252,9 +1255,10 @@ class Pipeline(object):
         return(md_var)
 
     # This function reads in the impl_cut list from the PRISM parameters file
-    def _get_impl_cut(self, emul_i):
+    def _get_impl_par(self, emul_i):
         """
-        Reads in the impl_cut list from the PRISM parameters file.
+        Reads in the impl_cut list and other parameters for implausibility
+        evaluations from the PRISM parameters file.
 
         """
 
@@ -1275,6 +1279,9 @@ class Pipeline(object):
         # Implausibility cut-off
         impl_cut_str = str(par_dict['impl_cut']).replace(',', '').split()
         self.impl_cut = list(float(impl_cut) for impl_cut in impl_cut_str)
+
+        # Number of samples used for implausibility evaluations
+        self.n_eval_samples = int(par_dict['n_eval_samples'])
 
 
 # %% VISIBLE CLASS METHODS
@@ -1298,14 +1305,14 @@ class Pipeline(object):
         logger = logging.getLogger('ANALYZE')
         logger.info("Analyzing emulator system at iteration %s." % (emul_i))
 
+        # Get the impl_cut list and n_eval_samples
+        self._get_impl_par(emul_i)
+
         # Create an emulator evaluation sample set
         eval_sam_set = self._get_eval_sam_set(emul_i)
 
         # Obtain number of samples
         n_samples = eval_sam_set.shape[0]
-
-        # Get the impl_cut list
-        self._get_impl_cut(emul_i)
 
         # Create empty list holding indices of samples that pass the impl_check
         impl_idx = []
@@ -1318,7 +1325,7 @@ class Pipeline(object):
                 uni_impl_val = self._get_uni_impl(j, *adj_val)
 
                 # Do implausibility cut-off check
-                if self._do_impl_check(j, uni_impl_val)[0] is False:
+                if self._do_impl_check(self, j, uni_impl_val)[0] is False:
                     break
             else:
                 impl_idx.append(i)
@@ -1333,7 +1340,7 @@ class Pipeline(object):
         self.details(emul_i)
 
     # This function constructs a specified iteration of the emulator system
-    def construct(self, emul_i=None):
+    def construct(self, emul_i=None, analyze=True):
         """
         Constructs the emulator at the specified emulator iteration `emul_i`.
 
@@ -1423,8 +1430,19 @@ class Pipeline(object):
         self._emulator._construct_iteration(emul_i)
         self._emulator._emul_i = emul_i
 
-        # Analyze the emulator system
-        self.analyze(emul_i)
+        # Analyze the emulator system if requested
+        if analyze:
+            self.analyze(emul_i)
+        else:
+            self._save_data('impl_sam', [])
+
+    # This function creates the projection figures of a given emul_i
+    @docstring_copy(Projection.__call__)
+    def create_projection(self, emul_i=None, proj_par=None, figure=True,
+                          show=False, force=False):
+
+        # Initialize the Projection class and make the figures
+        Projection(self)(emul_i, proj_par, figure, show, force)
 
     # This function allows one to obtain the emulator details/properties
     def details(self, emul_i=None):
@@ -1464,7 +1482,19 @@ class Pipeline(object):
             except KeyError:
                 proj = 0
             else:
-                proj = 1
+                proj_impl_cut =\
+                    file['%s/proj_hcube' % (emul_i)].attrs['impl_cut']
+                proj_cut_idx =\
+                    file['%s/proj_hcube' % (emul_i)].attrs['cut_idx']
+
+                try:
+                    if((proj_impl_cut == self._impl_cut[emul_i]).all() and
+                       proj_cut_idx == self._cut_idx[emul_i]):
+                        proj = 1
+                    else:
+                        proj = 2
+                except IndexError:
+                    proj = 1
 
         # Close hdf5-file
         self._close_hdf5(file)
@@ -1499,9 +1529,12 @@ class Pipeline(object):
         if(self._emulator._emul_load == 0 or proj == 0):
             print("{0: <{1}}\t{2}".format("Projection available?", width,
                                           "No"))
-        else:
+        elif(proj == 1):
             print("{0: <{1}}\t{2}".format("Projection available?", width,
                                           "Yes"))
+        else:
+            print("{0: <{1}}\t{2}".format("Projection available?", width,
+                                          "Yes (desynced)"))
         print("-"*width)
         print("{0: <{1}}\t{2}".format("# of model evaluation samples", width,
                                       self._emulator._n_sam[1:emul_i+1]))

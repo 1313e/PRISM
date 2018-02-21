@@ -22,7 +22,7 @@ import logging
 import logging.config
 
 # All declaration
-__all__ = ['RequestError', 'move_logger', 'start_logger']
+__all__ = ['RequestError', 'docstring_copy', 'move_logger', 'start_logger']
 
 
 # %% CLASS DEFINITIONS
@@ -42,6 +42,21 @@ class RequestError(Exception):
 
 
 # %% FUNCTION DEFINITIONS
+# Define custom decorator for copying docstrings from one functions to another
+def docstring_copy(source):
+    """
+    Custom decorator that allows the docstring of a function `source` to be
+    copied.
+
+    """
+
+    def do_copy(target):
+        if source.__doc__:
+            target.__doc__ = source.__doc__
+        return(target)
+    return(do_copy)
+
+
 # Define function that can move the logging file of PRISM
 def move_logger(working_dir, filename='prism_log.log'):
     """
