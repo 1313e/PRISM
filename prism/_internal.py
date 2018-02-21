@@ -42,7 +42,7 @@ class RequestError(Exception):
 
 
 # %% FUNCTION DEFINITIONS
-# Define custom decorator for copying docstrings from one functions to another
+# Define custom decorator for copying docstrings from one function to another
 def docstring_copy(source):
     """
     Custom decorator that allows the docstring of a function `source` to be
@@ -57,7 +57,7 @@ def docstring_copy(source):
     return(do_copy)
 
 
-# Define function that can move the logging file of PRISM
+# Define function that can move the logging file of PRISM and restart logging
 def move_logger(working_dir, filename='prism_log.log'):
     """
     Moves the logging file `filename` from the current working directory to the
@@ -95,7 +95,7 @@ def move_logger(working_dir, filename='prism_log.log'):
     start_logger(filename=destination, mode='a')
 
 
-# Define function that can restart the logging file of PRISM after moving
+# Define function that can start the logging process of PRISM
 def start_logger(filename='prism_log.log', mode='w'):
     """
     Creates a logging file called `filename` in the current working directory,
