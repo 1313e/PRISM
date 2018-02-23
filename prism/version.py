@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
 
 """
+PRISM Version
+=============
 Stores the different versions of the PRISM package.
 
 """
 
-version = '0.1.1'
+
+# %% VERSIONS
+# Default/Latest version
+version = '0.1.2'

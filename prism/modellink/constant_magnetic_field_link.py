@@ -3,6 +3,21 @@
 # Constant Magnetic Field ModelLink
 # Compatible with Python 2.7
 
+"""
+ConstantMagneticFieldLink
+=========================
+Provides the definition of the :class:`~ConstantMagneticFieldLink` class.
+
+Available classes
+-----------------
+:class:`~ConstantMagneticFieldLink`
+    :class:`~ModelLink` class wrapper for the constant magnetic field model in
+    the IMAGINE pipeline, used for testing the functionality of the PRISM
+    pipeline.
+
+"""
+
+
 # %% IMPORTS
 from __future__ import absolute_import, division, print_function
 
@@ -20,6 +35,13 @@ logger = logging.getLogger('CMF-LINK')
 
 # %% CLASS DEFINITION
 class ConstantMagneticFieldLink(ModelLink):
+    """
+    :class:`~ModelLink` class wrapper for the constant magnetic field model in
+    the IMAGINE pipeline, used for testing the functionality of the PRISM
+    pipeline.
+
+    """
+
     def __init__(self, *args, **kwargs):
         self.hammuc = Hammurapy_constant(
                 350, 350, hammurabi_path='/home/evandervelden/'

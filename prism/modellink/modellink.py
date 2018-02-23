@@ -1,39 +1,60 @@
 # -*- coding: utf-8 -*-
 
-# Emulator model wrapper/link definition, Ellert van der Velden, 2017
+# Emulator model wrapper/link definition, Ellert van der Velden, 2017-2018
 # Do not run directly
 
+"""
+ModelLink
+=========
+Provides the definition of the :class:`~ModelLink` abstract base class.
+
+Available classes
+-----------------
+:class:`~ModelLink`
+    Provides an abstract base class definition that allows the
+    :class:`~Pipeline` class to be linked to any model/test object of choice.
+    Every model wrapper class used in the :class:`~Pipeline` class must be an
+    instance of the :class:`~ModelLink` class.
+
+"""
+
+
 # %% IMPORTS
+# Future imports
 from __future__ import absolute_import, division, print_function
+
+# Built-in imports
+import abc
+from os import path
 from six import with_metaclass
 
-import abc
+# Package imports
 import numpy as np
-from os import path
 
+# All declaration
 __all__ = ['ModelLink']
 
 
 # %% CLASS DEFINITION
 class ModelLink(with_metaclass(abc.ABCMeta, object)):
     """
-    Provides a base class definition that allows the :class:`~Emulator` class
-    to be linked to any model/test object of choice. Every model wrapper class
-    used in the :class:`~Emulator` class must be an instance of the
-    :class:`~ModelLink` class.
+    Provides an abstract base class definition that allows the
+    :class:`~Pipeline` class to be linked to any model/test object of choice.
+    Every model wrapper class used in the :class:`~Pipeline` class must be an
+    instance of the :class:`~ModelLink` class.
 
     """
 
     def __init__(self, model_parameters=None, model_data=None):
         """
-        Initialize an instance of the :class:`~ModelLink` base class.
+        Initialize an instance of the :class:`~ModelLink` abstract base class.
 
         Optional
         --------
         model_parameters : array_like, dict, str or None. Default: None
             Anything that can be converted to a dict that provides non-default
             model parameters information or *None* if only default information
-            is used from :func:`~_default_model_parameters`. For more
+            is used from :meth:`~_default_model_parameters`. For more
             information on the lay-out of this dict, see ``Notes``.
 
             If array_like, dict(model_parameters) must generate a dict with the
@@ -45,12 +66,24 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         model_data : array_like, str or None. Default: None
             Array containing the non-default data the model will be compared
             against, a filename with data that can be converted to it or *None*
-            if only default data is used from :func:`~_default_model_data`. For
+            if only default data is used from :meth:`~_default_model_data`. For
             more information on the lay-out of this array, see ``Notes``.
 
         Notes
         -----
-        TODO: Write the notes
+        The model parameters dict requires to have the name of the parameters
+        as the keyword, and a 1D list containing the lower bound, the upper
+        bound and, if applicable, the estimate of this parameter.
+        An example of a model parameters file can be found in the 'data' folder
+        of the PRISM package.
+
+        The model data array contains the data values in the first column, the
+        data errors in the second column and, if applicable, the data index in
+        the third column. The data index is a supportive index that can be used
+        to determine which model data output needs to be given to the PRISM
+        pipeline. The pipeline itself does not require this data index.
+        An example of a model data file can be found in the 'data' folder of
+        the PRISM package.
 
         """
 

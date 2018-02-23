@@ -1,18 +1,33 @@
 # -*- coding: utf-8 -*-
 
 """
-Setup file for the PRISM package.
+PRISM Setup
+===========
+Contains the setup script required for installing the PRISM package.
+This can be ran directly by using::
+
+    python setup.py install
 
 """
 
-from setuptools import find_packages, setup
+
+# %% IMPORTS
+# Built-in imports
 from codecs import open
+
+# Package imports
+from setuptools import find_packages, setup
+
+# PRISM imports
 from prism.version import version as __version__
 
+
+# %% SETUP DEFINITION
 # Get the long description from the README file
 with open('README.rst', 'r') as f:
     long_description = f.read()
 
+# Setup function declaration
 setup(name="prism_tool",
       version=__version__,
       author="Ellert van der Velden",

@@ -3,6 +3,24 @@
 """
 PRISM Internal
 ==============
+Contains a collection of support classes/functions for the PRISM package.
+
+Available classes
+-----------------
+:class:`~RequestError`
+    Generic exception raised for invalid action requests in the PRISM pipeline.
+
+Available functions
+-------------------
+:func:`~docstring_copy`
+    Custom decorator that allows the docstring of a function `source` to be
+    copied.
+:func:`~move_logger`
+    Moves the logging file `filename` from the current working directory to the
+    given `working_dir`, and then restarts it again.
+:func:`~start_logger`
+    Creates a logging file called `filename` in the current working directory,
+    opened with `mode` and starts the logger.
 
 """
 
@@ -29,8 +47,7 @@ __all__ = ['RequestError', 'docstring_copy', 'move_logger', 'start_logger']
 # Define Exception class for when a requested action is not possible
 class RequestError(Exception):
     """
-    Generic exception raised for invalid action requests in the
-    :class:`~Pipeline` class.
+    Generic exception raised for invalid action requests in the PRISM pipeline.
 
     General purpose exception class, raised whenever a requested action cannot
     be executed due to it not being allowed or possible in the current state of

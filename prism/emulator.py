@@ -3,42 +3,35 @@
 """
 Emulator
 ========
+Provides the definition of the class holding the emulator system of the PRISM
+package, the :class:`~Emulator` class.
+
+Available classes
+-----------------
+:class:`~Emulator`
+    Defines the :class:`~Emulator` class of the PRISM package.
 
 """
+
 
 # %% IMPORTS
 # Future imports
 from __future__ import absolute_import, division, print_function
 
-# Built-in imports
-from itertools import chain, combinations
-import os
-from os import path
-from time import strftime, strptime
-
 # Package imports
-from e13tools import InputError, ShapeError
+from e13tools import InputError
 from e13tools.math import diff, nearest_PD
-from e13tools.pyplot import draw_textline
-from e13tools.sampling import lhd
-import h5py
 import logging
-import matplotlib.cm as cm
-import matplotlib.pyplot as plt
-from mlxtend.feature_selection import ExhaustiveFeatureSelector as EFS
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
 from numpy.linalg import inv, norm
-from numpy.random import normal, random
-# TODO: Do some research on scipy.interpolate.Rbf later
-from scipy.interpolate import interp2d
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
 from sklearn.preprocessing import PolynomialFeatures as PF
 
 # PRISM imports
-from _internal import RequestError, docstring_copy, move_logger, start_logger
+from _internal import RequestError
 from modellink import ModelLink
 
 # All declaration
@@ -53,22 +46,30 @@ class Emulator(object):
 
     """
 
-    def __init__(self, prism_file, open_hdf5, close_hdf5):
+    def __init__(self, pipeline_obj):
         """
         Initialize an instance of the :class:`~Emulator` class.
+
+        Parameters
+        ----------
+        pipeline_obj : :obj:`~Pipeline` object
+            Instance of the :class:`~Pipeline` class that initialized this
+            class.
 
         """
 
         # Save keyword arguments
-        self._prism_file = prism_file
-        self._open_hdf5 = open_hdf5
-        self._close_hdf5 = close_hdf5
+        self._close_hdf5 = pipeline_obj._close_hdf5
+        self._hdf5_file = pipeline_obj._hdf5_file
+        self._open_hdf5 = pipeline_obj._open_hdf5
+        self._prism_file = pipeline_obj._prism_file
 
         # Load the emulator and data
         self._load_emulator()
 
 
 # %% CLASS PROPERTIES
+    # General details
     @property
     def prism_file(self):
         """
@@ -77,6 +78,15 @@ class Emulator(object):
         """
 
         return(self._prism_file)
+
+    @property
+    def hdf5_file(self):
+        """
+        Absolute path to the loaded HDF5-file.
+
+        """
+
+        return(self._hdf5_file)
 
     @property
     def emul_load(self):
@@ -106,6 +116,26 @@ class Emulator(object):
         """
 
         return(self._n_sam)
+
+    @property
+    def method(self):
+        """
+        String indicating which emulator method to use.
+        Possible are 'gaussian', 'regression' and 'full'.
+
+        """
+
+        return(self._method)
+
+    @property
+    def poly_order(self):
+        """
+        Polynomial order that is considered for the regression process.
+        If method='gaussian', this number is not required.
+
+        """
+
+        return(self._poly_order)
 
     # Active Parameters
     @property
@@ -225,6 +255,7 @@ class Emulator(object):
 
         return(self._prior_exp_sam_set)
 
+    # ModelLink
     @property
     def modellink(self):
         """
@@ -233,44 +264,6 @@ class Emulator(object):
         """
 
         return(self._modellink)
-
-    @modellink.setter
-    def modellink(self, modellink):
-        """
-        Sets the `modellink` property.
-
-        Parameters
-        ----------
-        modellink : :obj:`~ModelLink` object
-            Instance of the :class:`~ModelLink` class that links the emulated
-            model to this :obj:`~Pipeline` object.
-            The provided :obj:`~ModelLink` object must be the same as the one
-            used to construct the loaded emulator system.
-
-        """
-
-        # Check if a subclass of the ModelLink class has been provided
-        if not isinstance(modellink, ModelLink):
-            raise TypeError("Input argument 'model_link' must be an instance "
-                            "of the ModelLink class!")
-
-        # If an existing emulator system is loaded, check if classes are equal
-        if self._emul_load:
-            # Make abbreviations
-            modellink_loaded = self._modellink_name
-            modellink_given = modellink.__class__.__name__
-
-            if(modellink_given != modellink_loaded):
-                raise InputError("Provided ModelLink subclass %s is not equal "
-                                 "to ModelLink subclass %s used for emulator "
-                                 "construction!"
-                                 % (modellink_given, modellink_loaded))
-        # If not, set the name
-        else:
-            self._modellink_name = modellink.__class__.__name__
-
-        # Set ModelLink class
-        self._modellink = modellink
 
     @property
     def modellink_name(self):
@@ -282,26 +275,7 @@ class Emulator(object):
 
         return(self._modellink_name)
 
-    @property
-    def method(self):
-        """
-        String indicating which emulator method to use.
-        Possible are 'gaussian', 'regression' and 'full'.
-
-        """
-
-        return(self._method)
-
-    @property
-    def poly_order(self):
-        """
-        Polynomial order that is considered for the regression process.
-        If method='gaussian', this number is not required.
-
-        """
-
-        return(self._poly_order)
-
+    # Covariances
     @property
     def sigma(self):
         """
@@ -324,27 +298,21 @@ class Emulator(object):
 
 
 # %% GENERAL CLASS METHODS
-    # Check for hdf5-file type
+    # Get correct emulator iteration
     def _get_emul_i(self, emul_i):
         """
-        Checks what type of HDF5-file is provided and loads in the
-        corresponding emulator data. This method is called by visible methods
-        that allows for flexibility in the chosen emulator iteration `emul_i`.
+        Checks if the provided emulator iteration `emul_i` can be requested or
+        replaces it if *None* was provided.
 
         Parameters
         ----------
         emul_i : int or None
-            Number indicating the current emulator iteration.
-
-        Generates
-        ---------
-        All relevant emulator data corresponding to emulator iteration `emul_i`
-        is loaded into memory.
+            Number indicating the requested emulator iteration.
 
         Returns
         -------
         emul_i : int
-            Correct number indicating the current emulator iteration.
+            The requested emulator iteration that passed the check.
 
         """
 
@@ -352,7 +320,7 @@ class Emulator(object):
         logger = logging.getLogger('INIT')
         logger.info("Selecting emulator iteration for user-method.")
 
-        # Check what kind of hdf5-file was provided
+        # Check if provided emul_i is correct/allowed
         if(emul_i == 0 or self._emul_load == 0):
             raise RequestError("Emulator HDF5-file is not built yet!")
         elif emul_i is None:
@@ -368,13 +336,35 @@ class Emulator(object):
         return(emul_i)
 
     # Creates a new emulator file and writes all information to it
-    def _create_new_emulator(self):
+    def _create_new_emulator(self, use_mock):
         """
-        Creates a new emulator file.
+        Creates a new HDF5-file that holds all the information of a new
+        emulator system and writes all important emulator details to it.
+        Afterward, resets all loaded emulator data and prepares the HDF5-file
+        and emulator system for the construction of the first emulator
+        iteration.
+
+        Parameters
+        ----------
+        use_mock : bool
+            Bool indicating whether or not to use mock_data over real data in
+            the new emulator system.
+
+        Generates
+        ---------
+        A new HDF5-file contained in the working directory specified in the
+        :obj:`~Pipeline` instance, holding all information required to
+        construct the first iteration of the emulator system.
 
         """
+
+        # Start logger
+        logger = logging.getLogger('INIT')
+        logger.info("Creating a new emulator system in HDF5-file '%s'."
+                    % (self._hdf5_file))
 
         # If no constructed emulator was provided, it will be constructed now
+        # Therefore, set emul_load to 1 and emul_i to 0
         self._emul_load = 1
         self._emul_i = 0
 
@@ -391,6 +381,8 @@ class Emulator(object):
         file.attrs['poly_order'] = self._poly_order
         file.attrs['modellink_name'] =\
             self._modellink_name.encode('ascii', 'ignore')
+        if use_mock:
+            file.attrs['mock_par'] = self._modellink._par_estimate
 
         # Close hdf5-file
         self._close_hdf5(file)
@@ -401,25 +393,63 @@ class Emulator(object):
         # Prepare first emulator iteration to be constructed
         self._prepare_new_iteration(1)
 
+        # Logging again
+        logger.info("Finished creating new emulator system.")
+
     # Prepares the emulator for a new iteration
-    # TODO: Should _create_new_emulator be combined with this method?
+    # HINT: Should _create_new_emulator be combined with this method?
     def _prepare_new_iteration(self, emul_i):
         """
-        Prepares the emulator system for a new iteration.
+        Prepares the emulator system for the construction of a new iteration
+        `emul_i`. Checks if this iteration can be prepared or if it has been
+        prepared before, and acts accordingly.
+
+        Parameters
+        ----------
+        emul_i : int
+            Number indicating the requested emulator iteration.
+
+        Returns
+        -------
+        reload : bool
+            Bool indicating whether or not the :obj:`~Pipeline` instance needs
+            to reload its data.
+
+        Generates
+        ---------
+        A new group in the HDF5-file with the emulator iteration as its name,
+        containing subgroups corresponding to all different model comparison
+        data that will be used in this iteration.
+
+        Notes
+        -----
+        Preparing an iteration that has already been constructed, causes that
+        and all subsequent iterations of the emulator system to be deleted.
+        A check is carried out to see if it was necessary to reprepare the
+        requested iteration and a warning is given if this check fails.
 
         """
 
-        logger = logging.getLogger('EMUL-PREP')
+        # Logger
+        logger = logging.getLogger('EMUL_PREP')
+        logger.info("Preparing emulator iteration %s for construction."
+                    % (emul_i))
 
         # Check if new iteration can be constructed
+        logger.info("Checking if emulator iteration can be prepared.")
         if(emul_i == 1):
-            result = 0
+            # Set reload flag to 0
+            reload = 0
         elif not(1 <= emul_i-1 <= self._emul_i):
+            logger.error("Preparation of emulator iteration %s is only "
+                         "available when all previous iterations exist!"
+                         % (emul_i))
             raise RequestError("Preparation of emulator iteration %s is only "
                                "available when all previous iterations exist!"
                                % (emul_i))
         elif(emul_i-1 == self._emul_i):
-            result = 0
+            # Set reload flag to 0
+            reload = 0
         else:
             # TODO: Also delete all projection figures?
             logger.info("Emulator iteration %s already exists. Deleting "
@@ -447,6 +477,7 @@ class Emulator(object):
                     break
                 if not(self._data_idx[emul_i][i] in self._modellink._data_idx):
                     break
+            # If not, give out a warning
             else:
                 logger.warning("No differences in model comparison data "
                                "detected.\nUnless this repreparation was "
@@ -464,7 +495,8 @@ class Emulator(object):
             # Reload emulator data
             self._load_data(self._emul_i)
 
-            result = 1
+            # Set reload flag to 1
+            reload = 1
 
         # Open hdf5-file
         file = self._open_hdf5('r+')
@@ -503,14 +535,27 @@ class Emulator(object):
         self._data_err.append(data_err)
         self._data_idx.append(data_idx)
 
+        # Logging
+        logger.info("Finished preparing emulator iteration.")
+
         # Return the result
-        return(result)
+        return(reload)
 
     # This function constructs the emulator iteration emul_i
     def _construct_iteration(self, emul_i):
         """
         Constructs the emulator iteration corresponding to the provided
-        `emul_i`.
+        `emul_i`, by performing the given emulator method and calculating the
+        prior expectation and variance values of the model evaluation samples.
+
+        Parameters
+        ----------
+        emul_i : int
+            Number indicating the requested emulator iteration.
+
+        Generates
+        ---------
+        All data sets that are required to evaluate the emulator system.
 
         """
 
@@ -524,21 +569,21 @@ class Emulator(object):
 
     # This is function 'E_D(f(x'))'
     # This function gives the adjusted emulator expectation value back
-    def _get_adj_exp(self, emul_i, par_setp, cov_vec):
+    def _get_adj_exp(self, emul_i, par_set, cov_vec):
         """
         Calculates the adjusted emulator expectation value at a given emulator
-        iteration `emul_i` for specified parameter set `par_setp` and
+        iteration `emul_i` for specified parameter set `par_set` and
         corresponding covariance vector `cov_vec`.
 
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
-        par_setp : 1D array_like
+            Number indicating the requested emulator iteration.
+        par_set : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the adjusted emulator
             expectation for.
-        cov_vec : 2D array_like
-            Covariance vector corresponding to `par_setp`.
+        cov_vec : 2D :obj:`~numpy.ndarray` object
+            Covariance vector corresponding to `par_set`.
 
         Returns
         -------
@@ -550,17 +595,17 @@ class Emulator(object):
         # Log that adjusted expectation value is calculated
         logger = logging.getLogger('EMUL_EXP')
         logger.info("Calculating adjusted emulator expectation value at %s."
-                    % (par_setp))
+                    % (par_set))
 
-        # Obtain prior expectation value of par_setp
-        prior_exp_par_setp = self._get_prior_exp(emul_i, par_setp)
+        # Obtain prior expectation value of par_set
+        prior_exp_par_set = self._get_prior_exp(emul_i, par_set)
 
         # Create empty adj_exp_val
         adj_exp_val = np.zeros(self._n_data[emul_i])
 
-        # Calculate the adjusted emulator expectation value at given par_setp
+        # Calculate the adjusted emulator expectation value at given par_set
         for i in range(self._n_data[emul_i]):
-            adj_exp_val[i] = prior_exp_par_setp[i] +\
+            adj_exp_val[i] = prior_exp_par_set[i] +\
                 np.dot(np.transpose(cov_vec[i]),
                        np.dot(self._cov_mat_inv[emul_i][i],
                        (self._mod_set[emul_i][i] -
@@ -575,21 +620,21 @@ class Emulator(object):
 
     # This is function 'Var_D(f(x'))'
     # This function gives the adjusted emulator variance value back
-    def _get_adj_var(self, emul_i, par_setp, cov_vec):
+    def _get_adj_var(self, emul_i, par_set, cov_vec):
         """
         Calculates the adjusted emulator variance value at a given emulator
-        iteration `emul_i` for specified parameter set `par_setp` and
+        iteration `emul_i` for specified parameter set `par_set` and
         corresponding covariance vector `cov_vec`.
 
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
-        par_setp : 1D array_like
+            Number indicating the requested emulator iteration.
+        par_set : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the adjusted emulator
             variance for.
-        cov_vec : 2D array_like
-            Covariance vector corresponding to `par_setp`.
+        cov_vec : 2D :obj:`~numpy.ndarray` object
+            Covariance vector corresponding to `par_set`.
 
         Returns
         -------
@@ -601,17 +646,17 @@ class Emulator(object):
         # Log that adjusted emulator variance value is calculated
         logger = logging.getLogger('EMUL_VAR')
         logger.info("Calculating adjusted emulator variance value at %s."
-                    % (par_setp))
+                    % (par_set))
 
         # Obtain prior variance value of par_setp
-        prior_var_par_setp = self._get_prior_var(emul_i, par_setp)
+        prior_var_par_set = self._get_prior_var(emul_i, par_set)
 
         # Create empty adj_var_val
         adj_var_val = np.zeros(self._n_data[emul_i])
 
-        # Calculate the adjusted emulator variance value at given par_setp
+        # Calculate the adjusted emulator variance value at given par_set
         for i in range(self._n_data[emul_i]):
-            adj_var_val[i] = prior_var_par_setp[i] -\
+            adj_var_val[i] = prior_var_par_set[i] -\
                 np.dot(np.transpose(cov_vec[i]),
                        np.dot(self._cov_mat_inv[emul_i][i], cov_vec[i]))
 
@@ -628,6 +673,20 @@ class Emulator(object):
         """
         Evaluates the emulator system at iteration `emul_i` for given
         `par_set`.
+
+        Parameters
+        ----------
+        emul_i : int
+            Number indicating the requested emulator iteration.
+        par_set : 1D :obj:`~numpy.ndarray` object
+            Model parameter value set to evaluate the emulator at.
+
+        Returns
+        -------
+        adj_exp_val : 1D :obj:`~numpy.ndarray` object
+            Adjusted emulator expectation value for every data point.
+        adj_var_val : 1D :obj:`~numpy.ndarray` object
+            Adjusted emulator variance value for every data point.
 
         """
 
@@ -658,7 +717,7 @@ class Emulator(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
+            Number indicating the requested emulator iteration.
 
         Generates
         ---------
@@ -770,8 +829,8 @@ class Emulator(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
-        par_set : 1D array_like or None
+            Number indicating the requested emulator iteration.
+        par_set : 1D :obj:`~numpy.ndarray` object or None
             If *None*, calculate the prior expectation values of sam_set.
             If not *None*, calculate the prior expectation value for the given
             model parameter value set.
@@ -836,7 +895,7 @@ class Emulator(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
+            Number indicating the requested emulator iteration.
 
         Generates
         ---------
@@ -872,8 +931,8 @@ class Emulator(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
-        par_set : 1D array_like
+            Number indicating the requested emulator iteration.
+        par_set : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the prior variance for.
 
         Returns
@@ -896,8 +955,8 @@ class Emulator(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
-        par_set1, par_set2 : 1D array_like or None
+            Number indicating the requested emulator iteration.
+        par_set1, par_set2 : 1D :obj:`~numpy.ndarray` object or None
             If par_set1 and par_set2 are both not *None*, calculate covariance
             between par_set1 and par_set2.
             If par_set1 is not *None* and par_set2 is *None*, calculate
@@ -1025,8 +1084,8 @@ class Emulator(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
-        par_set1, par_set2 : 1D array_like or None
+            Number indicating the requested emulator iteration.
+        par_set1, par_set2 : 1D :obj:`~numpy.ndarray` object or None
             If par_set1 and par_set2 are both not *None*, calculate regression
             covariance values for par_set1 with par_set2.
             If par_set1 is not *None* and par_set2 is *None*, calculate
@@ -1123,7 +1182,7 @@ class Emulator(object):
         return(regr_cov)
 
     # This is function 'Cov(f(x'), D)' or 't(x')'
-    # OPTIMIZE: Calculate cov_vec for all samples at once to save time?
+    # HINT: Calculate cov_vec for all samples at once to save time?
     def _get_cov_vector(self, emul_i, par_setp):
         """
         Calculates the column vector of covariances between given (`par_setp`)
@@ -1133,8 +1192,8 @@ class Emulator(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
-        par_setp : 1D array_like
+            Number indicating the requested emulator iteration.
+        par_setp : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the covariances vector
             for.
 
@@ -1169,7 +1228,7 @@ class Emulator(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
+            Number indicating the requested emulator iteration.
 
         Generates
         ---------
@@ -1247,25 +1306,28 @@ class Emulator(object):
     # Load the emulator
     def _load_emulator(self):
         """
-        Loads the emulator.
+        Checks if the provided HDF5-file contains a constructed emulator system
+        and loads in the emulator data accordingly.
 
         """
 
         # Make logger
-        logger = logging.getLogger('EMUL-LOAD')
+        logger = logging.getLogger('EMUL_LOAD')
+        logger.info("Loading emulator system.")
 
         # Check if an existing hdf5-file is provided
         try:
-            logger.info("Checking if a constructed emulator HDF5-file is "
-                        "provided.")
+            logger.info("Checking if provided emulator file '%s' is a "
+                        "constructed emulator system."
+                        % (self._hdf5_file))
             file = self._open_hdf5('r')
         except (OSError, IOError):
             # No existing emulator was provided
             self._emul_load = 0
             logger.info("Non-existing HDF5-file provided.")
             self._emul_i = 0
-#            self._read_parameters()     # TODO: Is this line necessary?
         else:
+            # Existing emulator was provided
             self._emul_load = 1
             logger.info("Constructed emulator HDF5-file provided.")
             self._emul_i = len(file.items())
@@ -1275,29 +1337,81 @@ class Emulator(object):
         # Load emulator data
         self._load_data(self._emul_i)
 
+        # Logging
+        logger.info("Finished loading emulator system.")
+
+    # This function connects the provided ModelLink class to the pipeline
+    def _set_modellink(self, modellink):
+        """
+        Sets the :obj:`~ModelLink` object that will be used for constructing
+        this emulator system. If a constructed emulator system is present,
+        checks if provided `modellink` argument matches the :class:`~ModelLink`
+        subclass used to construct it.
+
+        Parameters
+        ----------
+        modellink : :obj:`~ModelLink` object
+            Instance of the :class:`~ModelLink` class that links the emulated
+            model to this :obj:`~Pipeline` object.
+            The provided :obj:`~ModelLink` object must match the one used to
+            construct the loaded emulator system.
+
+        """
+
+        # Logging
+        logger = logging.getLogger('INIT')
+        logger.info("Setting ModelLink object.")
+
+        # Check if a subclass of the ModelLink class has been provided
+        if not isinstance(modellink, ModelLink):
+            logger.error("Input argument 'modellink' must be an instance of "
+                         "the ModelLink class!")
+            raise TypeError("Input argument 'modellink' must be an instance "
+                            "of the ModelLink class!")
+
+        # If an existing emulator system is loaded, check if classes are equal
+        if self._emul_load:
+            # Make abbreviations
+            modellink_loaded = self._modellink_name
+            modellink_given = modellink.__class__.__name__
+
+            if(modellink_given != modellink_loaded):
+                logger.error("Provided ModelLink subclass '%s' does not match "
+                             "the ModelLink subclass '%s' used for emulator "
+                             "construction!"
+                             % (modellink_given, modellink_loaded))
+                raise InputError("Provided ModelLink subclass '%s' does not "
+                                 "match the ModelLink subclass '%s' used for "
+                                 "emulator construction!"
+                                 % (modellink_given, modellink_loaded))
+        # If not, set the name
+        else:
+            self._modellink_name = modellink.__class__.__name__
+
+        # Set ModelLink class
+        self._modellink = modellink
+
+        # Logging
+        logger.info("ModelLink object set to '%s'."
+                    % (self._modellink_name))
+
     # Function that loads in the emulator data
     # TODO: Write code that allows part of the data to be loaded in (crashing)
     # and forces the pipeline to continue where data starts missing
     def _load_data(self, emul_i):
         """
-        Loads in all the important emulator data corresponding to emulator
-        iteration `emul_i` into memory, if this is not loaded already.
+        Loads in all the important emulator data up to emulator iteration
+        `emul_i` into memory.
 
         Parameters
         ----------
-        emul_i : int or None
-            Number indicating the current emulator iteration.
-
-        Optional
-        --------
-        init : bool. Default: False
-            Bool indicating whether or not this method is called during class
-            initialization.
+        emul_i : int
+            Number indicating the requested emulator iteration.
 
         Generates
         ---------
-        All relevant emulator data corresponding to emulator iteration `emul_i`
-        is loaded into memory, if not loaded already.
+        All relevant emulator data up to emulator iteration `emul_i` is loaded
+        into memory.
 
         """
 
@@ -1417,18 +1531,16 @@ class Emulator(object):
         """
         Saves the provided `data` for the specified data-type `keyword` at the
         given emulator iteration `emul_i` to the HDF5-file and as an data
-        attribute to the current :obj:`~Emulator` instance if required.
+        attribute to the current :obj:`~Emulator` instance.
 
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
-        keyword : str
-            String specifying the type of data that needs to be saved. Possible
-            are 'sam_set', 'mod_set', 'cov_mat', 'prior_exp_sam_set',
-            'impl_sam', '1D_proj_hcube', '2D_proj_hcube', 'nD_proj_hcube',
-            'regression' and 'active_par'.
-        data : array_like
+            Number indicating the requested emulator iteration.
+        keyword : {'active_par', 'cov_mat', 'mod_set', 'prior_exp_sam_set',\
+                   'regression', 'sam_set'}
+            String specifying the type of data that needs to be saved.
+        data : list
             The actual data that needs to be saved at data keyword `keyword`.
 
         Generates
@@ -1446,22 +1558,40 @@ class Emulator(object):
         file = self._open_hdf5('r+')
 
         # Check what data keyword has been provided
-        # SAM_SET
-        if keyword in ('sam_set'):
-            file.create_dataset('%s/sam_set' % (emul_i), data=data)
-            file['%s' % (emul_i)].attrs['n_sam'] = np.shape(data)[0]
-            self._sam_set.append(data)
-            self._n_sam.append(np.shape(data)[0])
+        # ACTIVE PARAMETERS
+        if(keyword == 'active_par'):
+            file.create_dataset('%s/active_par' % (emul_i), data=data[0])
+            for i in range(self._n_data[emul_i]):
+                file.create_dataset('%s/data_set_%s/active_par_data'
+                                    % (emul_i, i), data=data[1][i])
+            self._active_par.append(data[0])
+            self._active_par_data.append(data[1])
+
+        # COV_MAT
+        elif(keyword == 'cov_mat'):
+            for i in range(self._n_data[emul_i]):
+                file.create_dataset('%s/data_set_%s/cov_mat' % (emul_i, i),
+                                    data=data[0][i])
+                file.create_dataset('%s/data_set_%s/cov_mat_inv' % (emul_i, i),
+                                    data=data[1][i])
+            self._cov_mat_inv.append(data[1])
 
         # MOD_SET
-        elif keyword in ('mod_set'):
+        elif(keyword == 'mod_set'):
             for i in range(self._n_data[emul_i]):
                 file.create_dataset('%s/data_set_%s/mod_set'
                                     % (emul_i, i), data=data[i])
             self._mod_set.append(data)
 
+        # PRIOR_EXP_SAM_SET
+        elif(keyword == 'prior_exp_sam_set'):
+            for i in range(self._n_data[emul_i]):
+                file.create_dataset('%s/data_set_%s/prior_exp_sam_set'
+                                    % (emul_i, i), data=data[i])
+            self._prior_exp_sam_set.append(data)
+
         # REGRESSION
-        elif keyword in ('regression'):
+        elif(keyword == 'regression'):
             for i in range(self._n_data[emul_i]):
                 file['%s/data_set_%s' % (emul_i, i)].attrs['rsdl_var'] =\
                     data[0][i]
@@ -1479,66 +1609,16 @@ class Emulator(object):
             self._poly_powers.append(data[3])
             self._poly_idx.append(data[4])
 
-        # IMPL_SAM
-        elif keyword in ('impl_sam'):
-            # Save if any plausible regions have been found at all
-            if(np.shape(data)[0] == 0):
-                file['%s' % (emul_i)].attrs['prc'] = 0
-                self._prc.append(0)
-            else:
-                file['%s' % (emul_i)].attrs['prc'] = 1
-                self._prc.append(1)
+        # SAM_SET
+        elif(keyword == 'sam_set'):
+            file.create_dataset('%s/sam_set' % (emul_i), data=data)
+            file['%s' % (emul_i)].attrs['n_sam'] = np.shape(data)[0]
+            self._sam_set.append(data)
+            self._n_sam.append(np.shape(data)[0])
 
-            # Save impl_sam
-            file.create_dataset('%s/impl_sam' % (emul_i), data=data)
-            self._impl_sam.append(data)
-
-        # PRIOR_EXP_SAM_SET
-        elif keyword in ('prior_exp_sam_set'):
-            for i in range(self._n_data[emul_i]):
-                file.create_dataset('%s/data_set_%s/prior_exp_sam_set'
-                                    % (emul_i, i), data=data[i])
-            self._prior_exp_sam_set.append(data)
-
-        # COV_MAT
-        elif keyword in ('cov_mat'):
-            for i in range(self._n_data[emul_i]):
-                file.create_dataset('%s/data_set_%s/cov_mat' % (emul_i, i),
-                                    data=data[0][i])
-                file.create_dataset('%s/data_set_%s/cov_mat_inv' % (emul_i, i),
-                                    data=data[1][i])
-            self._cov_mat_inv.append(data[1])
-
-        # 2D_PROJ_HCUBE
-        elif keyword in ('2D_proj_hcube'):
-            file.create_dataset('%s/proj_hcube/%s/impl_min'
-                                % (emul_i, self._par_names[data[0][0]]),
-                                data=data[1])
-            file.create_dataset('%s/proj_hcube/%s/impl_los'
-                                % (emul_i, self._par_names[data[0][0]]),
-                                data=data[2])
-
-        # ND_PROJ_HCUBE
-        elif keyword in ('nD_proj_hcube'):
-            file.create_dataset('%s/proj_hcube/%s-%s/impl_min'
-                                % (emul_i, self._par_names[data[0][0]],
-                                   self._par_names[data[0][1]]),
-                                data=data[1])
-            file.create_dataset('%s/proj_hcube/%s-%s/impl_los'
-                                % (emul_i, self._par_names[data[0][0]],
-                                   self._par_names[data[0][1]]),
-                                data=data[2])
-
-        # ACTIVE PARAMETERS
-        elif keyword in ('active_par'):
-            file.create_dataset('%s/active_par' % (emul_i), data=data[0])
-            for i in range(self._n_data[emul_i]):
-                file.create_dataset('%s/data_set_%s/active_par_data'
-                                    % (emul_i, i), data=data[1][i])
-            self._active_par.append(data[0])
-            self._active_par_data.append(data[1])
-
+        # INVALID KEYWORD
         else:
+            logger.error("Invalid keyword argument provided!")
             raise ValueError("Invalid keyword argument provided!")
 
         # Close hdf5-file
@@ -1555,14 +1635,14 @@ class Emulator(object):
 
         """
 
-        # Log that attributes are being read
+        # Log that parameters are being read
         logger = logging.getLogger('INIT')
-        logger.info("Reading attributes from provided HDF5-file.")
+        logger.info("Retrieving emulator parameters from provided HDF5-file.")
 
         # Open hdf5-file
         file = self._open_hdf5('r')
 
-        # Read in all the emulator attributes
+        # Read in all the emulator parameters
         self._sigma = file.attrs['sigma']
         self._l_corr = file.attrs['l_corr']
         self._method = file.attrs['method'].decode('utf-8')
@@ -1573,7 +1653,7 @@ class Emulator(object):
         self._close_hdf5(file)
 
         # Log that reading is finished
-        logger.info("Finished reading attributes.")
+        logger.info("Finished retrieving parameters.")
 
     # This function automatically loads default emulator parameters
     def _get_default_parameters(self):

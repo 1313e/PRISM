@@ -3,8 +3,16 @@
 """
 Projection
 ==========
+Provides the definition of PRISM's :class:`~Projection` class, that allows for
+projection figures detailing a model's behavior to be created.
+
+Available classes
+-----------------
+:class:`~Projection`
+    Defines the :class:`~Projection` class of the PRISM package.
 
 """
+
 
 # %% IMPORTS
 # Future imports
@@ -12,35 +20,21 @@ from __future__ import absolute_import, division, print_function
 
 # Built-in imports
 from itertools import chain, combinations
-import os
 from os import path
-from time import strftime, strptime
 
 # Package imports
 from e13tools import InputError, ShapeError
-from e13tools.math import diff, nearest_PD
 from e13tools.pyplot import draw_textline
 from e13tools.sampling import lhd
-import h5py
 import logging
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
-from mlxtend.feature_selection import ExhaustiveFeatureSelector as EFS
-from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
-from numpy.linalg import inv, norm
-from numpy.random import normal, random
 # TODO: Do some research on scipy.interpolate.Rbf later
 from scipy.interpolate import interp1d, interp2d
-from sklearn.linear_model import LinearRegression as LR
-from sklearn.metrics import mean_squared_error as mse
-from sklearn.pipeline import Pipeline as Pipeline_skl
-from sklearn.preprocessing import PolynomialFeatures as PF
 
 # PRISM imports
-from _internal import RequestError, docstring_copy, move_logger, start_logger
-from emulator import Emulator
-from modellink import ModelLink
+from _internal import RequestError
 
 # All declaration
 __all__ = ['Projection']
@@ -48,17 +42,31 @@ __all__ = ['Projection']
 
 # %% PROJECTION CLASS DEFINITION
 # TODO: Write docstrings
+# TODO: Make something like Figure 4 in Bower et al
 class Projection(object):
     """
     Defines the :class:`~Projection` class of the PRISM package.
 
     """
 
-    def __init__(self, pipeline):
-        self._pipeline = pipeline
-        self._modellink = self._pipeline._modellink
-        self._emulator = self._pipeline._emulator
+    def __init__(self, pipeline_obj):
+        """
+        Initialize an instance of the :class:`~Projection` class.
 
+        Parameters
+        ----------
+        pipeline_obj : :obj:`~Pipeline` object
+            Instance of the :class:`~Pipeline` class that initialized this
+            class.
+
+        """
+
+        # Save Pipeline, Emulator and ModelLink objects as attributes
+        self._pipeline = pipeline_obj
+        self._emulator = self._pipeline._emulator
+        self._modellink = self._pipeline._modellink
+
+    # Function that creates all projection figures
     def __call__(self, emul_i=None, proj_par=None, figure=True, show=False,
                  force=False):
         """
@@ -70,10 +78,8 @@ class Projection(object):
         Optional
         --------
         emul_i : int or None. Default: None
-            If an existing constructor file was provided during class
-            initialization, the iteration of the emulator corresponding to
-            `emul_i` will be used automatically.
-            If *None*, the last iteration of the currently loaded emulator will
+            If int, number indicating the requested emulator iteration.
+            If *None*, the last iteration of the loaded emulator system will
             be used.
         proj_par : 1D array_like of {int, str} or None. Default: None
             For which model parameters to construct the projection figures.
@@ -89,27 +95,21 @@ class Projection(object):
             the data required to create the figures is calculated and saved in
             the HDF5-file, but the figures themselves are not created.
         show : bool. Default: False
-            If `figure` is *True*, whether or not to show the figure after it
-            has been created.
+            If `figure` is *True*, whether or not to show a figure after it has
+            been created.
         force : bool. Default: False
             Controls what to do if a projection cube has been calculated at the
             emulator iteration `emul_i` before.
             If *False*, it will use the previously acquired projection data to
-            create the projection figures.
+            create the projection figure.
             If *True*, it will recalculate all the data required to create the
-            projection figures.
+            projection figure.
 
         Generates
         ---------
         A series of projection figures detailing the behavior of the model.
         The lay-out and output of the projection figures depend on the number
         of model parameters `par_dim`:
-            *par_dim = 1*: The output will feature two subplots for every data
-            point used in the emulator construction. The top subplot shows the
-            emulators expectation and variance values, while the bottom subplot
-            shows the corresponding implausibility values at all tested
-            emulator evaluation samples.
-
             *par_dim = 2*: The output will feature two figures for the two
             model parameters with two subplots each. Every figure gives details
             about the behavior of the corresponding model parameter, by showing
@@ -118,8 +118,8 @@ class Projection(object):
             the value of the other parameter.
 
             *par_dim > 2*: The output will feature a figure with two subplots
-            for every combination of two model parameters that can be made
-            (par_dim*(par_dim-1)/2). Every figure gives details about the
+            for every combination of two active model parameters that can be
+            made (par_dim*(par_dim-1)/2). Every figure gives details about the
             behavior of the corresponding model parameters, as well as their
             dependency on each other. This is done by showing the minimum
             implausibility (top) and the line-of-sight depth (bottom) obtained
@@ -183,8 +183,9 @@ class Projection(object):
             elif(self._modellink._par_dim > 2 and len(proj_par) >= 2):
                 pass
             else:
-                raise InputError("Not enough active model parameters have been"
-                                 " provided to make a projection figure!")
+                raise RequestError("Not enough active model parameters have "
+                                   "been provided to make a projection "
+                                   "figure!")
 
         # Obtain list of cube names
         if(self._modellink._par_dim == 2):
@@ -255,9 +256,6 @@ class Projection(object):
 
         # Close hdf5-file
         self._pipeline._close_hdf5(file)
-
-        # Make sure create_cube_par is a numpy array
-#       create_cube_par = np.array(create_cube_par)
 
         # 2+D
         # Loop over all requested projection cubes
@@ -539,7 +537,7 @@ class Projection(object):
         logger.info("Finished projection.")
 
 
-# %% CLASS PROPERTIES
+ # %% CLASS PROPERTIES
     @property
     def n_proj_samples(self):
         """
@@ -570,57 +568,6 @@ class Projection(object):
 
         return(self._impl_cut)
 
-    @impl_cut.setter
-    # This function completes the list of implausibility cut-offs
-    def impl_cut(self, impl_cut):
-        """
-        Generates the full list of impl_cut-offs from the incomplete, shortened
-        list provided during class initialization.
-
-        Parameters
-        ----------
-        impl_cut : 1D list
-            Incomplete, shortened impl_cut-offs list provided during class
-            initialization.
-
-        Generates
-        ---------
-        impl_cut : 1D list
-            Full list containing the impl_cut-offs for all data points provided
-            to the emulator.
-        cut_idx : int
-            Index of the first impl_cut-off in the impl_cut list that is not
-            0.
-
-        """
-
-        # Log that impl_cut-off list is being acquired
-        logger = logging.getLogger('INIT')
-        logger.info("Generating full implausibility cut-off list.")
-
-        # Complete the impl_cut list
-        for i in range(len(impl_cut)):
-            if(impl_cut[i] == 0 and i == 0):
-                pass
-            elif(impl_cut[i] == 0):
-                impl_cut[i] = impl_cut[i-1]
-            elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
-                raise ValueError("Cut-off %s is higher than cut-off %s "
-                                 "(%s > %s)" % (i, i-1, impl_cut[i],
-                                                impl_cut[i-1]))
-
-        # Get the index identifying where the first real impl_cut is
-        for i, impl in enumerate(impl_cut):
-            if(impl != 0):
-                cut_idx = i
-                break
-
-        # Save both impl_cut and cut_idx
-        self._save_data('impl_cut', [impl_cut, cut_idx])
-
-        # Log end of process
-        logger.info("Finished generating implausibility cut-off list.")
-
     @property
     def cut_idx(self):
         """
@@ -636,9 +583,29 @@ class Projection(object):
     def _get_impl_par(self):
         """
         Reads in the impl_cut list and other parameters for implausibility
-        evaluations from the PRISM parameters file.
+        evaluations from the PRISM parameters file and saves them in the
+        emulator iteration this class was initialized for.
+
+        Generates
+        ---------
+        impl_cut : 1D :obj:`~numpy.ndarray` object
+            Full list containing the impl_cut-offs for all data points provided
+            to the emulator.
+        cut_idx : int
+            Index of the first impl_cut-off in the impl_cut list that is not
+            0.
+        n_proj_samples : int
+            Number of emulator evaluations used to generate the grid for the
+            projection figures.
+        n_hidden_samples : int
+            Number of emulator evaluations used to generate the samples in
+            every grid point for the projection figures.
 
         """
+
+        # Do some logging
+        logger = logging.getLogger('INIT')
+        logger.info("Obtaining implausibility analysis parameters.")
 
         # Obtain the impl_cut and cut_idx up to this iteration from pipeline
         self._impl_cut = list(self._pipeline._impl_cut[:self._emul_i])
@@ -660,12 +627,16 @@ class Projection(object):
 
         # Implausibility cut-off
         impl_cut_str = str(par_dict['impl_cut']).replace(',', '').split()
-        self.impl_cut = list(float(impl_cut) for impl_cut in impl_cut_str)
+        self._pipeline._get_impl_cut(
+            self, list(float(impl_cut) for impl_cut in impl_cut_str))
 
         # Number of samples used for implausibility evaluations
         self._save_data('n_proj_samples',
                         [int(par_dict['n_proj_samples']),
                          int(par_dict['n_hidden_samples'])])
+
+        # Finish logging
+        logger.info("Finished obtaining implausibility analysis parameters.")
 
     # This function automatically loads default pipeline parameters
     def _get_default_parameters(self):
@@ -686,7 +657,7 @@ class Projection(object):
 
         # Create parameter dict with default parameters
         par_dict = {'n_proj_samples': '15',
-                    'n_hidden_samples': '75',
+                    'n_hidden_samples': '150',
                     'impl_cut': '0, 4.0, 3.8, 3.5'}
 
         # Log end
@@ -834,8 +805,6 @@ class Projection(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the current emulator iteration.
         proj_hcube : 2D array_like
             2D projection hypercube containing all the emulator evaluation
             samples that are required to make the projection figures.
@@ -918,17 +887,14 @@ class Projection(object):
     def _save_data(self, keyword, data):
         """
         Saves the provided `data` for the specified data-type `keyword` at the
-        given emulator iteration `emul_i` to the HDF5-file and as an data
-        attribute to the current :obj:`~Projection` instance if required.
+        emulator iteration this class was initialized for, to the HDF5-file.
 
         Parameters
         ----------
-        keyword : str
-            String specifying the type of data that needs to be saved. Possible
-            are 'sam_set', 'mod_set', 'cov_mat', 'prior_exp_sam_set',
-            'impl_sam', '1D_proj_hcube', '2D_proj_hcube', 'nD_proj_hcube',
-            'regression' and 'active_par'.
-        data : array_like
+        keyword : {'2D_proj_hcube', 'impl_cut', 'n_proj_samples', \
+                   'nD_proj_hcube'}
+            String specifying the type of data that needs to be saved.
+        data : list
             The actual data that needs to be saved at data keyword `keyword`.
 
         Generates
@@ -946,7 +912,7 @@ class Projection(object):
         file = self._pipeline._open_hdf5('r+')
 
         # 2D_PROJ_HCUBE
-        if keyword in ('2D_proj_hcube'):
+        if(keyword == '2D_proj_hcube'):
             file.create_dataset('%s/proj_hcube/%s/impl_min'
                                 % (self._emul_i,
                                    self._modellink._par_names[data[0][0]]),
@@ -956,21 +922,9 @@ class Projection(object):
                                    self._modellink._par_names[data[0][0]]),
                                 data=data[2])
 
-        # ND_PROJ_HCUBE
-        elif keyword in ('nD_proj_hcube'):
-            file.create_dataset('%s/proj_hcube/%s-%s/impl_min'
-                                % (self._emul_i,
-                                   self._modellink._par_names[data[0][0]],
-                                   self._modellink._par_names[data[0][1]]),
-                                data=data[1])
-            file.create_dataset('%s/proj_hcube/%s-%s/impl_los'
-                                % (self._emul_i,
-                                   self._modellink._par_names[data[0][0]],
-                                   self._modellink._par_names[data[0][1]]),
-                                data=data[2])
-
         # IMPL_CUT
-        elif keyword in ('impl_cut'):
+        elif(keyword == 'impl_cut'):
+            # Check if projection has been created before
             try:
                 file.create_group('%s/proj_hcube' % (self._emul_i))
             except ValueError:
@@ -982,7 +936,8 @@ class Projection(object):
             file['%s/proj_hcube' % (self._emul_i)].attrs['cut_idx'] = data[1]
 
         # N_PROJ_SAMPLES
-        elif keyword in ('n_proj_samples'):
+        elif(keyword == 'n_proj_samples'):
+            # CHeck if projection has been created before
             try:
                 file.create_group('%s/proj_hcube' % (self._emul_i))
             except ValueError:
@@ -995,7 +950,22 @@ class Projection(object):
             file['%s/proj_hcube' % (self._emul_i)].attrs['n_hidden_samples'] =\
                 data[1]
 
+        # ND_PROJ_HCUBE
+        elif(keyword == 'nD_proj_hcube'):
+            file.create_dataset('%s/proj_hcube/%s-%s/impl_min'
+                                % (self._emul_i,
+                                   self._modellink._par_names[data[0][0]],
+                                   self._modellink._par_names[data[0][1]]),
+                                data=data[1])
+            file.create_dataset('%s/proj_hcube/%s-%s/impl_los'
+                                % (self._emul_i,
+                                   self._modellink._par_names[data[0][0]],
+                                   self._modellink._par_names[data[0][1]]),
+                                data=data[2])
+
+        # INVALID KEYWORD
         else:
+            logger.error("Invalid keyword argument provided!")
             raise ValueError("Invalid keyword argument provided!")
 
         # Close hdf5-file

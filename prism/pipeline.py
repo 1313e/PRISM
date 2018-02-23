@@ -3,44 +3,39 @@
 """
 Pipeline
 ========
+Provides the definition of the main class of the PRISM package, the
+:class:`~Pipeline` class.
+
+Available classes
+-----------------
+:class:`~Pipeline`
+    Defines the :class:`~Pipeline` class of the PRISM package.
 
 """
+
 
 # %% IMPORTS
 # Future imports
 from __future__ import absolute_import, division, print_function
 
 # Built-in imports
-from itertools import chain, combinations
 import os
 from os import path
 from time import strftime, strptime
 
 # Package imports
-from e13tools import InputError, ShapeError
-from e13tools.math import diff, nearest_PD
-from e13tools.pyplot import draw_textline
+from e13tools import InputError
 from e13tools.sampling import lhd
 import h5py
 import logging
-import matplotlib.cm as cm
-import matplotlib.pyplot as plt
 from mlxtend.feature_selection import ExhaustiveFeatureSelector as EFS
-from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
-from numpy.linalg import inv, norm
 from numpy.random import normal, random
-# TODO: Do some research on scipy.interpolate.Rbf later
-from scipy.interpolate import interp2d
 from sklearn.linear_model import LinearRegression as LR
-from sklearn.metrics import mean_squared_error as mse
-from sklearn.pipeline import Pipeline as Pipeline_skl
-from sklearn.preprocessing import PolynomialFeatures as PF
 
 # PRISM imports
 from _internal import RequestError, docstring_copy, move_logger, start_logger
 from emulator import Emulator
-from modellink import ModelLink
 from projection import Projection
 
 # All declaration
@@ -49,6 +44,14 @@ __all__ = ['Pipeline']
 
 # %% PIPELINE CLASS DEFINITION
 # TODO: Write docstrings
+# OPTIMIZE: Introduce multiple versions of functions/methods that are loaded in
+# This way, the Pipeline only has to do versatility checks once and not every
+# single time, thus removing many if-statements by just loading the correct
+# function in during class initialization.
+# TODO: Rewrite PRISM into MPI
+# TODO: Allow user to switch between emulation and modelling
+# TODO: Implement multivariate implausibilities
+# TODO: Implement checks for user-provided ints, floats, positive, negative...
 class Pipeline(object):
     """
     Defines the :class:`~Pipeline` class of the PRISM package.
@@ -56,7 +59,7 @@ class Pipeline(object):
     """
 
     def __init__(self, modellink, root_dir=None, working_dir=None,
-                 prefix='emul_', hdf5_file='prism.hdf5',
+                 prefix='prism_', hdf5_file='prism.hdf5',
                  prism_file='prism.txt'):
         """
         Initialize an instance of the :class:`~Pipeline` class.
@@ -79,7 +82,7 @@ class Pipeline(object):
             `root_dir`. If *None*, working directory is set to the last one
             that was created in `root_dir`. If no directories are found, one
             will be created.
-        prefix : str. Default: 'emul_'
+        prefix : str. Default: 'prism_'
             String containing a prefix that is used for naming new working
             directories or scan for existing ones.
         hdf5_file : str. Default: 'prism.hdf5'
@@ -116,17 +119,16 @@ class Pipeline(object):
         move_logger(self._working_dir)
 
         # Initialize Emulator class
-        self._emulator = Emulator(self._prism_file, self._open_hdf5,
-                                  self._close_hdf5)
+        self._emulator = Emulator(self)
 
         # Link provided ModelLink subclass to Emulator class
-        self._emulator.modellink = modellink
+        self._emulator._set_modellink(modellink)
 
         # Link provided ModelLink subclass to Pipeline class
         self._modellink = self._emulator._modellink
         self._modellink_name = self._emulator._modellink_name
 
-        # Read in pipeline parameters
+        # Read/load in pipeline parameters
         self._read_parameters()
         self._load_data()
 
@@ -143,10 +145,8 @@ class Pipeline(object):
         Optional
         --------
         emul_i : int or None. Default: None
-            If a constructed emulator file was provided during class
-            initialization, the iteration of the emulator corresponding to
-            `emul_i` will be used automatically.
-            If *None*, the last iteration of the currently loaded emulator will
+            If int, number indicating the requested emulator iteration.
+            If *None*, the last iteration of the loaded emulator system will
             be used.
 
         """
@@ -161,12 +161,16 @@ class Pipeline(object):
         except Exception:
             raise
         else:
+            # Perform projection
             if self._prc[emul_i]:
                 self.create_projection(emul_i)
-                self.details(emul_i)
+
+            # Print details
+            self.details(emul_i)
 
 
 # %% CLASS PROPERTIES
+    # TODO: Hide class attributes that do not exist yet
     # Pipeline Settings/Attributes/Details
     @property
     def root_dir(self):
@@ -264,7 +268,7 @@ class Pipeline(object):
     @property
     def do_active_par(self):
         """
-        Bool determining whether or not to use active parameters.
+        Bool indicating whether or not to use active parameters.
 
         """
 
@@ -273,8 +277,8 @@ class Pipeline(object):
     @property
     def n_sam_init(self):
         """
-        Initial number of model evaluation samples in currently loaded emulator
-        instance.
+        Number of evaluation samples used to construct the first iteration of
+        the emulator system.
 
         """
 
@@ -283,88 +287,29 @@ class Pipeline(object):
     @property
     def n_eval_samples(self):
         """
-        Base number of emulator evaluations used to scan the plausible
-        parameter region and update the emulator. This number is scaled up by
-        the number of model parameters and the current emulator iteration to
-        generate the true number of emulator evaluations.
+        Array with the base number of emulator evaluations used to scan the
+        plausible parameter region and update the emulator system. This number
+        is scaled up by the number of model parameters and the current emulator
+        iteration to generate the true number of emulator evaluations.
 
         """
 
         return(self._n_eval_samples)
 
-    @n_eval_samples.setter
-    def n_eval_samples(self, n_eval_samples):
-        if isinstance(n_eval_samples, int):
-            self._save_data('n_eval_samples', n_eval_samples)
-        else:
-            raise TypeError("Input argument 'n_eval_samples' must be of type "
-                            "'int'!")
-
     @property
     def impl_cut(self):
         """
-        List containing all univariate implausibility cut-offs. A zero
+        List of lists containing all univariate implausibility cut-offs. A zero
         indicates a wildcard.
 
         """
 
         return(self._impl_cut)
 
-    @impl_cut.setter
-    # This function completes the list of implausibility cut-offs
-    def impl_cut(self, impl_cut):
-        """
-        Generates the full list of impl_cut-offs from the incomplete, shortened
-        list provided during class initialization.
-
-        Parameters
-        ----------
-        impl_cut : 1D list
-            Incomplete, shortened impl_cut-offs list provided during class
-            initialization.
-
-        Generates
-        ---------
-        impl_cut : 1D list
-            Full list containing the impl_cut-offs for all data points provided
-            to the emulator.
-        cut_idx : int
-            Index of the first impl_cut-off in the impl_cut list that is not
-            0.
-
-        """
-
-        # Log that impl_cut-off list is being acquired
-        logger = logging.getLogger('INIT')
-        logger.info("Generating full implausibility cut-off list.")
-
-        # Complete the impl_cut list
-        for i in range(len(impl_cut)):
-            if(impl_cut[i] == 0 and i == 0):
-                pass
-            elif(impl_cut[i] == 0):
-                impl_cut[i] = impl_cut[i-1]
-            elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
-                raise ValueError("Cut-off %s is higher than cut-off %s "
-                                 "(%s > %s)" % (i, i-1, impl_cut[i],
-                                                impl_cut[i-1]))
-
-        # Get the index identifying where the first real impl_cut is
-        for i, impl in enumerate(impl_cut):
-            if(impl != 0):
-                cut_idx = i
-                break
-
-        # Save both impl_cut and cut_idx
-        self._save_data('impl_cut', [np.array(impl_cut), cut_idx])
-
-        # Log end of process
-        logger.info("Finished generating implausibility cut-off list.")
-
     @property
     def cut_idx(self):
         """
-        The list index of the first non-wildcard cut-off in impl_cut.
+        List of list indices of the first non-wildcard cut-off in impl_cut.
 
         """
 
@@ -373,8 +318,8 @@ class Pipeline(object):
     @property
     def prc(self):
         """
-        Bool indicating whether or not plausible regions have been found in the
-        currently loaded emulator iteration.
+        List of bools indicating whether or not plausible regions have been
+        found in the corresponding emulator iteration.
 
         """
 
@@ -383,12 +328,22 @@ class Pipeline(object):
     @property
     def impl_sam(self):
         """
-        Array containing all model evaluation samples that will be added to the
-        next emulator iteration.
+        List of arrays containing all model evaluation samples that will be
+        added to the next emulator iteration.
 
         """
 
         return(self._impl_sam)
+
+    @property
+    def use_mock(self):
+        """
+        Bool indicating whether or not mock data has been used for the creation
+        of this emulator system instead of actual data.
+
+        """
+
+        return(bool(self._use_mock))
 
 
 # %% GENERAL CLASS METHODS
@@ -404,7 +359,7 @@ class Pipeline(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
+            Number indicating the requested emulator iteration.
         par_set : 1D array_like
             Model parameter value set to calculate the model output for.
 
@@ -526,20 +481,23 @@ class Pipeline(object):
 
         """
 
+        # Log that parameters are being read
+        logger = logging.getLogger('INIT')
+        logger.info("Retrieving pipeline parameters from provided HDF5-file.")
+
         # Open hdf5-file
         file = self._open_hdf5('r')
 
         # Read in all the pipeline attributes
         self._n_sam_init = file.attrs['n_sam_init']
-        self._n_eval_samples = file.attrs['n_eval_samples']
         self._do_active_par = file.attrs['do_active_par']
         self._criterion = file.attrs['criterion'].decode('utf-8')
-        # TODO: Think about how to make these dynamic
-        self._impl_cut = file.attrs['impl_cut']
-        self._cut_idx = file.attrs['cut_idx']
 
         # Close hdf5-file
         self._close_hdf5(file)
+
+        # Log that reading is finished
+        logger.info("Finished retrieving parameters.")
 
     # This function automatically loads default pipeline parameters
     def _get_default_parameters(self):
@@ -559,10 +517,11 @@ class Pipeline(object):
 
         # Create parameter dict with default parameters
         par_dict = {'n_sam_init': '500',
-                    'n_eval_samples': '600',
+                    'n_eval_samples': '800',
                     'criterion': "'multi'",
                     'do_active_par': 'True',
-                    'impl_cut': '0, 4.0, 3.8, 3.5'}
+                    'impl_cut': '0, 4.0, 3.8, 3.5',
+                    'use_mock': 'False'}
 
         # Log end
         logger.info("Finished generating default pipeline parameter dict.")
@@ -600,20 +559,6 @@ class Pipeline(object):
         # Number of starting samples
         self._n_sam_init = int(par_dict['n_sam_init'])
 
-        # Set non-default parameter estimate
-        self._modellink._par_estimate = self._modellink._par_rng[:, 0] +\
-            random(self._modellink._par_dim) *\
-            (self._modellink._par_rng[:, 1]-self._modellink._par_rng[:, 0])
-
-        # Set non-default model data
-        self._modellink._data_val =\
-            self._call_model(0, self._modellink._par_estimate).tolist()
-        self._modellink._data_err =\
-            (0.1*np.abs(self._modellink._data_val)).tolist()
-        self._modellink._data_val =\
-            (self._modellink._data_val +
-             normal(scale=self._modellink._data_err)).tolist()
-
         # Criterion parameter used for Latin Hypercube Sampling
         self._criterion = str(par_dict['criterion']).replace("'", '')
 
@@ -623,11 +568,101 @@ class Pipeline(object):
         elif(par_dict['do_active_par'].lower() in ('true', '1')):
             self._do_active_par = 1
         else:
+            logger.error("Pipeline parameter 'do_active_par' is not of type "
+                         "'bool'!")
             raise TypeError("Pipeline parameter 'do_active_par' is not of type"
-                            " 'bool'.")
+                            " 'bool'!")
+
+        # Obtain the bool determining whether or not to use mock data
+        if(par_dict['use_mock'].lower() in ('false', '0')):
+            self._use_mock = 0
+        elif(par_dict['use_mock'].lower() in ('true', '1')):
+            self._use_mock = 1
+            self._get_mock_data(self._emulator._emul_i)
+        else:
+            logger.error("Pipeline parameter 'use_mock' is not of type "
+                         "'bool'!")
+            raise TypeError("Pipeline parameter 'use_mock' is not of type "
+                            "'bool'!")
 
         # Log that reading has been finished
         logger.info("Finished reading pipeline parameters.")
+
+    # This function either generates mock_data or loads it into ModelLink
+    def _get_mock_data(self, emul_i):
+        """
+        Generates mock_data if `emul_i` = 0 or loads it into the
+        :obj:`~ModelLink` instance that was provided during class
+        initialization if otherwise.
+        This function overwrites the :class:`~ModelLink` properties holding the
+        parameter estimates, data values and data errors.
+
+        Parameters
+        ----------
+        emul_i : int
+            Number indicating the requested emulator iteration.
+
+        Generates
+        ---------
+        Mock values for the parameter estimates, data values and data errors if
+        `emul_i` = 0.
+        Overwrites the corresponding :class:`~ModelLink` class properties with
+        either the generated values or previously used values.
+
+        """
+
+        # Start logger
+        logger = logging.getLogger('INIT')
+
+        # If emul_i is 0, generate new mock values
+        if not emul_i:
+            # Log new mock_data being created
+            logger.info("Generating mock_data for new emulator system.")
+
+            # Set non-default parameter estimate
+            self._modellink._par_estimate =\
+                self._modellink._par_rng[:, 0] +\
+                random(self._modellink._par_dim) *\
+                (self._modellink._par_rng[:, 1] -
+                 self._modellink._par_rng[:, 0])
+
+            # Set non-default model data values
+            self._modellink._data_val =\
+                self._call_model(0, self._modellink._par_estimate).tolist()
+
+            # Use model discrepancy variance as model data errors
+            try:
+                md_var =\
+                    self._modellink.get_md_var(0, self._modellink._data_idx)
+            except NotImplementedError:
+                md_var = pow(np.array(self._modellink._data_val)/6, 2)
+            finally:
+                self._modellink._data_err = np.sqrt(md_var).tolist()
+
+            # Add model data errors as noise to model data values
+            self._modellink._data_val =\
+                (self._modellink._data_val +
+                 normal(scale=self._modellink._data_err)).tolist()
+
+        # If emul_i has any other value, overwrite ModelLink properties with
+        # previously generated values
+        else:
+            # Log that mock_data is being loaded in
+            logger.info("Loading previously used mock_data into ModelLink.")
+
+            # Open hdf5-file
+            file = self._open_hdf5('r')
+
+            # Overwrite ModelLink properties
+            self._modellink._par_estimate = file.attrs['mock_par']
+            self._modellink._data_val = self._emulator._data_val[emul_i]
+            self._modellink._data_err = self._emulator._data_err[emul_i]
+
+            # Close hdf5-file
+            self._close_hdf5(file)
+
+        # Log end
+        logger.info("Loaded mock_data.")
 
     # This function controls how n_eval_samples is calculated
     def _get_n_eval_samples(self, emul_i):
@@ -639,7 +674,7 @@ class Pipeline(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
+            Number indicating the requested emulator iteration.
 
         Returns
         -------
@@ -699,6 +734,7 @@ class Pipeline(object):
             logger.info("No root directory specified, setting it to default.")
             self._root_dir = path.abspath('.')
             logger.info("Root directory set to '%s'." % (self._root_dir))
+
         # If one specified a root directory, use it
         elif isinstance(root_dir, str):
             logger.info("Root directory specified.")
@@ -716,14 +752,14 @@ class Pipeline(object):
                 logger.info("Root directory did not exist, created it.")
                 pass
         else:
-            raise TypeError("Input argument 'root_dir' must be a string!")
+            raise InputError("Input argument 'root_dir' is invalid!")
 
         # Check if a valid working directory prefix string is given
         if isinstance(prefix, str):
             self._prefix = prefix
             prefix_len = len(prefix)
         else:
-            raise TypeError("Input argument 'prefix' must be a string!")
+            raise TypeError("Input argument 'prefix' is not of type 'str'!")
 
         # Obtain working directory path
         # If one did not specify a working directory, obtain it
@@ -757,6 +793,7 @@ class Pipeline(object):
                 working_dir = emul_dirs[0]
                 self._working_dir = path.join(self._root_dir, working_dir)
                 logger.info("Working directory set to '%s'." % (working_dir))
+
         # If one requested a new working directory
         elif isinstance(working_dir, int):
             logger.info("New working directory requested, creating it.")
@@ -783,6 +820,7 @@ class Pipeline(object):
             self._working_dir = path.join(self._root_dir, working_dir)
             os.mkdir(self._working_dir)
             logger.info("Working directory set to '%s'." % (working_dir))
+
         # If one specified a working directory, use it
         elif isinstance(working_dir, str):
             logger.info("Working directory specified.")
@@ -802,7 +840,7 @@ class Pipeline(object):
                 logger.info("Working directory did not exist, created it.")
                 pass
         else:
-            raise TypeError("Input argument 'working_dir' is not a string!")
+            raise InputError("Input argument 'working_dir' is invalid!")
 
         # Obtain hdf5-file path
         if isinstance(hdf5_file, str):
@@ -810,11 +848,14 @@ class Pipeline(object):
             logger.info("HDF5-file set to '%s'." % (hdf5_file))
             self._hdf5_file_name = path.join(working_dir, hdf5_file)
         else:
-            raise TypeError("Input argument 'hdf5_file' is not a string!")
+            raise TypeError("Input argument 'hdf5_file' is not of type 'str'!")
 
         # Obtain PRISM parameter file path
+        # If no PRISM parameter file was provided
         if prism_file is None:
             self._prism_file = None
+
+        # If a PRISM parameter file was provided
         elif isinstance(prism_file, str):
             if path.exists(prism_file):
                 self._prism_file = prism_file
@@ -822,29 +863,16 @@ class Pipeline(object):
                 self._prism_file = path.join(self._root_dir, prism_file)
             logger.info("PRISM parameters file set to '%s'." % (prism_file))
         else:
-            raise TypeError("Input argument 'prism_file' is not a string!")
+            raise InputError("Input argument 'prism_file' is invalid!")
 
     # This function loads pipeline data
     def _load_data(self):
         """
-        Loads in all the important pipeline data corresponding to emulator
-        iteration `emul_i` into memory, if this is not loaded already.
-
-        Parameters
-        ----------
-        emul_i : int or None
-            Number indicating the current emulator iteration.
-
-        Optional
-        --------
-        init : bool. Default: False
-            Bool indicating whether or not this method is called during class
-            initialization.
+        Loads in all the important pipeline data into memory.
 
         Generates
         ---------
-        All relevant pipeline data corresponding to emulator iteration `emul_i`
-        is loaded into memory, if not loaded already.
+        All relevant pipeline data is loaded into memory.
 
         """
 
@@ -852,25 +880,31 @@ class Pipeline(object):
         logger = logging.getLogger('LOAD_DATA')
 
         # Initialize all data sets with empty lists
-        logger.info("Initializing emulator data sets.")
+        logger.info("Initializing pipeline data sets.")
         self._prc = [[]]
         self._impl_sam = [[]]
         self._impl_cut = [[]]
         self._cut_idx = [[]]
         self._n_eval_samples = [[]]
 
+        # If an emulator system currently exists, load in all data
         if self._emulator._emul_i:
             # Open hdf5-file
             file = self._open_hdf5('r')
 
-            # Read in the data
+            # Read in the data up to the last emulator iteration
             for i in range(1, self._emulator._emul_i+1):
+                # Check if analysis has been carried out (only if i=emul_i)
                 try:
                     self._prc.append(file['%s' % (i)].attrs['prc'])
+
+                # If not, no plausible regions were found
                 except KeyError:
                     self._prc.append(0)
                     self._impl_sam.append([])
                     self._n_eval_samples.append(1)
+
+                # If so, load in all data
                 else:
                     self._impl_sam.append(file['%s/impl_sam' % (i)][()])
                     self._impl_cut.append(file['%s' % (i)].attrs['impl_cut'])
@@ -886,16 +920,13 @@ class Pipeline(object):
         """
         Saves the provided `data` for the specified data-type `keyword` at the
         last emulator iteration to the HDF5-file and as an data
-        attribute to the current :obj:`~Pipeline` instance if required.
+        attribute to the current :obj:`~Pipeline` instance.
 
         Parameters
         ----------
-        keyword : str
-            String specifying the type of data that needs to be saved. Possible
-            are 'sam_set', 'mod_set', 'cov_mat', 'prior_exp_sam_set',
-            'impl_sam', '1D_proj_hcube', '2D_proj_hcube', 'nD_proj_hcube',
-            'regression' and 'active_par'.
-        data : array_like
+        keyword : {'impl_cut', 'impl_sam', 'n_eval_samples'}
+            String specifying the type of data that needs to be saved.
+        data : list
             The actual data that needs to be saved at data keyword `keyword`.
 
         Generates
@@ -913,15 +944,30 @@ class Pipeline(object):
         file = self._open_hdf5('r+')
 
         # Check what data keyword has been provided
+        # IMPL_CUT
+        if(keyword == 'impl_cut'):
+            # Check if impl_cut data has been saved before (analysis was done)
+            try:
+                self._impl_cut[self._emulator._emul_i] = data[0]
+                self._cut_idx[self._emulator._emul_i] = data[1]
+            except IndexError:
+                self._impl_cut.append(data[0])
+                self._cut_idx.append(data[1])
+            finally:
+                file['%s' % (self._emulator._emul_i)].attrs['impl_cut'] =\
+                    data[0]
+                file['%s' % (self._emulator._emul_i)].attrs['cut_idx'] =\
+                    data[1]
+
         # IMPL_SAM
-        if keyword in ('impl_sam'):
+        elif(keyword == 'impl_sam'):
             # Check if any plausible regions have been found at all
             if(np.shape(data)[0] == 0):
                 prc = 0
             else:
                 prc = 1
 
-            # Either update or save new prc and impl_sam values
+            # Check if impl_sam data has been saved before (analysis was done)
             try:
                 self._prc[self._emulator._emul_i] = prc
             except IndexError:
@@ -937,22 +983,9 @@ class Pipeline(object):
             finally:
                 file['%s' % (self._emulator._emul_i)].attrs['prc'] = prc
 
-        # IMPL_CUT
-        elif keyword in ('impl_cut'):
-            try:
-                self._impl_cut[self._emulator._emul_i] = data[0]
-                self._cut_idx[self._emulator._emul_i] = data[1]
-            except IndexError:
-                self._impl_cut.append(data[0])
-                self._cut_idx.append(data[1])
-            finally:
-                file['%s' % (self._emulator._emul_i)].attrs['impl_cut'] =\
-                    data[0]
-                file['%s' % (self._emulator._emul_i)].attrs['cut_idx'] =\
-                    data[1]
-
         # N_EVAL_SAMPLES
-        elif keyword in ('n_eval_samples'):
+        elif(keyword == 'n_eval_samples'):
+            # Check if n_eval_samples has been saved before (analysis was done)
             try:
                 self._n_eval_samples[self._emulator._emul_i] = data
             except IndexError:
@@ -961,7 +994,9 @@ class Pipeline(object):
                 file['%s'
                      % (self._emulator._emul_i)].attrs['n_eval_samples'] = data
 
+        # INVALID KEYWORD
         else:
+            logger.error("Invalid keyword argument provided!")
             raise ValueError("Invalid keyword argument provided!")
 
         # Close hdf5
@@ -977,13 +1012,18 @@ class Pipeline(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
+            Number indicating the requested emulator iteration.
+        sam_set : 2D :obj:`~numpy.ndarray` object
+            Array containing the model evaluation samples.
 
         Generates
         ---------
-        new_mod_set : 2D :obj:`~numpy.ndarray` object
-            New array containing the model outputs of all specified model
-            evaluation samples.
+        sam_set : 2D :obj:`~numpy.ndarray` object
+            Array containing the model evaluation samples for emulator
+            iteration `emul_i`.
+        mod_set : 2D :obj:`~numpy.ndarray` object
+            Array containing the model outputs of all specified model
+            evaluation samples for emulator iteration `emul_i`.
 
         """
 
@@ -1020,14 +1060,14 @@ class Pipeline(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
+            Number indicating the requested emulator iteration.
 
         Generates
         ---------
-        active_par : 1D list
-            List containing the indices of all the parameters that are active
+        active_par : 1D :obj:`~numpy.ndarray` object
+            Array containing the indices of all the parameters that are active
             in the emulator iteration `emul_i`.
-        active_par_data : 2D list
+        active_par_data : List of 1D :obj:`~numpy.ndarray` objects
             List containing the indices of all the parameters that are active
             in the emulator iteration `emul_i` for every individual data point.
 
@@ -1087,7 +1127,7 @@ class Pipeline(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
+            Number indicating the requested emulator iteration.
 
         Returns
         -------
@@ -1117,13 +1157,19 @@ class Pipeline(object):
     # This function performs an implausibility cut-off check on a given sample
     # TODO: Implement dynamic impl_cut
     @staticmethod
-    def _do_impl_check(self, emul_i, uni_impl_val):
+    def _do_impl_check(obj, emul_i, uni_impl_val):
         """
         Performs an implausibility cut-off check on the provided implausibility
-        values `uni_impl_val`.
+        values `uni_impl_val` at emulator iteration `emul_i`, using the
+        impl_cut values given in `obj`.
 
         Parameters
         ----------
+        obj : :obj:`~Pipeline` object or :obj:`~Projection` object
+            Instance of the :class:`~Pipeline` class or :class:`~Projection`
+            class.
+        emul_i : int
+            Number indicating the requested emulator iteration.
         uni_impl_val : 1D array_like
             Array containing all univariate implausibility values corresponding
             to a certain parameter set for all data points.
@@ -1147,10 +1193,10 @@ class Pipeline(object):
         sorted_impl_val = np.flip(np.sort(uni_impl_val, axis=-1), axis=-1)
 
         # Save the implausibility value at the first real cut-off
-        impl_cut_val = sorted_impl_val[self._cut_idx[emul_i]]
+        impl_cut_val = sorted_impl_val[obj._cut_idx[emul_i]]
 
         # Scan over all data points in this sample
-        for i, val in enumerate(self._impl_cut[emul_i]):
+        for i, val in enumerate(obj._impl_cut[emul_i]):
             # If impl_cut is not 0 and impl_val is not below impl_cut, break
             if(val != 0 and
                sorted_impl_val[i] > val):
@@ -1174,7 +1220,7 @@ class Pipeline(object):
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
+            Number indicating the requested emulator iteration.
         adj_exp_val, adj_var_val : 1D array_like
             The adjusted expectation and variance values to calculate the
             univeriate implausibility for.
@@ -1187,7 +1233,7 @@ class Pipeline(object):
         """
 
         # Log that univariate implausibility value is calculated
-        logger = logging.getLogger('EMUL_IMPL')
+        logger = logging.getLogger('UNI_IMPL')
         logger.info("Calculating univariate implausibility value.")
 
         # Obtain model discrepancy variance
@@ -1218,15 +1264,15 @@ class Pipeline(object):
     def _get_md_var(self, emul_i):
         """
         Retrieves the model discrepancy variance, which includes all variances
-        that are created by the model provided with the :obj:`~ModelLink`
-        instance. This method tries to call the :func:`~ModelLink.get_md_var`
+        that are created by the model provided by the :obj:`~ModelLink`
+        instance. This method tries to call the :meth:`~ModelLink.get_md_var`
         method, and assumes a default model discrepancy variance of 1/6th the
         data value if it cannot be called.
 
         Parameters
         ----------
         emul_i : int
-            Number indicating the current emulator iteration.
+            Number indicating the requested emulator iteration.
 
         Returns
         -------
@@ -1254,13 +1300,88 @@ class Pipeline(object):
         # Return it
         return(md_var)
 
+    # This function completes the list of implausibility cut-offs
+    @staticmethod
+    def _get_impl_cut(obj, impl_cut):
+        """
+        Generates the full list of impl_cut-offs from the incomplete, shortened
+        `impl_cut` list and saves them in the given `obj`.
+
+        Parameters
+        ----------
+        obj : :obj:`~Pipeline` object or :obj:`~Projection` object
+            Instance of the :class:`~Pipeline` class or :class:`~Projection`
+            class.
+        impl_cut : 1D list
+            Incomplete, shortened impl_cut-offs list provided during class
+            initialization.
+
+        Generates
+        ---------
+        impl_cut : 1D :obj:`~numpy.ndarray` object
+            Full list containing the impl_cut-offs for all data points provided
+            to the emulator.
+        cut_idx : int
+            Index of the first impl_cut-off in the impl_cut list that is not
+            0.
+
+        """
+
+        # Log that impl_cut-off list is being acquired
+        logger = logging.getLogger('INIT')
+        logger.info("Generating full implausibility cut-off list.")
+
+        # Complete the impl_cut list
+        for i in range(1, len(impl_cut)):
+            if(impl_cut[i] == 0):
+                impl_cut[i] = impl_cut[i-1]
+            elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
+                raise ValueError("Cut-off %s is higher than cut-off %s "
+                                 "(%s > %s)" % (i, i-1, impl_cut[i],
+                                                impl_cut[i-1]))
+
+        # Get the index identifying where the first real impl_cut is
+        for i, impl in enumerate(impl_cut):
+            if(impl != 0):
+                cut_idx = i
+                break
+
+        # Save both impl_cut and cut_idx
+        obj._save_data('impl_cut', [np.array(impl_cut), cut_idx])
+
+        # Log end of process
+        logger.info("Finished generating implausibility cut-off list.")
+
     # This function reads in the impl_cut list from the PRISM parameters file
+    # TODO: Make impl_cut dynamic
     def _get_impl_par(self, emul_i):
         """
         Reads in the impl_cut list and other parameters for implausibility
-        evaluations from the PRISM parameters file.
+        evaluations from the PRISM parameters file and saves them in the given
+        emulator iteration `emul_i`.
+
+        Parameters
+        ----------
+        emul_i : int
+            Number indicating the requested emulator iteration.
+
+        Generates
+        ---------
+        impl_cut : 1D :obj:`~numpy.ndarray` object
+            Full list containing the impl_cut-offs for all data points provided
+            to the emulator.
+        cut_idx : int
+            Index of the first impl_cut-off in the impl_cut list that is not
+            0.
+        n_eval_samples : int
+            Number of emulator evaluation samples used for implausibility
+            evaluations.
 
         """
+
+        # Do some logging
+        logger = logging.getLogger('INIT')
+        logger.info("Obtaining implausibility analysis parameters.")
 
         # Obtaining default pipeline parameter dict
         par_dict = self._get_default_parameters()
@@ -1278,32 +1399,60 @@ class Pipeline(object):
 
         # Implausibility cut-off
         impl_cut_str = str(par_dict['impl_cut']).replace(',', '').split()
-        self.impl_cut = list(float(impl_cut) for impl_cut in impl_cut_str)
+        self._get_impl_cut(self,
+                           list(float(impl_cut) for impl_cut in impl_cut_str))
 
         # Number of samples used for implausibility evaluations
-        self.n_eval_samples = int(par_dict['n_eval_samples'])
+        self._save_data('n_eval_samples', int(par_dict['n_eval_samples']))
+
+        # Finish logging
+        logger.info("Finished obtaining implausibility analysis parameters.")
 
 
 # %% VISIBLE CLASS METHODS
     # This function analyzes the emulator and determines the plausible regions
+    # TODO: Implement check if impl_idx is big enough to be used in next emul_i
+    # HINT: Allow analyze to be used on earlier iterations?
     def analyze(self, emul_i=None):
         """
         Analyzes the emulator system at the specified emulator iteration
-        `emul_i`.
+        `emul_i` for a large number of emulator evaluation samples. All samples
+        that survive the implausibility checks, are used in the construction of
+        the next emulator iteration.
+
+        Optional
+        --------
+        emul_i : int or None. Default: None
+            If int, number indicating the requested emulator iteration.
+            If *None*, the last iteration of the loaded emulator system will
+            be used.
+
+        Generates
+        ---------
+        impl_sam : 2D :obj:`~numpy.ndarray` object
+            Array containing all emulator evaluation samples that survives the
+            implausibility checks.
+        prc : bool
+            Bool indicating whether or not plausible regions have been found
+            during this analysis.
 
         """
+
+        # Begin logging
+        logger = logging.getLogger('ANALYZE')
+        logger.info("Analyzing emulator system at iteration %s." % (emul_i))
 
         # Check emul_i
         if emul_i is None:
             emul_i = self._emulator._emul_i
         elif not(emul_i == self._emulator._emul_i):
+            logger.error("Reanalysis of the emulator system is only possible "
+                         "on the last emulator iteration created (%s)!"
+                         % (self._emulator._emul_i))
             raise RequestError("Reanalysis of the emulator system is only "
                                "possible on the last emulator iteration "
-                               "created (%s)!" % (self._emulator._emul_i))
-
-        # Begin logging
-        logger = logging.getLogger('ANALYZE')
-        logger.info("Analyzing emulator system at iteration %s." % (emul_i))
+                               "created (%s)!"
+                               % (self._emulator._emul_i))
 
         # Get the impl_cut list and n_eval_samples
         self._get_impl_par(emul_i)
@@ -1334,7 +1483,7 @@ class Pipeline(object):
         self._save_data('impl_sam', eval_sam_set[impl_idx])
 
         # Log that analysis has been finished
-        logger.info("Finished evaluation sample set analysis.")
+        logger.info("Finished analysis of emulator system.")
 
         # Display details about current state of pipeline
         self.details(emul_i)
@@ -1342,40 +1491,28 @@ class Pipeline(object):
     # This function constructs a specified iteration of the emulator system
     def construct(self, emul_i=None, analyze=True):
         """
-        Constructs the emulator at the specified emulator iteration `emul_i`.
-
-        Using an emulator iteration that has been constructed before, will
-        remove that and all following iterations, and reconstruct the specified
-        iteration. Using `emul_i` = 1 will also make the class read in the
-        parameters from the parameter file again.
-
-        If a constructed emulator iteration shows signs that something is
-        wrong or the emulator cannot be optimized anymore, it will not save
-        this data in the emulator construction HDF5-file, but rather makes an
-        emulator final HDF5-file of the previous emulator iteration and prints
-        out a warning of this event both in the console and in the log-file.
+        Constructs the emulator at the specified emulator iteration `emul_i`,
+        and performs an implausibility analysis on the emulator system right
+        afterward if requested (:meth:`~Pipeline.analyze`).
 
         Optional
         --------
         emul_i : int or None. Default: None
-            If an existing constructor file was provided during class
-            initialization, the iteration of the emulator corresponding to
-            `emul_i` will be used automatically.
-            If *None*, the last iteration of the currently loaded emulator will
+            If int, number indicating the requested emulator iteration.
+            If *None*, the last iteration of the loaded emulator system will
             be used.
 
         Generates
         ---------
         A new group with the emulator iteration value as its name, in the
-        loaded emulator construction file, containing emulator data.
-        The data included is required to either construct the next iteration or
-        to create the projection hypercube.
+        loaded emulator file, containing emulator data.
 
-        If applicable, an emulator final HDF5-file called 'emulator_final.hdf5'
-        (default) containing the same data as the last folder in
-        'emulator.hdf5'. This file is write-protected when used in this class.
-        The creation of this file will also automatically trigger the creation
-        of the projection hypercube.
+        Notes
+        -----
+        Using an emulator iteration that has been constructed before, will
+        remove that and all following iterations, and reconstruct the specified
+        iteration. Using `emul_i` = 1 is equivalent to reconstructing the whole
+        emulator system.
 
         """
 
@@ -1392,8 +1529,12 @@ class Pipeline(object):
 
         # Check emul_i and act accordingly
         if(emul_i == 1):
+            # Create mock data is requested
+            if self._use_mock:
+                self._get_mock_data(0)
+
             # Create a new emulator system
-            self._emulator._create_new_emulator()
+            self._emulator._create_new_emulator(self._use_mock)
 
             # Reload the data
             self._load_data()
@@ -1406,15 +1547,18 @@ class Pipeline(object):
         else:
             # Check if a new emulator iteration can be constructed
             if not self._prc[emul_i-1]:
-                raise RequestError("No plausible regions were found in "
-                                   "previous emulator iteration. Construction "
-                                   "is not possible!")
+                logger.error("No plausible regions were found in the analysis "
+                             "of the previous emulator iteration. Construction"
+                             " is not possible!")
+                raise RequestError("No plausible regions were found in the "
+                                   "analysis of the previous emulator "
+                                   "iteration. Construction is not possible!")
 
             # Make the emulator prepare for a new iteration
-            result = self._emulator._prepare_new_iteration(emul_i)
+            reload = self._emulator._prepare_new_iteration(emul_i)
 
             # Make sure the correct pipeline data is loaded in
-            if result:
+            if reload:
                 self._load_data()
 
             # Obtain additional sam_set
@@ -1435,6 +1579,7 @@ class Pipeline(object):
             self.analyze(emul_i)
         else:
             self._save_data('impl_sam', [])
+            self.details(emul_i)
 
     # This function creates the projection figures of a given emul_i
     @docstring_copy(Projection.__call__)
@@ -1444,26 +1589,24 @@ class Pipeline(object):
         # Initialize the Projection class and make the figures
         Projection(self)(emul_i, proj_par, figure, show, force)
 
-    # This function allows one to obtain the emulator details/properties
+    # This function allows one to obtain the pipeline details/properties
     def details(self, emul_i=None):
         """
-        Prints the details/properties of the currently loaded emulator at given
-        emulator iteration `emul_i`.
+        Prints the details/properties of the currently loaded pipeline instance
+        at given emulator iteration `emul_i`.
 
         Optional
         --------
         emul_i : int or None. Default: None
-            If an existing constructor file was provided during class
-            initialization, the iteration of the emulator corresponding to
-            `emul_i` will be used automatically.
-            If *None*, the last iteration of the currently loaded emulator will
+            If int, number indicating the requested emulator iteration.
+            If *None*, the last iteration of the loaded emulator system will
             be used.
 
         """
 
         # Define details logger
         logger = logging.getLogger("DETAILS")
-        logger.info("Collecting details about current emulator file.")
+        logger.info("Collecting details about current pipeline instance.")
 
         # Check what kind of hdf5-file was provided
         try:
@@ -1473,36 +1616,63 @@ class Pipeline(object):
         else:
             n_impl_sam = len(self._impl_sam[emul_i])
             n_eval_samples = self._get_n_eval_samples(emul_i)
+            name_len =\
+                max([len(par_name) for par_name in self._modellink._par_names])
+            lower_len =\
+                max([len(str(i)) for i in self._modellink._par_rng[:, 0]])
+            upper_len =\
+                max([len(str(i)) for i in self._modellink._par_rng[:, 1]])
 
             # Open hdf5-file
             file = self._open_hdf5('r')
 
+            # Check if mock_data was used by trying to access mock_par
+            try:
+                file.attrs['mock_par']
+            except KeyError:
+                use_mock = 0
+            else:
+                use_mock = 1
+
+            # Check if projection data is available
             try:
                 file['%s/proj_hcube' % (emul_i)]
             except KeyError:
                 proj = 0
+
+            # If projection data is available
             else:
                 proj_impl_cut =\
                     file['%s/proj_hcube' % (emul_i)].attrs['impl_cut']
                 proj_cut_idx =\
                     file['%s/proj_hcube' % (emul_i)].attrs['cut_idx']
 
+                # Check if projection was made with the same impl_cut
                 try:
+                    # If it was, projection is synced
                     if((proj_impl_cut == self._impl_cut[emul_i]).all() and
                        proj_cut_idx == self._cut_idx[emul_i]):
                         proj = 1
+
+                    # If not, projection is desynced
                     else:
                         proj = 2
+
+                # If analysis was never done, projection is considered synced
                 except IndexError:
                     proj = 1
 
         # Close hdf5-file
         self._close_hdf5(file)
 
+        # Log file being closed
+        logger.info("Finished collecting details about current pipeline "
+                    "instance.")
+
         # Print details about hdf5-file provided
         width = 30
         print("\n")
-        print("DETAILS CURRENT PIPELINE INSTANCE")
+        print("PIPELINE DETAILS")
         print("="*width)
         print("\nGeneral")
         print("-"*width)
@@ -1535,6 +1705,12 @@ class Pipeline(object):
         else:
             print("{0: <{1}}\t{2}".format("Projection available?", width,
                                           "Yes (desynced)"))
+        if(use_mock):
+            print("{0: <{1}}\t{2}".format("Mock data used?", width,
+                                          "Yes"))
+        else:
+            print("{0: <{1}}\t{2}".format("Mock data used?", width,
+                                          "No"))
         print("-"*width)
         print("{0: <{1}}\t{2}".format("# of model evaluation samples", width,
                                       self._emulator._n_sam[1:emul_i+1]))
@@ -1553,7 +1729,10 @@ class Pipeline(object):
         print("-"*width)
         print("\nParameter space")
         print("-"*width)
+        str_format = "{0: >{1}}: [{2: >{3}}, {4: >{5}}] ({6:.5g})"
         for i in range(self._modellink._par_dim):
-            print("%s: %s" % (self._modellink._par_names[i],
-                              self._modellink._par_rng[i]))
+            print(str_format.format(self._modellink._par_names[i], name_len,
+                                    self._modellink._par_rng[i, 0], lower_len,
+                                    self._modellink._par_rng[i, 1], upper_len,
+                                    self._modellink._par_estimate[i]))
         print("="*width)
