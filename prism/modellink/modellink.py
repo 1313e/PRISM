@@ -8,6 +8,7 @@ ModelLink
 =========
 Provides the definition of the :class:`~ModelLink` abstract base class.
 
+
 Available classes
 -----------------
 :class:`~ModelLink`
@@ -30,6 +31,9 @@ from six import with_metaclass
 
 # Package imports
 import numpy as np
+
+# PRISM imports
+from .._internal import check_float, check_int, check_pos_int, check_str
 
 # All declaration
 __all__ = ['ModelLink']
@@ -201,9 +205,9 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
             # Update the model data list
             for val, err, idx in zip(data_val, data_err, data_idx):
-                self._model_data[0].append(val)
-                self._model_data[1].append(err)
-                self._model_data[2].append(int(idx))
+                self._model_data[0].append(check_float(val, 'data_val'))
+                self._model_data[1].append(check_float(err, 'data_err'))
+                self._model_data[2].append(check_int(int(idx), 'data_idx'))
 
         # If anything else is given, it must be array_like
         else:
@@ -214,13 +218,17 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             else:
                 # Update the model data list
                 for i, data in enumerate(new_model_data):
-                    self._model_data[0].append(data[0])
-                    self._model_data[1].append(data[1])
-                    self._model_data[2].append(int(data[2]))
+                    self._model_data[0].append(check_float(data[0],
+                                                           'data_val'))
+                    self._model_data[1].append(check_float(data[1],
+                                                           'data_err'))
+                    self._model_data[2].append(check_int(int(data[2]),
+                                                         'data_idx'))
 
     def _create_properties(self):
         # Save model data as class properties
-        self._par_dim = len(self._model_parameters.keys())
+        self._par_dim = check_pos_int(len(self._model_parameters.keys()),
+                                      'par_dim')
 
         # Create empty parameter name, ranges and estimate arrays
         self._par_names = []
@@ -230,16 +238,18 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         # Save parameter ranges
         for i, (name, values) in enumerate(self._model_parameters.items()):
-            self._par_names.append(name)
-            self._par_rng[i] = (values[0], values[1])
+            self._par_names.append(check_str(name, 'par_name'))
+            self._par_rng[i] = (check_float(values[0], 'lower_par'),
+                                check_float(values[1], 'upper_par'))
             try:
-                self._par_estimate.append(values[2] if
-                                          values[2] != np.infty else None)
+                self._par_estimate.append(
+                    check_float(values[2], 'par_estimate') if
+                    values[2] != np.infty else None)
             except IndexError:
                 self._par_estimate.append(None)
 
         # Save model data as class properties
-        self._n_data = len(self._model_data[0])
+        self._n_data = check_pos_int(len(self._model_data[0]), 'n_data')
         self._data_val = self._model_data[0]
         self._data_err = self._model_data[1]
         self._data_idx = self._model_data[2]

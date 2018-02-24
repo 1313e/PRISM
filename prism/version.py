@@ -10,4 +10,4 @@ Stores the different versions of the PRISM package.
 
 # %% VERSIONS
 # Default/Latest version
-version = '0.1.2'
+version = '0.2.0'

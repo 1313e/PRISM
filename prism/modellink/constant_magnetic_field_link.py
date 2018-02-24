@@ -22,7 +22,7 @@ Available classes
 from __future__ import absolute_import, division, print_function
 
 # ModelLink imports
-from modellink import ModelLink
+from .modellink import ModelLink
 
 # Hammurapy imports
 import numpy as np

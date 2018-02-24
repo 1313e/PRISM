@@ -8,6 +8,7 @@ SineWaveLink
 ============
 Provides the definition of the :class:`~SineWaveLink` class.
 
+
 Available classes
 -----------------
 :class:`~SineWaveLink`
@@ -25,7 +26,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 # PRISM imports
-from modellink import ModelLink
+from .modellink import ModelLink
 
 # All declaration
 __all__ = ['SineWaveLink']

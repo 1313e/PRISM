@@ -6,6 +6,7 @@ Projection
 Provides the definition of PRISM's :class:`~Projection` class, that allows for
 projection figures detailing a model's behavior to be created.
 
+
 Available classes
 -----------------
 :class:`~Projection`
@@ -34,14 +35,13 @@ import numpy as np
 from scipy.interpolate import interp1d, interp2d
 
 # PRISM imports
-from _internal import RequestError
+from ._internal import RequestError, check_pos_int
 
 # All declaration
 __all__ = ['Projection']
 
 
 # %% PROJECTION CLASS DEFINITION
-# TODO: Write docstrings
 # TODO: Make something like Figure 4 in Bower et al
 class Projection(object):
     """
@@ -537,7 +537,7 @@ class Projection(object):
         logger.info("Finished projection.")
 
 
- # %% CLASS PROPERTIES
+# %% CLASS PROPERTIES
     @property
     def n_proj_samples(self):
         """
@@ -631,9 +631,11 @@ class Projection(object):
             self, list(float(impl_cut) for impl_cut in impl_cut_str))
 
         # Number of samples used for implausibility evaluations
+        n_proj_samples = int(par_dict['n_proj_samples'])
+        n_hidden_samples = int(par_dict['n_hidden_samples'])
         self._save_data('n_proj_samples',
-                        [int(par_dict['n_proj_samples']),
-                         int(par_dict['n_hidden_samples'])])
+                        [check_pos_int(n_proj_samples, 'n_proj_samples'),
+                         check_pos_int(n_hidden_samples, 'n_hidden_samples')])
 
         # Finish logging
         logger.info("Finished obtaining implausibility analysis parameters.")

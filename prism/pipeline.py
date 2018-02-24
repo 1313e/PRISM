@@ -6,6 +6,7 @@ Pipeline
 Provides the definition of the main class of the PRISM package, the
 :class:`~Pipeline` class.
 
+
 Available classes
 -----------------
 :class:`~Pipeline`
@@ -34,16 +35,16 @@ from numpy.random import normal, random
 from sklearn.linear_model import LinearRegression as LR
 
 # PRISM imports
-from _internal import RequestError, docstring_copy, move_logger, start_logger
-from emulator import Emulator
-from projection import Projection
+from ._internal import RequestError, check_nneg_float, check_pos_int,\
+                       check_str, docstring_copy, move_logger, start_logger
+from .emulator import Emulator
+from .projection import Projection
 
 # All declaration
 __all__ = ['Pipeline']
 
 
 # %% PIPELINE CLASS DEFINITION
-# TODO: Write docstrings
 # OPTIMIZE: Introduce multiple versions of functions/methods that are loaded in
 # This way, the Pipeline only has to do versatility checks once and not every
 # single time, thus removing many if-statements by just loading the correct
@@ -154,6 +155,8 @@ class Pipeline(object):
         # Check the provided emul_i
         if emul_i is None:
             emul_i = self._emulator._emul_i+1
+        else:
+            emul_i = check_pos_int(emul_i, 'emul_i')
 
         # Perform construction
         try:
@@ -557,10 +560,12 @@ class Pipeline(object):
 
         # GENERAL
         # Number of starting samples
-        self._n_sam_init = int(par_dict['n_sam_init'])
+        self._n_sam_init = check_pos_int(int(par_dict['n_sam_init']),
+                                         'n_sam_init')
 
         # Criterion parameter used for Latin Hypercube Sampling
-        self._criterion = str(par_dict['criterion']).replace("'", '')
+        self._criterion = check_str(
+            str(par_dict['criterion']).replace("'", ''), 'criterion')
 
         # Obtain the bool determining whether or not to have active parameters
         if(par_dict['do_active_par'].lower() in ('false', '0')):
@@ -632,11 +637,14 @@ class Pipeline(object):
 
             # Use model discrepancy variance as model data errors
             try:
-                md_var =\
-                    self._modellink.get_md_var(0, self._modellink._data_idx)
+                md_var = self._modellink.get_md_var(
+                    emul_i, self._emulator._data_idx[emul_i])
             except NotImplementedError:
                 md_var = pow(np.array(self._modellink._data_val)/6, 2)
             finally:
+                # Check if all values are non-negative floats
+                for value in md_var:
+                    check_nneg_float(value, 'md_var')
                 self._modellink._data_err = np.sqrt(md_var).tolist()
 
             # Add model data errors as noise to model data values
@@ -1281,21 +1289,23 @@ class Pipeline(object):
 
         """
 
-        # Initialize model discrepancy variance
-        md_var = np.zeros(self._emulator._n_data[emul_i])
-
         # Obtain md variances
         # Try to use the user-defined md variances
         try:
-            md_var +=\
+            md_var =\
                 self._modellink.get_md_var(emul_i,
                                            self._emulator._data_idx[emul_i])
+
         # If it was not user-defined, use a default value
         except NotImplementedError:
             # Use factor 2 difference on 2 sigma as acceptable
             # Imagine that 2 sigma range is given if lower and upper are factor
             # 2 apart. This gives that sigma must be 1/6th of the data value
-            md_var += pow(np.array(self._emulator._data_val[emul_i])/6, 2)
+            md_var = pow(np.array(self._emulator._data_val[emul_i])/6, 2)
+
+        # Check if all values are non-negative floats
+        for value in md_var:
+            check_nneg_float(value, 'md_var')
 
         # Return it
         return(md_var)
@@ -1333,6 +1343,7 @@ class Pipeline(object):
 
         # Complete the impl_cut list
         for i in range(1, len(impl_cut)):
+            impl_cut[i] = check_nneg_float(impl_cut[i], 'impl_cut')
             if(impl_cut[i] == 0):
                 impl_cut[i] = impl_cut[i-1]
             elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
@@ -1399,11 +1410,13 @@ class Pipeline(object):
 
         # Implausibility cut-off
         impl_cut_str = str(par_dict['impl_cut']).replace(',', '').split()
-        self._get_impl_cut(self,
-                           list(float(impl_cut) for impl_cut in impl_cut_str))
+        self._get_impl_cut(
+            self, list(float(impl_cut) for impl_cut in impl_cut_str))
 
         # Number of samples used for implausibility evaluations
-        self._save_data('n_eval_samples', int(par_dict['n_eval_samples']))
+        n_eval_samples = int(par_dict['n_eval_samples'])
+        self._save_data('n_eval_samples',
+                        check_pos_int(n_eval_samples, 'n_eval_samples'))
 
         # Finish logging
         logger.info("Finished obtaining implausibility analysis parameters.")
@@ -1453,6 +1466,8 @@ class Pipeline(object):
                                "possible on the last emulator iteration "
                                "created (%s)!"
                                % (self._emulator._emul_i))
+        else:
+            emul_i = check_pos_int(emul_i, 'emul_i')
 
         # Get the impl_cut list and n_eval_samples
         self._get_impl_par(emul_i)
@@ -1522,6 +1537,8 @@ class Pipeline(object):
         # Set emul_i correctly
         if emul_i is None:
             emul_i = self._emulator._emul_i+1
+        else:
+            emul_i = check_pos_int(emul_i, 'emul_i')
 
         # Log that construction of emulator iteration is being started
         logger.info("Starting construction of emulator iteration %s."

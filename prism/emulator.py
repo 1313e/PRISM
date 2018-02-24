@@ -6,6 +6,7 @@ Emulator
 Provides the definition of the class holding the emulator system of the PRISM
 package, the :class:`~Emulator` class.
 
+
 Available classes
 -----------------
 :class:`~Emulator`
@@ -31,15 +32,14 @@ from sklearn.pipeline import Pipeline as Pipeline_sk
 from sklearn.preprocessing import PolynomialFeatures as PF
 
 # PRISM imports
-from _internal import RequestError
-from modellink import ModelLink
+from ._internal import RequestError, check_pos_float, check_pos_int, check_str
+from .modellink import ModelLink
 
 # All declaration
 __all__ = ['Emulator']
 
 
 # %% EMULATOR CLASS DEFINITION
-# TODO: Write docstrings
 class Emulator(object):
     """
     Defines the :class:`~Emulator` class of the PRISM package.
@@ -330,6 +330,10 @@ class Emulator(object):
                          % (emul_i))
             raise RequestError("Requested emulator iteration %s does not "
                                "exist!" % (emul_i))
+        else:
+            emul_i = check_pos_int(emul_i, 'emul_i')
+
+        # Do some logging
         logger.info("Selected emulator iteration %s." % (emul_i))
 
         # Return correct emul_i
@@ -1711,18 +1715,20 @@ class Emulator(object):
 
         # GENERAL
         # Gaussian sigma
-        self._sigma = float(par_dict['sigma'])
+        self._sigma = check_pos_float(float(par_dict['sigma']), 'sigma')
 
         # Gaussian correlation length
-        self._l_corr = float(par_dict['l_corr']) *\
+        self._l_corr = check_pos_float(float(par_dict['l_corr']), 'l_corr') *\
             (self._modellink._par_rng[:, 1]-self._modellink._par_rng[:, 0])
 
         # Method used to calculate emulator functions
         # Future will include 'gaussian', 'regression', 'auto' and 'full'
-        self._method = str(par_dict['method']).replace("'", '')
+        self._method = check_str(str(par_dict['method']).replace("'", ''),
+                                 'method')
 
         # Obtain the polynomial order for the regression selection process
-        self._poly_order = int(par_dict['poly_order'])
+        self._poly_order = check_pos_int(int(par_dict['poly_order']),
+                                         'poly_order')
 
         # Log that reading has been finished
         logger.info("Finished reading emulator parameters.")
