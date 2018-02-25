@@ -1443,7 +1443,7 @@ class Pipeline(object):
         Generates
         ---------
         impl_sam : 2D :obj:`~numpy.ndarray` object
-            Array containing all emulator evaluation samples that survives the
+            Array containing all emulator evaluation samples that survived the
             implausibility checks.
         prc : bool
             Bool indicating whether or not plausible regions have been found
@@ -1508,7 +1508,7 @@ class Pipeline(object):
         """
         Constructs the emulator at the specified emulator iteration `emul_i`,
         and performs an implausibility analysis on the emulator system right
-        afterward if requested (:meth:`~Pipeline.analyze`).
+        afterward if requested (:meth:`~analyze`).
 
         Optional
         --------
@@ -1546,7 +1546,7 @@ class Pipeline(object):
 
         # Check emul_i and act accordingly
         if(emul_i == 1):
-            # Create mock data is requested
+            # Create mock data if requested
             if self._use_mock:
                 self._get_mock_data(0)
 

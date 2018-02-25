@@ -46,9 +46,9 @@ Dependencies
 ------------
 PRISM requires ``python == 2.7`` or ``python >= 3.4`` and the following non-standard dependencies (installed automatically when using ``pip``):
 
-- ``e13tools >= 0.4.2a0``;
+- ``e13tools >= 0.4.3a0``;
 - ``h5py >= 2.7.1``;
-- ``mlxtend >= 0.9.0``;
+- ``mlxtend >= 0.9.1``;
 - ``sklearn >= 0.19.1``.
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/prism_tool.svg

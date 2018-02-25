@@ -19,13 +19,17 @@ from codecs import open
 from setuptools import find_packages, setup
 
 # PRISM imports
-from prism.version import version as __version__
+from prism import __version__
 
 
 # %% SETUP DEFINITION
 # Get the long description from the README file
 with open('README.rst', 'r') as f:
     long_description = f.read()
+
+# Get the requirements list
+with open('requirements.txt', 'r') as f:
+    requirements = f.read().splitlines()
 
 # Setup function declaration
 setup(name="prism_tool",
@@ -61,13 +65,6 @@ setup(name="prism_tool",
       package_dir={'prism': "prism"},
       include_package_data=True,
 #      test_suite="",
-      install_requires=['e13tools>=0.4.2a0',
-                        'numpy>=1.8',
-                        'matplotlib>=1.4.3',
-                        'astropy>=1.3',
-                        'scipy>=1.0.0',
-                        'h5py>=2.7.1',
-                        'mlxtend>=0.9.0',
-                        'scikit-learn>=0.19.1'],
+      install_requires=requirements,
       zip_safe=False,
       )
