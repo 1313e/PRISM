@@ -19,7 +19,10 @@ from codecs import open
 from setuptools import find_packages, setup
 
 # PRISM imports
-from prism import __version__
+try:
+    from prism.__version__ import version
+except ImportError:
+    from prism.__version__ import version
 
 
 # %% SETUP DEFINITION
@@ -33,7 +36,7 @@ with open('requirements.txt', 'r') as f:
 
 # Setup function declaration
 setup(name="prism_tool",
-      version=__version__,
+      version=version,
       author="Ellert van der Velden",
       author_email='ellert_vandervelden@outlook.com',
       description=("A \"Probabilistic Regression Instrument for Simulating "
