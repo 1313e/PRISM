@@ -35,8 +35,8 @@ from numpy.random import normal, random
 from sklearn.linear_model import LinearRegression as LR
 
 # PRISM imports
-from ._internal import RequestError, check_nneg_float, check_pos_int,\
-                       check_str, docstring_copy, move_logger, start_logger
+from ._internal import (RequestError, check_nneg_float, check_pos_int,
+                        check_str, docstring_copy, move_logger, start_logger)
 from .emulator import Emulator
 from .projection import Projection
 
@@ -151,12 +151,6 @@ class Pipeline(object):
             be used.
 
         """
-
-        # Check the provided emul_i
-        if emul_i is None:
-            emul_i = self._emulator._emul_i+1
-        else:
-            emul_i = check_pos_int(emul_i, 'emul_i')
 
         # Perform construction
         try:
@@ -904,19 +898,18 @@ class Pipeline(object):
             for i in range(1, self._emulator._emul_i+1):
                 # Check if analysis has been carried out (only if i=emul_i)
                 try:
-                    self._prc.append(file['%s' % (i)].attrs['prc'])
+                    self._impl_cut.append(file['%s' % (i)].attrs['impl_cut'])
 
                 # If not, no plausible regions were found
                 except KeyError:
-                    self._prc.append(0)
-                    self._impl_sam.append([])
-                    self._n_eval_samples.append(1)
+                    pass
 
                 # If so, load in all data
                 else:
-                    self._impl_sam.append(file['%s/impl_sam' % (i)][()])
-                    self._impl_cut.append(file['%s' % (i)].attrs['impl_cut'])
                     self._cut_idx.append(file['%s' % (i)].attrs['cut_idx'])
+                finally:
+                    self._prc.append(file['%s' % (i)].attrs['prc'])
+                    self._impl_sam.append(file['%s/impl_sam' % (i)][()])
                     self._n_eval_samples.append(
                         file['%s' % (i)].attrs['n_eval_samples'])
 
@@ -1250,7 +1243,7 @@ class Pipeline(object):
         # Initialize empty univariate implausibility
         uni_impl_val_sq = np.zeros(self._emulator._n_data[emul_i])
 
-        # Calcualte the univariate implausibility values
+        # Calculate the univariate implausibility values
         for i in range(self._emulator._n_data[emul_i]):
             uni_impl_val_sq[i] =\
                 pow(adj_exp_val[i]-self._emulator._data_val[emul_i][i], 2) /\
@@ -1537,8 +1530,10 @@ class Pipeline(object):
         # Set emul_i correctly
         if emul_i is None:
             emul_i = self._emulator._emul_i+1
+        elif(emul_i == 1):
+            pass
         else:
-            emul_i = check_pos_int(emul_i, 'emul_i')
+            emul_i = self._emulator._get_emul_i(emul_i-1)+1
 
         # Log that construction of emulator iteration is being started
         logger.info("Starting construction of emulator iteration %s."
@@ -1596,6 +1591,7 @@ class Pipeline(object):
             self.analyze(emul_i)
         else:
             self._save_data('impl_sam', [])
+            self._save_data('n_eval_samples', 0)
             self.details(emul_i)
 
     # This function creates the projection figures of a given emul_i
@@ -1631,14 +1627,19 @@ class Pipeline(object):
         except RequestError:
             return
         else:
+            # Get number of plausible and analysis evaluation samples
             n_impl_sam = len(self._impl_sam[emul_i])
             n_eval_samples = self._get_n_eval_samples(emul_i)
+
+            # Get max lengths of various strings for parameter space section
             name_len =\
                 max([len(par_name) for par_name in self._modellink._par_names])
             lower_len =\
                 max([len(str(i)) for i in self._modellink._par_rng[:, 0]])
             upper_len =\
                 max([len(str(i)) for i in self._modellink._par_rng[:, 1]])
+            est_len =\
+                max([len('%.5f' % (i)) for i in self._modellink._par_estimate])
 
             # Open hdf5-file
             file = self._open_hdf5('r')
@@ -1687,7 +1688,7 @@ class Pipeline(object):
                     "instance.")
 
         # Print details about hdf5-file provided
-        width = 30
+        width = 31
         print("\n")
         print("PIPELINE DETAILS")
         print("="*width)
@@ -1713,7 +1714,7 @@ class Pipeline(object):
         else:
             print("{0: <{1}}\t{2}".format("Plausible regions?", width,
                                           "Yes"))
-        if(self._emulator._emul_load == 0 or proj == 0):
+        if(proj == 0):
             print("{0: <{1}}\t{2}".format("Projection available?", width,
                                           "No"))
         elif(proj == 1):
@@ -1731,12 +1732,18 @@ class Pipeline(object):
         print("-"*width)
         print("{0: <{1}}\t{2}".format("# of model evaluation samples", width,
                                       self._emulator._n_sam[1:emul_i+1]))
-        if self._emulator._emul_load:
-            print("{0: <{1}}\t{2}".format("# of plausible samples",
-                                          width, n_impl_sam))
+        if(n_eval_samples == 0):
+            print("{0: <{1}}\t{2}/{3}".format(
+                "# of plausible samples/analyzed", width, "-", "-"))
+            print("{0: <{1}}\t{2}".format(
+                "% of parameter space remaining", width, "-"))
+        else:
+            print("{0: <{1}}\t{2}/{3}".format(
+                "# of plausible samples/analyzed", width, n_impl_sam,
+                n_eval_samples))
             print("{0: <{1}}\t{2:.3g}%".format(
-                    "% of parameter space remaining", width,
-                    (n_impl_sam/n_eval_samples)*100))
+                "% of parameter space remaining", width,
+                (n_impl_sam/n_eval_samples)*100))
         print("{0: <{1}}\t{2}".format("# of model parameters", width,
                                       self._modellink._par_dim))
         print("{0: <{1}}\t{2}".format("# of active model parameters", width,
@@ -1746,10 +1753,10 @@ class Pipeline(object):
         print("-"*width)
         print("\nParameter space")
         print("-"*width)
-        str_format = "{0: >{1}}: [{2: >{3}}, {4: >{5}}] ({6:.5g})"
+        str_format = "{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6: >{7}.5f})"
         for i in range(self._modellink._par_dim):
             print(str_format.format(self._modellink._par_names[i], name_len,
                                     self._modellink._par_rng[i, 0], lower_len,
                                     self._modellink._par_rng[i, 1], upper_len,
-                                    self._modellink._par_estimate[i]))
+                                    self._modellink._par_estimate[i], est_len))
         print("="*width)

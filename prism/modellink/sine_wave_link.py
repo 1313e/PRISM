@@ -40,21 +40,21 @@ class SineWaveLink(ModelLink):
 
     """
 
-    def __init__(self, model_data='data_sine_wave.txt'):
-        super(SineWaveLink, self).__init__(model_data=model_data)
+    def __init__(self, *args, **kwargs):
+        super(SineWaveLink, self).__init__(*args, **kwargs)
 
     @property
     def _default_model_parameters(self):
-        par_dict = {'A': [0, 10, 5],
+        par_dict = {'A': [2, 7, 4],
                     'B': [-1, 12, 3],
-                    'C': [2, 7, 4],
+                    'C': [0, 10, 5],
                     'D': [1.5, 5, 4.6]}
         return(par_dict)
 
     def call_model(self, emul_i, model_parameters, data_idx):
         par = model_parameters
         mod_set =\
-            par['C']+0.1*par['B']*np.sin(par['A']*np.array(data_idx)+par['D'])
+            par['A']+0.1*par['B']*np.sin(par['C']*np.array(data_idx)+par['D'])
 
         return(mod_set)
 

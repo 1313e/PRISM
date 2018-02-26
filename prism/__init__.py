@@ -15,7 +15,7 @@ Short description
 -----------------
 This package contains the PRISM pipeline, an efficient and rapid alternative to
 MCMC methods for optimizing and analyzing scientific models.
-The PRISM package provides two main classes: The :class`~Pipeline` class and
+The PRISM package provides two main classes: The :class:`~Pipeline` class and
 the :class:`~ModelLink` class.
 
 The :class:`~Pipeline` class provides the user with an 'interface' with all the
@@ -52,7 +52,8 @@ from __future__ import absolute_import, division, print_function
 # Import PRISM modules
 from .__version__ import version as __version__
 from . import modellink
+from .modellink import ModelLink
 from .pipeline import Pipeline
 
 # All declaration
-__all__ = ['modellink', 'Pipeline']
+__all__ = ['modellink', 'ModelLink', 'Pipeline']
