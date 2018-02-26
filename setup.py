@@ -18,12 +18,6 @@ from codecs import open
 # Package imports
 from setuptools import find_packages, setup
 
-# PRISM imports
-try:
-    from prism.__version__ import version
-except ImportError:
-    from prism.__version__ import version
-
 
 # %% SETUP DEFINITION
 # Get the long description from the README file
@@ -33,6 +27,9 @@ with open('README.rst', 'r') as f:
 # Get the requirements list
 with open('requirements.txt', 'r') as f:
     requirements = f.read().splitlines()
+
+# Get the version
+exec(open('prism/__version__.py', 'r').read())
 
 # Setup function declaration
 setup(name="prism_tool",

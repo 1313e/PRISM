@@ -46,7 +46,7 @@ Dependencies
 ------------
 PRISM requires ``python == 2.7`` or ``python >= 3.4`` and the following non-standard dependencies (installed automatically when using ``pip``):
 
-- ``e13tools >= 0.4.3a1``;
+- ``e13tools >= 0.4.3a3``;
 - ``h5py >= 2.7.1``;
 - ``mlxtend >= 0.9.1``;
 - ``scikit-learn >= 0.19.1``.
