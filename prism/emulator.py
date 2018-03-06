@@ -32,7 +32,9 @@ from sklearn.pipeline import Pipeline as Pipeline_sk
 from sklearn.preprocessing import PolynomialFeatures as PF
 
 # PRISM imports
-from ._internal import RequestError, check_pos_float, check_pos_int, check_str
+from ._docstrings import get_emul_i_doc, std_emul_i_doc
+from ._internal import (RequestError, check_pos_float, check_pos_int,
+                        check_str, docstring_substitute)
 from .modellink import ModelLink
 
 # All declaration
@@ -299,6 +301,7 @@ class Emulator(object):
 
 # %% GENERAL CLASS METHODS
     # Get correct emulator iteration
+    @docstring_substitute(emul_i=get_emul_i_doc)
     def _get_emul_i(self, emul_i):
         """
         Checks if the provided emulator iteration `emul_i` can be requested or
@@ -306,8 +309,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int or None
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
 
         Returns
         -------
@@ -402,6 +404,7 @@ class Emulator(object):
 
     # Prepares the emulator for a new iteration
     # HINT: Should _create_new_emulator be combined with this method?
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _prepare_new_iteration(self, emul_i):
         """
         Prepares the emulator system for the construction of a new iteration
@@ -410,8 +413,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
 
         Returns
         -------
@@ -442,8 +444,8 @@ class Emulator(object):
         # Check if new iteration can be constructed
         logger.info("Checking if emulator iteration can be prepared.")
         if(emul_i == 1):
-            # Set reload flag to 0
-            reload = 0
+            # Set reload flag to 1
+            reload = 1
         elif not(1 <= emul_i-1 <= self._emul_i):
             logger.error("Preparation of emulator iteration %s is only "
                          "available when all previous iterations exist!"
@@ -546,6 +548,7 @@ class Emulator(object):
         return(reload)
 
     # This function constructs the emulator iteration emul_i
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _construct_iteration(self, emul_i):
         """
         Constructs the emulator iteration corresponding to the provided
@@ -554,8 +557,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
 
         Generates
         ---------
@@ -573,6 +575,7 @@ class Emulator(object):
 
     # This is function 'E_D(f(x'))'
     # This function gives the adjusted emulator expectation value back
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_adj_exp(self, emul_i, par_set, cov_vec):
         """
         Calculates the adjusted emulator expectation value at a given emulator
@@ -581,8 +584,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
         par_set : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the adjusted emulator
             expectation for.
@@ -624,6 +626,7 @@ class Emulator(object):
 
     # This is function 'Var_D(f(x'))'
     # This function gives the adjusted emulator variance value back
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_adj_var(self, emul_i, par_set, cov_vec):
         """
         Calculates the adjusted emulator variance value at a given emulator
@@ -632,8 +635,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
         par_set : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the adjusted emulator
             variance for.
@@ -673,6 +675,7 @@ class Emulator(object):
 
     # This function evaluates the emulator at a given emul_i and par_set and
     # returns the adjusted expectation and variance values
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _evaluate(self, emul_i, par_set):
         """
         Evaluates the emulator system at iteration `emul_i` for given
@@ -680,8 +683,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
         par_set : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to evaluate the emulator at.
 
@@ -710,6 +712,7 @@ class Emulator(object):
         return(adj_exp_val, adj_var_val)
 
     # This function performs a forward stepwise regression on sam_set
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _do_regression(self, emul_i):
         """
         Performs a forward stepwise linear regression on all model evaluation
@@ -720,8 +723,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
 
         Generates
         ---------
@@ -824,6 +826,7 @@ class Emulator(object):
 
     # This function gives the prior expectation value
     # This is function 'E(f(x'))' or 'u(x')'
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_prior_exp(self, emul_i, par_set):
         """
         Calculates the prior expectation value at a given emulator iteration
@@ -832,8 +835,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
         par_set : 1D :obj:`~numpy.ndarray` object or None
             If *None*, calculate the prior expectation values of sam_set.
             If not *None*, calculate the prior expectation value for the given
@@ -891,6 +893,7 @@ class Emulator(object):
 
     # This function calculates the prior expectation and variances values
     # This is function 'E(D)'
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_prior_exp_sam_set(self, emul_i):
         """
         Calculates the prior expectation values at a given emulator iteration
@@ -898,8 +901,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
 
         Generates
         ---------
@@ -926,6 +928,7 @@ class Emulator(object):
 
     # This function gives the prior variance value
     # This is function 'Var(f(x'))'
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_prior_var(self, emul_i, par_set):
         """
         Calculates the prior variance value at a given emulator iteration
@@ -934,8 +937,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
         par_set : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the prior variance for.
 
@@ -950,6 +952,7 @@ class Emulator(object):
         return(self._get_cov(emul_i, par_set, par_set))
 
     # This is function 'Cov(f(x), f(x'))' or 'k(x,x')
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_cov(self, emul_i, par_set1, par_set2):
         """
         Calculates the covariance between given model parameter value sets
@@ -958,8 +961,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
         par_set1, par_set2 : 1D :obj:`~numpy.ndarray` object or None
             If par_set1 and par_set2 are both not *None*, calculate covariance
             between par_set1 and par_set2.
@@ -1080,6 +1082,7 @@ class Emulator(object):
 
     # This function calculates the regression covariance.
     # This is function 'Cov(r(x), r(x'))'
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_regr_cov(self, emul_i, par_set1, par_set2):
         """
         Calculates the covariance of the regression function at emulator
@@ -1087,8 +1090,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
         par_set1, par_set2 : 1D :obj:`~numpy.ndarray` object or None
             If par_set1 and par_set2 are both not *None*, calculate regression
             covariance values for par_set1 with par_set2.
@@ -1187,6 +1189,7 @@ class Emulator(object):
 
     # This is function 'Cov(f(x'), D)' or 't(x')'
     # HINT: Calculate cov_vec for all samples at once to save time?
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_cov_vector(self, emul_i, par_setp):
         """
         Calculates the column vector of covariances between given (`par_setp`)
@@ -1195,8 +1198,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
         par_setp : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the covariances vector
             for.
@@ -1224,15 +1226,16 @@ class Emulator(object):
 
     # This is function 'Var(D)' or 'A'
     # Reminder that this function should only be called once per sample set
-    def _get_cov_matrix(self, emul_i):  # OPTIMIZE: Look at cov_mat once more
+    # OPTIMIZE: Look into using GPUs for calculating and inverting cov_mat
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _get_cov_matrix(self, emul_i):
         """
         Calculates the (inverse) matrix of covariances between known model
         evaluation samples for a given emulator iteration `emul_i`.
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
 
         Generates
         ---------
@@ -1402,6 +1405,7 @@ class Emulator(object):
     # Function that loads in the emulator data
     # TODO: Write code that allows part of the data to be loaded in (crashing)
     # and forces the pipeline to continue where data starts missing
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _load_data(self, emul_i):
         """
         Loads in all the important emulator data up to emulator iteration
@@ -1409,8 +1413,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
 
         Generates
         ---------
@@ -1531,6 +1534,7 @@ class Emulator(object):
             raise RequestError("Invalid operation requested!")
 
     # This function saves emulator data to hdf5
+    @docstring_substitute(emul_i=std_emul_i_doc)
     def _save_data(self, emul_i, keyword, data):
         """
         Saves the provided `data` for the specified data-type `keyword` at the
@@ -1539,8 +1543,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_i : int
-            Number indicating the requested emulator iteration.
+        %(emul_i)s
         keyword : {'active_par', 'cov_mat', 'mod_set', 'prior_exp_sam_set',\
                    'regression', 'sam_set'}
             String specifying the type of data that needs to be saved.

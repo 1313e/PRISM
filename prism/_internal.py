@@ -54,9 +54,18 @@ Available functions
     Checks if provided argument `name` of `value` is a positive integer.
     Returns `value` if *True* and raises a TypeError or ValueError if *False*.
 
+:func:`~docstring_append`
+    Custom decorator that allows a given string `addendum` to be appended to
+    the docstring of the target function, separated by a given string `join`.
+
 :func:`~docstring_copy`
     Custom decorator that allows the docstring of a function `source` to be
-    copied.
+    copied to the target function.
+
+:func:`~docstring_substitute`
+    Custom decorator that allows either given positional arguments `args` or
+    keyword arguments `kwargs` to be substituted into the docstring of the
+    target function.
 
 :func:`~move_logger`
     Moves the logging file `filename` from the current working directory to the
@@ -88,8 +97,8 @@ import numpy as np
 __all__ = ['RequestError', 'check_float', 'check_int', 'check_neg_float',
            'check_neg_int', 'check_nneg_float', 'check_nneg_int',
            'check_npos_float', 'check_npos_int', 'check_pos_float',
-           'check_pos_int', 'check_str', 'docstring_copy', 'move_logger',
-           'start_logger']
+           'check_pos_int', 'check_str', 'docstring_append', 'docstring_copy',
+           'docstring_substitute', 'move_logger', 'start_logger']
 
 
 # %% CLASS DEFINITIONS
@@ -297,11 +306,28 @@ def check_str(value, name):
         raise TypeError("Input argument '%s' is not of type 'str'!" % (name))
 
 
+# Define custom decorator for appending docstrings to a function's docstring
+def docstring_append(addendum, join=''):
+    """
+    Custom decorator that allows a given string `addendum` to be appended to
+    the docstring of the target function, separated by a given string `join`.
+
+    """
+
+    def do_append(target):
+        if target.__doc__:
+            target.__doc__ = join.join([target.__doc__, addendum])
+        else:
+            target.__doc__ = addendum
+        return(target)
+    return(do_append)
+
+
 # Define custom decorator for copying docstrings from one function to another
 def docstring_copy(source):
     """
     Custom decorator that allows the docstring of a function `source` to be
-    copied.
+    copied to the target function.
 
     """
 
@@ -310,6 +336,31 @@ def docstring_copy(source):
             target.__doc__ = source.__doc__
         return(target)
     return(do_copy)
+
+
+# Define custom decorator for substituting strings into a function's docstring
+def docstring_substitute(*args, **kwargs):
+    """
+    Custom decorator that allows either given positional arguments `args` or
+    keyword arguments `kwargs` to be substituted into the docstring of the
+    target function.
+
+    """
+
+    if len(args) and len(kwargs):
+        raise AssertionError("Either only positional or keyword arguments are "
+                             "allowed!")
+    else:
+        params = args or kwargs
+
+    def do_substitution(target):
+        if target.__doc__:
+            target.__doc__ = target.__doc__ % (params)
+        else:
+            raise AssertionError("Target has no docstring available for "
+                                 "substitutions!")
+        return(target)
+    return(do_substitution)
 
 
 # Define function that can move the logging file of PRISM and restart logging

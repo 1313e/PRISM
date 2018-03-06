@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# Emulator model wrapper/link definition, Ellert van der Velden, 2017-2018
-# Do not run directly
-
 """
 ModelLink
 =========

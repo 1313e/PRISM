@@ -35,7 +35,8 @@ import numpy as np
 from scipy.interpolate import interp1d, interp2d
 
 # PRISM imports
-from ._internal import RequestError, check_pos_int
+from ._docstrings import user_emul_i_doc
+from ._internal import RequestError, check_pos_int, docstring_substitute
 
 # All declaration
 __all__ = ['Projection']
@@ -67,6 +68,7 @@ class Projection(object):
         self._modellink = self._pipeline._modellink
 
     # Function that creates all projection figures
+    @docstring_substitute(emul_i=user_emul_i_doc)
     def __call__(self, emul_i=None, proj_par=None, figure=True, show=False,
                  force=False):
         """
@@ -77,10 +79,7 @@ class Projection(object):
 
         Optional
         --------
-        emul_i : int or None. Default: None
-            If int, number indicating the requested emulator iteration.
-            If *None*, the last iteration of the loaded emulator system will
-            be used.
+        %(emul_i)s
         proj_par : 1D array_like of {int, str} or None. Default: None
             For which model parameters to construct the projection figures.
             If 1D array_like, construct projection figures for all combinations
@@ -98,8 +97,8 @@ class Projection(object):
             If `figure` is *True*, whether or not to show a figure after it has
             been created.
         force : bool. Default: False
-            Controls what to do if a projection cube has been calculated at the
-            emulator iteration `emul_i` before.
+            Controls what to do if a projection hcube has been calculated at
+            the emulator iteration `emul_i` before.
             If *False*, it will use the previously acquired projection data to
             create the projection figure.
             If *True*, it will recalculate all the data required to create the
@@ -187,38 +186,38 @@ class Projection(object):
                                    "been provided to make a projection "
                                    "figure!")
 
-        # Obtain list of cube names
+        # Obtain list of hypercube names
         if(self._modellink._par_dim == 2):
-            cube_idx = list(combinations(range(len(proj_par)), 1))
-            cube_par = proj_par[np.array(cube_idx)].tolist()
+            hcube_idx = list(combinations(range(len(proj_par)), 1))
+            hcube_par = proj_par[np.array(hcube_idx)].tolist()
         else:
-            cube_idx = list(combinations(range(len(proj_par)), 2))
-            cube_par = proj_par[np.array(cube_idx)].tolist()
+            hcube_idx = list(combinations(range(len(proj_par)), 2))
+            hcube_par = proj_par[np.array(hcube_idx)].tolist()
 
         # Create empty list holding cube_par that needs to be created
-        create_cube_par = []
+        create_hcube_par = []
 
         # Open hdf5-file
         logger.info("Checking if projection data already exists.")
         file = self._pipeline._open_hdf5('r+')
 
         # Check if data is already there and act accordingly
-        for cube in cube_par:
+        for hcube in hcube_par:
             if(self._modellink._par_dim == 2):
                 # Make abbreviation for the parameter name
-                par_name = self._modellink._par_names[cube[0]]
+                par_name = self._modellink._par_names[hcube[0]]
 
                 try:
                     file.create_group('%s/proj_hcube/%s'
                                       % (self._emul_i, par_name))
                 except ValueError:
-                    if force is True:
+                    if force:
                         del file['%s/proj_hcube/%s'
                                  % (self._emul_i, par_name)]
                         logger.info("Projection data '%s' already exists. "
                                     "Deleting."
                                     % (par_name))
-                        create_cube_par.append(cube)
+                        create_hcube_par.append(hcube)
                     else:
                         logger.info("Projection data '%s' already exists. "
                                     "Skipping data creation."
@@ -227,23 +226,23 @@ class Projection(object):
                     logger.info("Projection data '%s' not found. Will be "
                                 "created."
                                 % (par_name))
-                    create_cube_par.append(cube)
+                    create_hcube_par.append(hcube)
             else:
                 # Make abbreviation for the parameter names
-                par1_name = self._modellink._par_names[cube[0]]
-                par2_name = self._modellink._par_names[cube[1]]
+                par1_name = self._modellink._par_names[hcube[0]]
+                par2_name = self._modellink._par_names[hcube[1]]
 
                 try:
                     file.create_group('%s/proj_hcube/%s-%s'
                                       % (self._emul_i, par1_name, par2_name))
                 except ValueError:
-                    if force is True:
+                    if force:
                         del file['%s/proj_hcube/%s-%s'
                                  % (self._emul_i, par1_name, par2_name)]
                         logger.info("Projection data '%s-%s' already "
                                     "exists. Deleting."
                                     % (par1_name, par2_name))
-                        create_cube_par.append(cube)
+                        create_hcube_par.append(hcube)
                     else:
                         logger.info("Projection data '%s-%s' already "
                                     "exists. Skipping data creation."
@@ -252,60 +251,60 @@ class Projection(object):
                     logger.info("Projection data '%s-%s' not found. Will "
                                 "be created."
                                 % (par1_name, par2_name))
-                    create_cube_par.append(cube)
+                    create_hcube_par.append(hcube)
 
         # Close hdf5-file
         self._pipeline._close_hdf5(file)
 
         # 2+D
         # Loop over all requested projection cubes
-        for cube in cube_par:
+        for hcube in hcube_par:
             # ANALYZE PROJECTION 2+D
             # Create projection hypercube containing all samples if required
-            if(self._modellink._par_dim == 2 and cube in create_cube_par):
+            if(self._modellink._par_dim == 2 and hcube in create_hcube_par):
                 # Log that projection data is being created
                 logger.info("Calculating projection data '%s'."
-                            % (self._modellink._par_names[cube[0]]))
+                            % (self._modellink._par_names[hcube[0]]))
 
-                proj_hcube = self._get_proj_hcube(cube)
+                proj_hcube = self._get_proj_hcube(hcube)
 
                 # Analyze this proj_hcube
-                impl_min, impl_los =\
+                impl_min_hcube, impl_los_hcube =\
                     self._analyze_proj_hcube(proj_hcube)
 
                 # Log that projection data has been created
                 logger.info("Finished calculating projection data '%s'."
-                            % (self._modellink._par_names[cube[0]]))
+                            % (self._modellink._par_names[hcube[0]]))
 
                 # Save projection data to hdf5
                 self._save_data('2D_proj_hcube',
-                                [cube, impl_min, impl_los])
-            elif(self._modellink._par_dim > 2 and cube in create_cube_par):
+                                [hcube, impl_min_hcube, impl_los_hcube])
+            elif(self._modellink._par_dim > 2 and hcube in create_hcube_par):
                 # Log that projection data is being created
                 logger.info("Calculating projection data '%s-%s'."
-                            % (self._modellink._par_names[cube[0]],
-                               self._modellink._par_names[cube[1]]))
+                            % (self._modellink._par_names[hcube[0]],
+                               self._modellink._par_names[hcube[1]]))
 
-                proj_hcube = self._get_proj_hcube(cube)
+                proj_hcube = self._get_proj_hcube(hcube)
 
                 # Analyze this proj_hcube
-                impl_min, impl_los =\
+                impl_min_hcube, impl_los_hcube =\
                     self._analyze_proj_hcube(proj_hcube)
 
                 # Log that projection data has been created
                 logger.info("Finished calculating projection data '%s-%s'."
-                            % (self._modellink._par_names[cube[0]],
-                               self._modellink._par_names[cube[1]]))
+                            % (self._modellink._par_names[hcube[0]],
+                               self._modellink._par_names[hcube[1]]))
 
                 # Save projection data to hdf5
                 self._save_data('nD_proj_hcube',
-                                [cube, impl_min, impl_los])
+                                [hcube, impl_min_hcube, impl_los_hcube])
 
             # PLOTTING
             # Plotting 2D
-            if(self._modellink._par_dim == 2 and figure is True):
-                # Get the parameter this cube is about
-                par = cube[0]
+            if(self._modellink._par_dim == 2 and figure):
+                # Get the parameter this hypercube is about
+                par = hcube[0]
 
                 # Make abbreviation for parameter name
                 par_name = self._modellink._par_names[par]
@@ -389,20 +388,20 @@ class Projection(object):
                 plt.savefig('%s(%s).png' % (fig_prefix, par_name))
 
                 # If show is set to True, show the figure
-                if show is True:
+                if show:
                     f.show()
                 else:
                     plt.close(f)
 
-                # Log that this cube has been drawn
+                # Log that this hypercube has been drawn
                 logger.info("Finished drawing projection figure '%s'."
                             % (par_name))
 
             # Plotting 3D
-            elif(self._modellink._par_dim > 2 and figure is True):
-                # Get the parameter on the x-axis and y-axis this cube is about
-                par1 = cube[0]
-                par2 = cube[1]
+            elif(self._modellink._par_dim > 2 and figure):
+                # Get the parameter on x-axis and y-axis this hcube is about
+                par1 = hcube[0]
+                par2 = hcube[1]
 
                 # Make abbreviation for the parameter names
                 par1_name = self._modellink._par_names[par1]
@@ -434,7 +433,7 @@ class Projection(object):
 
                 # Obtain figure name prefix
                 fig_prefix =\
-                    path.join(self._pipeline._working_dir, 'proj_%s_cube_'
+                    path.join(self._pipeline._working_dir, 'proj_%s_hcube_'
                               % (self._emul_i))
 
                 # Recreate the parameter value arrays used to create the hcube
@@ -475,7 +474,7 @@ class Projection(object):
 
                 # Do plotting
                 f, axarr = plt.subplots(2, figsize=(6.4, 4.8), dpi=100)
-                f.suptitle(r"3D Projection %s Cube (%s-%s)"
+                f.suptitle(r"3D Projection %s Hypercube (%s-%s)"
                            % (self._emul_i, par1_name, par2_name),
                            fontsize='xx-large')
 
@@ -524,7 +523,7 @@ class Projection(object):
                             % (fig_prefix, par1_name, par2_name))
 
                 # If show is set to True, show the figure
-                if show is True:
+                if show:
                     f.show()
                 else:
                     plt.close(f)
@@ -668,26 +667,24 @@ class Projection(object):
         # Return it
         return(par_dict)
 
-    # This function generates a projection cube to be used for emulator
+    # This function generates a projection hypercube to be used for emulator
     # evaluations
-    def _get_proj_hcube(self, cube_par):
+    def _get_proj_hcube(self, hcube_par):
         """
         Generates a hypercube containing emulator evaluation samples to be used
-        in the :func:`~create_projection` function. The output of this function
-        depends on the number of model parameters.
+        in the :class:`~Projection` class. The output of this function depends
+        on the number of model parameters.
 
         Parameters
         ----------
-        cube_par : 1D array_like of int of length {0, 1, 2}
+        hcube_par : 1D array_like of int of length {1, 2}
             Array containing the internal integer identifiers of the main model
             parameters that require a projection hypercube.
 
         Returns
         -------
         proj_hcube : 2D :obj:`~numpy.ndarray` object
-            2D Latin Hypercube of emulator evaluation samples if `par_dim` is 1
-            or a 2D projection hypercube of emulator evaluation samples if
-            `par_dim` is not 1.
+            2D projection hypercube of emulator evaluation samples.
 
         """
 
@@ -699,10 +696,10 @@ class Projection(object):
         nps = self._n_proj_samples
         ones = np.ones(nhs)
 
-        # If par_dim is 2, make 1D projection cube
+        # If par_dim is 2, make 1D projection hypercube
         if(self._modellink._par_dim == 2):
             # Identify projected parameter
-            par = cube_par[0]
+            par = hcube_par[0]
 
             # Log event
             logger.info("Creating projection hypercube '%s'."
@@ -725,13 +722,13 @@ class Projection(object):
                                  self._modellink._par_rng[par_hid],
                                  'fixed', self._pipeline._criterion)
 
-            # Fill every cell in the projection cube accordingly
-            for j in range(nps):
+            # Fill every cell in the projection hypercube accordingly
+            for i in range(nps):
                 # The projected parameter
-                proj_hcube[nhs*j:nhs*(j+1), par] = ones*proj_sam_set[j]
+                proj_hcube[nhs*i:nhs*(i+1), par] = ones*proj_sam_set[i]
 
                 # The remaining hidden parameters
-                proj_hcube[nhs*j:nhs*(j+1), par_hid] =\
+                proj_hcube[nhs*i:nhs*(i+1), par_hid] =\
                     np.transpose(hidden_sam_set)
 
             # Log that projection hypercube has been created
@@ -744,10 +741,10 @@ class Projection(object):
         # If par_dim is more than 2, make 2D projection cubes like Bower fig. 4
         else:
             # Identify first projected parameter
-            par1 = cube_par[0]
+            par1 = hcube_par[0]
 
             # Identify second projected parameter
-            par2 = cube_par[1]
+            par2 = hcube_par[1]
 
             # Log event
             logger.info("Creating projection hypercube '%s-%s'."
@@ -776,19 +773,19 @@ class Projection(object):
                                  self._modellink._par_rng[par_hid], 'fixed',
                                  self._pipeline._criterion)
 
-            # Fill every cell in the projection cube accordingly
-            for j in range(nps):
-                for k in range(nps):
+            # Fill every cell in the projection hypercube accordingly
+            for i in range(nps):
+                for j in range(nps):
                     # The first projected parameter
-                    proj_hcube[nhs*(j*nps+k):nhs*(j*nps+k+1), par1] =\
-                        ones*proj_sam_set1[j]
+                    proj_hcube[nhs*(i*nps+j):nhs*(i*nps+j+1), par1] =\
+                        ones*proj_sam_set1[i]
 
                     # The second projected parameter
-                    proj_hcube[nhs*(j*nps+k):nhs*(j*nps+k+1), par2] =\
-                        ones*proj_sam_set2[k]
+                    proj_hcube[nhs*(i*nps+j):nhs*(i*nps+j+1), par2] =\
+                        ones*proj_sam_set2[j]
 
                     # The remaining hidden parameters
-                    proj_hcube[nhs*(j*nps+k):nhs*(j*nps+k+1), par_hid] =\
+                    proj_hcube[nhs*(i*nps+j):nhs*(i*nps+j+1), par_hid] =\
                         hidden_sam_set
 
             # Log that projection hypercube has been created
@@ -803,21 +800,21 @@ class Projection(object):
     def _analyze_proj_hcube(self, proj_hcube):
         """
         Analyzes an emulator projection hypercube used in the
-        :func:`~create_projection` function.
+        :class:`~Projection` class.
 
         Parameters
         ----------
         proj_hcube : 2D array_like
             2D projection hypercube containing all the emulator evaluation
-            samples that are required to make the projection figures.
+            samples that are required to make the projection figure.
 
         Returns
         -------
-        impl_min : 2D :obj:`~numpy.ndarray` object
-            2D array containing the lowest implausibility value that can be
-            reached in every single grid point on the given hypercube.
-        impl_los : 2D :obj:`~numpy.ndarray` object
-            2D array containing the fraction of the total amount of evaluated
+        impl_min_hcube : 1D list
+            List containing the lowest implausibility value that can be reached
+            in every single grid point on the given hypercube.
+        impl_los_hcube : 1D list
+            List containing the fraction of the total amount of evaluated
             samples in every single grid point on the given hypercube, that
             still satisfied the implausibility cut-off criterion.
 
@@ -830,24 +827,21 @@ class Projection(object):
         # Make abbreviations for certain variables
         nhs = self._n_hidden_samples
 
-        # Obtain number of samples
-        n_samples = proj_hcube.shape[0]
-
         # CALCULATE AND ANALYZE IMPLAUSIBILITY
-        # Create empty lists of indices
-        impl_idx_list = []
-        impl_cut_list = []
+        # Create empty lists for grid points
+        impl_idx_line = []
+        impl_cut_line = []
 
-        # Create empty list of indices for the cube
-        impl_min_cube = []
-        impl_los_cube = []
+        # Create empty lists for this hypercube
+        impl_min_hcube = []
+        impl_los_hcube = []
 
-        # Iterate over all samples the cube
-        for i in range(n_samples):
+        # Iterate over all samples in the hcube
+        for i, par_set in enumerate(proj_hcube):
             print(i)
             for j in range(1, self._emul_i+1):
                 # Obtain implausibility
-                adj_val = self._emulator._evaluate(j, proj_hcube[i])
+                adj_val = self._emulator._evaluate(j, par_set)
                 uni_impl_val =\
                     self._pipeline._get_uni_impl(j, *adj_val)
 
@@ -855,35 +849,37 @@ class Projection(object):
                 impl_check, impl_cut_val =\
                     self._pipeline._do_impl_check(self, j, uni_impl_val)
 
-                # If check was successful, save corresponding index
-                if impl_check is False:
+                # If check is unsuccessful, break inner for-loop and skip save
+                if not impl_check:
                     break
+
+            # If check was successful, save corresponding index
             else:
-                impl_idx_list.append(i)
+                impl_idx_line.append(i)
 
             # Save the implausibility value at the first real cut-off
-            impl_cut_list.append(impl_cut_val)
+            impl_cut_line.append(impl_cut_val)
 
             # If i has checked nhs samples, save the lowest impl and impl
             # line-of-sight
             if((i+1) % (nhs) == 0):
                 # Calculate lowest impl in this grid point
-                impl_min_cube.append(min(impl_cut_list))
+                impl_min_hcube.append(min(impl_cut_line))
 
                 # Calculate impl line-of-sight in this grid point
-                cube_bin = ((i+1-nhs < np.array(impl_idx_list)) &
-                            (np.array(impl_idx_list) < i+1)).sum()
-                impl_los_cube.append(cube_bin/nhs)
+                line_bin = ((i+1-nhs < np.array(impl_idx_line)) &
+                            (np.array(impl_idx_line) < i+1)).sum()
+                impl_los_hcube.append(line_bin/nhs)
 
                 # Clear both lists
-                impl_cut_list = []
-                impl_idx_list = []
+                impl_cut_line = []
+                impl_idx_line = []
 
         # Log that analysis has been finished
         logger.info("Finished projection hypercube analysis.")
 
         # Return impl_min and impl_los
-        return(impl_min_cube, impl_los_cube)
+        return(impl_min_hcube, impl_los_hcube)
 
     # This function saves projection data to hdf5
     def _save_data(self, keyword, data):
@@ -939,7 +935,7 @@ class Projection(object):
 
         # N_PROJ_SAMPLES
         elif(keyword == 'n_proj_samples'):
-            # CHeck if projection has been created before
+            # Check if projection has been created before
             try:
                 file.create_group('%s/proj_hcube' % (self._emul_i))
             except ValueError:
