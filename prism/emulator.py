@@ -32,9 +32,10 @@ from sklearn.pipeline import Pipeline as Pipeline_sk
 from sklearn.preprocessing import PolynomialFeatures as PF
 
 # PRISM imports
+from .__version__ import version as _prism_version
 from ._docstrings import get_emul_i_doc, std_emul_i_doc
-from ._internal import (RequestError, check_pos_float, check_pos_int,
-                        check_str, docstring_substitute)
+from ._internal import (RequestError, check_compatibility, check_pos_float,
+                        check_pos_int, check_str, docstring_substitute)
 from .modellink import ModelLink
 
 # All declaration
@@ -387,6 +388,7 @@ class Emulator(object):
         file.attrs['poly_order'] = self._poly_order
         file.attrs['modellink_name'] =\
             self._modellink_name.encode('ascii', 'ignore')
+        file.attrs['prism_version'] = _prism_version.encode('ascii', 'ignore')
         if use_mock:
             file.attrs['mock_par'] = self._modellink._par_estimate
 
@@ -1655,9 +1657,16 @@ class Emulator(object):
         self._method = file.attrs['method'].decode('utf-8')
         self._poly_order = file.attrs['poly_order']
         self._modellink_name = file.attrs['modellink_name'].decode('utf-8')
+        try:
+            emul_version = file.attrs['prism_version'].decode('utf-8')
+        except KeyError:
+            emul_version = '0.3.0'
 
         # Close hdf5-file
         self._close_hdf5(file)
+
+        # Check if provided emul_version is compatible
+        check_compatibility(emul_version)
 
         # Log that reading is finished
         logger.info("Finished retrieving parameters.")

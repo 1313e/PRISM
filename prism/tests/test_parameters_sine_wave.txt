@@ -1,0 +1,6 @@
+# name			lower_bndry		upper_bndry		estimate
+A			2			7			4
+B			-1			12			3
+C			0			10			5
+D			1.5			5			4.6
+

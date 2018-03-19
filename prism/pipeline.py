@@ -22,6 +22,7 @@ from __future__ import absolute_import, division, print_function
 # Built-in imports
 import os
 from os import path
+import sys
 from time import strftime, strptime
 
 # Package imports
@@ -37,13 +38,17 @@ from sklearn.linear_model import LinearRegression as LR
 # PRISM imports
 from ._docstrings import std_emul_i_doc, user_emul_i_doc
 from ._internal import (RequestError, check_float, check_nneg_float,
-                        check_pos_int, check_str, docstring_copy,
-                        docstring_substitute, move_logger, start_logger)
+                        check_pos_int, docstring_copy, docstring_substitute,
+                        move_logger, start_logger)
 from .emulator import Emulator
 from .projection import Projection
 
 # All declaration
 __all__ = ['Pipeline']
+
+# Python2/Python3 compatibility
+if(sys.version_info.major >= 3):
+    unicode = str
 
 
 # %% PIPELINE CLASS DEFINITION
@@ -54,6 +59,7 @@ __all__ = ['Pipeline']
 # TODO: Rewrite PRISM into MPI
 # TODO: Allow user to switch between emulation and modelling
 # TODO: Implement multivariate implausibilities
+# TODO: Allow user to construct a master emulator system, covering full space
 class Pipeline(object):
     """
     Defines the :class:`~Pipeline` class of the PRISM package.
@@ -266,7 +272,6 @@ class Pipeline(object):
 
         """
 
-        # TODO: Maybe an integer should also be allowed as criterion?
         return(self._criterion)
 
     @property
@@ -327,7 +332,7 @@ class Pipeline(object):
 
         """
 
-        return([bool(self._prc[i]) for i in range(self._emul_i+1)])
+        return([bool(self._prc[i]) for i in range(self._emulator._emul_i+1)])
 
     @property
     def impl_sam(self):
@@ -565,8 +570,15 @@ class Pipeline(object):
                                          'n_sam_init')
 
         # Criterion parameter used for Latin Hypercube Sampling
-        self._criterion = check_str(
-            str(par_dict['criterion']).replace("'", ''), 'criterion')
+        if(par_dict['criterion'].lower() in ('none', 'false')):
+            self._criterion = None
+        else:
+            try:
+                float(par_dict['criterion'])
+            except ValueError:
+                self._criterion = str(par_dict['criterion']).replace("'", '')
+            else:
+                self._criterion = float(par_dict['criterion'])
 
         # Obtain the bool determining whether or not to have active parameters
         if(par_dict['do_active_par'].lower() in ('false', '0')):
@@ -639,7 +651,7 @@ class Pipeline(object):
             # Use model discrepancy variance as model data errors
             try:
                 md_var = self._modellink.get_md_var(
-                    emul_i, self._emulator._data_idx[emul_i])
+                    emul_i, self._modellink._data_idx[emul_i])
             except NotImplementedError:
                 md_var = pow(np.array(self._modellink._data_val)/6, 2)
             finally:
@@ -745,7 +757,7 @@ class Pipeline(object):
             logger.info("Root directory set to '%s'." % (self._root_dir))
 
         # If one specified a root directory, use it
-        elif isinstance(root_dir, str):
+        elif isinstance(root_dir, (str, unicode)):
             logger.info("Root directory specified.")
             self._root_dir = path.abspath(root_dir)
             logger.info("Root directory set to '%s'." % (self._root_dir))
@@ -764,7 +776,7 @@ class Pipeline(object):
             raise InputError("Input argument 'root_dir' is invalid!")
 
         # Check if a valid working directory prefix string is given
-        if isinstance(prefix, str):
+        if isinstance(prefix, (str, unicode)):
             self._prefix = prefix
             prefix_len = len(prefix)
         else:
@@ -831,7 +843,7 @@ class Pipeline(object):
             logger.info("Working directory set to '%s'." % (working_dir))
 
         # If one specified a working directory, use it
-        elif isinstance(working_dir, str):
+        elif isinstance(working_dir, (str, unicode)):
             logger.info("Working directory specified.")
             self._working_dir =\
                 path.join(self._root_dir, working_dir)
@@ -852,7 +864,7 @@ class Pipeline(object):
             raise InputError("Input argument 'working_dir' is invalid!")
 
         # Obtain hdf5-file path
-        if isinstance(hdf5_file, str):
+        if isinstance(hdf5_file, (str, unicode)):
             self._hdf5_file = path.join(self._working_dir, hdf5_file)
             logger.info("HDF5-file set to '%s'." % (hdf5_file))
             self._hdf5_file_name = path.join(working_dir, hdf5_file)
@@ -865,7 +877,7 @@ class Pipeline(object):
             self._prism_file = None
 
         # If a PRISM parameter file was provided
-        elif isinstance(prism_file, str):
+        elif isinstance(prism_file, (str, unicode)):
             if path.exists(prism_file):
                 self._prism_file = prism_file
             else:

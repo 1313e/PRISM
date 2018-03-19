@@ -14,45 +14,63 @@ Available classes
 
 Available functions
 -------------------
+:func:`~check_compatibility`
+    Checks if the provided `emul_version` is compatible with the current
+    version of PRISM.
+    Raises a :class:`~RequestError` if *False* and indicates which version of
+    PRISM still supports the provided `emul_version`.
+
 :func:`~check_float`
     Checks if provided argument `name` of `value` is a float.
-    Returns `value` if *True* and raises a TypeError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` if *False*.
 
 :func:`~check_int`
     Checks if provided argument `name` of `value` is an integer.
-    Returns `value` if *True* and raises a TypeError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` if *False*.
 
 :func:`~check_neg_float`
     Checks if provided argument `name` of `value` is a negative float.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
 :func:`~check_neg_int`
     Checks if provided argument `name` of `value` is a negative integer.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
 :func:`~check_nneg_float`
     Checks if provided argument `name` of `value` is a non-negative float.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
 :func:`~check_nneg_int`
     Checks if provided argument `name` of `value` is a non-negative integer.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
 :func:`~check_npos_float`
     Checks if provided argument `name` of `value` is a non-positive float.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
 :func:`~check_npos_int`
     Checks if provided argument `name` of `value` is a non-positive integer.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
 :func:`~check_pos_float`
     Checks if provided argument `name` of `value` is a positive float.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
 :func:`~check_pos_int`
     Checks if provided argument `name` of `value` is a positive integer.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
+
+:func:`~check_str`
+    Checks if provided argument `name` of `value` is a string.
+    Returns `value` if *True* and raises a :class:`~TypeError` if *False*.
 
 :func:`~docstring_append`
     Custom decorator that allows a given string `addendum` to be appended to
@@ -89,16 +107,21 @@ from os import path
 import shutil
 
 # Package imports
+from e13tools.core import _compare_versions
 import logging
 import logging.config
 import numpy as np
 
+# PRISM imports
+from .__version__ import compat_version, version as prism_version
+
 # All declaration
-__all__ = ['RequestError', 'check_float', 'check_int', 'check_neg_float',
-           'check_neg_int', 'check_nneg_float', 'check_nneg_int',
-           'check_npos_float', 'check_npos_int', 'check_pos_float',
-           'check_pos_int', 'check_str', 'docstring_append', 'docstring_copy',
-           'docstring_substitute', 'move_logger', 'start_logger']
+__all__ = ['RequestError', 'check_compatibility', 'check_float', 'check_int',
+           'check_neg_float', 'check_neg_int', 'check_nneg_float',
+           'check_nneg_int', 'check_npos_float', 'check_npos_int',
+           'check_pos_float', 'check_pos_int', 'check_str', 'docstring_append',
+           'docstring_copy', 'docstring_substitute', 'move_logger',
+           'start_logger']
 
 
 # %% CLASS DEFINITIONS
@@ -117,11 +140,42 @@ class RequestError(Exception):
 
 
 # %% FUNCTION DEFINITIONS
+# Function for checking if emulator system is compatible with PRISM version
+def check_compatibility(emul_version):
+    """
+    Checks if the provided `emul_version` is compatible with the current
+    version of PRISM.
+    Raises a :class:`~RequestError` if *False* and indicates which version of
+    PRISM still supports the provided `emul_version`.
+
+    """
+
+    # Do some logging
+    logger = logging.getLogger('INIT')
+    logger.info("Performing compatibility check.")
+
+    # Loop over all compatibility versions
+    for version in compat_version:
+        # If a compat_version is the same or newer than the emul_version
+        # then it is incompatible
+        if _compare_versions(version, emul_version):
+            logger.error("The provided emulator system is incompatible with "
+                         "the current version of PRISM ('v%s'). The last "
+                         "compatible version of PRISM is 'v%s'."
+                         % (prism_version, version))
+            raise RequestError("The provided emulator system is incompatible "
+                               "with the current version of PRISM ('v%s'). The"
+                               " last compatible version of PRISM is 'v%s'."
+                               % (prism_version, version))
+    else:
+        logger.info("Compatibility check was successful.")
+
+
 # Function for checking if a float has been provided
 def check_float(value, name):
     """
     Checks if provided argument `name` of `value` is a float.
-    Returns `value` if *True* and raises a TypeError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` if *False*.
 
     """
 
@@ -136,7 +190,7 @@ def check_float(value, name):
 def check_int(value, name):
     """
     Checks if provided argument `name` of `value` is an integer.
-    Returns `value` if *True* and raises a TypeError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` if *False*.
 
     """
 
@@ -151,7 +205,8 @@ def check_int(value, name):
 def check_neg_float(value, name):
     """
     Checks if provided argument `name` of `value` is a negative float.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
     """
 
@@ -169,7 +224,8 @@ def check_neg_float(value, name):
 def check_neg_int(value, name):
     """
     Checks if provided argument `name` of `value` is a negative integer.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
     """
 
@@ -187,7 +243,8 @@ def check_neg_int(value, name):
 def check_nneg_float(value, name):
     """
     Checks if provided argument `name` of `value` is a non-negative float.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
     """
 
@@ -205,7 +262,8 @@ def check_nneg_float(value, name):
 def check_nneg_int(value, name):
     """
     Checks if provided argument `name` of `value` is a non-negative integer.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
     """
 
@@ -223,7 +281,8 @@ def check_nneg_int(value, name):
 def check_npos_float(value, name):
     """
     Checks if provided argument `name` of `value` is a non-positive float.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
     """
 
@@ -241,7 +300,8 @@ def check_npos_float(value, name):
 def check_npos_int(value, name):
     """
     Checks if provided argument `name` of `value` is a non-positive integer.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
     """
 
@@ -259,7 +319,8 @@ def check_npos_int(value, name):
 def check_pos_float(value, name):
     """
     Checks if provided argument `name` of `value` is a positive float.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
     """
 
@@ -277,7 +338,8 @@ def check_pos_float(value, name):
 def check_pos_int(value, name):
     """
     Checks if provided argument `name` of `value` is a positive integer.
-    Returns `value` if *True* and raises a TypeError or ValueError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*.
 
     """
 
@@ -295,7 +357,7 @@ def check_pos_int(value, name):
 def check_str(value, name):
     """
     Checks if provided argument `name` of `value` is a string.
-    Returns `value` if *True* and raises a TypeError if *False*.
+    Returns `value` if *True* and raises a :class:`~TypeError` if *False*.
 
     """
 

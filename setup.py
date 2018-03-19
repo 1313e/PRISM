@@ -12,6 +12,9 @@ This can be ran directly by using::
 
 
 # %% IMPORTS
+# Future imports
+from __future__ import absolute_import, with_statement
+
 # Built-in imports
 from codecs import open
 
@@ -64,7 +67,6 @@ setup(name="prism_tool",
       packages=find_packages(),
       package_dir={'prism': "prism"},
       include_package_data=True,
-#      test_suite="",
       install_requires=requirements,
       zip_safe=False,
       )
