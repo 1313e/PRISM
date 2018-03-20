@@ -11,6 +11,7 @@ Unittests for PRISM's Pipeline class
 from __future__ import absolute_import, division, print_function
 
 # Built-in imports
+import argparse
 import os
 from os import path
 
@@ -18,18 +19,22 @@ from os import path
 import logging
 import numpy as np
 
-# PRISM imports
-from prism import Pipeline
-from prism.modellink.sine_wave_link import SineWaveLink
-
 
 # %% TESTS
-def test_pipeline():
+# TODO: Move all test data files to a separate folder
+def test_pipeline(output, save):
+    # Try to import all PRISM modules
+    try:
+        from prism import Pipeline
+        from prism.modellink.sine_wave_link import SineWaveLink
+    except Exception:
+        raise
+
     # Create instance of SineWaveLink
     model_link = SineWaveLink(path.join(path.dirname(__file__),
-                                        'test_parameters_sine_wave.txt'),
+                                        'data/test_parameters_sine_wave.txt'),
                               path.join(path.dirname(__file__),
-                                        'test_data_sine_wave.txt'))
+                                        'data/test_data_sine_wave.txt'))
 
     # Check if all model parameters details are correct
     assert model_link._par_dim == 4
@@ -45,9 +50,9 @@ def test_pipeline():
 
     # Create instance of Pipeline
     pipe = Pipeline(model_link, root_dir=path.dirname(__file__),
-                    working_dir='test_emul_sine_wave',
+                    working_dir=output,
                     prism_file=path.join(path.dirname(__file__),
-                                         'test_prism.txt'))
+                                         'data/test_prism.txt'))
 
     # Check if Pipeline details are correct
     assert pipe._modellink_name == 'SineWaveLink'
@@ -57,7 +62,9 @@ def test_pipeline():
     assert pipe._use_mock == 0
 
     # Check if Emulator details are correct
-    assert pipe._emulator._emul_load == 0
+    assert pipe._emulator._emul_load == 0, ("Directory '%s' already contains "
+                                            "a constructed emulator system!"
+                                            % (output))
     assert pipe._emulator._emul_i == 0
 
     # Set randomizer seed
@@ -79,7 +86,8 @@ def test_pipeline():
     # Check if emulator analysis has been done correctly
     assert (pipe._impl_cut[1] == [0.0, 4.0, 3.8, 3.5]).all()
     assert pipe._prc[1] == 1
-    exp_impl_sam = np.load(path.join(path.dirname(__file__), 'impl_sam.npy'))
+    exp_impl_sam = np.load(path.join(path.dirname(__file__),
+                                     'data/impl_sam.npy'))
     assert np.allclose(pipe._impl_sam[1], exp_impl_sam)
 
     # Check if emulator system is correctly built
@@ -116,23 +124,40 @@ def test_pipeline():
     pipe._close_hdf5(file)
 
     # Obtain expected projection data
-    exp_impl_los = np.load(path.join(path.dirname(__file__), 'impl_los.npy'))
-    exp_impl_min = np.load(path.join(path.dirname(__file__), 'impl_min.npy'))
+    exp_impl_los = np.load(path.join(path.dirname(__file__),
+                                     'data/impl_los.npy'))
+    exp_impl_min = np.load(path.join(path.dirname(__file__),
+                                     'data/impl_min.npy'))
 
     # Check if data is equal
     assert np.allclose(impl_los, exp_impl_los)
     assert np.allclose(impl_min, exp_impl_min)
 
     # If all of this was successful, delete the working_dir and return True
-    del pipe
-    logging.shutdown()
-    os.remove('test_emul_sine_wave/prism.hdf5')
-    os.remove('test_emul_sine_wave/prism_log.log')
-    os.remove('test_emul_sine_wave/proj_1_hcube_(A-B).png')
-    os.rmdir('test_emul_sine_wave')
+    print("Test was successful!")
+    if not save:
+        del pipe
+        logging.shutdown()
+        os.remove('%s/prism.hdf5' % (output))
+        os.remove('%s/prism_log.log' % (output))
+        os.remove('%s/proj_1_hcube_(A-B).png' % (output))
+        os.rmdir(output)
+        print("Deleted test directory '%s' and all of its contents."
+              % (output))
     return(True)
 
 
 # %% EXECUTION
 if __name__ == '__main__':
-    test_pipeline()
+    parser = argparse.ArgumentParser(
+                 description="Test script for checking the functionality of "
+                             "the PRISM pipeline.",
+                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-o', '--output', action='store', type=str,
+                        default='test_emul_sine_wave',
+                        help="output directory name")
+    parser.add_argument('-s', '--save', action='store_true',
+                        help="save output")
+    args = parser.parse_args()
+
+    test_pipeline(args.output, args.save)
