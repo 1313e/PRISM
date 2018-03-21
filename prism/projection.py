@@ -694,7 +694,6 @@ class Projection(object):
         # Make abbreviations for certain variables
         nhs = self._n_hidden_samples
         nps = self._n_proj_samples
-        ones = np.ones(nhs)
 
         # If par_dim is 2, make 1D projection hypercube
         if(self._modellink._par_dim == 2):
@@ -706,7 +705,7 @@ class Projection(object):
                         % (self._modellink._par_names[par]))
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([nps*nhs, self._modellink._par_dim])
+            proj_hcube = np.zeros([nps, nhs, self._modellink._par_dim])
 
             # Create list that contains all the other parameters
             par_hid = list(chain(range(0, par),
@@ -725,10 +724,10 @@ class Projection(object):
             # Fill every cell in the projection hypercube accordingly
             for i in range(nps):
                 # The projected parameter
-                proj_hcube[nhs*i:nhs*(i+1), par] = ones*proj_sam_set[i]
+                proj_hcube[i, :, par] = proj_sam_set[i]
 
                 # The remaining hidden parameters
-                proj_hcube[nhs*i:nhs*(i+1), par_hid] =\
+                proj_hcube[i, :, par_hid] =\
                     np.transpose(hidden_sam_set)
 
             # Log that projection hypercube has been created
@@ -752,7 +751,7 @@ class Projection(object):
                            self._modellink._par_names[par2]))
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([pow(nps, 2)*nhs, self._modellink._par_dim])
+            proj_hcube = np.zeros([pow(nps, 2), nhs, self._modellink._par_dim])
 
             # Generate list that contains all the other parameters
             par_hid = list(chain(range(0, par1), range(par1+1, par2),
@@ -777,16 +776,16 @@ class Projection(object):
             for i in range(nps):
                 for j in range(nps):
                     # The first projected parameter
-                    proj_hcube[nhs*(i*nps+j):nhs*(i*nps+j+1), par1] =\
-                        ones*proj_sam_set1[i]
+                    proj_hcube[i*nps+j, :, par1] =\
+                        proj_sam_set1[i]
 
                     # The second projected parameter
-                    proj_hcube[nhs*(i*nps+j):nhs*(i*nps+j+1), par2] =\
-                        ones*proj_sam_set2[j]
+                    proj_hcube[i*nps+j, :, par2] =\
+                        proj_sam_set2[j]
 
                     # The remaining hidden parameters
-                    proj_hcube[nhs*(i*nps+j):nhs*(i*nps+j+1), par_hid] =\
-                        hidden_sam_set
+                    proj_hcube[i*nps+j, :, par_hid] =\
+                        np.transpose(hidden_sam_set)
 
             # Log that projection hypercube has been created
             logger.info("Finished creating projection hypercube '%s-%s'."
@@ -829,7 +828,7 @@ class Projection(object):
 
         # CALCULATE AND ANALYZE IMPLAUSIBILITY
         # Create empty lists for grid points
-        impl_idx_line = []
+        impl_check_line = []
         impl_cut_line = []
 
         # Create empty lists for this hypercube
@@ -837,43 +836,46 @@ class Projection(object):
         impl_los_hcube = []
 
         # Iterate over all samples in the hcube
-        for i, par_set in enumerate(proj_hcube):
-            print(i)
-            for j in range(1, self._emul_i+1):
-                # Obtain implausibility
-                adj_val = self._emulator._evaluate(j, par_set)
-                uni_impl_val =\
-                    self._pipeline._get_uni_impl(j, *adj_val)
+        # For all grid points in the hcube
+        for i, grid_point in enumerate(proj_hcube):
 
-                # Perform implausibility cut-off check
-                impl_check, impl_cut_val =\
-                    self._pipeline._do_impl_check(self, j, uni_impl_val)
+            # For all samples in the grid point
+            for j, par_set in enumerate(grid_point):
+                print(i, j)
 
-                # If check is unsuccessful, break inner for-loop and skip save
-                if not impl_check:
-                    break
+                # For all emulator iterations, check this sample
+                for k in range(1, self._emul_i+1):
+                    # Obtain implausibility
+                    adj_val = self._emulator._evaluate(k, par_set)
+                    uni_impl_val =\
+                        self._pipeline._get_uni_impl(k, *adj_val)
 
-            # If check was successful, save corresponding index
-            else:
-                impl_idx_line.append(i)
+                    # Perform implausibility cut-off check
+                    impl_check, impl_cut_val =\
+                        self._pipeline._do_impl_check(self, k, uni_impl_val)
 
-            # Save the implausibility value at the first real cut-off
-            impl_cut_line.append(impl_cut_val)
+                    # If check is unsuccessful, break inner for-loop
+                    if not impl_check:
+                        break
 
-            # If i has checked nhs samples, save the lowest impl and impl
+                # If check was successful, add extra element to impl_check_line
+                else:
+                    impl_check_line.append(1)
+
+                # Save the implausibility value at the first real cut-off
+                impl_cut_line.append(impl_cut_val)
+
+            # If a grid point has been checked, save the lowest impl and impl
             # line-of-sight
-            if((i+1) % (nhs) == 0):
-                # Calculate lowest impl in this grid point
-                impl_min_hcube.append(min(impl_cut_line))
+            # Calculate lowest impl in this grid point
+            impl_min_hcube.append(min(impl_cut_line))
 
-                # Calculate impl line-of-sight in this grid point
-                line_bin = ((i+1-nhs < np.array(impl_idx_line)) &
-                            (np.array(impl_idx_line) < i+1)).sum()
-                impl_los_hcube.append(line_bin/nhs)
+            # Calculate impl line-of-sight in this grid point
+            impl_los_hcube.append(len(impl_check_line)/nhs)
 
-                # Clear both lists
-                impl_cut_line = []
-                impl_idx_line = []
+            # Clear both lists
+            impl_check_line = []
+            impl_cut_line = []
 
         # Log that analysis has been finished
         logger.info("Finished projection hypercube analysis.")

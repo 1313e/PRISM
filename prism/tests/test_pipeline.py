@@ -14,6 +14,7 @@ from __future__ import absolute_import, division, print_function
 import argparse
 import os
 from os import path
+import time
 
 # Package imports
 import logging
@@ -21,8 +22,10 @@ import numpy as np
 
 
 # %% TESTS
-# TODO: Move all test data files to a separate folder
 def test_pipeline(output, save):
+    # Save the path to this file
+    file_path = path.dirname(__file__)
+
     # Try to import all PRISM modules
     try:
         from prism import Pipeline
@@ -31,9 +34,9 @@ def test_pipeline(output, save):
         raise
 
     # Create instance of SineWaveLink
-    model_link = SineWaveLink(path.join(path.dirname(__file__),
+    model_link = SineWaveLink(path.join(file_path,
                                         'data/test_parameters_sine_wave.txt'),
-                              path.join(path.dirname(__file__),
+                              path.join(file_path,
                                         'data/test_data_sine_wave.txt'))
 
     # Check if all model parameters details are correct
@@ -49,10 +52,8 @@ def test_pipeline(output, save):
     assert model_link._data_idx == [1, 2, 3, 4, 5]
 
     # Create instance of Pipeline
-    pipe = Pipeline(model_link, root_dir=path.dirname(__file__),
-                    working_dir=output,
-                    prism_file=path.join(path.dirname(__file__),
-                                         'data/test_prism.txt'))
+    pipe = Pipeline(model_link, root_dir=file_path, working_dir=output,
+                    prism_file=path.join(file_path, 'data/test_prism.txt'))
 
     # Check if Pipeline details are correct
     assert pipe._modellink_name == 'SineWaveLink'
@@ -86,8 +87,7 @@ def test_pipeline(output, save):
     # Check if emulator analysis has been done correctly
     assert (pipe._impl_cut[1] == [0.0, 4.0, 3.8, 3.5]).all()
     assert pipe._prc[1] == 1
-    exp_impl_sam = np.load(path.join(path.dirname(__file__),
-                                     'data/impl_sam.npy'))
+    exp_impl_sam = np.load(path.join(file_path, 'data/impl_sam.npy'))
     assert np.allclose(pipe._impl_sam[1], exp_impl_sam)
 
     # Check if emulator system is correctly built
@@ -124,10 +124,8 @@ def test_pipeline(output, save):
     pipe._close_hdf5(file)
 
     # Obtain expected projection data
-    exp_impl_los = np.load(path.join(path.dirname(__file__),
-                                     'data/impl_los.npy'))
-    exp_impl_min = np.load(path.join(path.dirname(__file__),
-                                     'data/impl_min.npy'))
+    exp_impl_los = np.load(path.join(file_path, 'data/impl_los.npy'))
+    exp_impl_min = np.load(path.join(file_path, 'data/impl_min.npy'))
 
     # Check if data is equal
     assert np.allclose(impl_los, exp_impl_los)
@@ -136,12 +134,13 @@ def test_pipeline(output, save):
     # If all of this was successful, delete the working_dir and return True
     print("Test was successful!")
     if not save:
+        working_dir = pipe._working_dir
         del pipe
         logging.shutdown()
-        os.remove('%s/prism.hdf5' % (output))
-        os.remove('%s/prism_log.log' % (output))
-        os.remove('%s/proj_1_hcube_(A-B).png' % (output))
-        os.rmdir(output)
+        os.remove('%s/prism.hdf5' % (working_dir))
+        os.remove('%s/prism_log.log' % (working_dir))
+        os.remove('%s/proj_1_hcube_(A-B).png' % (working_dir))
+        os.rmdir(working_dir)
         print("Deleted test directory '%s' and all of its contents."
               % (output))
     return(True)
@@ -160,4 +159,7 @@ if __name__ == '__main__':
                         help="save output")
     args = parser.parse_args()
 
+    # Start testing
+    start_time = time.time()
     test_pipeline(args.output, args.save)
+    print("Time elapsed: %ss" % (time.time()-start_time))
