@@ -8,6 +8,8 @@ This can be ran directly by using::
 
     python setup.py install
 
+or anything equivalent.
+
 """
 
 
@@ -35,16 +37,16 @@ with open('requirements.txt', 'r') as f:
 exec(open('prism/__version__.py', 'r').read())
 
 # Setup function declaration
-setup(name="prism_tool",
+setup(name='prism-tool',
       version=version,
       author="Ellert van der Velden",
-      author_email='ellert_vandervelden@outlook.com',
+      author_email="ellert_vandervelden@outlook.com",
       description=("A \"Probabilistic Regression Instrument for Simulating "
                    "Models\""),
       long_description=long_description,
-      url='https://www.github.com/1313e/PRISM',
+      url="https://www.github.com/1313e/PRISM",
       license='BSD-3',
-      platforms=["Windows", "Linux", "Unix"],
+      platforms=['Windows', 'Linux', 'Unix'],
       classifiers=[
           'Development Status :: 3 - Alpha',
           'Intended Audience :: Developers',

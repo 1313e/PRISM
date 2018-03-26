@@ -365,10 +365,10 @@ class Projection(object):
                 draw_y =\
                     self._impl_cut[self._emul_i][self._cut_idx[self._emul_i]]
                 draw_textline(r"$I_{\mathrm{cut-off, 1}}$", y=draw_y,
-                              linestyle='g', ax=axarr[0])
+                              ax=axarr[0], line_kwargs={'color': 'g'})
                 if self._modellink._par_estimate[par] is not None:
                     draw_textline(r"", x=self._modellink._par_estimate[par],
-                                  pos='end', linestyle='k--', ax=axarr[0])
+                                  ax=axarr[0], line_kwargs={'linestyle': '--'})
                 axarr[0].set_ylabel(r"Minimum Implausibility "
                                     r"$I_{\mathrm{min}}(%s)$"
                                     % (par_name), fontsize='x-large')
@@ -378,7 +378,7 @@ class Projection(object):
                 axarr[1].plot(x, f_los(x))
                 if self._modellink._par_estimate[par] is not None:
                     draw_textline(r"", x=self._modellink._par_estimate[par],
-                                  pos='end', linestyle='k--', ax=axarr[1])
+                                  ax=axarr[1], line_kwargs={'linestyle': '--'})
                 axarr[1].set_xlabel("Input Parameter %s" % (par_name),
                                     fontsize='x-large')
                 axarr[1].set_ylabel("Line-of-Sight Depth", fontsize='x-large')
@@ -488,10 +488,10 @@ class Projection(object):
 #                axarr[0].tick_params(axis='both', labelsize='large')
                 if self._modellink._par_estimate[par1] is not None:
                     draw_textline(r"", x=self._modellink._par_estimate[par1],
-                                  linestyle='k--', ax=axarr[0])
+                                  ax=axarr[0], line_kwargs={'linestyle': '--'})
                 if self._modellink._par_estimate[par2] is not None:
                     draw_textline(r"", y=self._modellink._par_estimate[par2],
-                                  linestyle='k--', ax=axarr[0])
+                                  ax=axarr[0], line_kwargs={'linestyle': '--'})
                 axarr[0].axis([self._modellink._par_rng[par1, 0],
                                self._modellink._par_rng[par1, 1],
                                self._modellink._par_rng[par2, 0],
@@ -507,10 +507,10 @@ class Projection(object):
 #                axarr[1].tick_params(axis='both', labelsize='large')
                 if self._modellink._par_estimate[par1] is not None:
                     draw_textline(r"", x=self._modellink._par_estimate[par1],
-                                  linestyle='k--', ax=axarr[1])
+                                  ax=axarr[1], line_kwargs={'linestyle': '--'})
                 if self._modellink._par_estimate[par2] is not None:
                     draw_textline(r"", y=self._modellink._par_estimate[par2],
-                                  linestyle='k--', ax=axarr[1])
+                                  ax=axarr[1], line_kwargs={'linestyle': '--'})
                 axarr[1].axis([self._modellink._par_rng[par1, 0],
                                self._modellink._par_rng[par1, 1],
                                self._modellink._par_rng[par2, 0],
@@ -705,11 +705,10 @@ class Projection(object):
                         % (self._modellink._par_names[par]))
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([nps, nhs, self._modellink._par_dim])
+            proj_hcube = np.zeros([nps, nhs, 2])
 
             # Create list that contains all the other parameters
-            par_hid = list(chain(range(0, par),
-                                 range(par+1, self._modellink._par_dim)))
+            par_hid = 1 if par == 0 else 0
 
             # Generate list with values for projected parameter
             proj_sam_set = np.linspace(self._modellink._par_rng[par, 0],
@@ -717,8 +716,7 @@ class Projection(object):
                                        nps)
 
             # Generate latin hypercube of the remaining parameters
-            hidden_sam_set = lhd(nhs, self._modellink._par_dim-1,
-                                 self._modellink._par_rng[par_hid],
+            hidden_sam_set = lhd(nhs, 1, self._modellink._par_rng[par_hid],
                                  'fixed', self._pipeline._criterion)
 
             # Fill every cell in the projection hypercube accordingly
@@ -727,8 +725,7 @@ class Projection(object):
                 proj_hcube[i, :, par] = proj_sam_set[i]
 
                 # The remaining hidden parameters
-                proj_hcube[i, :, par_hid] =\
-                    np.transpose(hidden_sam_set)
+                proj_hcube[i, :, par_hid] = hidden_sam_set
 
             # Log that projection hypercube has been created
             logger.info("Finished creating projection hypercube '%s'."
@@ -776,12 +773,10 @@ class Projection(object):
             for i in range(nps):
                 for j in range(nps):
                     # The first projected parameter
-                    proj_hcube[i*nps+j, :, par1] =\
-                        proj_sam_set1[i]
+                    proj_hcube[i*nps+j, :, par1] = proj_sam_set1[i]
 
                     # The second projected parameter
-                    proj_hcube[i*nps+j, :, par2] =\
-                        proj_sam_set2[j]
+                    proj_hcube[i*nps+j, :, par2] = proj_sam_set2[j]
 
                     # The remaining hidden parameters
                     proj_hcube[i*nps+j, :, par_hid] =\

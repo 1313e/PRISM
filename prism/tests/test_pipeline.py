@@ -22,14 +22,30 @@ import numpy as np
 
 
 # %% TESTS
-def test_pipeline(output, save):
+# Function that tests the functionality of the PRISM pipeline
+def test_pipeline(output='test_emul_sine_wave', save=False):
+    """
+    Test script that uses the :class:`~prism.modellink.SineWaveLink` class to
+    test all functionalities of the PRISM pipeline.
+
+    Optional
+    --------
+    output : str. Default: 'test_emul_sine_wave'
+        String containing the name of the working directory the test results
+        need to be saved to.
+    save : bool. Default: False
+        Whether or not to keep the working directory after a successful test
+        run.
+
+    """
+
     # Save the path to this file
     file_path = path.dirname(__file__)
 
     # Try to import all PRISM modules
     try:
         from prism import Pipeline
-        from prism.modellink.sine_wave_link import SineWaveLink
+        from prism.modellink import SineWaveLink
     except Exception:
         raise
 
@@ -53,7 +69,7 @@ def test_pipeline(output, save):
 
     # Create instance of Pipeline
     pipe = Pipeline(model_link, root_dir=file_path, working_dir=output,
-                    prism_file=path.join(file_path, 'data/test_prism.txt'))
+                    prism_file='data/test_prism.txt')
 
     # Check if Pipeline details are correct
     assert pipe._modellink_name == 'SineWaveLink'
@@ -137,9 +153,9 @@ def test_pipeline(output, save):
         working_dir = pipe._working_dir
         del pipe
         logging.shutdown()
-        os.remove('%s/prism.hdf5' % (working_dir))
-        os.remove('%s/prism_log.log' % (working_dir))
-        os.remove('%s/proj_1_hcube_(A-B).png' % (working_dir))
+        os.remove(path.join(working_dir, 'prism.hdf5'))
+        os.remove(path.join(working_dir, 'prism_log.log'))
+        os.remove(path.join(working_dir, 'proj_1_hcube_(A-B).png'))
         os.rmdir(working_dir)
         print("Deleted test directory '%s' and all of its contents."
               % (output))

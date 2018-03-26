@@ -1,12 +1,12 @@
-n_sam_init		: 500
-n_proj_samples		: 15
-n_hidden_samples	: 150
-n_eval_samples		: 800
-sigma			: 0.8
-l_corr			: 0.3
-impl_cut		: 0.0, 4.0, 3.8, 3.5
-criterion		: 'multi'
-method			: 'full'
-poly_order		: 3
-do_active_par		: True
-use_mock		: True
+n_sam_init		: 500			# Number of initial model evaluation samples
+n_proj_samples		: 15			# Number of projected grid points per model parameter
+n_hidden_samples	: 150			# Number of emulator evaluation samples per projected grid point
+n_eval_samples		: 800			# Coefficient for growth in number of model evaluation samples
+sigma			: 0.8			# Gaussian sigma (only required if method == 'gaussian')
+l_corr			: 0.3			# Gaussian correlation length
+impl_cut		: 0.0, 4.0, 3.8, 3.5	# Implausibility cut-off values
+criterion		: 'multi'		# Criterion for constructing LHDs
+method			: 'full'		# Method used for constructing the emulator system
+poly_order		: 3			# Polynomial order for regression (only required if method == 'regression' or 'full')
+do_active_par		: True			# Use active model parameters
+use_mock		: True			# Use mock data

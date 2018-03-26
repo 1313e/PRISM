@@ -98,10 +98,10 @@ class Pipeline(object):
             used in this class instance. Different types of HDF5-files can be
             provided:
                 *Non-existing HDF5-file*: This file will be created and used to
-                save the constructed emulator in.
+                save the constructed emulator system in.
 
                 *Existing HDF5-file*: This file will be used to regenerate a
-                previously constructed emulator.
+                previously constructed emulator system.
         prism_file : str or None. Default: 'prism.txt'
             String containing the absolute or relative path to the TXT-file
             containing the PRISM parameters that need to be changed from their
@@ -879,9 +879,12 @@ class Pipeline(object):
         # If a PRISM parameter file was provided
         elif isinstance(prism_file, (str, unicode)):
             if path.exists(prism_file):
-                self._prism_file = prism_file
-            else:
+                self._prism_file = path.abspath(prism_file)
+            elif path.exists(path.join(self._root_dir, prism_file)):
                 self._prism_file = path.join(self._root_dir, prism_file)
+            else:
+                raise OSError("Input argument 'prism_file' is a non-existing "
+                              "path (%s)!" % (prism_file))
             logger.info("PRISM parameters file set to '%s'." % (prism_file))
         else:
             raise InputError("Input argument 'prism_file' is invalid!")

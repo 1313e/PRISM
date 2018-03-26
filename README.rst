@@ -39,14 +39,14 @@ What characterizes PRISM?
 
 Installation and Usage
 ======================
-PRISM can be easily installed by either pulling the repository and running the setup-file with ``python setup.py install`` or by installing it directly from the PyPI system with ``pip install prism_tool``.
+PRISM can be easily installed by either pulling the repository and running the setup-file with ``python setup.py install`` (or equivalent) or by installing it directly from the PyPI system with ``pip install prism-tool``.
 PRISM can now be imported as a package with ``import prism``.
 
 Dependencies
 ------------
 PRISM requires ``python == 2.7`` or ``python >= 3.4`` and the following non-standard dependencies (installed automatically when using ``pip``):
 
-- ``e13tools >= 0.4.3a3``;
+- ``e13tools >= 0.4.4a0``;
 - ``mlxtend >= 0.9.1``;
 - ``sortedcontainers >= 1.5.9``.
 

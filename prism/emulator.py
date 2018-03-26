@@ -134,7 +134,7 @@ class Emulator(object):
     def poly_order(self):
         """
         Polynomial order that is considered for the regression process.
-        If method='gaussian', this number is not required.
+        If method == 'gaussian', this number is not required.
 
         """
 
@@ -283,7 +283,7 @@ class Emulator(object):
     def sigma(self):
         """
         List with Gaussian sigmas.
-        This value is not required to be provided if regression is used, since
+        If method == 'regression' or 'full', this value is not required, since
         it is obtained from the regression process instead.
 
         """
