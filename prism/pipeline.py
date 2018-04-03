@@ -41,6 +41,7 @@ from ._internal import (RequestError, check_float, check_nneg_float,
                         check_pos_int, docstring_copy, docstring_substitute,
                         move_logger, start_logger)
 from .emulator import Emulator
+from .master_emulator import MasterEmulator
 from .projection import Projection
 
 # All declaration
@@ -52,14 +53,11 @@ if(sys.version_info.major >= 3):
 
 
 # %% PIPELINE CLASS DEFINITION
-# OPTIMIZE: Introduce multiple versions of functions/methods that are loaded in
-# This way, the Pipeline only has to do versatility checks once and not every
-# single time, thus removing many if-statements by just loading the correct
-# function in during class initialization.
-# TODO: Rewrite PRISM into MPI
+# OPTIMIZE: Rewrite PRISM into MPI?
 # TODO: Allow user to switch between emulation and modelling
 # TODO: Implement multivariate implausibilities
 # TODO: Allow user to construct a master emulator system, covering full space
+# OPTIMIZE: Overlap plausible regions to remove boundary artifacts?
 class Pipeline(object):
     """
     Defines the :class:`~Pipeline` class of the PRISM package.
@@ -68,7 +66,7 @@ class Pipeline(object):
 
     def __init__(self, modellink, root_dir=None, working_dir=None,
                  prefix='prism_', hdf5_file='prism.hdf5',
-                 prism_file='prism.txt'):
+                 prism_file='prism.txt', emul_type='default'):
         """
         Initialize an instance of the :class:`~Pipeline` class.
 
@@ -127,7 +125,12 @@ class Pipeline(object):
         move_logger(self._working_dir)
 
         # Initialize Emulator class
-        self._emulator = Emulator(self)
+        if(emul_type == 'default'):
+            self._emulator = Emulator(self)
+        elif(emul_type == 'master'):
+            self._emulator = MasterEmulator(self)
+        else:
+            raise RequestError("Input argument 'emul_type' is invalid!")
 
         # Link provided ModelLink subclass to Emulator class
         self._emulator._set_modellink(modellink)
@@ -592,7 +595,8 @@ class Pipeline(object):
                             " 'bool'!")
 
         # Obtain the bool determining whether or not to use mock data
-        if(par_dict['use_mock'].lower() in ('false', '0')):
+        if(par_dict['use_mock'].lower() in ('false', '0') or
+           self._emulator._emul_type == 'master'):
             self._use_mock = 0
         elif(par_dict['use_mock'].lower() in ('true', '1')):
             self._use_mock = 1
@@ -853,7 +857,6 @@ class Pipeline(object):
             try:
                 logger.info("Checking if working directory already exists.")
                 os.mkdir(self._working_dir)
-#            except FileExistsError:
             except OSError:
                 logger.info("Working directory already exists.")
                 pass
@@ -985,10 +988,7 @@ class Pipeline(object):
         # IMPL_SAM
         elif(keyword == 'impl_sam'):
             # Check if any plausible regions have been found at all
-            if(np.shape(data)[0] == 0):
-                prc = 0
-            else:
-                prc = 1
+            prc = 1 if(np.shape(data)[0] != 0) else 0
 
             # Check if impl_sam data has been saved before (analysis was done)
             try:
@@ -1065,8 +1065,20 @@ class Pipeline(object):
             mod_set[:, i] = self._call_model(emul_i, sam_set[i])
 
         # Save data to hdf5
-        self._emulator._save_data(emul_i, 'sam_set', sam_set)
-        self._emulator._save_data(emul_i, 'mod_set', mod_set)
+        if(emul_i == 1 or self._emulator._emul_type == 'default'):
+            self._emulator._save_data(emul_i, 'sam_set', sam_set)
+            self._emulator._save_data(emul_i, 'mod_set', mod_set)
+        elif(self._emulator._emul_type == 'master'):
+            # For master emulator, combine sets of previous and current
+            # iterations
+            comb_sam_set = np.concatenate([self._emulator._sam_set[emul_i-1],
+                                           sam_set], axis=0)
+            comb_mod_set = np.concatenate([self._emulator._mod_set[emul_i-1],
+                                           mod_set], axis=1)
+
+            # Save the data
+            self._emulator._save_data(emul_i, 'sam_set', comb_sam_set)
+            self._emulator._save_data(emul_i, 'mod_set', comb_mod_set)
 
         # Log that this is finished
         logger.info("Finished evaluating model samples.")
@@ -1221,14 +1233,30 @@ class Pipeline(object):
         # Scan over all data points in this sample
         for i, val in enumerate(obj._impl_cut[emul_i]):
             # If impl_cut is not 0 and impl_val is not below impl_cut, break
-            if(val != 0 and
-               sorted_impl_val[i] > val):
+            if(val != 0 and sorted_impl_val[i] > val):
                 logger.info("Check result is negative.")
                 return(0, impl_cut_val)
         else:
             # If for-loop ended in a normal way, the check was successful
             logger.info("Check result is positive.")
             return(1, impl_cut_val)
+
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _do_acc_check(self, emul_i, adj_exp_val, adj_var_val):
+        """
+
+
+        """
+
+        # Obtain model discrepancy variance
+        md_var = self._get_md_var(emul_i)
+
+        # Calculate the univariate implausibility values
+        if(((adj_var_val+md_var)/pow(adj_exp_val, 2) <=
+                self._emulator._data_err[emul_i]).all()):
+            return(1)
+        else:
+            return(0)
 
     # This is function 'I²(x)'
     # This function calculates the univariate implausibility values
@@ -1348,7 +1376,7 @@ class Pipeline(object):
             to the emulator.
         cut_idx : int
             Index of the first impl_cut-off in the impl_cut list that is not
-            0.
+            a wildcard.
 
         """
 
@@ -1371,6 +1399,9 @@ class Pipeline(object):
             if(impl != 0):
                 cut_idx = i
                 break
+        else:
+            raise ValueError("No non-wildcard implausibility cut-off is "
+                             "provided!")
 
         # Save both impl_cut and cut_idx
         obj._save_data('impl_cut', [np.array(impl_cut), cut_idx])
@@ -1491,21 +1522,36 @@ class Pipeline(object):
         # Create empty list holding indices of samples that pass the impl_check
         impl_idx = []
 
-        # Calculate expectation, variance, implausibility for these samples
-        for i, par_set in enumerate(eval_sam_set):
-            for j in range(1, emul_i+1):
+        # Default emulator
+        if(self._emulator._emul_type == 'default'):
+            # Calculate expectation, variance, implausibility for these samples
+            for i, par_set in enumerate(eval_sam_set):
+                for j in range(1, emul_i+1):
+                    # Obtain implausibility
+                    adj_val = self._emulator._evaluate(j, par_set)
+                    uni_impl_val = self._get_uni_impl(j, *adj_val)
+
+                    # Do implausibility cut-off check
+                    # If check is unsuccessful, break inner for-loop and skip
+                    # save
+                    if not self._do_impl_check(self, j, uni_impl_val)[0]:
+                        break
+
+                # If check was successful, save corresponding index
+                else:
+                    impl_idx.append(i)
+
+        elif(self._emulator._emul_type == 'master'):
+            # Calculate expectation, variance, implausibility for these samples
+            for i, par_set in enumerate(eval_sam_set):
                 # Obtain implausibility
-                adj_val = self._emulator._evaluate(j, par_set)
-                uni_impl_val = self._get_uni_impl(j, *adj_val)
+                adj_val = self._emulator._evaluate(emul_i, par_set)
 
-                # Do implausibility cut-off check
-                # If check is unsuccessful, break inner for-loop and skip save
-                if not self._do_impl_check(self, j, uni_impl_val)[0]:
-                    break
-
-            # If check was successful, save corresponding index
-            else:
-                impl_idx.append(i)
+                # Do accuracy check
+                # If check is unsuccessful, break inner for-loop and skip
+                # save
+                if not self._do_acc_check(emul_i, *adj_val):
+                    impl_idx.append(i)
 
         # Save the results
         self._save_data('impl_sam', eval_sam_set[impl_idx])
@@ -1530,13 +1576,14 @@ class Pipeline(object):
 
         Generates
         ---------
-        A new group with the emulator iteration value as its name, in the
-        loaded emulator file, containing emulator data.
+        A new HDF5-group with the emulator iteration value as its name, in the
+        loaded emulator file, containing emulator data required for this
+        emulator iteration.
 
         Notes
         -----
         Using an emulator iteration that has been constructed before, will
-        remove that and all following iterations, and reconstruct the specified
+        delete that and all following iterations, and reconstruct the specified
         iteration. Using `emul_i` = 1 is equivalent to reconstructing the whole
         emulator system.
 
@@ -1575,6 +1622,12 @@ class Pipeline(object):
                               self._criterion)
 
         else:
+            # Check if previous iteration has been analyzed and do so if not
+            if not self._n_eval_samples[emul_i-1]:
+                logger.info("Previous emulator iteration has not been "
+                            "analyzed. Performing analysis first.")
+                self.analyze(emul_i-1)
+
             # Check if a new emulator iteration can be constructed
             if not self._prc[emul_i-1]:
                 logger.error("No plausible regions were found in the analysis "
@@ -1712,6 +1765,8 @@ class Pipeline(object):
         print("-"*width)
         print("{0: <{1}}\t'{2}'".format("HDF5-file name", width,
                                         self._hdf5_file_name))
+        print("{0: <{1}}\t'{2}'".format("Emulator type", width,
+                                        self._emulator._emul_type))
         print("{0: <{1}}\t{2}".format("ModelLink subclass", width,
                                       self._modellink_name))
         if(self._emulator._method.lower() == 'regression'):
@@ -1724,7 +1779,10 @@ class Pipeline(object):
             print("{0: <{1}}\t{2}".format("Emulation type", width,
                                           "Regression + Gaussian"))
         print("{0: <{1}}\t{2}".format("Emulator iteration", width, emul_i))
-        if not self._prc[emul_i]:
+        if not n_eval_samples:
+            print("{0: <{1}}\t{2}".format("Plausible regions?", width,
+                                          "N/A"))
+        elif not self._prc[emul_i]:
             print("{0: <{1}}\t{2}".format("Plausible regions?", width,
                                           "No"))
         else:
@@ -1748,7 +1806,7 @@ class Pipeline(object):
         print("-"*width)
         print("{0: <{1}}\t{2}".format("# of model evaluation samples", width,
                                       self._emulator._n_sam[1:emul_i+1]))
-        if(n_eval_samples == 0):
+        if not n_eval_samples:
             print("{0: <{1}}\t{2}/{3}".format(
                 "# of samples plausible/analyzed", width, "-", "-"))
             print("{0: <{1}}\t{2}".format(
@@ -1780,6 +1838,7 @@ class Pipeline(object):
         print("="*width)
 
     # This function allows the user to evaluate a given sam_set in the emulator
+    # TODO: Allow function to be called if emulator has not been analyzed yet
     @docstring_substitute(emul_i=user_emul_i_doc)
     def evaluate(self, sam_set, emul_i=None):
         """

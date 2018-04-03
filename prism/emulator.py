@@ -49,6 +49,9 @@ class Emulator(object):
 
     """
 
+    # Identify this class as being a default emulator
+    _emul_type = 'default'
+
     def __init__(self, pipeline_obj):
         """
         Initialize an instance of the :class:`~Emulator` class.
@@ -100,6 +103,15 @@ class Emulator(object):
         """
 
         return(bool(self._emul_load))
+
+    @property
+    def emul_type(self):
+        """
+        String indicating what type of emulator system is currently loaded.
+
+        """
+
+        return(self._emul_type)
 
     @property
     def emul_i(self):
@@ -389,6 +401,7 @@ class Emulator(object):
         file.attrs['modellink_name'] =\
             self._modellink_name.encode('ascii', 'ignore')
         file.attrs['prism_version'] = _prism_version.encode('ascii', 'ignore')
+        file.attrs['emul_type'] = self._emul_type.encode('ascii', 'ignore')
         if use_mock:
             file.attrs['mock_par'] = self._modellink._par_estimate
 
@@ -1332,15 +1345,21 @@ class Emulator(object):
             file = self._open_hdf5('r')
         except (OSError, IOError):
             # No existing emulator was provided
-            self._emul_load = 0
             logger.info("Non-existing HDF5-file provided.")
+            self._emul_load = 0
             self._emul_i = 0
         else:
             # Existing emulator was provided
-            self._emul_load = 1
             logger.info("Constructed emulator HDF5-file provided.")
-            self._emul_i = len(file.items())
+            self._emul_load = 1
+
+            # Obtain the number of emulator iterations constructed
+            self._emul_i = len(file.keys())
+
+            # Close hdf5-file
             self._close_hdf5(file)
+
+            # Read all emulator parameters from the hdf5-file
             self._retrieve_parameters()
 
         # Load emulator data
@@ -1510,7 +1529,7 @@ class Emulator(object):
                     poly_coef_cov = []
                     poly_powers = []
                     poly_idx = []
-                    for j in range(file['%s' % (i)].attrs['n_data']):
+                    for j in range(self._n_data[i]):
                         rsdl_var.append(file['%s/data_set_%s'
                                              % (i, j)].attrs['rsdl_var'])
                         poly_coef.append(file['%s/data_set_%s/poly_coef'
@@ -1661,6 +1680,13 @@ class Emulator(object):
             emul_version = file.attrs['prism_version'].decode('utf-8')
         except KeyError:
             emul_version = '0.3.0'
+
+        # Check if provided emulator is the same as requested
+        if(file.attrs['emul_type'].decode('utf-8') != self._emul_type):
+            raise RequestError("Provided emulator system type (%s) does not "
+                               "match the requested type (%s)!"
+                               % (file.attrs['emul_type'].decode('utf-8'),
+                                  self._emul_type))
 
         # Close hdf5-file
         self._close_hdf5(file)

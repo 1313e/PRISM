@@ -97,8 +97,8 @@ class Projection(object):
             If `figure` is *True*, whether or not to show a figure after it has
             been created.
         force : bool. Default: False
-            Controls what to do if a projection hcube has been calculated at
-            the emulator iteration `emul_i` before.
+            Controls what to do if a projection hypercube has been calculated
+            at the emulator iteration `emul_i` before.
             If *False*, it will use the previously acquired projection data to
             create the projection figure.
             If *True*, it will recalculate all the data required to create the

@@ -23,6 +23,7 @@ import numpy as np
 
 # %% TESTS
 # Function that tests the functionality of the PRISM pipeline
+# TODO: Add check if emulator system can be reloaded correctly
 def test_pipeline(output='test_emul_sine_wave', save=False):
     """
     Test script that uses the :class:`~prism.modellink.SineWaveLink` class to

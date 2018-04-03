@@ -105,6 +105,7 @@ from __future__ import (absolute_import, division, print_function,
 import os
 from os import path
 import shutil
+import sys
 
 # Package imports
 from e13tools.core import _compare_versions
@@ -122,6 +123,10 @@ __all__ = ['RequestError', 'check_compatibility', 'check_float', 'check_int',
            'check_pos_float', 'check_pos_int', 'check_str', 'docstring_append',
            'docstring_copy', 'docstring_substitute', 'move_logger',
            'start_logger']
+
+# Python2/Python3 compatibility
+if(sys.version_info.major >= 3):
+    unicode = str
 
 
 # %% CLASS DEFINITIONS
@@ -160,13 +165,25 @@ def check_compatibility(emul_version):
         # then it is incompatible
         if _compare_versions(version, emul_version):
             logger.error("The provided emulator system is incompatible with "
-                         "the current version of PRISM ('v%s'). The last "
-                         "compatible version of PRISM is 'v%s'."
+                         "the current version of PRISM (v%s). The last "
+                         "compatible version of PRISM is v%s."
                          % (prism_version, version))
             raise RequestError("The provided emulator system is incompatible "
-                               "with the current version of PRISM ('v%s'). The"
-                               " last compatible version of PRISM is 'v%s'."
+                               "with the current version of PRISM (v%s). The"
+                               " last compatible version of PRISM is v%s."
                                % (prism_version, version))
+
+    # Check if emul_version is not newer than prism_version
+    if not _compare_versions(prism_version, emul_version):
+        logger.error("The provided emulator system was constructed with a "
+                     "version later than the current version of PRISM (v%s). "
+                     "Use PRISM v%s or later to use this emulator system."
+                     % (prism_version, emul_version))
+        raise RequestError("The provided emulator system was constructed with "
+                           "a version later than the current version of PRISM "
+                           "(v%s). Use PRISM v%s or later to use this emulator"
+                           " system."
+                           % (prism_version, emul_version))
     else:
         logger.info("Compatibility check was successful.")
 
@@ -362,7 +379,7 @@ def check_str(value, name):
     """
 
     # Check if str is provided and return if so
-    if isinstance(value, (str, np.string_)):
+    if isinstance(value, (str, np.string_, unicode)):
         return(value)
     else:
         raise TypeError("Input argument '%s' is not of type 'str'!" % (name))
