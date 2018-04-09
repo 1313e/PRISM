@@ -3,7 +3,7 @@
 """
 PRISM Internal
 ==============
-Contains a collection of support classes/functions for the PRISM package.
+Contains a collection of support classes/functions/lists for the PRISM package.
 
 
 Available classes
@@ -93,6 +93,13 @@ Available functions
     Creates a logging file called `filename` in the current working directory,
     opened with `mode` and starts the logger.
 
+
+Defined lists
+-------------
+seq_char_list
+    List defining characters that need to be removed from a sequence given in
+    the PRISM parameter file, before being split up into individual elements.
+
 """
 
 
@@ -122,7 +129,7 @@ __all__ = ['RequestError', 'check_compatibility', 'check_float', 'check_int',
            'check_nneg_int', 'check_npos_float', 'check_npos_int',
            'check_pos_float', 'check_pos_int', 'check_str', 'docstring_append',
            'docstring_copy', 'docstring_substitute', 'move_logger',
-           'start_logger']
+           'start_logger', 'seq_char_list']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -524,3 +531,7 @@ def start_logger(filename='prism_log.log', mode='w'):
 
     # Start the logger from the dict above
     logging.config.dictConfig(LOGGING)
+
+
+# %% LIST DEFINITIONS
+seq_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/']

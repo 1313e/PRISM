@@ -22,6 +22,7 @@ from __future__ import absolute_import, division, print_function
 # Built-in imports
 from itertools import chain, combinations
 from os import path
+from time import time
 
 # Package imports
 from e13tools import InputError, ShapeError
@@ -36,7 +37,8 @@ from scipy.interpolate import interp1d, interp2d
 
 # PRISM imports
 from ._docstrings import user_emul_i_doc
-from ._internal import RequestError, check_pos_int, docstring_substitute
+from ._internal import (RequestError, check_pos_int, docstring_substitute,
+                        seq_char_list)
 
 # All declaration
 __all__ = ['Projection']
@@ -131,16 +133,19 @@ class Projection(object):
         logger = logging.getLogger('PROJECTION')
         logger.info("Starting the projection process.")
 
+        # Save current time
+        start_time1 = time()
+
         # Check what kind of hdf5-file has been provided
         self._emul_i = self._emulator._get_emul_i(emul_i)
 
-        # Get the impl_cut list and n_proj_samples/n_hidden_samples
+        # Get the impl_cut list and proj_res/proj_depth
         # TODO: Make sure that the same impl_cut is used for all figures
         # TODO: If desync is True, maybe not require force parameter?
         self._get_impl_par()
 
         # Make abbreviations for certain variables
-        nps = self._n_proj_samples
+        res = self._proj_res
 
         # Check the proj_par that were provided
         # If none was provided, make figures for all model parameters
@@ -256,6 +261,9 @@ class Projection(object):
         # Close hdf5-file
         self._pipeline._close_hdf5(file)
 
+        # Save current time again
+        start_time2 = time()
+
         # 2+D
         # Loop over all requested projection cubes
         for hcube in hcube_par:
@@ -341,7 +349,7 @@ class Projection(object):
                 # Recreate the parameter value array used to create the hcube
                 proj_sam_set = np.linspace(self._modellink._par_rng[par, 0],
                                            self._modellink._par_rng[par, 1],
-                                           nps)
+                                           res)
 
                 # Create parameter value array used in interpolation functions
                 x = np.linspace(self._modellink._par_rng[par, 0],
@@ -439,10 +447,10 @@ class Projection(object):
                 # Recreate the parameter value arrays used to create the hcube
                 proj_sam_set1 = np.linspace(self._modellink._par_rng[par1, 0],
                                             self._modellink._par_rng[par1, 1],
-                                            nps)
+                                            res)
                 proj_sam_set2 = np.linspace(self._modellink._par_rng[par2, 0],
                                             self._modellink._par_rng[par2, 1],
-                                            nps)
+                                            res)
 
                 # Create parameter value array used in interpolation functions
                 x = np.linspace(self._modellink._par_rng[par1, 0],
@@ -533,29 +541,44 @@ class Projection(object):
                             % (par1_name, par2_name))
 
         # Log the end of the projection
-        logger.info("Finished projection.")
+        end_time = time()
+        time_diff_total = end_time-start_time1
+        time_diff_figs = end_time-start_time2
+
+        if figure:
+            print("Finished projection in %.2f seconds, averaging %.2f "
+                  "seconds per projection figure."
+                  % (time_diff_total, time_diff_figs/len(hcube_par)))
+            logger.info("Finished projection in %.2f seconds, averaging %.2f "
+                        "seconds per projection figure."
+                        % (time_diff_total, time_diff_figs/len(hcube_par)))
+        else:
+            print("Finished projection in %.2f seconds."
+                  % (time_diff_total))
+            logger.info("Finished projection in %.2f seconds."
+                        % (time_diff_total))
 
 
 # %% CLASS PROPERTIES
     @property
-    def n_proj_samples(self):
+    def proj_res(self):
         """
         Number of emulator evaluations used to generate the grid for the
         projection figures.
 
         """
 
-        return(self._n_proj_samples)
+        return(self._proj_res)
 
     @property
-    def n_hidden_samples(self):
+    def proj_depth(self):
         """
         Number of emulator evaluations used to generate the samples in every
         grid point for the projection figures.
 
         """
 
-        return(self._n_hidden_samples)
+        return(self._proj_depth)
 
     @property
     def impl_cut(self):
@@ -593,10 +616,10 @@ class Projection(object):
         cut_idx : int
             Index of the first impl_cut-off in the impl_cut list that is not
             0.
-        n_proj_samples : int
+        proj_res : int
             Number of emulator evaluations used to generate the grid for the
             projection figures.
-        n_hidden_samples : int
+        proj_depth : int
             Number of emulator evaluations used to generate the samples in
             every grid point for the projection figures.
 
@@ -625,16 +648,22 @@ class Projection(object):
             par_dict.update(pipe_par)
 
         # Implausibility cut-off
-        impl_cut_str = str(par_dict['impl_cut']).replace(',', '').split()
+        # Remove all unwanted characters from the string and split it up
+        impl_cut_str = str(par_dict['impl_cut'])
+        for char in seq_char_list:
+            impl_cut_str = impl_cut_str.replace(char, ' ')
+        impl_cut_str = impl_cut_str.split()
+
+        # Convert list of strings to list of floats and perform completion
         self._pipeline._get_impl_cut(
             self, list(float(impl_cut) for impl_cut in impl_cut_str))
 
         # Number of samples used for implausibility evaluations
-        n_proj_samples = int(par_dict['n_proj_samples'])
-        n_hidden_samples = int(par_dict['n_hidden_samples'])
-        self._save_data('n_proj_samples',
-                        [check_pos_int(n_proj_samples, 'n_proj_samples'),
-                         check_pos_int(n_hidden_samples, 'n_hidden_samples')])
+        proj_res = int(par_dict['proj_res'])
+        proj_depth = int(par_dict['proj_depth'])
+        self._save_data('proj_grid',
+                        [check_pos_int(proj_res, 'proj_res'),
+                         check_pos_int(proj_depth, 'proj_depth')])
 
         # Finish logging
         logger.info("Finished obtaining implausibility analysis parameters.")
@@ -657,9 +686,9 @@ class Projection(object):
         logger.info("Generating default projection parameter dict.")
 
         # Create parameter dict with default parameters
-        par_dict = {'n_proj_samples': '15',
-                    'n_hidden_samples': '150',
-                    'impl_cut': '0, 4.0, 3.8, 3.5'}
+        par_dict = {'proj_res': '15',
+                    'proj_depth': '150',
+                    'impl_cut': '[0, 4.0, 3.8, 3.5]'}
 
         # Log end
         logger.info("Finished generating default projection parameter dict.")
@@ -683,8 +712,8 @@ class Projection(object):
 
         Returns
         -------
-        proj_hcube : 2D :obj:`~numpy.ndarray` object
-            2D projection hypercube of emulator evaluation samples.
+        proj_hcube : 3D :obj:`~numpy.ndarray` object
+            3D projection hypercube of emulator evaluation samples.
 
         """
 
@@ -692,8 +721,8 @@ class Projection(object):
         logger = logging.getLogger('PROJ_HCUBE')
 
         # Make abbreviations for certain variables
-        nhs = self._n_hidden_samples
-        nps = self._n_proj_samples
+        depth = self._proj_depth
+        res = self._proj_res
 
         # If par_dim is 2, make 1D projection hypercube
         if(self._modellink._par_dim == 2):
@@ -705,7 +734,7 @@ class Projection(object):
                         % (self._modellink._par_names[par]))
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([nps, nhs, 2])
+            proj_hcube = np.zeros([res, depth, 2])
 
             # Create list that contains all the other parameters
             par_hid = 1 if par == 0 else 0
@@ -713,14 +742,14 @@ class Projection(object):
             # Generate list with values for projected parameter
             proj_sam_set = np.linspace(self._modellink._par_rng[par, 0],
                                        self._modellink._par_rng[par, 1],
-                                       nps)
+                                       res)
 
             # Generate latin hypercube of the remaining parameters
-            hidden_sam_set = lhd(nhs, 1, self._modellink._par_rng[par_hid],
+            hidden_sam_set = lhd(depth, 1, self._modellink._par_rng[par_hid],
                                  'fixed', self._pipeline._criterion)
 
             # Fill every cell in the projection hypercube accordingly
-            for i in range(nps):
+            for i in range(res):
                 # The projected parameter
                 proj_hcube[i, :, par] = proj_sam_set[i]
 
@@ -748,7 +777,8 @@ class Projection(object):
                            self._modellink._par_names[par2]))
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([pow(nps, 2), nhs, self._modellink._par_dim])
+            proj_hcube = np.zeros([pow(res, 2), depth,
+                                   self._modellink._par_dim])
 
             # Generate list that contains all the other parameters
             par_hid = list(chain(range(0, par1), range(par1+1, par2),
@@ -757,29 +787,29 @@ class Projection(object):
             # Generate list with values for first projected parameter
             proj_sam_set1 = np.linspace(self._modellink._par_rng[par1, 0],
                                         self._modellink._par_rng[par1, 1],
-                                        nps)
+                                        res)
 
             # Generate list with values for second projected parameter
             proj_sam_set2 = np.linspace(self._modellink._par_rng[par2, 0],
                                         self._modellink._par_rng[par2, 1],
-                                        nps)
+                                        res)
 
             # Generate latin hypercube of the remaining parameters
-            hidden_sam_set = lhd(nhs, self._modellink._par_dim-2,
+            hidden_sam_set = lhd(depth, self._modellink._par_dim-2,
                                  self._modellink._par_rng[par_hid], 'fixed',
                                  self._pipeline._criterion)
 
             # Fill every cell in the projection hypercube accordingly
-            for i in range(nps):
-                for j in range(nps):
+            for i in range(res):
+                for j in range(res):
                     # The first projected parameter
-                    proj_hcube[i*nps+j, :, par1] = proj_sam_set1[i]
+                    proj_hcube[i*res+j, :, par1] = proj_sam_set1[i]
 
                     # The second projected parameter
-                    proj_hcube[i*nps+j, :, par2] = proj_sam_set2[j]
+                    proj_hcube[i*res+j, :, par2] = proj_sam_set2[j]
 
                     # The remaining hidden parameters
-                    proj_hcube[i*nps+j, :, par_hid] =\
+                    proj_hcube[i*res+j, :, par_hid] =\
                         np.transpose(hidden_sam_set)
 
             # Log that projection hypercube has been created
@@ -798,8 +828,8 @@ class Projection(object):
 
         Parameters
         ----------
-        proj_hcube : 2D array_like
-            2D projection hypercube containing all the emulator evaluation
+        proj_hcube : 3D array_like
+            3D projection hypercube containing all the emulator evaluation
             samples that are required to make the projection figure.
 
         Returns
@@ -818,8 +848,11 @@ class Projection(object):
         logger = logging.getLogger('ANALYSIS')
         logger.info("Analyzing projection hypercube.")
 
+        # Save current time
+        start_time = time()
+
         # Make abbreviations for certain variables
-        nhs = self._n_hidden_samples
+        depth = self._proj_depth
 
         # CALCULATE AND ANALYZE IMPLAUSIBILITY
         # Create empty lists for grid points
@@ -866,14 +899,20 @@ class Projection(object):
             impl_min_hcube.append(min(impl_cut_line))
 
             # Calculate impl line-of-sight in this grid point
-            impl_los_hcube.append(len(impl_check_line)/nhs)
+            impl_los_hcube.append(len(impl_check_line)/depth)
 
             # Clear both lists
             impl_check_line = []
             impl_cut_line = []
 
         # Log that analysis has been finished
-        logger.info("Finished projection hypercube analysis.")
+        time_diff = time()-start_time
+        print("Finished projection hypercube analysis in %.2f seconds, "
+              "averaging %.2f emulator evaluations per second."
+              % (time_diff, proj_hcube.shape[0]*depth/(time_diff)))
+        logger.info("Finished projection hypercube analysis in %.2f seconds, "
+                    "averaging %.2f emulator evaluations per second."
+                    % (time_diff, proj_hcube.shape[0]*depth/(time_diff)))
 
         # Return impl_min and impl_los
         return(impl_min_hcube, impl_los_hcube)
@@ -886,7 +925,7 @@ class Projection(object):
 
         Parameters
         ----------
-        keyword : {'2D_proj_hcube', 'impl_cut', 'n_proj_samples', \
+        keyword : {'2D_proj_hcube', 'impl_cut', 'proj_grid', \
                    'nD_proj_hcube'}
             String specifying the type of data that needs to be saved.
         data : list
@@ -930,19 +969,19 @@ class Projection(object):
             file['%s/proj_hcube' % (self._emul_i)].attrs['impl_cut'] = data[0]
             file['%s/proj_hcube' % (self._emul_i)].attrs['cut_idx'] = data[1]
 
-        # N_PROJ_SAMPLES
-        elif(keyword == 'n_proj_samples'):
+        # PROJ_GRID
+        elif(keyword == 'proj_grid'):
             # Check if projection has been created before
             try:
                 file.create_group('%s/proj_hcube' % (self._emul_i))
             except ValueError:
                 pass
 
-            self._n_proj_samples = data[0]
-            self._n_hidden_samples = data[1]
-            file['%s/proj_hcube' % (self._emul_i)].attrs['n_proj_samples'] =\
+            self._proj_res = data[0]
+            self._proj_depth = data[1]
+            file['%s/proj_hcube' % (self._emul_i)].attrs['proj_res'] =\
                 data[0]
-            file['%s/proj_hcube' % (self._emul_i)].attrs['n_hidden_samples'] =\
+            file['%s/proj_hcube' % (self._emul_i)].attrs['proj_depth'] =\
                 data[1]
 
         # ND_PROJ_HCUBE

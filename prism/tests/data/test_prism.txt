@@ -1,10 +1,10 @@
 n_sam_init		: 100
-n_proj_samples		: 15
-n_hidden_samples	: 50
+proj_res		: 15
+proj_depth		: 50
 n_eval_samples		: 250
 sigma			: 0.8
 l_corr			: 0.3
-impl_cut		: 0.0, 4.0, 3.8, 3.5
+impl_cut		: [0.0, 4.0, 3.8, 3.5]
 criterion		: None
 method			: 'full'
 poly_order		: 3

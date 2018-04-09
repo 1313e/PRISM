@@ -769,6 +769,10 @@ class Emulator(object):
                       floating=True, scoring='neg_mean_squared_error')
 
         # Create Pipeline object
+        # The bias/intercept/constant-term is not included in the SFS object to
+        # ensure that it is taken into account in the linear regression, since
+        # it is required for getting the residual variance. It also ensures
+        # that the SFS does not focus on the constant-term in its calculations.
         pipe = Pipeline_sk([('poly', PF(self._poly_order, include_bias=False)),
                             ('SFS', sfs_obj),
                             ('linear', LR())])
@@ -1273,6 +1277,15 @@ class Emulator(object):
         try:
             cov_mat = self._get_cov(emul_i, None, None)
         except MemoryError:
+            # For some odd reason, overwriting cov_mat does not clear memory,
+            # and the only way to remove cov_mat from it is by attempting to
+            # delete it. It always raises a NameError, but does actually clear
+            # memory successfully. I have no idea why this happens this way.
+            # TODO: Find out why and improve the memory clearance
+            try:
+                del cov_mat
+            except NameError:
+                pass
             cov_mat = np.zeros([self._n_data[emul_i], self._n_sam[emul_i],
                                 self._n_sam[emul_i]])
             for i in range(self._n_sam[emul_i]):
@@ -1676,17 +1689,27 @@ class Emulator(object):
         self._method = file.attrs['method'].decode('utf-8')
         self._poly_order = file.attrs['poly_order']
         self._modellink_name = file.attrs['modellink_name'].decode('utf-8')
+
+        # TODO: This try-statement becomes obsolete when PRISM is released
         try:
             emul_version = file.attrs['prism_version'].decode('utf-8')
         except KeyError:
             emul_version = '0.3.0'
 
+        # TODO: Same for this try-statement
+        try:
+            emul_type = file.attrs['emul_type'].decode('utf-8')
+        except KeyError:
+            emul_type = 'default'
+
         # Check if provided emulator is the same as requested
-        if(file.attrs['emul_type'].decode('utf-8') != self._emul_type):
-            raise RequestError("Provided emulator system type (%s) does not "
-                               "match the requested type (%s)!"
-                               % (file.attrs['emul_type'].decode('utf-8'),
-                                  self._emul_type))
+        if(emul_type != self._emul_type):
+            logger.error("Provided emulator system type ('%s') does not match "
+                         "the requested type ('%s')!"
+                         % (emul_type, self._emul_type))
+            raise RequestError("Provided emulator system type ('%s') does not "
+                               "match the requested type ('%s')!"
+                               % (emul_type, self._emul_type))
 
         # Close hdf5-file
         self._close_hdf5(file)
