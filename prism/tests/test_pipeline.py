@@ -77,7 +77,8 @@ def test_pipeline(output='test_emul_sine_wave', save=False):
     assert pipe._modellink_name == 'SineWaveLink'
     assert pipe._n_sam_init == 100
     assert pipe._criterion is None
-    assert pipe._do_active_par == 1
+    assert pipe._do_active_anal == 1
+    assert (pipe._pot_active_par == [0, 1, 2, 3]).all()
     assert pipe._use_mock == 0
 
     # Check if Emulator details are correct

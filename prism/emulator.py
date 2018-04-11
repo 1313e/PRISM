@@ -52,7 +52,7 @@ class Emulator(object):
     # Identify this class as being a default emulator
     _emul_type = 'default'
 
-    def __init__(self, pipeline_obj):
+    def __init__(self, pipeline_obj, modellink_obj):
         """
         Initialize an instance of the :class:`~Emulator` class.
 
@@ -61,6 +61,9 @@ class Emulator(object):
         pipeline_obj : :obj:`~Pipeline` object
             Instance of the :class:`~Pipeline` class that initialized this
             class.
+        modellink_obj : :obj:`~ModelLink` object
+            Instance of the :class:`~ModelLink` class that links the emulated
+            model to this :obj:`~Pipeline` object.
 
         """
 
@@ -71,7 +74,7 @@ class Emulator(object):
         self._prism_file = pipeline_obj._prism_file
 
         # Load the emulator and data
-        self._load_emulator()
+        self._load_emulator(modellink_obj)
 
 
 # %% CLASS PROPERTIES
@@ -1339,10 +1342,16 @@ class Emulator(object):
         return(matrix_inv)
 
     # Load the emulator
-    def _load_emulator(self):
+    def _load_emulator(self, modellink_obj):
         """
         Checks if the provided HDF5-file contains a constructed emulator system
         and loads in the emulator data accordingly.
+
+        Parameters
+        ----------
+        modellink_obj : :obj:`~ModelLink` object
+            Instance of the :class:`~ModelLink` class that links the emulated
+            model to this :obj:`~Pipeline` object.
 
         """
 
@@ -1375,6 +1384,9 @@ class Emulator(object):
             # Read all emulator parameters from the hdf5-file
             self._retrieve_parameters()
 
+        # Link the provided ModelLink object to the pipeline
+        self._set_modellink(modellink_obj)
+
         # Load emulator data
         self._load_data(self._emul_i)
 
@@ -1382,7 +1394,7 @@ class Emulator(object):
         logger.info("Finished loading emulator system.")
 
     # This function connects the provided ModelLink class to the pipeline
-    def _set_modellink(self, modellink):
+    def _set_modellink(self, modellink_obj):
         """
         Sets the :obj:`~ModelLink` object that will be used for constructing
         this emulator system. If a constructed emulator system is present,
@@ -1391,7 +1403,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        modellink : :obj:`~ModelLink` object
+        modellink_obj : :obj:`~ModelLink` object
             Instance of the :class:`~ModelLink` class that links the emulated
             model to this :obj:`~Pipeline` object.
             The provided :obj:`~ModelLink` object must match the one used to
@@ -1404,7 +1416,7 @@ class Emulator(object):
         logger.info("Setting ModelLink object.")
 
         # Check if a subclass of the ModelLink class has been provided
-        if not isinstance(modellink, ModelLink):
+        if not isinstance(modellink_obj, ModelLink):
             logger.error("Input argument 'modellink' must be an instance of "
                          "the ModelLink class!")
             raise TypeError("Input argument 'modellink' must be an instance "
@@ -1414,7 +1426,7 @@ class Emulator(object):
         if self._emul_load:
             # Make abbreviations
             modellink_loaded = self._modellink_name
-            modellink_given = modellink.__class__.__name__
+            modellink_given = modellink_obj.__class__.__name__
 
             if(modellink_given != modellink_loaded):
                 logger.error("Provided ModelLink subclass '%s' does not match "
@@ -1427,14 +1439,13 @@ class Emulator(object):
                                  % (modellink_given, modellink_loaded))
         # If not, set the name
         else:
-            self._modellink_name = modellink.__class__.__name__
+            self._modellink_name = modellink_obj.__class__.__name__
 
         # Set ModelLink class
-        self._modellink = modellink
+        self._modellink = modellink_obj
 
         # Logging
-        logger.info("ModelLink object set to '%s'."
-                    % (self._modellink_name))
+        logger.info("ModelLink object set to '%s'." % (self._modellink_name))
 
     # Function that loads in the emulator data
     # TODO: Write code that allows part of the data to be loaded in (crashing)

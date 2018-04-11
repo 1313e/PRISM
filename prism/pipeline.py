@@ -34,6 +34,7 @@ from mlxtend.feature_selection import ExhaustiveFeatureSelector as EFS
 import numpy as np
 from numpy.random import normal, random
 from sklearn.linear_model import LinearRegression as LR
+from sortedcontainers import SortedSet
 
 # PRISM imports
 from ._docstrings import std_emul_i_doc, user_emul_i_doc
@@ -64,6 +65,7 @@ class Pipeline(object):
 
     """
 
+    # TODO: Should prism_file be defaulted to None?
     def __init__(self, modellink, root_dir=None, working_dir=None,
                  prefix='prism_', hdf5_file='prism.hdf5',
                  prism_file='prism.txt', emul_type='default'):
@@ -126,14 +128,11 @@ class Pipeline(object):
 
         # Initialize Emulator class
         if(emul_type == 'default'):
-            self._emulator = Emulator(self)
+            self._emulator = Emulator(self, modellink)
         elif(emul_type == 'master'):
-            self._emulator = MasterEmulator(self)
+            self._emulator = MasterEmulator(self, modellink)
         else:
             raise RequestError("Input argument 'emul_type' is invalid!")
-
-        # Link provided ModelLink subclass to Emulator class
-        self._emulator._set_modellink(modellink)
 
         # Link provided ModelLink subclass to Pipeline class
         self._modellink = self._emulator._modellink
@@ -262,7 +261,7 @@ class Pipeline(object):
     @property
     def criterion(self):
         """
-        String indicating which criterion to use in the
+        String or float indicating which criterion to use in the
         :func:`e13tools.sampling.lhd` function.
 
         """
@@ -270,13 +269,23 @@ class Pipeline(object):
         return(self._criterion)
 
     @property
-    def do_active_par(self):
+    def do_active_anal(self):
         """
-        Bool indicating whether or not to use active parameters.
+        Bool indicating whether or not to do an active parameters analysis.
 
         """
 
-        return(bool(self._do_active_par))
+        return(bool(self._do_active_anal))
+
+    @property
+    def pot_active_par(self):
+        """
+        List of potentially active parameters. Only parameters from this list
+        can be considered active.
+
+        """
+
+        return([self._modellink._par_names[i] for i in self._pot_active_par])
 
     @property
     def n_sam_init(self):
@@ -469,6 +478,7 @@ class Pipeline(object):
         logger.info("Closed HDF5-file.")
 
     # Read in the pipeline attributes
+    # HINT: This method is obsolete and even incompatible with the code
     def _retrieve_parameters(self):
         """
         Reads in the pipeline parameters from the provided HDF5-file and saves
@@ -485,7 +495,8 @@ class Pipeline(object):
 
         # Read in all the pipeline attributes
         self._n_sam_init = file.attrs['n_sam_init']
-        self._do_active_par = file.attrs['do_active_par']
+        self._do_active_anal = file.attrs['do_active_anal']
+        self._pot_active_par = file.attrs['pot_active_par']
         self._criterion = file.attrs['criterion'].decode('utf-8')
 
         # Close hdf5-file
@@ -513,9 +524,10 @@ class Pipeline(object):
         # Create parameter dict with default parameters
         par_dict = {'n_sam_init': '500',
                     'n_eval_samples': '800',
-                    'criterion': "'multi'",
-                    'do_active_par': 'True',
                     'impl_cut': '[0, 4.0, 3.8, 3.5]',
+                    'criterion': "'multi'",
+                    'do_active_anal': 'True',
+                    'pot_active_par': 'None',
                     'use_mock': 'False'}
 
         # Log end
@@ -556,8 +568,13 @@ class Pipeline(object):
                                          'n_sam_init')
 
         # Criterion parameter used for Latin Hypercube Sampling
-        if(par_dict['criterion'].lower() in ('none', 'false')):
+        if(par_dict['criterion'].lower() in ('none')):
             self._criterion = None
+        elif(par_dict['criterion'].lower() in ('false', 'true')):
+            logger.error("Pipeline parameter 'criterion' does not accept "
+                         "values of type 'bool'!")
+            raise TypeError("Pipeline parameter 'criterion' does not accept "
+                            "values of type 'bool'!")
         else:
             try:
                 float(par_dict['criterion'])
@@ -566,40 +583,60 @@ class Pipeline(object):
             else:
                 self._criterion = float(par_dict['criterion'])
 
-        # Obtain the bool determining whether or not to have active parameters
-        if(par_dict['do_active_par'].lower() in ('false', '0') or
+        # Obtain the bool determining whether or not to do an active parameters
+        # analysis
+        if(par_dict['do_active_anal'].lower() in ('false', '0') or
            self._emulator._emul_type == 'master'):
-            self._do_active_par = 0
-        elif(par_dict['do_active_par'].lower() in ('true', '1')):
-            self._do_active_par = 1
+            self._do_active_anal = 0
+        elif(par_dict['do_active_anal'].lower() in ('true', '1')):
+            self._do_active_anal = 1
+        else:
+            logger.error("Pipeline parameter 'do_active_anal' is not of type "
+                         "'bool'!")
+            raise TypeError("Pipeline parameter 'do_active_anal' is not of "
+                            "type 'bool'!")
 
-        # If no bool was found, check if a sequence of parameters is given
+        # Check which parameters can potentially be active
+        if(par_dict['pot_active_par'].lower() in ('none') or
+           self._emulator._emul_type == 'master'):
+            self._pot_active_par = np.array(range(self._modellink._par_dim))
+        elif(par_dict['pot_active_par'].lower() in ('false', 'true')):
+            logger.error("Pipeline parameter 'pot_active_par' does not accept "
+                         "values of type 'bool'!")
+            raise TypeError("Pipeline parameter 'pot_active_par' does not "
+                            "accept values of type 'bool'!")
         else:
             # Remove all unwanted characters from the string and split it up
-            do_active_par = str(par_dict['do_active_par'])
+            pot_active_par = str(par_dict['pot_active_par'])
             for char in seq_char_list:
-                do_active_par = do_active_par.replace(char, ' ')
-            do_active_par = do_active_par.split()
+                pot_active_par = pot_active_par.replace(char, ' ')
+            pot_active_par = pot_active_par.split()
 
             # Check elements if they are ints or strings, and if they are valid
-            for i, string in enumerate(do_active_par):
+            for i, string in enumerate(pot_active_par):
                 try:
                     try:
                         par_idx = int(string)
                     except ValueError:
-                        do_active_par[i] =\
+                        pot_active_par[i] =\
                             self._modellink._par_names.index(string)
                     else:
                         self._modellink._par_names[par_idx]
-                        do_active_par[i] = par_idx % self._modellink._par_dim
+                        pot_active_par[i] = par_idx % self._modellink._par_dim
                 except Exception as error:
-                    logger.error("Pipeline parameter 'do_active_par' is "
+                    logger.error("Pipeline parameter 'pot_active_par' is "
                                  "invalid! (%s)" % (error))
-                    raise InputError("Pipeline parameter 'do_active_par' is "
+                    raise InputError("Pipeline parameter 'pot_active_par' is "
                                      "invalid! (%s)" % (error))
 
-            # If everything went without exceptions, save the do_active_par
-            self._do_active_par = list(set(do_active_par))
+            # If everything went without exceptions, check if list is not empty
+            if(len(pot_active_par) != 0):
+                self._pot_active_par =\
+                    np.array(list(SortedSet(pot_active_par)))
+            else:
+                logger.error("Pipeline parameter 'pot_active_par' is empty!")
+                raise ValueError("Pipeline parameter 'pot_active_par' is "
+                                 "empty!")
 
         # Obtain the bool determining whether or not to use mock data
         if(par_dict['use_mock'].lower() in ('false', '0') or
@@ -618,6 +655,9 @@ class Pipeline(object):
         logger.info("Finished reading pipeline parameters.")
 
     # This function either generates mock_data or loads it into ModelLink
+    # TODO: This belongs to the Emulator class, but gives the problem that it
+    # cannot call the model.
+    # TODO: Make sure that using mock data once forces to use it at all times
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_mock_data(self, emul_i):
         """
@@ -1127,40 +1167,107 @@ class Pipeline(object):
         logger = logging.getLogger('ACTIVE_PAR')
         logger.info("Determining active parameters.")
 
-        # Check if active parameters have been requested or provided
-        if not self._do_active_par:
-            # If not requested, then save all parameters as active parameters
-            active_par = list(range(self._modellink._par_dim))
-            active_par_data = [active_par]*self._emulator._n_data[emul_i]
-
-        elif isinstance(self._do_active_par, list):
-            # If provided, save provided list as active parameters
-            active_par = self._do_active_par
+        # Check if active parameters analysis has been requested
+        if not self._do_active_anal:
+            # If not requested, then save all potentially active parameters
+            active_par = self._pot_active_par
             active_par_data = [active_par]*self._emulator._n_data[emul_i]
 
         else:
             # If requested, perform an exhaustive backward stepwise regression
-            active_par = set()
+            active_par = SortedSet()
             active_par_data = []
+            pot_par_dim = len(self._pot_active_par)
             for i in range(self._emulator._n_data[emul_i]):
                 # Create ExhaustiveFeatureSelector object
-                efs_obj = EFS(LR(), 1, int(self._modellink._par_dim), False,
-                              'r2')
+                efs_obj = EFS(LR(), min_features=1, max_features=pot_par_dim,
+                              print_progress=False, scoring='r2')
 
                 # Fit the data set
-                efs_obj.fit(self._emulator._sam_set[emul_i],
+                efs_obj.fit(self._emulator._sam_set[emul_i][
+                                :, self._pot_active_par],
                             self._emulator._mod_set[emul_i][i])
 
                 # Extract the active parameters for this data set
-                active_par_data.append(np.sort(efs_obj.best_idx_))
+                active_par_data.append(
+                    self._pot_active_par[np.sort(efs_obj.best_idx_)])
 
                 # And extract the unique active parameters for this iteration
                 active_par.update(active_par_data[i])
 
+            # Convert active_par to a NumPy array
+            active_par = np.array(list(active_par))
+
         # Save the active parameters
         self._emulator._save_data(emul_i, 'active_par',
-                                  [np.array(list(active_par)),
-                                   active_par_data])
+                                  [active_par, active_par_data])
+
+        # Log that active parameter determination is finished
+        logger.info("Finished determining active parameters.")
+
+    # This function extracts the set of active parameters
+    # TODO: Allow user to manually specify the active parameters
+    # TODO: Perform exhaustive backward stepwise regression on order > 1
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _get_active_par2(self, emul_i):
+        """
+        Determines the active parameters to be used for every individual data
+        point in the provided emulator iteration `emul_i`. Uses backwards
+        stepwise elimination to determine the set of active parameters.
+
+        Parameters
+        ----------
+        %(emul_i)s
+
+        Generates
+        ---------
+        active_par : 1D :obj:`~numpy.ndarray` object
+            Array containing the indices of all the parameters that are active
+            in the emulator iteration `emul_i`.
+        active_par_data : List of 1D :obj:`~numpy.ndarray` objects
+            List containing the indices of all the parameters that are active
+            in the emulator iteration `emul_i` for every individual data point.
+
+        """
+
+        # Log that active parameters are being determined
+        logger = logging.getLogger('ACTIVE_PAR')
+        logger.info("Determining active parameters.")
+
+        # Check if active parameters analysis has been requested
+        if not self._do_active_anal:
+            # If not requested, then save all potentially active parameters
+            active_par = self._pot_active_par
+            active_par_data = [active_par]*self._emulator._n_data[emul_i]
+
+        else:
+            # If requested, perform an exhaustive backward stepwise regression
+            active_par = SortedSet()
+            active_par_data = []
+            pot_par_dim = len(self._pot_active_par)
+            for i in range(self._emulator._n_data[emul_i]):
+                # Create ExhaustiveFeatureSelector object
+                efs_obj = EFS(LR(), min_features=1, max_features=pot_par_dim,
+                              print_progress=False, scoring='r2')
+
+                # Fit the data set
+                efs_obj.fit(self._emulator._sam_set[emul_i][
+                                :, self._pot_active_par],
+                            self._emulator._mod_set[emul_i][i])
+
+                # Extract the active parameters for this data set
+                active_par_data.append(
+                    self._pot_active_par[np.sort(efs_obj.best_idx_)])
+
+                # And extract the unique active parameters for this iteration
+                active_par.update(active_par_data[i])
+
+            # Convert active_par to a NumPy array
+            active_par = np.array(list(active_par))
+
+        # Save the active parameters
+        self._emulator._save_data(emul_i, 'active_par',
+                                  [active_par, active_par_data])
 
         # Log that active parameter determination is finished
         logger.info("Finished determining active parameters.")
@@ -1405,6 +1512,7 @@ class Pipeline(object):
         logger.info("Generating full implausibility cut-off list.")
 
         # Complete the impl_cut list
+        impl_cut[0] = check_nneg_float(impl_cut[0], 'impl_cut')
         for i in range(1, len(impl_cut)):
             impl_cut[i] = check_nneg_float(impl_cut[i], 'impl_cut')
             if(impl_cut[i] == 0):
@@ -1747,7 +1855,7 @@ class Pipeline(object):
         -----
         HDF5-file name
             The relative path to the loaded HDF5-file starting at `root_dir`,
-            which consists of `working_dir` and `hdf5-file`.
+            which consists of `working_dir` and `hdf5_file`.
         Emulator type
             The type of this emulator system, corresponding to the provided
             `emul_type` during :class:`~Pipeline` initialization.
@@ -1779,18 +1887,18 @@ class Pipeline(object):
             The total number of model evaluation samples used to construct all
             emulator iterations up to this iteration, with the number for every
             individual iteration in brackets.
-        # of samples plausible/analyzed
+        # of plausible/analyzed samples
             The number of emulator evaluation samples that passed the
             implausibility check out of the total number of analyzed samples in
             this emulator iteration.
-            This is the number of model evaluation samples that will be/was
+            This is the number of model evaluation samples that was/will be
             used for the construction of the next emulator iteration.
             If no analysis has been done, the numbers show up as "-".
         %% of parameter space remaining
             The percentage of the total number of analyzed samples that passed
             the implausibility check in this emulator iteration.
             If no analysis has been done, the number shows up as "-".
-        # of active model parameters
+        # of active/total parameters
             The number of model parameters that was considered active during
             the construction of this emulator iteration, compared to the total
             number of model parameters defined in the used :class:`~ModelLink`
@@ -1955,18 +2063,18 @@ class Pipeline(object):
                                           self._emulator._n_sam[emul_i]))
         if not n_eval_samples:
             print("{0: <{1}}\t{2}/{3}".format(
-                "# of samples plausible/analyzed", width, "-", "-"))
+                "# of plausible/analyzed samples", width, "-", "-"))
             print("{0: <{1}}\t{2}".format(
                 "% of parameter space remaining", width, "-"))
         else:
             print("{0: <{1}}\t{2}/{3}".format(
-                "# of samples plausible/analyzed", width, n_impl_sam,
+                "# of plausible/analyzed samples", width, n_impl_sam,
                 n_eval_samples))
             print("{0: <{1}}\t{2:.3g}%".format(
                 "% of parameter space remaining", width,
                 (n_impl_sam/n_eval_samples)*100))
         print("{0: <{1}}\t{2}/{3}".format(
-            "# of active model parameters", width,
+            "# of active/total parameters", width,
             len(self._emulator._active_par[emul_i]), self._modellink._par_dim))
         print("{0: <{1}}\t{2}".format("# of data points", width,
                                       self._modellink._n_data))

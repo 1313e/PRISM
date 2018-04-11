@@ -25,7 +25,7 @@ from os import path
 from time import time
 
 # Package imports
-from e13tools import InputError, ShapeError
+from e13tools import InputError
 from e13tools.pyplot import draw_textline
 from e13tools.sampling import lhd
 import logging
@@ -34,6 +34,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 # TODO: Do some research on scipy.interpolate.Rbf later
 from scipy.interpolate import interp1d, interp2d
+from sortedcontainers import SortedSet
 
 # PRISM imports
 from ._docstrings import user_emul_i_doc
@@ -89,7 +90,7 @@ class Projection(object):
             If 1D array_like of str, the strings refer to the names of the
             model parameters.
             If 1D array_like of int, the integers refer to the order in which
-            the model parameters are shown in the :func:`~details` method.
+            the model parameters are shown in the :meth:`~details` method.
             If *None*, projection figures are made for all model parameters.
         figure : bool. Default: True
             Whether or not to create the projection figures. If *False*, only
@@ -154,27 +155,28 @@ class Projection(object):
 
         # Else, an array of str/int must be provided
         else:
-            # Check if proj_par can be converted to a numpy array
-            try:
-                proj_par = np.array(proj_par, ndmin=1)
-            except Exception as error:
-                raise InputError("Input argument 'proj_par' is invalid (%s)"
-                                 % (error))
+            # Convert to string, remove unwanted characters and split it up
+            proj_par = str(proj_par)
+            for char in seq_char_list:
+                proj_par = proj_par.replace(char, ' ')
+            proj_par = proj_par.split()
 
-            # Check if converted numpy array is 1D
-            if(proj_par.ndim != 1):
-                raise ShapeError("Input argument 'proj_par' must be "
-                                 "one-dimensional!")
+            # Check elements if they are ints or strings, and if they are valid
+            for i, val in enumerate(proj_par):
+                try:
+                    try:
+                        par_idx = int(val)
+                    except ValueError:
+                        proj_par[i] = self._modellink._par_names.index(val)
+                    else:
+                        self._modellink._par_names[par_idx]
+                        proj_par[i] = par_idx % self._modellink._par_dim
+                except Exception as error:
+                    raise InputError("Input argument 'proj_par' is invalid! "
+                                     "(%s)" % (error))
 
-            # If array contains strings, convert them to ints
-            if(type(proj_par[0]) == np.str_):
-                tmp_list = []
-                for s in proj_par:
-                    tmp_list.append(self._modellink._par_names.index(s))
-                proj_par = np.array(tmp_list)
-
-            # Make sure that proj_par is sorted
-            proj_par.sort()
+            # If everything went without exceptions, remove duplicates and sort
+            proj_par = list(SortedSet(proj_par))
 
             # Check which values in proj_par are also in active_par
             proj_par = np.array(

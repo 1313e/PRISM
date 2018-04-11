@@ -8,5 +8,6 @@ impl_cut		: [0.0, 4.0, 3.8, 3.5]
 criterion		: None
 method			: 'full'
 poly_order		: 3
-do_active_par		: True
+do_active_anal		: True
+pot_active_par		: None
 use_mock		: False
