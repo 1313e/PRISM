@@ -31,9 +31,12 @@ from e13tools.sampling import lhd
 import h5py
 import logging
 from mlxtend.feature_selection import ExhaustiveFeatureSelector as EFS
+from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
 from numpy.random import normal, random
+# TODO: Do some research on sklearn.linear_model.SGDRegressor
 from sklearn.linear_model import LinearRegression as LR
+from sklearn.preprocessing import PolynomialFeatures as PF
 from sortedcontainers import SortedSet
 
 # PRISM imports
@@ -59,6 +62,7 @@ if(sys.version_info.major >= 3):
 # TODO: Implement multivariate implausibilities
 # TODO: Allow user to construct a master emulator system, covering full space
 # OPTIMIZE: Overlap plausible regions to remove boundary artifacts?
+# TODO: Allow ModelLink to provide full data set, Pipeline selects data itself?
 class Pipeline(object):
     """
     Defines the :class:`~Pipeline` class of the PRISM package.
@@ -280,7 +284,7 @@ class Pipeline(object):
     @property
     def pot_active_par(self):
         """
-        List of potentially active parameters. Only parameters from this list
+        Array of potentially active parameters. Only parameters from this array
         can be considered active.
 
         """
@@ -385,7 +389,7 @@ class Pipeline(object):
         """
 
         # Log that model is being called
-        logger = logging.getLogger('MODEL')
+        logger = logging.getLogger('CALL_MODEL')
         logger.info("Calling model at parameters %s." % (par_set))
 
         # Make sure par_setp is at least 1D and a numpy array
@@ -1195,6 +1199,10 @@ class Pipeline(object):
                 # And extract the unique active parameters for this iteration
                 active_par.update(active_par_data[i])
 
+                # Log the resulting active parameters
+                logger.info("Active parameters for data set %s: %s"
+                            % (i, active_par_data[i]))
+
             # Convert active_par to a NumPy array
             active_par = np.array(list(active_par))
 
@@ -1240,27 +1248,70 @@ class Pipeline(object):
             active_par = self._pot_active_par
             active_par_data = [active_par]*self._emulator._n_data[emul_i]
 
+        # If requested, perform an sequential backward stepwise regression
         else:
-            # If requested, perform an exhaustive backward stepwise regression
+            # Create empty lists
             active_par = SortedSet()
             active_par_data = []
-            pot_par_dim = len(self._pot_active_par)
-            for i in range(self._emulator._n_data[emul_i]):
-                # Create ExhaustiveFeatureSelector object
-                efs_obj = EFS(LR(), min_features=1, max_features=pot_par_dim,
-                              print_progress=False, scoring='r2')
+            pot_act_idx = list(range(len(self._pot_active_par)))
+            pot_act_sam_set =\
+                self._emulator._sam_set[emul_i][:, self._pot_active_par]
 
-                # Fit the data set
-                efs_obj.fit(self._emulator._sam_set[emul_i][
-                                :, self._pot_active_par],
+            # Obtain polynomial terms of pot_act_sam_set
+            pf_obj = PF(self._emulator._poly_order, include_bias=False)
+            pot_act_poly_terms = pf_obj.fit_transform(pot_act_sam_set)
+
+            # Determine active parameters for all data points
+            for i in range(self._emulator._n_data[emul_i]):
+                # Create SequentialFeatureSelector object
+                sfs_obj = SFS(LR(), k_features='parsimonious', forward=False,
+                              floating=False, scoring='r2')
+
+                # Perform linear regression with linear terms only
+                sfs_obj.fit(pot_act_sam_set,
                             self._emulator._mod_set[emul_i][i])
 
+                # Extract active parameters due to linear significance
+                act_idx_lin = list(sfs_obj.k_feature_idx_)
+                print('')
+                print(sfs_obj.k_score_)
+                print(act_idx_lin)
+                act_idx = list(act_idx_lin)
+
+                # Get passive parameters in linear significance
+                pas_idx_lin = [j for j in pot_act_idx if j not in act_idx_lin]
+                print(pas_idx_lin)
+
+                # Perform n-order polynomial regression for every passive par
+                for j in pas_idx_lin:
+                    # Obtain polynomial terms for this passive parameter
+                    poly_idx = pf_obj.powers_[:, j] != 0
+                    poly_idx[act_idx_lin] = 1
+                    poly_idx = np.arange(len(poly_idx))[poly_idx]
+                    poly_terms = pot_act_poly_terms[:, poly_idx]
+
+                    # Perform linear regression with addition of poly terms
+                    sfs_obj.fit(poly_terms, self._emulator._mod_set[emul_i][i])
+
+                    # Extract indices of active polynomial terms
+                    act_idx_poly = poly_idx[list(sfs_obj.k_feature_idx_)]
+                    print(sfs_obj.k_score_)
+                    print(pf_obj.powers_[act_idx_poly])
+
+                    # Check if any additional polynomial terms survived
+                    # Add i to act_idx if this is the case
+                    if np.any([k not in act_idx_lin for k in act_idx_poly]):
+                        act_idx.append(j)
+
                 # Extract the active parameters for this data set
-                active_par_data.append(
-                    self._pot_active_par[np.sort(efs_obj.best_idx_)])
+                active_par_data.append(self._pot_active_par[np.sort(act_idx)])
 
                 # And extract the unique active parameters for this iteration
                 active_par.update(active_par_data[i])
+
+                # Log the resulting active parameters
+                logger.info("Active parameters for data set %s: %s"
+                            % (i, active_par_data[i]))
 
             # Convert active_par to a NumPy array
             active_par = np.array(list(active_par))
@@ -1343,11 +1394,6 @@ class Pipeline(object):
 
         """
 
-        # Log that impl_check is being carried out
-        logger = logging.getLogger('IMPL_CHECK')
-        logger.info("Performing implausibility cut-off check on %s."
-                    % (uni_impl_val))
-
         # Sort impl_val to compare with the impl_cut list
         # TODO: Maybe use np.partition here?
         sorted_impl_val = np.flip(np.sort(uni_impl_val, axis=-1), axis=-1)
@@ -1359,11 +1405,9 @@ class Pipeline(object):
         for impl_val, cut_val in zip(sorted_impl_val, obj._impl_cut[emul_i]):
             # If impl_cut is not 0 and impl_val is not below impl_cut, break
             if(cut_val != 0 and impl_val > cut_val):
-                logger.info("Check result is negative.")
                 return(0, impl_cut_val)
         else:
             # If for-loop ended in a normal way, the check was successful
-            logger.info("Check result is positive.")
             return(1, impl_cut_val)
 
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -1410,10 +1454,6 @@ class Pipeline(object):
 
         """
 
-        # Log that univariate implausibility value is calculated
-        logger = logging.getLogger('UNI_IMPL')
-        logger.info("Calculating univariate implausibility value.")
-
         # Obtain model discrepancy variance
         md_var = self._get_md_var(emul_i)
 
@@ -1429,9 +1469,6 @@ class Pipeline(object):
 
         # Take square root
         uni_impl_val = np.sqrt(uni_impl_val_sq)
-
-        # Log the result
-        logger.info("Univariate implausibility value is %s." % (uni_impl_val))
 
         # Return it
         return(uni_impl_val)
@@ -1710,6 +1747,7 @@ class Pipeline(object):
         self.details(emul_i)
 
     # This function constructs a specified iteration of the emulator system
+    # TODO: Make time and RAM cost plots
     @docstring_substitute(emul_i=user_emul_i_doc)
     def construct(self, emul_i=None, analyze=True):
         """
@@ -1771,9 +1809,12 @@ class Pipeline(object):
             self._load_data()
 
             # Create initial set of model evaluation samples
+            logger.info("Creating initial model evaluation sample set with "
+                        "size %s." % (self._n_sam_init))
             add_sam_set = lhd(self._n_sam_init, self._modellink._par_dim,
                               self._modellink._par_rng, 'fixed',
                               self._criterion)
+            logger.info("Finished creating initial sample set.")
 
         else:
             # Check if previous iteration has been analyzed and do so if not
@@ -2110,6 +2151,7 @@ class Pipeline(object):
 
     # This function allows the user to evaluate a given sam_set in the emulator
     # TODO: Allow function to be called if emulator has not been analyzed yet
+    # TODO: Plot emul_i_stop for large LHDs, giving a nice mental statistic
     @docstring_substitute(emul_i=user_emul_i_doc)
     def evaluate(self, sam_set, emul_i=None):
         """
@@ -2136,13 +2178,13 @@ class Pipeline(object):
         emul_i_stop : list of int
             List containing the last emulator iteration identifiers at which
             the given samples are still within the emulator system.
-        adj_exp_val : list of 1D :obj:`~numpy.ndarray` object
+        adj_exp_val : list of 1D :obj:`~numpy.ndarray` objects
             List of arrays containing the adjusted expectation values for all
             given samples.
-        adj_var_val : list of 1D :obj:`~numpy.ndarray` object
+        adj_var_val : list of 1D :obj:`~numpy.ndarray` objects
             List of arrays containing the adjusted variance values for all
             given samples.
-        uni_impl_val : list of 1D :obj:`~numpy.ndarray` object
+        uni_impl_val : list of 1D :obj:`~numpy.ndarray` objects
             List of arrays containing the univariate implausibility values for
             all given samples.
 

@@ -71,7 +71,7 @@ def test_pipeline(output='test_emul_sine_wave', save=False):
 
     # Create instance of Pipeline
     pipe = Pipeline(model_link, root_dir=file_path, working_dir=output,
-                    prism_file='data/test_prism.txt')
+                    prism_file='data/test_prism.txt', emul_type='default')
 
     # Check if Pipeline details are correct
     assert pipe._modellink_name == 'SineWaveLink'
@@ -107,6 +107,7 @@ def test_pipeline(output='test_emul_sine_wave', save=False):
     assert (pipe._impl_cut[1] == [0.0, 4.0, 3.8, 3.5]).all()
     assert pipe._prc[1] == 1
     exp_impl_sam = np.load(path.join(file_path, 'data/impl_sam.npy'))
+    assert pipe._impl_sam.shape == exp_impl_sam.shape
     assert np.allclose(pipe._impl_sam[1], exp_impl_sam)
 
     # Check if emulator system is correctly built

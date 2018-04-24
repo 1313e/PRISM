@@ -10,7 +10,7 @@ Stores the different versions of the PRISM package.
 
 # %% VERSIONS
 # Default/Latest version
-version = '0.4.2'
+version = '0.4.3'
 
 # Compatibility versions
-compat_version = ['0.3.0', '0.3.5']
+compat_version = ['0.3.0', '0.3.5', '0.4.2']

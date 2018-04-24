@@ -26,6 +26,7 @@ import logging
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
 from numpy.linalg import inv, norm
+# TODO: Do some research on sklearn.linear_model.SGDRegressor
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
@@ -146,6 +147,18 @@ class Emulator(object):
         return(self._method)
 
     @property
+    def use_regr_cov(self):
+        """
+        Bool indicating whether or not to take into account the regression
+        covariance when calculating the covariance of the emulator, in addition
+        to the Gaussian covariance.
+        If method == 'gaussian', this bool is not required.
+
+        """
+
+        return(bool(self._use_regr_cov))
+
+    @property
     def poly_order(self):
         """
         Polynomial order that is considered for the regression process.
@@ -183,7 +196,7 @@ class Emulator(object):
         """
         List with residual variances for every data point in the currently
         loaded emulator iteration.
-        Obtained from regression process and replaces the Gaussian sigma .
+        Obtained from regression process and replaces the Gaussian sigma.
 
         """
 
@@ -400,6 +413,7 @@ class Emulator(object):
         file.attrs['sigma'] = self._sigma
         file.attrs['l_corr'] = self._l_corr
         file.attrs['method'] = self._method.encode('ascii', 'ignore')
+        file.attrs['use_regr_cov'] = self._use_regr_cov
         file.attrs['poly_order'] = self._poly_order
         file.attrs['modellink_name'] =\
             self._modellink_name.encode('ascii', 'ignore')
@@ -616,11 +630,6 @@ class Emulator(object):
 
         """
 
-        # Log that adjusted expectation value is calculated
-        logger = logging.getLogger('EMUL_EXP')
-        logger.info("Calculating adjusted emulator expectation value at %s."
-                    % (par_set))
-
         # Obtain prior expectation value of par_set
         prior_exp_par_set = self._get_prior_exp(emul_i, par_set)
 
@@ -634,10 +643,6 @@ class Emulator(object):
                        np.dot(self._cov_mat_inv[emul_i][i],
                        (self._mod_set[emul_i][i] -
                         self._prior_exp_sam_set[emul_i][i])))
-
-        # Log the result
-        logger.info("Adjusted emulator expectation value is %s."
-                    % (adj_exp_val))
 
         # Return it
         return(adj_exp_val)
@@ -667,12 +672,7 @@ class Emulator(object):
 
         """
 
-        # Log that adjusted emulator variance value is calculated
-        logger = logging.getLogger('EMUL_VAR')
-        logger.info("Calculating adjusted emulator variance value at %s."
-                    % (par_set))
-
-        # Obtain prior variance value of par_setp
+        # Obtain prior variance value of par_set
         prior_var_par_set = self._get_prior_var(emul_i, par_set)
 
         # Create empty adj_var_val
@@ -683,10 +683,6 @@ class Emulator(object):
             adj_var_val[i] = prior_var_par_set[i] -\
                 np.dot(np.transpose(cov_vec[i]),
                        np.dot(self._cov_mat_inv[emul_i][i], cov_vec[i]))
-
-        # Log the result
-        logger.info("Adjusted emulator variance value is %s."
-                    % (adj_var_val))
 
         # Return it
         return(adj_var_val)
@@ -750,7 +746,7 @@ class Emulator(object):
         poly_coef : 2D list
             List containing the expectation values of the polynomial
             coefficients for all data points.
-        poly_coef_cov : 2D list
+        poly_coef_cov : 2D list (if use_regr_cov is True)
             List containing the covariance values of the polynomial
             coefficients for all data points.
         poly_powers : 2D list
@@ -780,14 +776,16 @@ class Emulator(object):
                             ('SFS', sfs_obj),
                             ('linear', LR())])
 
-        # Create empty array containing the polynomial coefficients
+        # Create empty lists containing the various regression coefficients
         rsdl_var = []
         poly_coef = []
-        poly_coef_cov = []
+        if self._use_regr_cov:
+            poly_coef_cov = []
         poly_powers = []
         poly_idx = []
 
         # Loop over all data points and perform a regression on all of them
+        # TODO: Redetermine active parameters after regression process
         for i in range(self._n_data[emul_i]):
             # Extract active_sam_set
             active_sam_set = self._sam_set[emul_i][
@@ -818,9 +816,10 @@ class Emulator(object):
                                            sam_set_poly], axis=-1)
 
             # Calculate the poly_coef covariances
-            poly_coef_cov.append(rsdl_var[i]*inv(
-                    np.dot(np.transpose(sam_set_poly),
-                           sam_set_poly)).flatten())
+            if self._use_regr_cov:
+                poly_coef_cov.append(rsdl_var[i]*inv(
+                        np.dot(np.transpose(sam_set_poly),
+                               sam_set_poly)).flatten())
 
             # Obtain polynomial powers and include intercept term
             poly_powers_temp = pipe.named_steps['poly'].powers_[poly_idx_temp]
@@ -839,9 +838,13 @@ class Emulator(object):
                                              poly_coef_temp]))
 
         # Save everything to hdf5
-        self._save_data(emul_i, 'regression',
-                        [rsdl_var, poly_coef, poly_coef_cov, poly_powers,
-                         poly_idx])
+        if self._use_regr_cov:
+            self._save_data(emul_i, 'regression',
+                            [rsdl_var, poly_coef, poly_powers, poly_idx,
+                             poly_coef_cov])
+        else:
+            self._save_data(emul_i, 'regression',
+                            [rsdl_var, poly_coef, poly_powers, poly_idx])
 
         # Log that this is finished
         logger.info("Finished performing regression.")
@@ -893,7 +896,7 @@ class Emulator(object):
                     prior_exp[i] += np.sum(
                         self._poly_coef[emul_i][i]*poly_terms, axis=-1)
 
-        # If prior_exp of par_set is requested (cov, adj_exp)
+        # If prior_exp of par_set is requested (adj_exp)
         else:
             # Initialize empty prior expectation
             prior_exp = np.zeros(self._n_data[emul_i])
@@ -1003,7 +1006,8 @@ class Emulator(object):
         """
 
         # Value for fraction of residual variance for variety in inactive pars
-        weight = 0.2
+        weight = [1-len(active_par)/self._modellink._par_dim
+                  for active_par in self._active_par_data[emul_i]]
 
         # Determine which residual variance should be used
         if self._method.lower() in ('regression', 'full'):
@@ -1026,7 +1030,7 @@ class Emulator(object):
                 # If Gaussian needs to be taken into account
                 for i in range(self._n_data[emul_i]):
                     # Gaussian variance
-                    cov[i] += (1-weight)*rsdl_var[i] *\
+                    cov[i] += (1-weight[i])*rsdl_var[i] *\
                         np.exp(-1*pow(norm(
                             diff_sam_set[:, :,
                                          self._active_par_data[emul_i][i]],
@@ -1036,9 +1040,10 @@ class Emulator(object):
                                         self._active_par_data[emul_i][i]]), 2))
 
                     # Inactive parameter variety
-                    cov[i] += weight*rsdl_var[i]*np.eye(self._n_sam[emul_i])
+                    cov[i] += weight[i]*rsdl_var[i]*np.eye(self._n_sam[emul_i])
 
-            if self._method.lower() in ('regression', 'full'):
+            if(self._method.lower() in ('regression', 'full') and
+               self._use_regr_cov):
                 # If regression needs to be taken into account
                 cov += self._get_regr_cov(emul_i, None, None)
 
@@ -1055,7 +1060,7 @@ class Emulator(object):
                 # If Gaussian needs to be taken into account
                 for i in range(self._n_data[emul_i]):
                     # Gaussian variance
-                    cov[i] += (1-weight)*rsdl_var[i] *\
+                    cov[i] += (1-weight[i])*rsdl_var[i] *\
                         np.exp(-1*pow(norm(
                             diff_sam_set[:, self._active_par_data[emul_i][i]],
                             axis=-1), 2) /
@@ -1064,10 +1069,11 @@ class Emulator(object):
                                         self._active_par_data[emul_i][i]]), 2))
 
                     # Inactive parameter variety
-                    cov[i] += weight*rsdl_var[i] *\
+                    cov[i] += weight[i]*rsdl_var[i] *\
                         (par_set1 == self._sam_set[emul_i]).all(axis=-1)
 
-            if self._method.lower() in ('regression', 'full'):
+            if(self._method.lower() in ('regression', 'full') and
+               self._use_regr_cov):
                 # If regression needs to be taken into account
                 cov += self._get_regr_cov(emul_i, par_set1, None)
 
@@ -1084,7 +1090,7 @@ class Emulator(object):
                 # If Gaussian needs to be taken into account
                 for i in range(self._n_data[emul_i]):
                     # Gaussian variance
-                    cov[i] += (1-weight)*rsdl_var[i] *\
+                    cov[i] += (1-weight[i])*rsdl_var[i] *\
                         np.exp(-1*pow(norm(
                             diff_sam_set[self._active_par_data[emul_i][i]],
                             axis=-1), 2) /
@@ -1093,9 +1099,10 @@ class Emulator(object):
                                         self._active_par_data[emul_i][i]]), 2))
 
                     # Inactive parameter variety
-                    cov[i] += weight*rsdl_var[i] *\
+                    cov[i] += weight[i]*rsdl_var[i] *\
                         (par_set1 == par_set2).all()
-            if self._method.lower() in ('regression', 'full'):
+            if(self._method.lower() in ('regression', 'full') and
+               self._use_regr_cov):
                 # If regression needs to be taken into account
                 cov += self._get_regr_cov(emul_i, par_set1, par_set2)
 
@@ -1104,6 +1111,7 @@ class Emulator(object):
 
     # This function calculates the regression covariance.
     # This is function 'Cov(r(x), r(x'))'
+    # OPTIMIZE: Takes roughly 45-50% of total evaluation time
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_regr_cov(self, emul_i, par_set1, par_set2):
         """
@@ -1212,16 +1220,16 @@ class Emulator(object):
     # This is function 'Cov(f(x'), D)' or 't(x')'
     # HINT: Calculate cov_vec for all samples at once to save time?
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def _get_cov_vector(self, emul_i, par_setp):
+    def _get_cov_vector(self, emul_i, par_set):
         """
-        Calculates the column vector of covariances between given (`par_setp`)
+        Calculates the column vector of covariances between given (`par_set`)
         and known ('sam_set') model parameter value sets for a given emulator
         iteration `emul_i`.
 
         Parameters
         ----------
         %(emul_i)s
-        par_setp : 1D :obj:`~numpy.ndarray` object
+        par_set : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the covariances vector
             for.
 
@@ -1233,15 +1241,8 @@ class Emulator(object):
 
         """
 
-        # Log that covariance vector is being calculated
-        logger = logging.getLogger('COV_VEC')
-        logger.info("Calculating covariance vector at %s." % (par_setp))
-
         # Calculate covariance vector
-        cov_vec = self._get_cov(emul_i, par_setp, None)
-
-        # Log that it has been finished
-        logger.info("Finished calculating covariance vector.")
+        cov_vec = self._get_cov(emul_i, par_set, None)
 
         # Return it
         return(cov_vec)
@@ -1550,7 +1551,8 @@ class Emulator(object):
                 if self._method.lower() in ('regression', 'full'):
                     rsdl_var = []
                     poly_coef = []
-                    poly_coef_cov = []
+                    if self._use_regr_cov:
+                        poly_coef_cov = []
                     poly_powers = []
                     poly_idx = []
                     for j in range(self._n_data[i]):
@@ -1558,15 +1560,18 @@ class Emulator(object):
                                              % (i, j)].attrs['rsdl_var'])
                         poly_coef.append(file['%s/data_set_%s/poly_coef'
                                               % (i, j)][()])
-                        poly_coef_cov.append(
-                            file['%s/data_set_%s/poly_coef_cov' % (i, j)][()])
+                        if self._use_regr_cov:
+                            poly_coef_cov.append(
+                                file['%s/data_set_%s/poly_coef_cov'
+                                     % (i, j)][()])
                         poly_powers.append(file['%s/data_set_%s/poly_powers'
                                                 % (i, j)][()])
                         poly_idx.append(file['%s/data_set_%s/poly_idx'
                                              % (i, j)][()])
                     self._rsdl_var.append(rsdl_var)
                     self._poly_coef.append(poly_coef)
-                    self._poly_coef_cov.append(poly_coef_cov)
+                    if self._use_regr_cov:
+                        self._poly_coef_cov.append(poly_coef_cov)
                     self._poly_powers.append(poly_powers)
                     self._poly_idx.append(poly_idx)
 
@@ -1649,17 +1654,19 @@ class Emulator(object):
                     data[0][i]
                 file.create_dataset('%s/data_set_%s/poly_coef'
                                     % (emul_i, i), data=data[1][i])
-                file.create_dataset('%s/data_set_%s/poly_coef_cov'
-                                    % (emul_i, i), data=data[2][i])
                 file.create_dataset('%s/data_set_%s/poly_powers'
-                                    % (emul_i, i), data=data[3][i])
+                                    % (emul_i, i), data=data[2][i])
                 file.create_dataset('%s/data_set_%s/poly_idx'
-                                    % (emul_i, i), data=data[4][i])
+                                    % (emul_i, i), data=data[3][i])
+                if self._use_regr_cov:
+                    file.create_dataset('%s/data_set_%s/poly_coef_cov'
+                                        % (emul_i, i), data=data[4][i])
             self._rsdl_var.append(data[0])
             self._poly_coef.append(data[1])
-            self._poly_coef_cov.append(data[2])
-            self._poly_powers.append(data[3])
-            self._poly_idx.append(data[4])
+            self._poly_powers.append(data[2])
+            self._poly_idx.append(data[3])
+            if self._use_regr_cov:
+                self._poly_coef_cov.append(data[4])
 
         # SAM_SET
         elif(keyword == 'sam_set'):
@@ -1698,6 +1705,7 @@ class Emulator(object):
         self._sigma = file.attrs['sigma']
         self._l_corr = file.attrs['l_corr']
         self._method = file.attrs['method'].decode('utf-8')
+        self._use_regr_cov = file.attrs['use_regr_cov']
         self._poly_order = file.attrs['poly_order']
         self._modellink_name = file.attrs['modellink_name'].decode('utf-8')
 
@@ -1751,6 +1759,7 @@ class Emulator(object):
         par_dict = {'sigma': '0.8',
                     'l_corr': '0.3',
                     'method': "'full'",
+                    'use_regr_cov': 'False',
                     'poly_order': '3'}
 
         # Log end
@@ -1797,6 +1806,17 @@ class Emulator(object):
         # Future will include 'gaussian', 'regression', 'auto' and 'full'
         self._method = check_str(str(par_dict['method']).replace("'", ''),
                                  'method')
+
+        # Obtain the bool determining whether or not to use regr_cov
+        if(par_dict['use_regr_cov'].lower() in ('false', '0')):
+            self._use_regr_cov = 0
+        elif(par_dict['use_regr_cov'].lower() in ('true', '1')):
+            self._use_regr_cov = 1
+        else:
+            logger.error("Emulator parameter 'use_regr_cov' is not of type "
+                         "'bool'!")
+            raise TypeError("Emulator parameter 'use_regr_cov' is not of type "
+                            "'bool'!")
 
         # Obtain the polynomial order for the regression selection process
         self._poly_order = check_pos_int(int(par_dict['poly_order']),

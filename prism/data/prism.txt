@@ -7,6 +7,7 @@ l_corr			: 0.3			# Gaussian correlation length
 impl_cut		: [0.0, 4.0, 3.8, 3.5]	# List of implausibility cut-off values
 criterion		: 'multi'		# Criterion for constructing LHDs
 method			: 'full'		# Method used for constructing the emulator system
+use_regr_cov		: False			# Use regression covariance
 poly_order		: 3			# Polynomial order for regression (only required if method != 'gaussian')
 do_active_anal		: True			# Do active parameter analysis
 pot_active_par		: None			# List of potentially active parameters
