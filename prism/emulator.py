@@ -19,9 +19,13 @@ Available classes
 # Future imports
 from __future__ import absolute_import, division, print_function
 
+# Built-in imports
+from time import time
+
 # Package imports
 from e13tools import InputError
 from e13tools.math import diff, nearest_PD
+import h5py
 import logging
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
@@ -68,11 +72,12 @@ class Emulator(object):
 
         """
 
-        # Save keyword arguments
+        # Copy important Pipeline methods and attributes
         self._close_hdf5 = pipeline_obj._close_hdf5
         self._hdf5_file = pipeline_obj._hdf5_file
         self._open_hdf5 = pipeline_obj._open_hdf5
         self._prism_file = pipeline_obj._prism_file
+        self._save_statistic = pipeline_obj._save_statistic
 
         # Load the emulator and data
         self._load_emulator(modellink_obj)
@@ -146,6 +151,7 @@ class Emulator(object):
 
         return(self._method)
 
+    # TODO: Allow selective regr_cov usage?
     @property
     def use_regr_cov(self):
         """
@@ -546,6 +552,9 @@ class Emulator(object):
         file['%s' % (emul_i)].attrs['n_data'] = self._modellink._n_data
         self._n_data.append(self._modellink._n_data)
 
+        # Create an empty data set for statistics as attributes
+        file.create_dataset('%s/statistics' % (emul_i), data=h5py.Empty(float))
+
         # Create empty lists for the three data arrays
         data_val = []
         data_err = []
@@ -597,6 +606,9 @@ class Emulator(object):
 
         """
 
+        # Save current time
+        start_time = time()
+
         # Check if regression is required
         if(self._method.lower() in ('regression', 'full')):
             self._do_regression(emul_i)
@@ -604,6 +616,10 @@ class Emulator(object):
         # Calculate the prior expectation and variance values of sam_set
         self._get_prior_exp_sam_set(emul_i)
         self._get_cov_matrix(emul_i)
+
+        # Save time difference
+        self._save_statistic(emul_i, 'emul_construct_time',
+                             '%.2f' % (time()-start_time), 's')
 
     # This is function 'E_D(f(x'))'
     # This function gives the adjusted emulator expectation value back

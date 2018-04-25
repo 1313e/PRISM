@@ -215,9 +215,15 @@ class Projection(object):
                 par_name = self._modellink._par_names[hcube[0]]
 
                 try:
-                    file.create_group('%s/proj_hcube/%s'
-                                      % (self._emul_i, par_name))
-                except ValueError:
+                    file['%s/proj_hcube/%s' % (self._emul_i, par_name)]
+#                    file.create_group('%s/proj_hcube/%s'
+#                                      % (self._emul_i, par_name))
+                except KeyError:
+                    logger.info("Projection data '%s' not found. Will be "
+                                "created."
+                                % (par_name))
+                    create_hcube_par.append(hcube)
+                else:
                     if force:
                         del file['%s/proj_hcube/%s'
                                  % (self._emul_i, par_name)]
@@ -229,20 +235,20 @@ class Projection(object):
                         logger.info("Projection data '%s' already exists. "
                                     "Skipping data creation."
                                     % (par_name))
-                else:
-                    logger.info("Projection data '%s' not found. Will be "
-                                "created."
-                                % (par_name))
-                    create_hcube_par.append(hcube)
             else:
                 # Make abbreviation for the parameter names
                 par1_name = self._modellink._par_names[hcube[0]]
                 par2_name = self._modellink._par_names[hcube[1]]
 
                 try:
-                    file.create_group('%s/proj_hcube/%s-%s'
-                                      % (self._emul_i, par1_name, par2_name))
-                except ValueError:
+                    file['%s/proj_hcube/%s-%s'
+                         % (self._emul_i, par1_name, par2_name)]
+                except KeyError:
+                    logger.info("Projection data '%s-%s' not found. Will "
+                                "be created."
+                                % (par1_name, par2_name))
+                    create_hcube_par.append(hcube)
+                else:
                     if force:
                         del file['%s/proj_hcube/%s-%s'
                                  % (self._emul_i, par1_name, par2_name)]
@@ -254,11 +260,6 @@ class Projection(object):
                         logger.info("Projection data '%s-%s' already "
                                     "exists. Skipping data creation."
                                     % (par1_name, par2_name))
-                else:
-                    logger.info("Projection data '%s-%s' not found. Will "
-                                "be created."
-                                % (par1_name, par2_name))
-                    create_hcube_par.append(hcube)
 
         # Close hdf5-file
         self._pipeline._close_hdf5(file)
@@ -345,7 +346,7 @@ class Projection(object):
 
                 # Obtain figure name prefix
                 fig_prefix =\
-                    path.join(self._pipeline._working_dir, 'proj_%s_cube_'
+                    path.join(self._pipeline._working_dir, '%s_proj_'
                               % (self._emul_i))
 
                 # Recreate the parameter value array used to create the hcube
@@ -367,7 +368,7 @@ class Projection(object):
                 # Do plotting
                 f, axarr = plt.subplots(2)
                 plt.rc('text', usetex=True)
-                f.suptitle(r"2D Projection %s Cube (%s)"
+                f.suptitle(r"%s. Projection (%s)"
                            % (self._emul_i, par_name), fontsize='xx-large')
 
                 # Plot minimum implausibility
@@ -443,7 +444,7 @@ class Projection(object):
 
                 # Obtain figure name prefix
                 fig_prefix =\
-                    path.join(self._pipeline._working_dir, 'proj_%s_hcube_'
+                    path.join(self._pipeline._working_dir, '%s_proj_'
                               % (self._emul_i))
 
                 # Recreate the parameter value arrays used to create the hcube
@@ -484,7 +485,7 @@ class Projection(object):
 
                 # Do plotting
                 f, axarr = plt.subplots(2, figsize=(6.4, 4.8), dpi=100)
-                f.suptitle(r"3D Projection %s Hypercube (%s-%s)"
+                f.suptitle(r"%s. Projection (%s-%s)"
                            % (self._emul_i, par1_name, par2_name),
                            fontsize='xx-large')
 
@@ -547,18 +548,14 @@ class Projection(object):
         time_diff_total = end_time-start_time1
         time_diff_figs = end_time-start_time2
 
-        if figure:
-            print("Finished projection in %.2f seconds, averaging %.2f "
-                  "seconds per projection figure."
-                  % (time_diff_total, time_diff_figs/len(hcube_par)))
-            logger.info("Finished projection in %.2f seconds, averaging %.2f "
-                        "seconds per projection figure."
-                        % (time_diff_total, time_diff_figs/len(hcube_par)))
-        else:
-            print("Finished projection in %.2f seconds."
-                  % (time_diff_total))
-            logger.info("Finished projection in %.2f seconds."
-                        % (time_diff_total))
+        print("Finished projection in %.2f seconds, averaging %.2f "
+              "seconds per projection %s."
+              % (time_diff_total, time_diff_figs/len(hcube_par),
+                 'figure' if figure else 'hypercube'))
+        logger.info("Finished projection in %.2f seconds, averaging %.2f "
+                    "seconds per projection %s."
+                    % (time_diff_total, time_diff_figs/len(hcube_par),
+                       'figure' if figure else 'hypercube'))
 
 
 # %% CLASS PROPERTIES

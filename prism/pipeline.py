@@ -1077,6 +1077,39 @@ class Pipeline(object):
         # Close hdf5
         self._close_hdf5(file)
 
+    # This function saves a statistic to hdf5
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _save_statistic(self, emul_i, keyword, value, unit=''):
+        """
+        Saves a given statistic `keyword` with `value` and `unit` at emulator
+        iteration `emul_i` to the HDF5-file. The provided `value` is always
+        saved as a string.
+
+        Parameters
+        ----------
+        %(emul_i)s
+        keyword : str
+            String containing the name/keyword of the statistic that is being
+            saved.
+        value : int, float or str
+            The value of the statistic.
+
+        Optional
+        --------
+        unit : str. Default: ''
+            The unit of the statistic. Default is no unit.
+
+        """
+
+        # Open hdf5-file
+        file = self._open_hdf5('r+')
+
+        # Save statistic
+        file['%s/statistics' % (emul_i)].attrs[keyword] = [value, unit]
+
+        # Close hdf5-file
+        self._close_hdf5(file)
+
     # This is function 'k'
     # Reminder that this function should only be called once per sample set
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -1135,6 +1168,8 @@ class Pipeline(object):
             self._emulator._save_data(emul_i, 'mod_set', comb_mod_set)
 
         # Log that this is finished
+        self._save_statistic(emul_i, 'avg_model_eval_time',
+                             '%.3g' % (end_time/mod_dim), 's')
         print("Finished evaluating model samples in %.2f seconds, "
               "averaging %.3g seconds per model evaluation."
               % (end_time, end_time/mod_dim))
@@ -1273,14 +1308,14 @@ class Pipeline(object):
 
                 # Extract active parameters due to linear significance
                 act_idx_lin = list(sfs_obj.k_feature_idx_)
-                print('')
-                print(sfs_obj.k_score_)
-                print(act_idx_lin)
+#                print('')
+#                print(sfs_obj.k_score_)
+#                print(act_idx_lin)
                 act_idx = list(act_idx_lin)
 
                 # Get passive parameters in linear significance
                 pas_idx_lin = [j for j in pot_act_idx if j not in act_idx_lin]
-                print(pas_idx_lin)
+#                print(pas_idx_lin)
 
                 # Perform n-order polynomial regression for every passive par
                 for j in pas_idx_lin:
@@ -1295,8 +1330,8 @@ class Pipeline(object):
 
                     # Extract indices of active polynomial terms
                     act_idx_poly = poly_idx[list(sfs_obj.k_feature_idx_)]
-                    print(sfs_obj.k_score_)
-                    print(pf_obj.powers_[act_idx_poly])
+#                    print(sfs_obj.k_score_)
+#                    print(pf_obj.powers_[act_idx_poly])
 
                     # Check if any additional polynomial terms survived
                     # Add i to act_idx if this is the case
@@ -1736,6 +1771,11 @@ class Pipeline(object):
         end_time = time()
         time_diff_total = end_time-start_time1
         time_diff_eval = end_time-start_time2
+        self._save_statistic(emul_i, 'tot_analyze_time',
+                             '%.2f' % (time_diff_total), 's')
+        self._save_statistic(emul_i, 'avg_emul_eval_rate',
+                             '%.2f' % (eval_sam_set.shape[0]/time_diff_eval),
+                             '1/s')
         print("Finished analysis of emulator system in %.2f seconds, "
               "averaging %.2f emulator evaluations per second."
               % (time_diff_total, eval_sam_set.shape[0]/time_diff_eval))
@@ -1846,7 +1886,7 @@ class Pipeline(object):
         self._evaluate_model(emul_i, add_sam_set)
 
         # Determine active parameters
-        self._get_active_par(emul_i)
+        self._get_active_par2(emul_i)
 
         # Construct emulator
         self._emulator._construct_iteration(emul_i)
@@ -1854,6 +1894,8 @@ class Pipeline(object):
 
         # Log that construction has been completed
         time_diff_total = time()-start_time
+        self._save_statistic(emul_i, 'tot_construct_time',
+                             '%.2f' % (time_diff_total), 's')
         print("Finished construction of emulator system in %.2f seconds."
               % (time_diff_total))
         logger.info("Finished construction of emulator system in %.2f seconds."
