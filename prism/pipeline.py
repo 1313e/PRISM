@@ -60,7 +60,6 @@ if(sys.version_info.major >= 3):
 # OPTIMIZE: Rewrite PRISM into MPI?
 # TODO: Allow user to switch between emulation and modelling
 # TODO: Implement multivariate implausibilities
-# TODO: Allow user to construct a master emulator system, covering full space
 # OPTIMIZE: Overlap plausible regions to remove boundary artifacts?
 # TODO: Allow ModelLink to provide full data set, Pipeline selects data itself?
 class Pipeline(object):
@@ -140,7 +139,6 @@ class Pipeline(object):
 
         # Link provided ModelLink subclass to Pipeline class
         self._modellink = self._emulator._modellink
-        self._modellink_name = self._emulator._modellink_name
 
         # Read/load in pipeline parameters
         self._read_parameters()
@@ -242,16 +240,6 @@ class Pipeline(object):
         """
 
         return(self._modellink)
-
-    @property
-    def modellink_name(self):
-        """
-        Name of the :obj:`~ModelLink` instance provided during Pipeline
-        initialization.
-
-        """
-
-        return(self._modellink_name)
 
     @property
     def emulator(self):
@@ -1105,7 +1093,9 @@ class Pipeline(object):
         file = self._open_hdf5('r+')
 
         # Save statistic
-        file['%s/statistics' % (emul_i)].attrs[keyword] = [value, unit]
+        file['%s/statistics' % (emul_i)].attrs[keyword] =\
+            [str(value).encode('ascii', 'ignore'),
+             unit.encode('ascii', 'ignore')]
 
         # Close hdf5-file
         self._close_hdf5(file)
@@ -1178,7 +1168,6 @@ class Pipeline(object):
                     % (end_time, end_time/mod_dim))
 
     # This function extracts the set of active parameters
-    # TODO: Allow user to manually specify the active parameters
     # TODO: Perform exhaustive backward stepwise regression on order > 1
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_active_par(self, emul_i):
@@ -1249,8 +1238,7 @@ class Pipeline(object):
         logger.info("Finished determining active parameters.")
 
     # This function extracts the set of active parameters
-    # TODO: Allow user to manually specify the active parameters
-    # TODO: Perform exhaustive backward stepwise regression on order > 1
+    # TODO: Force previous active parameters to be active again?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_active_par2(self, emul_i):
         """
@@ -1467,6 +1455,7 @@ class Pipeline(object):
     # This is function 'I²(x)'
     # This function calculates the univariate implausibility values
     # TODO: Introduce check if emulator variance is much lower than other two
+    # TODO: Alternatively, remove covariance calculations when this happens
     # TODO: Parameter uncertainty should be implemented at some point
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_uni_impl(self, emul_i, adj_exp_val, adj_var_val):
@@ -1725,69 +1714,83 @@ class Pipeline(object):
         # Get the impl_cut list and n_eval_samples
         self._get_impl_par(emul_i)
 
-        # Create an emulator evaluation sample set
-        eval_sam_set = self._get_eval_sam_set(emul_i)
+        try:
+            # Create an emulator evaluation sample set
+            eval_sam_set = self._get_eval_sam_set(emul_i)
 
-        # Create empty list holding indices of samples that pass the impl_check
-        impl_idx = []
+            # Create empty list holding indices of samples that pass impl_check
+            impl_idx = []
 
-        # Save current time again
-        start_time2 = time()
+            # Save current time again
+            start_time2 = time()
 
-        # Default emulator
-        if(self._emulator._emul_type == 'default'):
-            # Calculate expectation, variance, implausibility for these samples
-            for i, par_set in enumerate(eval_sam_set):
-                for j in range(1, emul_i+1):
+            # Default emulator
+            if(self._emulator._emul_type == 'default'):
+                # Calculate exp, var, impl for these samples
+                for i, par_set in enumerate(eval_sam_set):
+                    for j in range(1, emul_i+1):
+                        # Obtain implausibility
+                        adj_val = self._emulator._evaluate(j, par_set)
+                        uni_impl_val = self._get_uni_impl(j, *adj_val)
+
+                        # Do implausibility cut-off check
+                        # If check is unsuccessful, break inner for-loop and
+                        # skip save
+                        if not self._do_impl_check(self, j, uni_impl_val)[0]:
+                            break
+
+                    # If check was successful, save corresponding index
+                    else:
+                        impl_idx.append(i)
+
+            elif(self._emulator._emul_type == 'master'):
+                # Calculate expectation and variance for these samples
+                for i, par_set in enumerate(eval_sam_set):
                     # Obtain implausibility
-                    adj_val = self._emulator._evaluate(j, par_set)
-                    uni_impl_val = self._get_uni_impl(j, *adj_val)
+                    adj_val = self._emulator._evaluate(emul_i, par_set)
 
-                    # Do implausibility cut-off check
-                    # If check is unsuccessful, break inner for-loop and skip
-                    # save
-                    if not self._do_impl_check(self, j, uni_impl_val)[0]:
-                        break
+                    # Do accuracy check
+                    # If check is unsuccessful, save sample
+                    if not self._do_acc_check(emul_i, *adj_val):
+                        impl_idx.append(i)
 
-                # If check was successful, save corresponding index
-                else:
-                    impl_idx.append(i)
-
-        elif(self._emulator._emul_type == 'master'):
-            # Calculate expectation and variance for these samples
-            for i, par_set in enumerate(eval_sam_set):
-                # Obtain implausibility
-                adj_val = self._emulator._evaluate(emul_i, par_set)
-
-                # Do accuracy check
-                # If check is unsuccessful, save sample
-                if not self._do_acc_check(emul_i, *adj_val):
-                    impl_idx.append(i)
-
-        # Save the results
-        self._save_data('impl_sam', eval_sam_set[impl_idx])
-
-        # Log that analysis has been finished
-        end_time = time()
-        time_diff_total = end_time-start_time1
-        time_diff_eval = end_time-start_time2
-        self._save_statistic(emul_i, 'tot_analyze_time',
-                             '%.2f' % (time_diff_total), 's')
-        self._save_statistic(emul_i, 'avg_emul_eval_rate',
-                             '%.2f' % (eval_sam_set.shape[0]/time_diff_eval),
-                             '1/s')
-        print("Finished analysis of emulator system in %.2f seconds, "
-              "averaging %.2f emulator evaluations per second."
-              % (time_diff_total, eval_sam_set.shape[0]/time_diff_eval))
-        logger.info("Finished analysis of emulator system in %.2f seconds, "
-                    "averaging %.2f emulator evaluations per second."
-                    % (time_diff_total, eval_sam_set.shape[0]/time_diff_eval))
+            # Save the results
+            self._save_data('impl_sam', eval_sam_set[impl_idx])
+        except KeyboardInterrupt:
+            logger.info("Emulator system analysis has been interrupted by "
+                        "user.")
+            print("Emulator system analysis has been interrupted by user.")
+            self._save_data('impl_sam', [])
+            self._save_data('n_eval_samples', 0)
+        except Exception as error:
+            self._save_data('impl_sam', [])
+            self._save_data('n_eval_samples', 0)
+            raise error
+        else:
+            # Log that analysis has been finished
+            end_time = time()
+            time_diff_total = end_time-start_time1
+            time_diff_eval = end_time-start_time2
+            self._save_statistic(emul_i, 'tot_analyze_time',
+                                 '%.2f' % (time_diff_total), 's')
+            self._save_statistic(emul_i, 'avg_emul_eval_rate',
+                                 '%.2f'
+                                 % (eval_sam_set.shape[0]/time_diff_eval),
+                                 '1/s')
+            print("Finished analysis of emulator system in %.2f seconds, "
+                  "averaging %.2f emulator evaluations per second."
+                  % (time_diff_total, eval_sam_set.shape[0]/time_diff_eval))
+            logger.info("Finished analysis of emulator system in %.2f seconds,"
+                        " averaging %.2f emulator evaluations per second."
+                        % (time_diff_total,
+                           eval_sam_set.shape[0]/time_diff_eval))
 
         # Display details about current state of pipeline
         self.details(emul_i)
 
     # This function constructs a specified iteration of the emulator system
     # TODO: Make time and RAM cost plots
+    # TODO: Implement try-statement for KeyboardInterrupt like in analyze()
     @docstring_substitute(emul_i=user_emul_i_doc)
     def construct(self, emul_i=None, analyze=True):
         """
@@ -1903,12 +1906,7 @@ class Pipeline(object):
 
         # Analyze the emulator system if requested
         if analyze:
-            try:
-                self.analyze(emul_i)
-            except Exception as error:
-                self._save_data('impl_sam', [])
-                self._save_data('n_eval_samples', 0)
-                raise error
+            self.analyze(emul_i)
         else:
             self._save_data('impl_sam', [])
             self._save_data('n_eval_samples', 0)
@@ -1986,7 +1984,7 @@ class Pipeline(object):
             the construction of this emulator iteration, compared to the total
             number of model parameters defined in the used :class:`~ModelLink`
             subclass.
-        # of data points
+        # of emulated data points
             The number of data points that have been emulated in this
             emulator iteration.
 
@@ -2089,7 +2087,7 @@ class Pipeline(object):
         print("{0: <{1}}\t'{2}'".format("Emulator type", width,
                                         self._emulator._emul_type))
         print("{0: <{1}}\t{2}".format("ModelLink subclass", width,
-                                      self._modellink_name))
+                                      self._modellink._name))
         if(self._emulator._method.lower() == 'regression'):
             print("{0: <{1}}\t{2}".format("Emulation method", width,
                                           "Regression"))
@@ -2159,8 +2157,8 @@ class Pipeline(object):
         print("{0: <{1}}\t{2}/{3}".format(
             "# of active/total parameters", width,
             len(self._emulator._active_par[emul_i]), self._modellink._par_dim))
-        print("{0: <{1}}\t{2}".format("# of data points", width,
-                                      self._modellink._n_data))
+        print("{0: <{1}}\t{2}".format("# of emulated data points", width,
+                                      self._emulator._n_data[emul_i]))
         print("-"*width)
 
         # PARAMETER SPACE

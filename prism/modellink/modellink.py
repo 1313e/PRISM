@@ -114,6 +114,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         the PRISM package.
 
         """
+        # Save name of this class
+        self._name = self.__class__.__name__
 
         # Obtain default model parameters dict
         self._model_parameters = SortedDict(self._default_model_parameters)
@@ -342,6 +344,17 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
 
 # %% CLASS PROPERTIES
+    # General
+    @property
+    def name(self):
+        """
+        Name of this :obj:`~ModelLink` subclass object.
+        Can be manually manipulated to allow for more control.
+
+        """
+
+        return(self._name)
+
     # Model Parameters
     @property
     def par_dim(self):

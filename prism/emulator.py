@@ -302,16 +302,6 @@ class Emulator(object):
 
         return(self._modellink)
 
-    @property
-    def modellink_name(self):
-        """
-        Name of the :obj:`~ModelLink` instance provided during Pipeline
-        initialization.
-
-        """
-
-        return(self._modellink_name)
-
     # Covariances
     @property
     def sigma(self):
@@ -422,7 +412,7 @@ class Emulator(object):
         file.attrs['use_regr_cov'] = self._use_regr_cov
         file.attrs['poly_order'] = self._poly_order
         file.attrs['modellink_name'] =\
-            self._modellink_name.encode('ascii', 'ignore')
+            self._modellink._name.encode('ascii', 'ignore')
         file.attrs['prism_version'] = _prism_version.encode('ascii', 'ignore')
         file.attrs['emul_type'] = self._emul_type.encode('ascii', 'ignore')
         if use_mock:
@@ -1387,6 +1377,7 @@ class Emulator(object):
             logger.info("Non-existing HDF5-file provided.")
             self._emul_load = 0
             self._emul_i = 0
+            modellink_loaded = None
         else:
             # Existing emulator was provided
             logger.info("Constructed emulator HDF5-file provided.")
@@ -1399,10 +1390,10 @@ class Emulator(object):
             self._close_hdf5(file)
 
             # Read all emulator parameters from the hdf5-file
-            self._retrieve_parameters()
+            modellink_loaded = self._retrieve_parameters()
 
         # Link the provided ModelLink object to the pipeline
-        self._set_modellink(modellink_obj)
+        self._set_modellink(modellink_obj, modellink_loaded)
 
         # Load emulator data
         self._load_data(self._emul_i)
@@ -1411,7 +1402,7 @@ class Emulator(object):
         logger.info("Finished loading emulator system.")
 
     # This function connects the provided ModelLink class to the pipeline
-    def _set_modellink(self, modellink_obj):
+    def _set_modellink(self, modellink_obj, modellink_loaded):
         """
         Sets the :obj:`~ModelLink` object that will be used for constructing
         this emulator system. If a constructed emulator system is present,
@@ -1425,6 +1416,10 @@ class Emulator(object):
             model to this :obj:`~Pipeline` object.
             The provided :obj:`~ModelLink` object must match the one used to
             construct the loaded emulator system.
+        modellink_loaded : str or None
+            If str, the name of the :class:`~ModelLink` subclass that was used
+            to construct the loaded emulator system.
+            If *None*, no emulator system is loaded.
 
         """
 
@@ -1439,30 +1434,29 @@ class Emulator(object):
             raise TypeError("Input argument 'modellink' must be an instance "
                             "of the ModelLink class!")
 
-        # If an existing emulator system is loaded, check if classes are equal
-        if self._emul_load:
-            # Make abbreviations
-            modellink_loaded = self._modellink_name
-            modellink_given = modellink_obj.__class__.__name__
+        # If no existing emulator system is loaded, pass
+        if modellink_loaded is None:
+            logger.info("No constructed emulator system is loaded.")
 
-            if(modellink_given != modellink_loaded):
-                logger.error("Provided ModelLink subclass '%s' does not match "
-                             "the ModelLink subclass '%s' used for emulator "
-                             "construction!"
-                             % (modellink_given, modellink_loaded))
-                raise InputError("Provided ModelLink subclass '%s' does not "
-                                 "match the ModelLink subclass '%s' used for "
-                                 "emulator construction!"
-                                 % (modellink_given, modellink_loaded))
-        # If not, set the name
+        # If an existing emulator system is loaded, check if classes are equal
+        elif(modellink_obj._name == modellink_loaded):
+            logger.info("Provided ModelLink subclass matches ModelLink "
+                        "subclass used for emulator construction.")
         else:
-            self._modellink_name = modellink_obj.__class__.__name__
+            logger.error("Provided ModelLink subclass '%s' does not match "
+                         "the ModelLink subclass '%s' used for emulator "
+                         "construction!"
+                         % (modellink_obj._name, modellink_loaded))
+            raise InputError("Provided ModelLink subclass '%s' does not "
+                             "match the ModelLink subclass '%s' used for "
+                             "emulator construction!"
+                             % (modellink_obj._name, modellink_loaded))
 
         # Set ModelLink class
         self._modellink = modellink_obj
 
         # Logging
-        logger.info("ModelLink object set to '%s'." % (self._modellink_name))
+        logger.info("ModelLink object set to '%s'." % (self._modellink._name))
 
     # Function that loads in the emulator data
     # TODO: Write code that allows part of the data to be loaded in (crashing)
@@ -1723,7 +1717,7 @@ class Emulator(object):
         self._method = file.attrs['method'].decode('utf-8')
         self._use_regr_cov = file.attrs['use_regr_cov']
         self._poly_order = file.attrs['poly_order']
-        self._modellink_name = file.attrs['modellink_name'].decode('utf-8')
+        modellink_name = file.attrs['modellink_name'].decode('utf-8')
 
         # TODO: This try-statement becomes obsolete when PRISM is released
         try:
@@ -1754,6 +1748,10 @@ class Emulator(object):
 
         # Log that reading is finished
         logger.info("Finished retrieving parameters.")
+
+        # Return the name of the modellink class used to construct the loaded
+        # emulator system
+        return(modellink_name)
 
     # This function automatically loads default emulator parameters
     def _get_default_parameters(self):
