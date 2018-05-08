@@ -21,6 +21,7 @@ from __future__ import absolute_import, division, print_function
 
 # Built-in imports
 from time import time
+import sys
 
 # Package imports
 from e13tools import InputError
@@ -45,6 +46,10 @@ from .modellink import ModelLink
 
 # All declaration
 __all__ = ['Emulator']
+
+# Python2/Python3 compatibility
+if(sys.version_info.major >= 3):
+    unicode = str
 
 
 # %% EMULATOR CLASS DEFINITION
@@ -416,7 +421,7 @@ class Emulator(object):
         file.attrs['prism_version'] = _prism_version.encode('ascii', 'ignore')
         file.attrs['emul_type'] = self._emul_type.encode('ascii', 'ignore')
         if use_mock:
-            file.attrs['mock_par'] = self._modellink._par_estimate
+            file.attrs['mock_par'] = self._modellink._par_est
 
         # Close hdf5-file
         self._close_hdf5(file)
@@ -553,15 +558,26 @@ class Emulator(object):
         # Create groups for all data sets
         # TODO: Add check if all previous data sets are still present?
         for i in range(self._modellink._n_data):
-            file.create_group('%s/data_set_%s' % (emul_i, i))
-            file['%s/data_set_%s' % (emul_i, i)].attrs['data_val'] =\
-                self._modellink._data_val[i]
+            data_set = file.create_group('%s/data_set_%s' % (emul_i, i))
+            data_set.attrs['data_val'] = self._modellink._data_val[i]
             data_val.append(self._modellink._data_val[i])
-            file['%s/data_set_%s' % (emul_i, i)].attrs['data_err'] =\
-                self._modellink._data_err[i]
+            data_set.attrs['data_err'] = self._modellink._data_err[i]
             data_err.append(self._modellink._data_err[i])
-            file['%s/data_set_%s' % (emul_i, i)].attrs['data_idx'] =\
-                self._modellink._data_idx[i]
+
+            # Save the data_idx in portions to make it HDF5-compatible
+            if isinstance(self._modellink._data_idx[i], list):
+                for j, idx in enumerate(self._modellink._data_idx[i]):
+                    if isinstance(idx, (str, unicode)):
+                        data_set.attrs['data_idx_%s' % (j)] =\
+                            idx.encode('ascii', 'ignore')
+                    else:
+                        data_set.attrs['data_idx_%s' % (j)] = idx
+            else:
+                if isinstance(self._modellink._data_idx[i], (str, unicode)):
+                    data_set.attrs['data_idx'] =\
+                        self._modellink._data_idx[i].encode('ascii', 'ignore')
+                else:
+                    data_set.attrs['data_idx'] = self._modellink._data_idx[i]
             data_idx.append(self._modellink._data_idx[i])
 
         # Close hdf5-file
@@ -1012,7 +1028,7 @@ class Emulator(object):
         """
 
         # Value for fraction of residual variance for variety in inactive pars
-        weight = [1-len(active_par)/self._modellink._par_dim
+        weight = [1-len(active_par)/self._modellink._n_par
                   for active_par in self._active_par_data[emul_i]]
 
         # Determine which residual variance should be used
@@ -1536,20 +1552,29 @@ class Emulator(object):
                 data_err = []
                 data_idx = []
                 for j in range(self._n_data[i]):
-                    mod_set.append(file['%s/data_set_%s/mod_set' % (i, j)][()])
-                    cov_mat_inv.append(file['%s/data_set_%s/cov_mat_inv'
-                                            % (i, j)][()])
-                    prior_exp_sam_set.append(
-                        file['%s/data_set_%s/prior_exp_sam_set'
-                             % (i, j)][()])
-                    active_par_data.append(
-                        file['%s/data_set_%s/active_par_data' % (i, j)][()])
-                    data_val.append(
-                        file['%s/data_set_%s' % (i, j)].attrs['data_val'])
-                    data_err.append(
-                        file['%s/data_set_%s' % (i, j)].attrs['data_err'])
-                    data_idx.append(
-                        file['%s/data_set_%s' % (i, j)].attrs['data_idx'])
+                    data_set = file['%s/data_set_%s' % (i, j)]
+                    mod_set.append(data_set['mod_set'][()])
+                    cov_mat_inv.append(data_set['cov_mat_inv'][()])
+                    prior_exp_sam_set.append(data_set['prior_exp_sam_set'][()])
+                    active_par_data.append(data_set['active_par_data'][()])
+                    data_val.append(data_set.attrs['data_val'])
+                    data_err.append(data_set.attrs['data_err'])
+
+                    # Read in all data_idx parts and combine them
+                    idx_keys = [key for key in data_set.attrs.keys()
+                                if key[:8] == 'data_idx']
+                    idx_len = len(idx_keys)
+                    if(idx_len == 1):
+                        data_idx.append(data_set.attrs['data_idx'])
+                    else:
+                        tmp_data_idx = []
+                        for key in idx_keys:
+                            if isinstance(data_set.attrs[key], bytes):
+                                idx_str = data_set.attrs[key].decode('utf-8')
+                                tmp_data_idx.append(idx_str)
+                            else:
+                                tmp_data_idx.append(data_set.attrs[key])
+                        data_idx.append(tmp_data_idx)
                 self._mod_set.append(mod_set)
                 self._cov_mat_inv.append(cov_mat_inv)
                 self._prior_exp_sam_set.append(prior_exp_sam_set)
@@ -1566,18 +1591,13 @@ class Emulator(object):
                     poly_powers = []
                     poly_idx = []
                     for j in range(self._n_data[i]):
-                        rsdl_var.append(file['%s/data_set_%s'
-                                             % (i, j)].attrs['rsdl_var'])
-                        poly_coef.append(file['%s/data_set_%s/poly_coef'
-                                              % (i, j)][()])
+                        data_set = file['%s/data_set_%s' % (i, j)]
+                        rsdl_var.append(data_set.attrs['rsdl_var'])
+                        poly_coef.append(data_set['poly_coef'][()])
                         if self._use_regr_cov:
-                            poly_coef_cov.append(
-                                file['%s/data_set_%s/poly_coef_cov'
-                                     % (i, j)][()])
-                        poly_powers.append(file['%s/data_set_%s/poly_powers'
-                                                % (i, j)][()])
-                        poly_idx.append(file['%s/data_set_%s/poly_idx'
-                                             % (i, j)][()])
+                            poly_coef_cov.append(data_set['poly_coef_cov'][()])
+                        poly_powers.append(data_set['poly_powers'][()])
+                        poly_idx.append(data_set['poly_idx'][()])
                     self._rsdl_var.append(rsdl_var)
                     self._poly_coef.append(poly_coef)
                     if self._use_regr_cov:
@@ -1629,48 +1649,43 @@ class Emulator(object):
         if(keyword == 'active_par'):
             file.create_dataset('%s/active_par' % (emul_i), data=data[0])
             for i in range(self._n_data[emul_i]):
-                file.create_dataset('%s/data_set_%s/active_par_data'
-                                    % (emul_i, i), data=data[1][i])
+                data_set = file['%s/data_set_%s' % (emul_i, i)]
+                data_set.create_dataset('active_par_data', data=data[1][i])
             self._active_par.append(data[0])
             self._active_par_data.append(data[1])
 
         # COV_MAT
         elif(keyword == 'cov_mat'):
             for i in range(self._n_data[emul_i]):
-                file.create_dataset('%s/data_set_%s/cov_mat' % (emul_i, i),
-                                    data=data[0][i])
-                file.create_dataset('%s/data_set_%s/cov_mat_inv' % (emul_i, i),
-                                    data=data[1][i])
+                data_set = file['%s/data_set_%s' % (emul_i, i)]
+                data_set.create_dataset('cov_mat', data=data[0][i])
+                data_set.create_dataset('cov_mat_inv', data=data[1][i])
             self._cov_mat_inv.append(data[1])
 
         # MOD_SET
         elif(keyword == 'mod_set'):
             for i in range(self._n_data[emul_i]):
-                file.create_dataset('%s/data_set_%s/mod_set'
-                                    % (emul_i, i), data=data[i])
+                data_set = file['%s/data_set_%s' % (emul_i, i)]
+                data_set.create_dataset('mod_set', data=data[i])
             self._mod_set.append(data)
 
         # PRIOR_EXP_SAM_SET
         elif(keyword == 'prior_exp_sam_set'):
             for i in range(self._n_data[emul_i]):
-                file.create_dataset('%s/data_set_%s/prior_exp_sam_set'
-                                    % (emul_i, i), data=data[i])
+                data_set = file['%s/data_set_%s' % (emul_i, i)]
+                data_set.create_dataset('prior_exp_sam_set', data=data[i])
             self._prior_exp_sam_set.append(data)
 
         # REGRESSION
         elif(keyword == 'regression'):
             for i in range(self._n_data[emul_i]):
-                file['%s/data_set_%s' % (emul_i, i)].attrs['rsdl_var'] =\
-                    data[0][i]
-                file.create_dataset('%s/data_set_%s/poly_coef'
-                                    % (emul_i, i), data=data[1][i])
-                file.create_dataset('%s/data_set_%s/poly_powers'
-                                    % (emul_i, i), data=data[2][i])
-                file.create_dataset('%s/data_set_%s/poly_idx'
-                                    % (emul_i, i), data=data[3][i])
+                data_set = file['%s/data_set_%s' % (emul_i, i)]
+                data_set.attrs['rsdl_var'] = data[0][i]
+                data_set.create_dataset('poly_coef', data=data[1][i])
+                data_set.create_dataset('poly_powers', data=data[2][i])
+                data_set.create_dataset('poly_idx', data=data[3][i])
                 if self._use_regr_cov:
-                    file.create_dataset('%s/data_set_%s/poly_coef_cov'
-                                        % (emul_i, i), data=data[4][i])
+                    data_set.create_dataset('poly_coef_cov', data=data[4][i])
             self._rsdl_var.append(data[0])
             self._poly_coef.append(data[1])
             self._poly_powers.append(data[2])

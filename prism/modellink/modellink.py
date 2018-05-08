@@ -33,8 +33,8 @@ from sortedcontainers import SortedDict
 
 # PRISM imports
 from .._docstrings import std_emul_i_doc
-from .._internal import (check_float, check_int, check_pos_int, check_str,
-                         docstring_substitute)
+from .._internal import (check_float, check_pos_int, check_str,
+                         convert_str_seq, docstring_substitute)
 
 # All declaration
 __all__ = ['ModelLink']
@@ -117,52 +117,51 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         # Save name of this class
         self._name = self.__class__.__name__
 
-        # Obtain default model parameters dict
-        self._model_parameters = SortedDict(self._default_model_parameters)
+        # Generate model parameter properties
+        self._set_model_parameters(model_parameters)
 
-        # Check if model parameters have been provided manually
-        if model_parameters is not None:
-            self.model_parameters = model_parameters
-
-        # Obtain default model data list
-        self._model_data = self._default_model_data
-
-        # Check if model data has been provided manually
-        if model_data is not None:
-            self.model_data = model_data
-
-        # Save the model parameters and data as class properties
-        self._create_properties()
+        # Generate model data properties
+        self._set_model_data(model_data)
 
     @property
     def _default_model_parameters(self):
         return(SortedDict())
 
-    @property
-    def model_parameters(self):
-        return(self._model_parameters)
-
-    @model_parameters.setter
-    def model_parameters(self, new_model_parameters):
+    def _set_model_parameters(self, add_model_parameters):
         """
-        Generates the custom model parameter dict from input argument
-        `new_model_parameters`.
+        Generates the model parameter properties from the default model
+        parameters and the additional input argument `add_model_parameters`.
 
         Parameters
         ----------
-        new_model_parameters : array_like, dict or str
+        add_model_parameters : array_like, dict or str
 
         Generates
         ---------
-        model_parameters : dict
-            Updated dict containing the names, ranges and estimates of all
-            default and non-default model parameters.
+        n_par : int
+            Number of model parameters.
+        par_name : list
+            List with model parameter names.
+        par_rng : :obj:`~numpy.ndarray` object
+            Array containing the lower and upper values of the model
+            parameters.
+        par_est : list
+            List containing user-defined estimated values of the model
+            parameters.
+            Contains *None* in places where estimates were not provided.
 
         """
 
+        # Obtain default model parameters
+        model_parameters = SortedDict(self._default_model_parameters)
+
+        # If no additional model parameters information is given
+        if add_model_parameters is None:
+            pass
+
         # If a parameter file is given
-        if isinstance(new_model_parameters, (str, unicode)):
-            par_file = path.abspath(new_model_parameters)
+        elif isinstance(add_model_parameters, (str, unicode)):
+            par_file = path.abspath(add_model_parameters)
 
             # Read the parameter-file and obtain parameter names, ranges
             # (and estimates if provided)
@@ -171,114 +170,141 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                                        filling_values=np.infty)[:, 1:]
 
             # Update the model parameters dict
-            self._model_parameters.update(zip(par_names, par_values))
+            model_parameters.update(zip(par_names, par_values))
 
         # If a parameter dict is given
-        elif isinstance(new_model_parameters, dict):
-            self._model_parameters.update(new_model_parameters)
+        elif isinstance(add_model_parameters, dict):
+            model_parameters.update(add_model_parameters)
 
         # If anything else is given
         else:
             # Check if it can be converted to a dict
             try:
-                par_dict = dict(new_model_parameters)
+                par_dict = SortedDict(add_model_parameters)
             except Exception:
                 raise TypeError("Input cannot be converted to a dict!")
             else:
-                self._model_parameters.update(par_dict)
+                model_parameters.update(par_dict)
+
+        # Save model parameters as class properties
+        self._n_par = check_pos_int(len(model_parameters.keys()), 'n_par')
+
+        # Create empty parameter name, ranges and estimate arrays
+        self._par_name = []
+        self._par_rng = np.zeros([self._n_par, 2])
+        self._par_rng[:, 1] = 1
+        self._par_est = []
+
+        # Save parameter ranges
+        for i, (name, values) in enumerate(model_parameters.items()):
+            self._par_name.append(check_str(name, 'par_name[%s]' % (i)))
+            self._par_rng[i] = (check_float(values[0], 'lower_bnd[%s]' % (i)),
+                                check_float(values[1], 'upper_bnd[%s]' % (i)))
+
+            # Check if a parameter estimate was provided
+            if values[2] in (np.infty, None):
+                self._par_est.append(None)
+            else:
+                try:
+                    self._par_est.append(
+                        check_float(values[2], 'par_est[%s]' % (i)))
+                except IndexError:
+                    self._par_est.append(None)
 
     @property
     def _default_model_data(self):
         return([[], [], []])
 
-    @property
-    def model_data(self):
-        return(self._model_data)
-
-    # TODO: Allow no data_idx to be provided
-    @model_data.setter
-    def model_data(self, new_model_data):
+    def _set_model_data(self, add_model_data):
         """
-        Generates the custom model data list from input argument
-        `new_model_data`.
+        Generates the model data properties from the default model data and the
+        additional input argument `add_model_data`.
 
         Parameters
         ---------
-        new_model_data : array_like or str
+        add_model_data : array_like or str
 
         Generates
         ---------
-        model_data : list
-            Updated list containing the values, errors and set indices of all
-            default and non-default model data.
+        n_data : int
+            Number of provided data points.
+        data_val : list
+            List with values of provided data points.
+        data_err : list
+            List with errors of provided data points.
+        data_idx : list
+            List with user-defined data point identifiers.
 
         """
 
+        # Obtain default data
+        model_data = self._default_model_data
+
+        # If no additional data information is given
+        if add_model_data is None:
+            pass
+
         # If a data file is given
-        if isinstance(new_model_data, (str, unicode)):
-            data_file = path.abspath(new_model_data)
+        elif isinstance(add_model_data, (str, unicode)):
+            data_file = path.abspath(add_model_data)
 
             # Read the data-file and obtain data points
-            data = np.genfromtxt(data_file, dtype=(float))
+            data_points = np.genfromtxt(data_file, dtype=(float),
+                                        usecols=(0, 1))
+            data_idx = np.genfromtxt(data_file, dtype=(str))[:, 2:]
 
-            # Make sure that data is a 2D numpy array
-            data = np.array(data, ndmin=2)
+            # Create temporary list of data_idx
+            tmp_data_idx = []
 
-            # Save data values, errors and set indices to the correct arrays
-            data_val = data[:, 0].tolist()
-            data_err = data[:, 1].tolist()
-            data_idx = data[:, 2].tolist()
+            # Convert all data_idx sequences
+            for idx_seq in data_idx:
+                tmp_idx = convert_str_seq(idx_seq)
+
+                # Check if int, float or str was provided and save it
+                for i, idx in enumerate(tmp_idx):
+                    try:
+                        if '.' in idx:
+                            tmp_idx[i] = float(idx)
+                        else:
+                            tmp_idx[i] = int(idx)
+                    except ValueError:
+                        tmp_idx[i] = idx
+
+                # If only a single element is present, save it instead of list
+                if(len(tmp_idx) == 1):
+                    tmp_idx = tmp_idx[0]
+
+                # Add converted data_idx sequence to the temporary list
+                tmp_data_idx.append(tmp_idx)
+
+            # Save temporary list as data_idx
+            data_idx = tmp_data_idx
 
             # Update the model data list
-            for val, err, idx in zip(data_val, data_err, data_idx):
-                self._model_data[0].append(check_float(val, 'data_val'))
-                self._model_data[1].append(check_float(err, 'data_err'))
-                self._model_data[2].append(check_int(int(idx), 'data_idx'))
+            for (val, err), idx in zip(data_points, data_idx):
+                model_data[0].append(check_float(val, 'data_val'))
+                model_data[1].append(check_float(err, 'data_err'))
+                model_data[2].append(idx)
 
         # If anything else is given, it must be array_like
         else:
+            # Check if it can be iterated over
             try:
-                new_model_data = np.array(new_model_data)
-            except Exception:
-                raise TypeError("Input is not array_like!")
+                iter(add_model_data)
+            except TypeError:
+                raise TypeError("Input is not iterable!")
             else:
                 # Update the model data list
-                for i, data in enumerate(new_model_data):
-                    self._model_data[0].append(check_float(data[0],
-                                                           'data_val'))
-                    self._model_data[1].append(check_float(data[1],
-                                                           'data_err'))
-                    self._model_data[2].append(check_int(int(data[2]),
-                                                         'data_idx'))
-
-    def _create_properties(self):
-        # Save model data as class properties
-        self._par_dim = check_pos_int(len(self._model_parameters.keys()),
-                                      'par_dim')
-
-        # Create empty parameter name, ranges and estimate arrays
-        self._par_names = []
-        self._par_rng = np.zeros([self._par_dim, 2])
-        self._par_rng[:, 1] = 1
-        self._par_estimate = []
-
-        # Save parameter ranges
-        for i, (name, values) in enumerate(self._model_parameters.items()):
-            self._par_names.append(check_str(name, 'par_name'))
-            self._par_rng[i] = (check_float(values[0], 'lower_par'),
-                                check_float(values[1], 'upper_par'))
-            try:
-                self._par_estimate.append(
-                    check_float(values[2], 'par_estimate') if
-                    values[2] != np.infty else None)
-            except IndexError:
-                self._par_estimate.append(None)
+                for val, err, idx in add_model_data:
+                    model_data[0].append(check_float(val, 'data_val'))
+                    model_data[1].append(check_float(err, 'data_err'))
+                    model_data[2].append(idx)
 
         # Save model data as class properties
-        self._n_data = check_pos_int(len(self._model_data[0]), 'n_data')
-        self._data_val = self._model_data[0]
-        self._data_err = self._model_data[1]
-        self._data_idx = self._model_data[2]
+        self._n_data = check_pos_int(len(model_data[0]), 'n_data')
+        self._data_val = model_data[0]
+        self._data_err = model_data[1]
+        self._data_idx = model_data[2]
 
     @abc.abstractmethod
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -357,22 +383,22 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     # Model Parameters
     @property
-    def par_dim(self):
+    def n_par(self):
         """
         Number of model parameters.
 
         """
 
-        return(self._par_dim)
+        return(self._n_par)
 
     @property
-    def par_names(self):
+    def par_name(self):
         """
         List with model parameter names.
 
         """
 
-        return(self._par_names)
+        return(self._par_name)
 
     @property
     def par_rng(self):
@@ -384,14 +410,14 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         return(self._par_rng)
 
     @property
-    def par_estimate(self):
+    def par_est(self):
         """
         List containing user-defined estimated values of the model parameters.
         Contains *None* in places where estimates were not provided.
 
         """
 
-        return(self._par_estimate)
+        return(self._par_est)
 
     # Model Data
     @property

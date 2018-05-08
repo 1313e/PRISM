@@ -38,8 +38,8 @@ from sortedcontainers import SortedSet
 
 # PRISM imports
 from ._docstrings import user_emul_i_doc
-from ._internal import (RequestError, check_pos_int, docstring_substitute,
-                        seq_char_list)
+from ._internal import (RequestError, check_pos_int, convert_str_seq,
+                        docstring_substitute)
 
 # All declaration
 __all__ = ['Projection']
@@ -111,17 +111,17 @@ class Projection(object):
         ---------
         A series of projection figures detailing the behavior of the model.
         The lay-out and output of the projection figures depend on the number
-        of model parameters `par_dim`:
-            *par_dim = 2*: The output will feature two figures for the two
+        of model parameters `n_par`:
+            *n_par = 2*: The output will feature two figures for the two
             model parameters with two subplots each. Every figure gives details
             about the behavior of the corresponding model parameter, by showing
             the minimum implausibility value (top) and the line-of-sight depth
             (bottom) obtained at the specified parameter value, independent of
             the value of the other parameter.
 
-            *par_dim > 2*: The output will feature a figure with two subplots
+            *n_par > 2*: The output will feature a figure with two subplots
             for every combination of two active model parameters that can be
-            made (par_dim*(par_dim-1)/2). Every figure gives details about the
+            made (n_par*(n_par-1)/2). Every figure gives details about the
             behavior of the corresponding model parameters, as well as their
             dependency on each other. This is done by showing the minimum
             implausibility (top) and the line-of-sight depth (bottom) obtained
@@ -156,10 +156,7 @@ class Projection(object):
         # Else, an array of str/int must be provided
         else:
             # Convert to string, remove unwanted characters and split it up
-            proj_par = str(proj_par)
-            for char in seq_char_list:
-                proj_par = proj_par.replace(char, ' ')
-            proj_par = proj_par.split()
+            proj_par = convert_str_seq(proj_par)
 
             # Check elements if they are ints or strings, and if they are valid
             for i, val in enumerate(proj_par):
@@ -167,10 +164,10 @@ class Projection(object):
                     try:
                         par_idx = int(val)
                     except ValueError:
-                        proj_par[i] = self._modellink._par_names.index(val)
+                        proj_par[i] = self._modellink._par_name.index(val)
                     else:
-                        self._modellink._par_names[par_idx]
-                        proj_par[i] = par_idx % self._modellink._par_dim
+                        self._modellink._par_name[par_idx]
+                        proj_par[i] = par_idx % self._modellink._n_par
                 except Exception as error:
                     raise InputError("Input argument 'proj_par' is invalid! "
                                      "(%s)" % (error))
@@ -184,9 +181,9 @@ class Projection(object):
                  i in proj_par])
 
             # Make sure that there are still enough values left
-            if(self._modellink._par_dim == 2 and len(proj_par) >= 1):
+            if(self._modellink._n_par == 2 and len(proj_par) >= 1):
                 pass
-            elif(self._modellink._par_dim > 2 and len(proj_par) >= 2):
+            elif(self._modellink._n_par > 2 and len(proj_par) >= 2):
                 pass
             else:
                 raise RequestError("Not enough active model parameters have "
@@ -194,7 +191,7 @@ class Projection(object):
                                    "figure!")
 
         # Obtain list of hypercube names
-        if(self._modellink._par_dim == 2):
+        if(self._modellink._n_par == 2):
             hcube_idx = list(combinations(range(len(proj_par)), 1))
             hcube_par = proj_par[np.array(hcube_idx)].tolist()
         else:
@@ -210,9 +207,9 @@ class Projection(object):
 
         # Check if data is already there and act accordingly
         for hcube in hcube_par:
-            if(self._modellink._par_dim == 2):
+            if(self._modellink._n_par == 2):
                 # Make abbreviation for the parameter name
-                par_name = self._modellink._par_names[hcube[0]]
+                par_name = self._modellink._par_name[hcube[0]]
 
                 try:
                     file['%s/proj_hcube/%s' % (self._emul_i, par_name)]
@@ -237,8 +234,8 @@ class Projection(object):
                                     % (par_name))
             else:
                 # Make abbreviation for the parameter names
-                par1_name = self._modellink._par_names[hcube[0]]
-                par2_name = self._modellink._par_names[hcube[1]]
+                par1_name = self._modellink._par_name[hcube[0]]
+                par2_name = self._modellink._par_name[hcube[1]]
 
                 try:
                     file['%s/proj_hcube/%s-%s'
@@ -272,10 +269,10 @@ class Projection(object):
         for hcube in hcube_par:
             # ANALYZE PROJECTION 2+D
             # Create projection hypercube containing all samples if required
-            if(self._modellink._par_dim == 2 and hcube in create_hcube_par):
+            if(self._modellink._n_par == 2 and hcube in create_hcube_par):
                 # Log that projection data is being created
                 logger.info("Calculating projection data '%s'."
-                            % (self._modellink._par_names[hcube[0]]))
+                            % (self._modellink._par_name[hcube[0]]))
 
                 proj_hcube = self._get_proj_hcube(hcube)
 
@@ -285,16 +282,16 @@ class Projection(object):
 
                 # Log that projection data has been created
                 logger.info("Finished calculating projection data '%s'."
-                            % (self._modellink._par_names[hcube[0]]))
+                            % (self._modellink._par_name[hcube[0]]))
 
                 # Save projection data to hdf5
                 self._save_data('2D_proj_hcube',
                                 [hcube, impl_min_hcube, impl_los_hcube])
-            elif(self._modellink._par_dim > 2 and hcube in create_hcube_par):
+            elif(self._modellink._n_par > 2 and hcube in create_hcube_par):
                 # Log that projection data is being created
                 logger.info("Calculating projection data '%s-%s'."
-                            % (self._modellink._par_names[hcube[0]],
-                               self._modellink._par_names[hcube[1]]))
+                            % (self._modellink._par_name[hcube[0]],
+                               self._modellink._par_name[hcube[1]]))
 
                 proj_hcube = self._get_proj_hcube(hcube)
 
@@ -304,8 +301,8 @@ class Projection(object):
 
                 # Log that projection data has been created
                 logger.info("Finished calculating projection data '%s-%s'."
-                            % (self._modellink._par_names[hcube[0]],
-                               self._modellink._par_names[hcube[1]]))
+                            % (self._modellink._par_name[hcube[0]],
+                               self._modellink._par_name[hcube[1]]))
 
                 # Save projection data to hdf5
                 self._save_data('nD_proj_hcube',
@@ -313,12 +310,12 @@ class Projection(object):
 
             # PLOTTING
             # Plotting 2D
-            if(self._modellink._par_dim == 2 and figure):
+            if(self._modellink._n_par == 2 and figure):
                 # Get the parameter this hypercube is about
                 par = hcube[0]
 
                 # Make abbreviation for parameter name
-                par_name = self._modellink._par_names[par]
+                par_name = self._modellink._par_name[par]
 
                 # Log that figures are being created
                 logger.info("Drawing projection figure '%s'."
@@ -377,8 +374,8 @@ class Projection(object):
                     self._impl_cut[self._emul_i][self._cut_idx[self._emul_i]]
                 draw_textline(r"$I_{\mathrm{cut-off, 1}}$", y=draw_y,
                               ax=axarr[0], line_kwargs={'color': 'g'})
-                if self._modellink._par_estimate[par] is not None:
-                    draw_textline(r"", x=self._modellink._par_estimate[par],
+                if self._modellink._par_est[par] is not None:
+                    draw_textline(r"", x=self._modellink._par_est[par],
                                   ax=axarr[0], line_kwargs={'linestyle': '--'})
                 axarr[0].set_ylabel(r"Minimum Implausibility "
                                     r"$I_{\mathrm{min}}(%s)$"
@@ -387,8 +384,8 @@ class Projection(object):
 
                 # Plot line-of-sight depth
                 axarr[1].plot(x, f_los(x))
-                if self._modellink._par_estimate[par] is not None:
-                    draw_textline(r"", x=self._modellink._par_estimate[par],
+                if self._modellink._par_est[par] is not None:
+                    draw_textline(r"", x=self._modellink._par_est[par],
                                   ax=axarr[1], line_kwargs={'linestyle': '--'})
                 axarr[1].set_xlabel("Input Parameter %s" % (par_name),
                                     fontsize='x-large')
@@ -409,14 +406,14 @@ class Projection(object):
                             % (par_name))
 
             # Plotting 3D
-            elif(self._modellink._par_dim > 2 and figure):
+            elif(self._modellink._n_par > 2 and figure):
                 # Get the parameter on x-axis and y-axis this hcube is about
                 par1 = hcube[0]
                 par2 = hcube[1]
 
                 # Make abbreviation for the parameter names
-                par1_name = self._modellink._par_names[par1]
-                par2_name = self._modellink._par_names[par2]
+                par1_name = self._modellink._par_name[par1]
+                par2_name = self._modellink._par_name[par2]
 
                 # Log that figures are being created
                 logger.info("Drawing projection figure '%s-%s'."
@@ -497,11 +494,11 @@ class Projection(object):
                     vmax=vmax)
                 axarr[0].set_ylabel("%s" % (par2_name), fontsize='x-large')
 #                axarr[0].tick_params(axis='both', labelsize='large')
-                if self._modellink._par_estimate[par1] is not None:
-                    draw_textline(r"", x=self._modellink._par_estimate[par1],
+                if self._modellink._par_est[par1] is not None:
+                    draw_textline(r"", x=self._modellink._par_est[par1],
                                   ax=axarr[0], line_kwargs={'linestyle': '--'})
-                if self._modellink._par_estimate[par2] is not None:
-                    draw_textline(r"", y=self._modellink._par_estimate[par2],
+                if self._modellink._par_est[par2] is not None:
+                    draw_textline(r"", y=self._modellink._par_est[par2],
                                   ax=axarr[0], line_kwargs={'linestyle': '--'})
                 axarr[0].axis([self._modellink._par_rng[par1, 0],
                                self._modellink._par_rng[par1, 1],
@@ -516,11 +513,11 @@ class Projection(object):
                 axarr[1].set_xlabel("%s" % (par1_name), fontsize='x-large')
                 axarr[1].set_ylabel("%s" % (par2_name), fontsize='x-large')
 #                axarr[1].tick_params(axis='both', labelsize='large')
-                if self._modellink._par_estimate[par1] is not None:
-                    draw_textline(r"", x=self._modellink._par_estimate[par1],
+                if self._modellink._par_est[par1] is not None:
+                    draw_textline(r"", x=self._modellink._par_est[par1],
                                   ax=axarr[1], line_kwargs={'linestyle': '--'})
-                if self._modellink._par_estimate[par2] is not None:
-                    draw_textline(r"", y=self._modellink._par_estimate[par2],
+                if self._modellink._par_est[par2] is not None:
+                    draw_textline(r"", y=self._modellink._par_est[par2],
                                   ax=axarr[1], line_kwargs={'linestyle': '--'})
                 axarr[1].axis([self._modellink._par_rng[par1, 0],
                                self._modellink._par_rng[par1, 1],
@@ -648,10 +645,7 @@ class Projection(object):
 
         # Implausibility cut-off
         # Remove all unwanted characters from the string and split it up
-        impl_cut_str = str(par_dict['impl_cut'])
-        for char in seq_char_list:
-            impl_cut_str = impl_cut_str.replace(char, ' ')
-        impl_cut_str = impl_cut_str.split()
+        impl_cut_str = convert_str_seq(par_dict['impl_cut'])
 
         # Convert list of strings to list of floats and perform completion
         self._pipeline._get_impl_cut(
@@ -723,14 +717,14 @@ class Projection(object):
         depth = self._proj_depth
         res = self._proj_res
 
-        # If par_dim is 2, make 1D projection hypercube
-        if(self._modellink._par_dim == 2):
+        # If n_par is 2, make 1D projection hypercube
+        if(self._modellink._n_par == 2):
             # Identify projected parameter
             par = hcube_par[0]
 
             # Log event
             logger.info("Creating projection hypercube '%s'."
-                        % (self._modellink._par_names[par]))
+                        % (self._modellink._par_name[par]))
 
             # Create empty projection hypercube array
             proj_hcube = np.zeros([res, depth, 2])
@@ -757,12 +751,12 @@ class Projection(object):
 
             # Log that projection hypercube has been created
             logger.info("Finished creating projection hypercube '%s'."
-                        % (self._modellink._par_names[par]))
+                        % (self._modellink._par_name[par]))
 
             # Return proj_hcube
             return(proj_hcube)
 
-        # If par_dim is more than 2, make 2D projection cubes like Bower fig. 4
+        # If n_par is more than 2, make 2D projection cubes like Bower fig. 4
         else:
             # Identify first projected parameter
             par1 = hcube_par[0]
@@ -772,16 +766,16 @@ class Projection(object):
 
             # Log event
             logger.info("Creating projection hypercube '%s-%s'."
-                        % (self._modellink._par_names[par1],
-                           self._modellink._par_names[par2]))
+                        % (self._modellink._par_name[par1],
+                           self._modellink._par_name[par2]))
 
             # Create empty projection hypercube array
             proj_hcube = np.zeros([pow(res, 2), depth,
-                                   self._modellink._par_dim])
+                                   self._modellink._n_par])
 
             # Generate list that contains all the other parameters
             par_hid = list(chain(range(0, par1), range(par1+1, par2),
-                                 range(par2+1, self._modellink._par_dim)))
+                                 range(par2+1, self._modellink._n_par)))
 
             # Generate list with values for first projected parameter
             proj_sam_set1 = np.linspace(self._modellink._par_rng[par1, 0],
@@ -794,7 +788,7 @@ class Projection(object):
                                         res)
 
             # Generate latin hypercube of the remaining parameters
-            hidden_sam_set = lhd(depth, self._modellink._par_dim-2,
+            hidden_sam_set = lhd(depth, self._modellink._n_par-2,
                                  self._modellink._par_rng[par_hid], 'fixed',
                                  self._pipeline._criterion)
 
@@ -813,8 +807,8 @@ class Projection(object):
 
             # Log that projection hypercube has been created
             logger.info("Finished creating projection hypercube '%s-%s'."
-                        % (self._modellink._par_names[par1],
-                           self._modellink._par_names[par2]))
+                        % (self._modellink._par_name[par1],
+                           self._modellink._par_name[par2]))
 
             # Return proj_hcube
             return(proj_hcube)
@@ -948,11 +942,11 @@ class Projection(object):
         if(keyword == '2D_proj_hcube'):
             file.create_dataset('%s/proj_hcube/%s/impl_min'
                                 % (self._emul_i,
-                                   self._modellink._par_names[data[0][0]]),
+                                   self._modellink._par_name[data[0][0]]),
                                 data=data[1])
             file.create_dataset('%s/proj_hcube/%s/impl_los'
                                 % (self._emul_i,
-                                   self._modellink._par_names[data[0][0]]),
+                                   self._modellink._par_name[data[0][0]]),
                                 data=data[2])
 
         # IMPL_CUT
@@ -987,13 +981,13 @@ class Projection(object):
         elif(keyword == 'nD_proj_hcube'):
             file.create_dataset('%s/proj_hcube/%s-%s/impl_min'
                                 % (self._emul_i,
-                                   self._modellink._par_names[data[0][0]],
-                                   self._modellink._par_names[data[0][1]]),
+                                   self._modellink._par_name[data[0][0]],
+                                   self._modellink._par_name[data[0][1]]),
                                 data=data[1])
             file.create_dataset('%s/proj_hcube/%s-%s/impl_los'
                                 % (self._emul_i,
-                                   self._modellink._par_names[data[0][0]],
-                                   self._modellink._par_names[data[0][1]]),
+                                   self._modellink._par_name[data[0][0]],
+                                   self._modellink._par_name[data[0][1]]),
                                 data=data[2])
 
         # INVALID KEYWORD

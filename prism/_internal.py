@@ -20,6 +20,10 @@ Available functions
     Raises a :class:`~RequestError` if *False* and indicates which version of
     PRISM still supports the provided `emul_version`.
 
+:func:`~check_finite`
+    Checks if provided argument `name` of `value` is finite.
+    Returns `value` if *True* and raises a :class:`~ValueError` if *False*.
+
 :func:`~check_float`
     Checks if provided argument `name` of `value` is a float.
     Returns `value` if *True* and raises a :class:`~TypeError` if *False*.
@@ -71,6 +75,10 @@ Available functions
 :func:`~check_str`
     Checks if provided argument `name` of `value` is a string.
     Returns `value` if *True* and raises a :class:`~TypeError` if *False*.
+
+:func:`~convert_str_seq`
+    Converts a provided sequence to a string, removes all auxiliary characters
+    from it and splits it up into individual elements.
 
 :func:`~docstring_append`
     Custom decorator that allows a given string `addendum` to be appended to
@@ -124,12 +132,13 @@ import numpy as np
 from .__version__ import compat_version, version as prism_version
 
 # All declaration
-__all__ = ['RequestError', 'check_compatibility', 'check_float', 'check_int',
-           'check_neg_float', 'check_neg_int', 'check_nneg_float',
-           'check_nneg_int', 'check_npos_float', 'check_npos_int',
-           'check_pos_float', 'check_pos_int', 'check_str', 'docstring_append',
-           'docstring_copy', 'docstring_substitute', 'move_logger',
-           'start_logger', 'seq_char_list']
+__all__ = ['RequestError', 'check_compatibility', 'check_finite',
+           'check_float', 'check_int', 'check_neg_float', 'check_neg_int',
+           'check_nneg_float', 'check_nneg_int', 'check_npos_float',
+           'check_npos_int', 'check_pos_float', 'check_pos_int', 'check_str',
+           'convert_str_seq', 'docstring_append', 'docstring_copy',
+           'docstring_substitute', 'move_logger', 'start_logger',
+           'seq_char_list']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -173,26 +182,41 @@ def check_compatibility(emul_version):
         if _compare_versions(version, emul_version):
             logger.error("The provided emulator system is incompatible with "
                          "the current version of PRISM (v%s). The last "
-                         "compatible version of PRISM is v%s."
+                         "compatible version is v%s."
                          % (prism_version, version))
             raise RequestError("The provided emulator system is incompatible "
                                "with the current version of PRISM (v%s). The"
-                               " last compatible version of PRISM is v%s."
+                               " last compatible version is v%s."
                                % (prism_version, version))
 
     # Check if emul_version is not newer than prism_version
     if not _compare_versions(prism_version, emul_version):
         logger.error("The provided emulator system was constructed with a "
                      "version later than the current version of PRISM (v%s). "
-                     "Use PRISM v%s or later to use this emulator system."
+                     "Use v%s or later to use this emulator system."
                      % (prism_version, emul_version))
         raise RequestError("The provided emulator system was constructed with "
                            "a version later than the current version of PRISM "
-                           "(v%s). Use PRISM v%s or later to use this emulator"
+                           "(v%s). Use v%s or later to use this emulator"
                            " system."
                            % (prism_version, emul_version))
     else:
         logger.info("Compatibility check was successful.")
+
+
+# Function for checking if a finite value has been provided
+def check_finite(value, name):
+    """
+    Checks if provided argument `name` of `value` is finite.
+    Returns `value` if *True* and raises a :class:`~ValueError` if *False*.
+
+    """
+
+    # Check if finite value is provided and return if so
+    if np.isfinite(value):
+        return(value)
+    else:
+        raise ValueError("Input argument '%s' is not finite!" % (name))
 
 
 # Function for checking if a float has been provided
@@ -202,6 +226,8 @@ def check_float(value, name):
     Returns `value` if *True* and raises a :class:`~TypeError` if *False*.
 
     """
+    # Check if finite value is provided
+    value = check_finite(value, name)
 
     # Check if float is provided and return if so
     if isinstance(value, (int, float, np.integer, np.floating)):
@@ -217,6 +243,9 @@ def check_int(value, name):
     Returns `value` if *True* and raises a :class:`~TypeError` if *False*.
 
     """
+
+    # Check if finite value is provided
+    value = check_finite(value, name)
 
     # Check if int is provided and return if so
     if isinstance(value, (int, np.integer)):
@@ -390,6 +419,28 @@ def check_str(value, name):
         return(value)
     else:
         raise TypeError("Input argument '%s' is not of type 'str'!" % (name))
+
+
+# Function for converting a string sequence to a sequence of elements
+def convert_str_seq(seq):
+    """
+    Converts a provided sequence to a string, removes all auxiliary characters
+    from it and splits it up into individual elements.
+
+    """
+
+    # Convert sequence to a string
+    seq = str(seq)
+
+    # Remove all unwanted characters from the string
+    for char in seq_char_list:
+        seq = seq.replace(char, ' ')
+
+    # Split sequence up into elements
+    seq = seq.split()
+
+    # Return it
+    return(seq)
 
 
 # Define custom decorator for appending docstrings to a function's docstring

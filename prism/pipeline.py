@@ -42,8 +42,8 @@ from sortedcontainers import SortedSet
 # PRISM imports
 from ._docstrings import std_emul_i_doc, user_emul_i_doc
 from ._internal import (RequestError, check_float, check_nneg_float,
-                        check_pos_int, docstring_copy, docstring_substitute,
-                        move_logger, start_logger, seq_char_list)
+                        check_pos_int, convert_str_seq, docstring_copy,
+                        docstring_substitute, move_logger, start_logger)
 from .emulator import Emulator
 from .master_emulator import MasterEmulator
 from .projection import Projection
@@ -277,7 +277,7 @@ class Pipeline(object):
 
         """
 
-        return([self._modellink._par_names[i] for i in self._pot_active_par])
+        return([self._modellink._par_name[i] for i in self._pot_active_par])
 
     @property
     def n_sam_init(self):
@@ -384,7 +384,7 @@ class Pipeline(object):
         sam = np.array(par_set, ndmin=1)
 
         # Create par_dict
-        par_dict = dict(zip(self._modellink._par_names, sam))
+        par_dict = dict(zip(self._modellink._par_name, sam))
 
         # Obtain model data output
         mod_set = self._modellink.call_model(emul_i, par_dict,
@@ -591,7 +591,7 @@ class Pipeline(object):
         # Check which parameters can potentially be active
         if(par_dict['pot_active_par'].lower() in ('none') or
            self._emulator._emul_type == 'master'):
-            self._pot_active_par = np.array(range(self._modellink._par_dim))
+            self._pot_active_par = np.array(range(self._modellink._n_par))
         elif(par_dict['pot_active_par'].lower() in ('false', 'true')):
             logger.error("Pipeline parameter 'pot_active_par' does not accept "
                          "values of type 'bool'!")
@@ -599,10 +599,7 @@ class Pipeline(object):
                             "accept values of type 'bool'!")
         else:
             # Remove all unwanted characters from the string and split it up
-            pot_active_par = str(par_dict['pot_active_par'])
-            for char in seq_char_list:
-                pot_active_par = pot_active_par.replace(char, ' ')
-            pot_active_par = pot_active_par.split()
+            pot_active_par = convert_str_seq(par_dict['pot_active_par'])
 
             # Check elements if they are ints or strings, and if they are valid
             for i, string in enumerate(pot_active_par):
@@ -611,10 +608,10 @@ class Pipeline(object):
                         par_idx = int(string)
                     except ValueError:
                         pot_active_par[i] =\
-                            self._modellink._par_names.index(string)
+                            self._modellink._par_name.index(string)
                     else:
-                        self._modellink._par_names[par_idx]
-                        pot_active_par[i] = par_idx % self._modellink._par_dim
+                        self._modellink._par_name[par_idx]
+                        pot_active_par[i] = par_idx % self._modellink._n_par
                 except Exception as error:
                     logger.error("Pipeline parameter 'pot_active_par' is "
                                  "invalid! (%s)" % (error))
@@ -681,15 +678,15 @@ class Pipeline(object):
             logger.info("Generating mock_data for new emulator system.")
 
             # Set non-default parameter estimate
-            self._modellink._par_estimate =\
+            self._modellink._par_est =\
                 (self._modellink._par_rng[:, 0] +
-                 random(self._modellink._par_dim) *
+                 random(self._modellink._n_par) *
                  (self._modellink._par_rng[:, 1] -
                   self._modellink._par_rng[:, 0])).tolist()
 
             # Set non-default model data values
             self._modellink._data_val =\
-                self._call_model(0, self._modellink._par_estimate).tolist()
+                self._call_model(0, self._modellink._par_est).tolist()
 
             # Use model discrepancy variance as model data errors
             try:
@@ -718,7 +715,7 @@ class Pipeline(object):
             file = self._open_hdf5('r')
 
             # Overwrite ModelLink properties
-            self._modellink._par_estimate = file.attrs['mock_par'].tolist()
+            self._modellink._par_est = file.attrs['mock_par'].tolist()
             self._modellink._data_val = self._emulator._data_val[emul_i]
             self._modellink._data_err = self._emulator._data_err[emul_i]
 
@@ -748,7 +745,7 @@ class Pipeline(object):
         """
 
         # Calculate n_eval_samples
-        return(emul_i*self._n_eval_samples[emul_i]*self._modellink._par_dim)
+        return(emul_i*self._n_eval_samples[emul_i]*self._modellink._n_par)
 
     # Obtains the paths for the root directory, working directory, pipeline
     # hdf5-file and prism parameters file
@@ -1129,15 +1126,15 @@ class Pipeline(object):
         logger = logging.getLogger('MODEL')
         logger.info("Evaluating model samples.")
 
-        # Obtain sample and parameter dimension
-        mod_dim = np.shape(sam_set)[0]
+        # Obtain number of samples
+        n_sam = np.shape(sam_set)[0]
 
         # Generate mod_set
-        mod_set = np.zeros([self._emulator._n_data[emul_i], mod_dim])
+        mod_set = np.zeros([self._emulator._n_data[emul_i], n_sam])
 
         # Do model evaluations
         start_time = time()
-        for i in range(mod_dim):
+        for i in range(n_sam):
             mod_set[:, i] = self._call_model(emul_i, sam_set[i])
         end_time = time()-start_time
 
@@ -1159,13 +1156,13 @@ class Pipeline(object):
 
         # Log that this is finished
         self._save_statistic(emul_i, 'avg_model_eval_time',
-                             '%.3g' % (end_time/mod_dim), 's')
+                             '%.3g' % (end_time/n_sam), 's')
         print("Finished evaluating model samples in %.2f seconds, "
               "averaging %.3g seconds per model evaluation."
-              % (end_time, end_time/mod_dim))
+              % (end_time, end_time/n_sam))
         logger.info("Finished evaluating model samples in %.2f seconds, "
                     "averaging %.3g seconds per model evaluation."
-                    % (end_time, end_time/mod_dim))
+                    % (end_time, end_time/n_sam))
 
     # This function extracts the set of active parameters
     # TODO: Perform exhaustive backward stepwise regression on order > 1
@@ -1205,10 +1202,10 @@ class Pipeline(object):
             # If requested, perform an exhaustive backward stepwise regression
             active_par = SortedSet()
             active_par_data = []
-            pot_par_dim = len(self._pot_active_par)
+            pot_n_par = len(self._pot_active_par)
             for i in range(self._emulator._n_data[emul_i]):
                 # Create ExhaustiveFeatureSelector object
-                efs_obj = EFS(LR(), min_features=1, max_features=pot_par_dim,
+                efs_obj = EFS(LR(), min_features=1, max_features=pot_n_par,
                               print_progress=False, scoring='r2')
 
                 # Fit the data set
@@ -1379,7 +1376,7 @@ class Pipeline(object):
         # Create array containing all new samples to evaluate with emulator
         logger.info("Creating emulator evaluation sample set with size %s."
                     % (n_samples))
-        eval_sam_set = lhd(n_samples, self._modellink._par_dim,
+        eval_sam_set = lhd(n_samples, self._modellink._n_par,
                            self._modellink._par_rng, 'fixed',
                            self._criterion, 100,
                            constraints=self._emulator._sam_set[emul_i])
@@ -1645,10 +1642,7 @@ class Pipeline(object):
 
         # Implausibility cut-off
         # Remove all unwanted characters from the string and split it up
-        impl_cut_str = str(par_dict['impl_cut'])
-        for char in seq_char_list:
-            impl_cut_str = impl_cut_str.replace(char, ' ')
-        impl_cut_str = impl_cut_str.split()
+        impl_cut_str = convert_str_seq(par_dict['impl_cut'])
 
         # Convert list of strings to list of floats and perform completion
         self._get_impl_cut(
@@ -1854,7 +1848,7 @@ class Pipeline(object):
             # Create initial set of model evaluation samples
             logger.info("Creating initial model evaluation sample set with "
                         "size %s." % (self._n_sam_init))
-            add_sam_set = lhd(self._n_sam_init, self._modellink._par_dim,
+            add_sam_set = lhd(self._n_sam_init, self._modellink._n_par,
                               self._modellink._par_rng, 'fixed',
                               self._criterion)
             logger.info("Finished creating initial sample set.")
@@ -2013,13 +2007,13 @@ class Pipeline(object):
 
             # Get max lengths of various strings for parameter space section
             name_len =\
-                max([len(par_name) for par_name in self._modellink._par_names])
+                max([len(par_name) for par_name in self._modellink._par_name])
             lower_len =\
                 max([len(str(i)) for i in self._modellink._par_rng[:, 0]])
             upper_len =\
                 max([len(str(i)) for i in self._modellink._par_rng[:, 1]])
             est_len =\
-                max([len('%.5f' % (i)) for i in self._modellink._par_estimate
+                max([len('%.5f' % (i)) for i in self._modellink._par_est
                      if i is not None])
 
             # Open hdf5-file
@@ -2156,33 +2150,33 @@ class Pipeline(object):
                 (n_impl_sam/n_eval_samples)*100))
         print("{0: <{1}}\t{2}/{3}".format(
             "# of active/total parameters", width,
-            len(self._emulator._active_par[emul_i]), self._modellink._par_dim))
+            len(self._emulator._active_par[emul_i]), self._modellink._n_par))
         print("{0: <{1}}\t{2}".format("# of emulated data points", width,
                                       self._emulator._n_data[emul_i]))
         print("-"*width)
 
         # PARAMETER SPACE
-        # Define string format if par_estimate was provided
+        # Define string format if par_est was provided
         str_format1 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6: >{7}.5f})"
 
-        # Define string format if par_estimate was not provided
+        # Define string format if par_est was not provided
         str_format2 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6:->{7}})"
 
         print("\nPARAMETER SPACE")
         print("-"*width)
 
         # Print details about every model parameter in parameter space
-        for i in range(self._modellink._par_dim):
-            if self._modellink._par_estimate[i] is not None:
+        for i in range(self._modellink._n_par):
+            if self._modellink._par_est[i] is not None:
                 print(str_format1.format(
-                    self._modellink._par_names[i], name_len,
+                    self._modellink._par_name[i], name_len,
                     self._modellink._par_rng[i, 0], lower_len,
                     self._modellink._par_rng[i, 1], upper_len,
-                    self._modellink._par_estimate[i], est_len,
+                    self._modellink._par_est[i], est_len,
                     '*' if i in self._emulator._active_par[emul_i] else ' '))
             else:
                 print(str_format2.format(
-                    self._modellink._par_names[i], name_len,
+                    self._modellink._par_name[i], name_len,
                     self._modellink._par_rng[i, 0], lower_len,
                     self._modellink._par_rng[i, 1], upper_len,
                     "", est_len,
@@ -2270,14 +2264,14 @@ class Pipeline(object):
             raise ShapeError("Input argument 'sam_set' is not one-dimensional "
                              "or two-dimensional!")
 
-        # Check if sam_set has par_dim parameter values
-        if not(sam_set.shape[1] == self._modellink._par_dim):
+        # Check if sam_set has n_par parameter values
+        if not(sam_set.shape[1] == self._modellink._n_par):
             logger.error("Input argument 'sam_set' has incorrect number of "
                          "parameters (%s != %s)!"
-                         % (sam_set.shape[1], self._modellink._par_dim))
+                         % (sam_set.shape[1], self._modellink._n_par))
             raise ShapeError("Input argument 'sam_set' has incorrect number of"
                              " parameters (%s != %s)!"
-                             % (sam_set.shape[1], self._modellink._par_dim))
+                             % (sam_set.shape[1], self._modellink._n_par))
 
         # Check if sam_set consists only out of floats (or ints)
         else:
