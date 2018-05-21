@@ -558,7 +558,7 @@ class Emulator(object):
         # Create groups for all data sets
         # TODO: Add check if all previous data sets are still present?
         for i in range(self._modellink._n_data):
-            data_set = file.create_group('%s/data_set_%s' % (emul_i, i))
+            data_set = file.create_group('%s/data_point_%s' % (emul_i, i))
             data_set.attrs['data_val'] = self._modellink._data_val[i]
             data_val.append(self._modellink._data_val[i])
             data_set.attrs['data_err'] = self._modellink._data_err[i]
@@ -1552,7 +1552,7 @@ class Emulator(object):
                 data_err = []
                 data_idx = []
                 for j in range(self._n_data[i]):
-                    data_set = file['%s/data_set_%s' % (i, j)]
+                    data_set = file['%s/data_point_%s' % (i, j)]
                     mod_set.append(data_set['mod_set'][()])
                     cov_mat_inv.append(data_set['cov_mat_inv'][()])
                     prior_exp_sam_set.append(data_set['prior_exp_sam_set'][()])
@@ -1591,7 +1591,7 @@ class Emulator(object):
                     poly_powers = []
                     poly_idx = []
                     for j in range(self._n_data[i]):
-                        data_set = file['%s/data_set_%s' % (i, j)]
+                        data_set = file['%s/data_point_%s' % (i, j)]
                         rsdl_var.append(data_set.attrs['rsdl_var'])
                         poly_coef.append(data_set['poly_coef'][()])
                         if self._use_regr_cov:
@@ -1649,7 +1649,7 @@ class Emulator(object):
         if(keyword == 'active_par'):
             file.create_dataset('%s/active_par' % (emul_i), data=data[0])
             for i in range(self._n_data[emul_i]):
-                data_set = file['%s/data_set_%s' % (emul_i, i)]
+                data_set = file['%s/data_point_%s' % (emul_i, i)]
                 data_set.create_dataset('active_par_data', data=data[1][i])
             self._active_par.append(data[0])
             self._active_par_data.append(data[1])
@@ -1657,7 +1657,7 @@ class Emulator(object):
         # COV_MAT
         elif(keyword == 'cov_mat'):
             for i in range(self._n_data[emul_i]):
-                data_set = file['%s/data_set_%s' % (emul_i, i)]
+                data_set = file['%s/data_point_%s' % (emul_i, i)]
                 data_set.create_dataset('cov_mat', data=data[0][i])
                 data_set.create_dataset('cov_mat_inv', data=data[1][i])
             self._cov_mat_inv.append(data[1])
@@ -1665,21 +1665,21 @@ class Emulator(object):
         # MOD_SET
         elif(keyword == 'mod_set'):
             for i in range(self._n_data[emul_i]):
-                data_set = file['%s/data_set_%s' % (emul_i, i)]
+                data_set = file['%s/data_point_%s' % (emul_i, i)]
                 data_set.create_dataset('mod_set', data=data[i])
             self._mod_set.append(data)
 
         # PRIOR_EXP_SAM_SET
         elif(keyword == 'prior_exp_sam_set'):
             for i in range(self._n_data[emul_i]):
-                data_set = file['%s/data_set_%s' % (emul_i, i)]
+                data_set = file['%s/data_point_%s' % (emul_i, i)]
                 data_set.create_dataset('prior_exp_sam_set', data=data[i])
             self._prior_exp_sam_set.append(data)
 
         # REGRESSION
         elif(keyword == 'regression'):
             for i in range(self._n_data[emul_i]):
-                data_set = file['%s/data_set_%s' % (emul_i, i)]
+                data_set = file['%s/data_point_%s' % (emul_i, i)]
                 data_set.attrs['rsdl_var'] = data[0][i]
                 data_set.create_dataset('poly_coef', data=data[1][i])
                 data_set.create_dataset('poly_powers', data=data[2][i])

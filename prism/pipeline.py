@@ -45,7 +45,6 @@ from ._internal import (RequestError, check_float, check_nneg_float,
                         check_pos_int, convert_str_seq, docstring_copy,
                         docstring_substitute, move_logger, start_logger)
 from .emulator import Emulator
-from .master_emulator import MasterEmulator
 from .projection import Projection
 
 # All declaration
@@ -132,8 +131,6 @@ class Pipeline(object):
         # Initialize Emulator class
         if(emul_type == 'default'):
             self._emulator = Emulator(self, modellink)
-        elif(emul_type == 'master'):
-            self._emulator = MasterEmulator(self, modellink)
         else:
             raise RequestError("Input argument 'emul_type' is invalid!")
 
@@ -577,8 +574,7 @@ class Pipeline(object):
 
         # Obtain the bool determining whether or not to do an active parameters
         # analysis
-        if(par_dict['do_active_anal'].lower() in ('false', '0') or
-           self._emulator._emul_type == 'master'):
+        if(par_dict['do_active_anal'].lower() in ('false', '0')):
             self._do_active_anal = 0
         elif(par_dict['do_active_anal'].lower() in ('true', '1')):
             self._do_active_anal = 1
@@ -589,8 +585,7 @@ class Pipeline(object):
                             "type 'bool'!")
 
         # Check which parameters can potentially be active
-        if(par_dict['pot_active_par'].lower() in ('none') or
-           self._emulator._emul_type == 'master'):
+        if(par_dict['pot_active_par'].lower() in ('none')):
             self._pot_active_par = np.array(range(self._modellink._n_par))
         elif(par_dict['pot_active_par'].lower() in ('false', 'true')):
             logger.error("Pipeline parameter 'pot_active_par' does not accept "
@@ -628,8 +623,7 @@ class Pipeline(object):
                                  "empty!")
 
         # Obtain the bool determining whether or not to use mock data
-        if(par_dict['use_mock'].lower() in ('false', '0') or
-           self._emulator._emul_type == 'master'):
+        if(par_dict['use_mock'].lower() in ('false', '0')):
             self._use_mock = 0
         elif(par_dict['use_mock'].lower() in ('true', '1')):
             self._use_mock = 1
@@ -1142,19 +1136,12 @@ class Pipeline(object):
         if(emul_i == 1 or self._emulator._emul_type == 'default'):
             self._emulator._save_data(emul_i, 'sam_set', sam_set)
             self._emulator._save_data(emul_i, 'mod_set', mod_set)
-        elif(self._emulator._emul_type == 'master'):
-            # For master emulator, combine sets of previous and current
-            # iterations
-            comb_sam_set = np.concatenate([self._emulator._sam_set[emul_i-1],
-                                           sam_set], axis=0)
-            comb_mod_set = np.concatenate([self._emulator._mod_set[emul_i-1],
-                                           mod_set], axis=1)
-
-            # Save the data
-            self._emulator._save_data(emul_i, 'sam_set', comb_sam_set)
-            self._emulator._save_data(emul_i, 'mod_set', comb_mod_set)
+        else:
+            raise NotImplementedError
 
         # Log that this is finished
+        self._save_statistic(emul_i, 'tot_model_eval_time',
+                             '%.2f' % (end_time), 's')
         self._save_statistic(emul_i, 'avg_model_eval_time',
                              '%.3g' % (end_time/n_sam), 's')
         print("Finished evaluating model samples in %.2f seconds, "
@@ -1222,7 +1209,8 @@ class Pipeline(object):
 
                 # Log the resulting active parameters
                 logger.info("Active parameters for data set %s: %s"
-                            % (i, active_par_data[i]))
+                            % (i, [self._modellink._par_name[par]
+                                   for par in active_par_data[i]]))
 
             # Convert active_par to a NumPy array
             active_par = np.array(list(active_par))
@@ -1236,6 +1224,7 @@ class Pipeline(object):
 
     # This function extracts the set of active parameters
     # TODO: Force previous active parameters to be active again?
+    # TODO: Make this part of the Emulator class instead?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_active_par2(self, emul_i):
         """
@@ -1330,8 +1319,9 @@ class Pipeline(object):
                 active_par.update(active_par_data[i])
 
                 # Log the resulting active parameters
-                logger.info("Active parameters for data set %s: %s"
-                            % (i, active_par_data[i]))
+                logger.info("Active parameters for data point %s: %s"
+                            % (i, [self._modellink._par_name[par]
+                                   for par in active_par_data[i]]))
 
             # Convert active_par to a NumPy array
             active_par = np.array(list(active_par))
@@ -1429,25 +1419,6 @@ class Pipeline(object):
         else:
             # If for-loop ended in a normal way, the check was successful
             return(1, impl_cut_val)
-
-    @docstring_substitute(emul_i=std_emul_i_doc)
-    def _do_acc_check(self, emul_i, adj_exp_val, adj_var_val):
-        """
-
-
-        """
-
-        # Obtain model discrepancy variance
-        # TODO: Think of a way to also use the model discrepancy variance
-#        md_var = self._get_md_var(emul_i)
-        md_var = 0
-
-        # Calculate the univariate implausibility values
-        if(((adj_var_val+md_var)/pow(adj_exp_val, 2) <=
-                self._emulator._data_err[emul_i]).all()):
-            return(1)
-        else:
-            return(0)
 
     # This is function 'I²(x)'
     # This function calculates the univariate implausibility values
@@ -1737,16 +1708,8 @@ class Pipeline(object):
                     else:
                         impl_idx.append(i)
 
-            elif(self._emulator._emul_type == 'master'):
-                # Calculate expectation and variance for these samples
-                for i, par_set in enumerate(eval_sam_set):
-                    # Obtain implausibility
-                    adj_val = self._emulator._evaluate(emul_i, par_set)
-
-                    # Do accuracy check
-                    # If check is unsuccessful, save sample
-                    if not self._do_acc_check(emul_i, *adj_val):
-                        impl_idx.append(i)
+            else:
+                raise NotImplementedError
 
             # Save the results
             self._save_data('impl_sam', eval_sam_set[impl_idx])
@@ -1761,23 +1724,35 @@ class Pipeline(object):
             self._save_data('n_eval_samples', 0)
             raise error
         else:
-            # Log that analysis has been finished
+            # Obtain some timers
             end_time = time()
             time_diff_total = end_time-start_time1
             time_diff_eval = end_time-start_time2
+
+            # Save statistics about analyzing time, evaluation speed, par_space
             self._save_statistic(emul_i, 'tot_analyze_time',
                                  '%.2f' % (time_diff_total), 's')
             self._save_statistic(emul_i, 'avg_emul_eval_rate',
                                  '%.2f'
                                  % (eval_sam_set.shape[0]/time_diff_eval),
                                  '1/s')
+            self._save_statistic(emul_i, 'par_space_remaining',
+                                 '%.3g%%'
+                                 % ((len(impl_idx)/eval_sam_set.shape[0])*100),
+                                 '')
+
+            # Log that analysis has been finished and their statistics
             print("Finished analysis of emulator system in %.2f seconds, "
                   "averaging %.2f emulator evaluations per second."
                   % (time_diff_total, eval_sam_set.shape[0]/time_diff_eval))
+            print("There is %.3g%% of parameter space remaining."
+                  % ((len(impl_idx)/eval_sam_set.shape[0])*100))
             logger.info("Finished analysis of emulator system in %.2f seconds,"
                         " averaging %.2f emulator evaluations per second."
                         % (time_diff_total,
                            eval_sam_set.shape[0]/time_diff_eval))
+            logger.info("There is %.3g%% of parameter space remaining."
+                        % ((len(impl_idx)/eval_sam_set.shape[0])*100))
 
         # Display details about current state of pipeline
         self.details(emul_i)
@@ -1789,7 +1764,7 @@ class Pipeline(object):
     def construct(self, emul_i=None, analyze=True):
         """
         Constructs the emulator at the specified emulator iteration `emul_i`,
-        and performs an implausibility analysis on the emulator system right
+        and performs an implausibility analysis on the emulator systems right
         afterward if requested (:meth:`~analyze`).
 
         Optional
@@ -2132,10 +2107,8 @@ class Pipeline(object):
                 "# of model evaluation samples", width,
                 sum(self._emulator._n_sam[1:emul_i+1]),
                 self._emulator._n_sam[1:emul_i+1]))
-        elif(self._emulator._emul_type == 'master'):
-            print("{0: <{1}}\t{2}".format("# of model evaluation samples",
-                                          width,
-                                          self._emulator._n_sam[emul_i]))
+        else:
+            raise NotImplementedError
         if not n_eval_samples:
             print("{0: <{1}}\t{2}/{3}".format(
                 "# of plausible/analyzed samples", width, "-", "-"))

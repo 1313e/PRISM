@@ -161,9 +161,10 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         # If a parameter file is given
         elif isinstance(add_model_parameters, (str, unicode)):
+            # Obtain absolute path to given file
             par_file = path.abspath(add_model_parameters)
 
-            # Read the parameter-file and obtain parameter names, ranges
+            # Read the parameter file and obtain parameter names, ranges
             # (and estimates if provided)
             par_names = np.genfromtxt(par_file, dtype=str, usecols=0)
             par_values = np.genfromtxt(par_file, dtype=float,
@@ -186,34 +187,36 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             else:
                 model_parameters.update(par_dict)
 
-        # Save model parameters as class properties
+        # Save number of model parameters
         self._n_par = check_pos_int(len(model_parameters.keys()), 'n_par')
 
-        # Create empty parameter name, ranges and estimate arrays
+        # Create empty parameter name, ranges and estimate lists/arrays
         self._par_name = []
         self._par_rng = np.zeros([self._n_par, 2])
         self._par_rng[:, 1] = 1
         self._par_est = []
 
-        # Save parameter ranges
+        # Save model parameters as class properties
         for i, (name, values) in enumerate(model_parameters.items()):
             self._par_name.append(check_str(name, 'par_name[%s]' % (i)))
             self._par_rng[i] = (check_float(values[0], 'lower_bnd[%s]' % (i)),
                                 check_float(values[1], 'upper_bnd[%s]' % (i)))
 
             # Check if a parameter estimate was provided
-            if values[2] in (np.infty, None):
+            try:
+                values[2]
+            except IndexError:
                 self._par_est.append(None)
             else:
-                try:
+                if values[2] in (np.infty, None):
+                    self._par_est.append(None)
+                else:
                     self._par_est.append(
                         check_float(values[2], 'par_est[%s]' % (i)))
-                except IndexError:
-                    self._par_est.append(None)
 
     @property
     def _default_model_data(self):
-        return([[], [], []])
+        return([])
 
     def _set_model_data(self, add_model_data):
         """
@@ -246,9 +249,10 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         # If a data file is given
         elif isinstance(add_model_data, (str, unicode)):
+            # Obtain absolute path to given file
             data_file = path.abspath(add_model_data)
 
-            # Read the data-file and obtain data points
+            # Read the data file and obtain data points and data identifiers
             data_points = np.genfromtxt(data_file, dtype=(float),
                                         usecols=(0, 1))
             data_idx = np.genfromtxt(data_file, dtype=(str))[:, 2:]
@@ -282,9 +286,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
             # Update the model data list
             for (val, err), idx in zip(data_points, data_idx):
-                model_data[0].append(check_float(val, 'data_val'))
-                model_data[1].append(check_float(err, 'data_err'))
-                model_data[2].append(idx)
+                model_data.append([val, err, idx])
 
         # If anything else is given, it must be array_like
         else:
@@ -296,15 +298,21 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             else:
                 # Update the model data list
                 for val, err, idx in add_model_data:
-                    model_data[0].append(check_float(val, 'data_val'))
-                    model_data[1].append(check_float(err, 'data_err'))
-                    model_data[2].append(idx)
+                    model_data.append([val, err, idx])
+
+        # Save number of model data points
+        self._n_data = check_pos_int(len(model_data), 'n_data')
+
+        # Create empty data value, error and identifier lists
+        self._data_val = []
+        self._data_err = []
+        self._data_idx = []
 
         # Save model data as class properties
-        self._n_data = check_pos_int(len(model_data[0]), 'n_data')
-        self._data_val = model_data[0]
-        self._data_err = model_data[1]
-        self._data_idx = model_data[2]
+        for i, (val, err, idx) in enumerate(model_data):
+            self._data_val.append(check_float(val, 'data_val[%s]' % (i)))
+            self._data_err.append(check_float(err, 'data_err[%s]' % (i)))
+            self._data_idx.append(idx)
 
     @abc.abstractmethod
     @docstring_substitute(emul_i=std_emul_i_doc)

@@ -48,6 +48,7 @@ PRISM requires ``python == 2.7`` or ``python >= 3.4`` and the following non-stan
 
 - ``e13tools >= 0.4.4a0``;
 - ``mlxtend >= 0.9.1``;
+- ``scikit-learn >= 0.19.1``;
 - ``sortedcontainers >= 1.5.9``.
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/prism_tool.svg

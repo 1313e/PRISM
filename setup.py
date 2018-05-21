@@ -41,8 +41,8 @@ setup(name='prism-tool',
       version=version,
       author="Ellert van der Velden",
       author_email="ellert_vandervelden@outlook.com",
-      description=("A \"Probabilistic Regression Instrument for Simulating "
-                   "Models\""),
+      description=("PRISM: A \"Probabilistic Regression Instrument for "
+                   "Simulating Models\""),
       long_description=long_description,
       url="https://www.github.com/1313e/PRISM",
       license='BSD-3',
