@@ -31,6 +31,7 @@ import logging
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
 from numpy.linalg import inv, norm
+from numpy.random import normal, random
 # TODO: Do some research on sklearn.linear_model.SGDRegressor
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
@@ -40,8 +41,9 @@ from sklearn.preprocessing import PolynomialFeatures as PF
 # PRISM imports
 from .__version__ import version as _prism_version
 from ._docstrings import get_emul_i_doc, std_emul_i_doc
-from ._internal import (RequestError, check_compatibility, check_pos_float,
-                        check_pos_int, check_str, docstring_substitute)
+from ._internal import (RequestError, check_compatibility, check_nneg_float,
+                        check_pos_float, check_pos_int, check_str,
+                        docstring_substitute)
 from .modellink import ModelLink
 
 # All declaration
@@ -307,6 +309,16 @@ class Emulator(object):
 
         return(self._modellink)
 
+    @property
+    def use_mock(self):
+        """
+        Bool indicating whether or not mock data has been used for the creation
+        of this emulator instead of actual data.
+
+        """
+
+        return(bool(self._use_mock))
+
     # Covariances
     @property
     def sigma(self):
@@ -372,7 +384,7 @@ class Emulator(object):
         return(emul_i)
 
     # Creates a new emulator file and writes all information to it
-    def _create_new_emulator(self, use_mock):
+    def _create_new_emulator(self, call_model):
         """
         Creates a new HDF5-file that holds all the information of a new
         emulator system and writes all important emulator details to it.
@@ -420,7 +432,9 @@ class Emulator(object):
             self._modellink._name.encode('ascii', 'ignore')
         file.attrs['prism_version'] = _prism_version.encode('ascii', 'ignore')
         file.attrs['emul_type'] = self._emul_type.encode('ascii', 'ignore')
-        if use_mock:
+        file.attrs['use_mock'] = self._use_mock
+        if self._use_mock:
+            self._get_mock_data(call_model)
             file.attrs['mock_par'] = self._modellink._par_est
 
         # Close hdf5-file
@@ -1393,6 +1407,8 @@ class Emulator(object):
             logger.info("Non-existing HDF5-file provided.")
             self._emul_load = 0
             self._emul_i = 0
+
+            # No emulator provided, so no loaded modellink either
             modellink_loaded = None
         else:
             # Existing emulator was provided
@@ -1408,11 +1424,11 @@ class Emulator(object):
             # Read all emulator parameters from the hdf5-file
             modellink_loaded = self._retrieve_parameters()
 
-        # Link the provided ModelLink object to the pipeline
-        self._set_modellink(modellink_obj, modellink_loaded)
-
         # Load emulator data
         self._load_data(self._emul_i)
+
+        # Link the provided ModelLink object to the pipeline
+        self._set_modellink(modellink_obj, modellink_loaded)
 
         # Logging
         logger.info("Finished loading emulator system.")
@@ -1453,11 +1469,19 @@ class Emulator(object):
         # If no existing emulator system is loaded, pass
         if modellink_loaded is None:
             logger.info("No constructed emulator system is loaded.")
+            # Set ModelLink object
+            self._modellink = modellink_obj
 
         # If an existing emulator system is loaded, check if classes are equal
         elif(modellink_obj._name == modellink_loaded):
             logger.info("Provided ModelLink subclass matches ModelLink "
                         "subclass used for emulator construction.")
+            # Set ModelLink object
+            self._modellink = modellink_obj
+
+            # If mock data has been used, set the ModelLink object to use it
+            if self._use_mock:
+                self._set_mock_data()
         else:
             logger.error("Provided ModelLink subclass '%s' does not match "
                          "the ModelLink subclass '%s' used for emulator "
@@ -1467,9 +1491,6 @@ class Emulator(object):
                              "match the ModelLink subclass '%s' used for "
                              "emulator construction!"
                              % (modellink_obj._name, modellink_loaded))
-
-        # Set ModelLink class
-        self._modellink = modellink_obj
 
         # Logging
         logger.info("ModelLink object set to '%s'." % (self._modellink._name))
@@ -1733,6 +1754,7 @@ class Emulator(object):
         self._use_regr_cov = file.attrs['use_regr_cov']
         self._poly_order = file.attrs['poly_order']
         modellink_name = file.attrs['modellink_name'].decode('utf-8')
+        self._use_mock = file.attrs['use_mock']
 
         # TODO: This try-statement becomes obsolete when PRISM is released
         try:
@@ -1789,7 +1811,8 @@ class Emulator(object):
                     'l_corr': '0.3',
                     'method': "'full'",
                     'use_regr_cov': 'False',
-                    'poly_order': '3'}
+                    'poly_order': '3',
+                    'use_mock': 'False'}
 
         # Log end
         logger.info("Finished generating default emulator parameter dict.")
@@ -1851,5 +1874,109 @@ class Emulator(object):
         self._poly_order = check_pos_int(int(par_dict['poly_order']),
                                          'poly_order')
 
+        # Obtain the bool determining whether or not to use mock data
+        if(par_dict['use_mock'].lower() in ('false', '0')):
+            self._use_mock = 0
+        elif(par_dict['use_mock'].lower() in ('true', '1')):
+            self._use_mock = 1
+        else:
+            logger.error("Pipeline parameter 'use_mock' is not of type "
+                         "'bool'!")
+            raise TypeError("Pipeline parameter 'use_mock' is not of type "
+                            "'bool'!")
+
         # Log that reading has been finished
         logger.info("Finished reading emulator parameters.")
+
+    # This function generates mock data and loads it into ModelLink
+    def _get_mock_data(self, call_model):
+        """
+        Generates mock data and loads it into the :obj:`~ModelLink` object that
+        was provided during class initialization.
+        This function overwrites the :class:`~ModelLink` properties holding the
+        parameter estimates, data values and data errors.
+
+        Parameters
+        ----------
+        call_model : :meth:`~Pipeline._call_model` method
+            The :meth:`~Pipeline._call_model` method, which allows this method
+            to generate mock data.
+
+        Generates
+        ---------
+        Overwrites the corresponding :class:`~ModelLink` class properties with
+        the generated values.
+
+        """
+
+        # Start logger
+        logger = logging.getLogger('MOCK_DATA')
+
+        # Log new mock_data being created
+        logger.info("Generating mock data for new emulator system.")
+
+        # Set non-default parameter estimate
+        self._modellink._par_est =\
+            (self._modellink._par_rng[:, 0] +
+             random(self._modellink._n_par) *
+             (self._modellink._par_rng[:, 1] -
+              self._modellink._par_rng[:, 0])).tolist()
+
+        # Set non-default model data values
+        self._modellink._data_val =\
+            call_model(0, self._modellink._par_est).tolist()
+
+        # Use model discrepancy variance as model data errors
+        try:
+            md_var = self._modellink.get_md_var(0, self._modellink._data_idx)
+        except NotImplementedError:
+            md_var = pow(np.array(self._modellink._data_val)/6, 2)
+        finally:
+            # Check if all values are non-negative floats
+            for value in md_var:
+                check_nneg_float(value, 'md_var')
+            self._modellink._data_err = np.sqrt(md_var).tolist()
+
+        # Add model data errors as noise to model data values
+        self._modellink._data_val =\
+            (self._modellink._data_val +
+             normal(scale=self._modellink._data_err)).tolist()
+
+        # Logger
+        logger.info("Generated mock data.")
+
+    # This function loads previously generated mock data into ModelLink
+    def _set_mock_data(self):
+        """
+        Loads previously used mock data into the :class:`~ModelLink` object,
+        overwriting the parameter estimates, data values, data errors and data
+        identifiers with their mock equivalents.
+
+        Generates
+        ---------
+        Overwrites the corresponding :class:`~ModelLink` class properties with
+        the previously used values.
+
+        """
+
+        # Start logger
+        logger = logging.getLogger('MOCK_DATA')
+
+        # Overwrite ModelLink properties with previously generated values
+        # Log that mock_data is being loaded in
+        logger.info("Loading previously used mock data into ModelLink.")
+
+        # Open hdf5-file
+        file = self._open_hdf5('r')
+
+        # Overwrite ModelLink properties
+        self._modellink._par_est = file.attrs['mock_par'].tolist()
+        self._modellink._data_val = self._data_val[1]
+        self._modellink._data_err = self._data_err[1]
+        self._modellink._data_idx = self._data_idx[1]
+
+        # Close hdf5-file
+        self._close_hdf5(file)
+
+        # Log end
+        logger.info("Loaded mock data.")

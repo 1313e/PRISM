@@ -33,7 +33,6 @@ import logging
 from mlxtend.feature_selection import ExhaustiveFeatureSelector as EFS
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
-from numpy.random import normal, random
 # TODO: Do some research on sklearn.linear_model.SGDRegressor
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.preprocessing import PolynomialFeatures as PF
@@ -340,16 +339,6 @@ class Pipeline(object):
 
         return(self._impl_sam)
 
-    @property
-    def use_mock(self):
-        """
-        Bool indicating whether or not mock data has been used for the creation
-        of this emulator system instead of actual data.
-
-        """
-
-        return(bool(self._use_mock))
-
 
 # %% GENERAL CLASS METHODS
     # Function containing the model output for a given set of parameter values
@@ -518,8 +507,7 @@ class Pipeline(object):
                     'impl_cut': '[0, 4.0, 3.8, 3.5]',
                     'criterion': "'multi'",
                     'do_active_anal': 'True',
-                    'pot_active_par': 'None',
-                    'use_mock': 'False'}
+                    'pot_active_par': 'None'}
 
         # Log end
         logger.info("Finished generating default pipeline parameter dict.")
@@ -624,102 +612,8 @@ class Pipeline(object):
                 raise ValueError("Pipeline parameter 'pot_active_par' is "
                                  "empty!")
 
-        # Obtain the bool determining whether or not to use mock data
-        if(par_dict['use_mock'].lower() in ('false', '0')):
-            self._use_mock = 0
-        elif(par_dict['use_mock'].lower() in ('true', '1')):
-            self._use_mock = 1
-            self._get_mock_data(self._emulator._emul_i)
-        else:
-            logger.error("Pipeline parameter 'use_mock' is not of type "
-                         "'bool'!")
-            raise TypeError("Pipeline parameter 'use_mock' is not of type "
-                            "'bool'!")
-
         # Log that reading has been finished
         logger.info("Finished reading pipeline parameters.")
-
-    # This function either generates mock_data or loads it into ModelLink
-    # TODO: This belongs to the Emulator class, but gives the problem that it
-    # cannot call the model.
-    # TODO: Make sure that using mock data once forces to use it at all times
-    @docstring_substitute(emul_i=std_emul_i_doc)
-    def _get_mock_data(self, emul_i):
-        """
-        Generates mock_data if `emul_i` = 0 or loads it into the
-        :obj:`~ModelLink` instance that was provided during class
-        initialization if otherwise.
-        This function overwrites the :class:`~ModelLink` properties holding the
-        parameter estimates, data values and data errors.
-
-        Parameters
-        ----------
-        %(emul_i)s
-
-        Generates
-        ---------
-        Mock values for the parameter estimates, data values and data errors if
-        `emul_i` = 0.
-        Overwrites the corresponding :class:`~ModelLink` class properties with
-        either the generated values or previously used values.
-
-        """
-
-        # Start logger
-        logger = logging.getLogger('INIT')
-
-        # If emul_i is 0, generate new mock values
-        if not emul_i:
-            # Log new mock_data being created
-            logger.info("Generating mock_data for new emulator system.")
-
-            # Set non-default parameter estimate
-            self._modellink._par_est =\
-                (self._modellink._par_rng[:, 0] +
-                 random(self._modellink._n_par) *
-                 (self._modellink._par_rng[:, 1] -
-                  self._modellink._par_rng[:, 0])).tolist()
-
-            # Set non-default model data values
-            self._modellink._data_val =\
-                self._call_model(0, self._modellink._par_est).tolist()
-
-            # Use model discrepancy variance as model data errors
-            try:
-                md_var = self._modellink.get_md_var(
-                    emul_i, self._modellink._data_idx[emul_i])
-            except NotImplementedError:
-                md_var = pow(np.array(self._modellink._data_val)/6, 2)
-            finally:
-                # Check if all values are non-negative floats
-                for value in md_var:
-                    check_nneg_float(value, 'md_var')
-                self._modellink._data_err = np.sqrt(md_var).tolist()
-
-            # Add model data errors as noise to model data values
-            self._modellink._data_val =\
-                (self._modellink._data_val +
-                 normal(scale=self._modellink._data_err)).tolist()
-
-        # If emul_i has any other value, overwrite ModelLink properties with
-        # previously generated values
-        else:
-            # Log that mock_data is being loaded in
-            logger.info("Loading previously used mock_data into ModelLink.")
-
-            # Open hdf5-file
-            file = self._open_hdf5('r')
-
-            # Overwrite ModelLink properties
-            self._modellink._par_est = file.attrs['mock_par'].tolist()
-            self._modellink._data_val = self._emulator._data_val[emul_i]
-            self._modellink._data_err = self._emulator._data_err[emul_i]
-
-            # Close hdf5-file
-            self._close_hdf5(file)
-
-        # Log end
-        logger.info("Loaded mock_data.")
 
     # This function controls how n_eval_samples is calculated
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -1812,12 +1706,8 @@ class Pipeline(object):
 
         # Check emul_i and act accordingly
         if(emul_i == 1):
-            # Create mock data if requested
-            if self._use_mock:
-                self._get_mock_data(0)
-
             # Create a new emulator system
-            self._emulator._create_new_emulator(self._use_mock)
+            self._emulator._create_new_emulator(self._call_model)
 
             # Reload the data
             self._load_data()
