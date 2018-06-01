@@ -8,6 +8,13 @@ documentation of the various functions in the PRISM package.
 
 """
 
+# Description of emul_i used in __call__/construct
+call_emul_i_doc = \
+     """emul_i : int or None. Default: None
+            If int, number indicating the requested emulator iteration.
+            If *None*, the next iteration of the loaded emulator system will be
+            constructed."""
+
 # Description of emul_i used in the get_emul_i() method of the Emulator class
 get_emul_i_doc = \
      """emul_i : int or None
@@ -18,7 +25,7 @@ std_emul_i_doc = \
      """emul_i : int
             Number indicating the requested emulator iteration."""
 
-# Description of emul_i used in all user functions
+# Description of emul_i used in all user functions except __call__/construct
 user_emul_i_doc = \
      """emul_i : int or None. Default: None
             If int, number indicating the requested emulator iteration.

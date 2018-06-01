@@ -135,6 +135,9 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         Parameters
         ----------
         add_model_parameters : array_like, dict or str
+            Anything that can be converted to a dict that provides non-default
+            model parameters information or *None* if only default information
+            is used from :meth:`~_default_model_parameters`.
 
         Generates
         ---------
@@ -226,6 +229,9 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         Parameters
         ---------
         add_model_data : array_like or str
+            Array containing the non-default data the model will be compared
+            against, a filename with data that can be converted to it or *None*
+            if only default data is used from :meth:`~_default_model_data`.
 
         Generates
         ---------

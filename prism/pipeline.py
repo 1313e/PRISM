@@ -40,7 +40,7 @@ from sklearn.preprocessing import PolynomialFeatures as PF
 from sortedcontainers import SortedSet
 
 # PRISM imports
-from ._docstrings import std_emul_i_doc, user_emul_i_doc
+from ._docstrings import call_emul_i_doc, std_emul_i_doc, user_emul_i_doc
 from ._internal import (RequestError, check_float, check_nneg_float,
                         check_pos_int, convert_str_seq, docstring_copy,
                         docstring_substitute, move_logger, start_logger)
@@ -61,6 +61,8 @@ if(sys.version_info.major >= 3):
 # TODO: Implement multivariate implausibilities
 # OPTIMIZE: Overlap plausible regions to remove boundary artifacts?
 # TODO: Allow ModelLink to provide full data set, Pipeline selects data itself?
+# TODO: Think of a way to allow no ModelLink instance to be provided.
+# This could be done with a DummyLink, but md_var is then uncallable.
 class Pipeline(object):
     """
     Defines the :class:`~Pipeline` class of the PRISM package.
@@ -145,7 +147,7 @@ class Pipeline(object):
         self.details()
 
     # Allows one to call one full loop of the PRISM pipeline
-    @docstring_substitute(emul_i=user_emul_i_doc)
+    @docstring_substitute(emul_i=call_emul_i_doc)
     def __call__(self, emul_i=None):
         """
         Calls the :meth:`~construct` method to start the construction of the
@@ -1760,7 +1762,7 @@ class Pipeline(object):
     # This function constructs a specified iteration of the emulator system
     # TODO: Make time and RAM cost plots
     # TODO: Implement try-statement for KeyboardInterrupt like in analyze()
-    @docstring_substitute(emul_i=user_emul_i_doc)
+    @docstring_substitute(emul_i=call_emul_i_doc)
     def construct(self, emul_i=None, analyze=True):
         """
         Constructs the emulator at the specified emulator iteration `emul_i`,

@@ -585,4 +585,5 @@ def start_logger(filename='prism_log.log', mode='w'):
 
 
 # %% LIST DEFINITIONS
-seq_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/']
+seq_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/', '{', '}', '<',
+                 '>']
