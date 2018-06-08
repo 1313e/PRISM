@@ -121,6 +121,7 @@ import os
 from os import path
 import shutil
 import sys
+from tempfile import mkstemp
 
 # Package imports
 from e13tools.core import _compare_versions
@@ -501,19 +502,16 @@ def docstring_substitute(*args, **kwargs):
 
 
 # Define function that can move the logging file of PRISM and restart logging
-def move_logger(working_dir, filename='prism_log.log'):
+def move_logger(working_dir, filename):
     """
     Moves the logging file `filename` from the current working directory to the
     given `working_dir`, and then restarts it again.
 
     Parameters
     ----------
-    working_dir : string
+    working_dir : str
         String containing the directory the log-file needs to be moved to.
-
-    Optional
-    --------
-    filename : string. Default: 'prism_log.log'
+    filename : str
         String containing the name of the log-file that needs to be moved.
 
     """
@@ -523,7 +521,7 @@ def move_logger(working_dir, filename='prism_log.log'):
 
     # Get source and destination paths
     source = path.abspath(filename)
-    destination = path.join(working_dir, filename)
+    destination = path.join(working_dir, 'prism_log.log')
 
     # Check if file already exists and either combine files or move the file
     if path.isfile(destination):
@@ -539,19 +537,25 @@ def move_logger(working_dir, filename='prism_log.log'):
 
 
 # Define function that can start the logging process of PRISM
-def start_logger(filename='prism_log.log', mode='w'):
+def start_logger(filename=None, mode='w'):
     """
-    Creates a logging file called `filename` in the current working directory,
+    Opens a logging file called `filename` in the current working directory,
     opened with `mode` and starts the logger.
 
     Optional
     --------
-    filename : string. Default: 'prism_log.log'
-        String containing the name of the log-file that is created.
+    filename : str or None. Default: None
+        String containing the name of the log-file that is opened.
+        If *None*, a new log-file will be created.
     mode : {'r', 'r+', 'w', 'w-'/'x', 'a'}. Default: 'w'
         String indicating how the log-file needs to be opened.
 
     """
+
+    # If filename is not defined, make a new one
+    if filename is None:
+        fd, filename = mkstemp('.log', 'prism_log_', '.')
+        os.close(fd)
 
     # Define logging dict
     LOGGING = {
@@ -582,6 +586,9 @@ def start_logger(filename='prism_log.log', mode='w'):
 
     # Start the logger from the dict above
     logging.config.dictConfig(LOGGING)
+
+    # Return log-file name
+    return(filename)
 
 
 # %% LIST DEFINITIONS

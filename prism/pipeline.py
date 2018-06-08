@@ -115,7 +115,7 @@ class Pipeline(object):
         """
 
         # Start logging
-        start_logger()
+        logging_file = start_logger()
         logger = logging.getLogger('PIPELINE')
         logger.info("")
 
@@ -127,7 +127,7 @@ class Pipeline(object):
         self._get_paths(root_dir, working_dir, prefix, hdf5_file, prism_file)
 
         # Move logger to working directory
-        move_logger(self._working_dir)
+        move_logger(self._working_dir, logging_file)
 
         # Initialize Emulator class
         if(emul_type == 'default'):
