@@ -35,6 +35,7 @@ import numpy as np
 # TODO: Do some research on scipy.interpolate.Rbf later
 from scipy.interpolate import interp1d, interp2d
 from sortedcontainers import SortedSet
+from tqdm import tqdm
 
 # PRISM imports
 from ._docstrings import user_emul_i_doc
@@ -845,6 +846,7 @@ class Projection(object):
         start_time = time()
 
         # Make abbreviations for certain variables
+        res = self._proj_res
         depth = self._proj_depth
 
         # CALCULATE AND ANALYZE IMPLAUSIBILITY
@@ -858,11 +860,12 @@ class Projection(object):
 
         # Iterate over all samples in the hcube
         # For all grid points in the hcube
-        for i, grid_point in enumerate(proj_hcube):
+        for i, grid_point in tqdm(enumerate(proj_hcube),
+                                  'Analyzing grid points', pow(res, 2),
+                                  unit='gp'):
 
             # For all samples in the grid point
             for j, par_set in enumerate(grid_point):
-                print(i, j)
 
                 # For all emulator iterations, check this sample
                 for k in range(1, self._emul_i+1):

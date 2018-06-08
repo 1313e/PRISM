@@ -7,6 +7,7 @@ h5py>=2.7.1
 mlxtend>=0.9.1
 scikit-learn>=0.19.1
 sortedcontainers>=1.5.9
+tqdm>=4.7.6
 check-manifest
 readme_renderer
 

@@ -800,8 +800,8 @@ class Emulator(object):
         logger.info("Performing regression.")
 
         # Create SequentialFeatureSelector object
-        sfs_obj = SFS(LR(), k_features='best', forward=True,
-                      floating=True, scoring='neg_mean_squared_error')
+        sfs_obj = SFS(LR(), k_features='best', forward=True, floating=True,
+                      scoring='neg_mean_squared_error', n_jobs=-1)
 
         # Create Pipeline object
         # The bias/intercept/constant-term is not included in the SFS object to

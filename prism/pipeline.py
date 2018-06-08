@@ -1170,7 +1170,7 @@ class Pipeline(object):
             for i in range(self._emulator._n_data[emul_i]):
                 # Create SequentialFeatureSelector object
                 sfs_obj = SFS(LR(), k_features='parsimonious', forward=False,
-                              floating=False, scoring='r2')
+                              floating=False, scoring='r2', n_jobs=-1)
 
                 # Perform linear regression with linear terms only
                 sfs_obj.fit(pot_act_sam_set,
@@ -1607,6 +1607,11 @@ class Pipeline(object):
             else:
                 raise NotImplementedError
 
+            # Obtain some timers
+            end_time = time()
+            time_diff_total = end_time-start_time1
+            time_diff_eval = end_time-start_time2
+
             # Save the results
             self._save_data('impl_sam', eval_sam_set[impl_idx])
         except KeyboardInterrupt:
@@ -1620,11 +1625,6 @@ class Pipeline(object):
             self._save_data('n_eval_samples', 0)
             raise error
         else:
-            # Obtain some timers
-            end_time = time()
-            time_diff_total = end_time-start_time1
-            time_diff_eval = end_time-start_time2
-
             # Save statistics about analyzing time, evaluation speed, par_space
             self._save_statistic(emul_i, 'tot_analyze_time',
                                  '%.2f' % (time_diff_total), 's')
