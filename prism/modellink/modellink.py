@@ -45,6 +45,7 @@ if(sys.version_info.major >= 3):
 
 
 # %% CLASS DEFINITION
+# TODO: Allow users to change model parameters and data based on emul_i
 class ModelLink(with_metaclass(abc.ABCMeta, object)):
     """
     Provides an abstract base class definition that allows the

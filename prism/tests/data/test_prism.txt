@@ -10,5 +10,6 @@ method			: 'full'
 use_regr_cov		: False
 poly_order		: 3
 do_active_anal		: True
+freeze_active_par	: True
 pot_active_par		: None
 use_mock		: False

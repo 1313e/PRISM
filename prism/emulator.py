@@ -31,19 +31,18 @@ import logging
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
 from numpy.linalg import inv, norm
-from numpy.random import normal, random
 # TODO: Do some research on sklearn.linear_model.SGDRegressor
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
 from sklearn.preprocessing import PolynomialFeatures as PF
+from sortedcontainers import SortedSet
 
 # PRISM imports
 from .__version__ import version as _prism_version
 from ._docstrings import get_emul_i_doc, std_emul_i_doc
-from ._internal import (RequestError, check_compatibility, check_nneg_float,
-                        check_pos_float, check_pos_int, check_str,
-                        docstring_substitute)
+from ._internal import (RequestError, check_compatibility, check_pos_float,
+                        check_pos_int, check_str, docstring_substitute)
 from .modellink import ModelLink
 
 # All declaration
@@ -79,12 +78,8 @@ class Emulator(object):
 
         """
 
-        # Copy important Pipeline methods and attributes
-        self._close_hdf5 = pipeline_obj._close_hdf5
-        self._hdf5_file = pipeline_obj._hdf5_file
-        self._open_hdf5 = pipeline_obj._open_hdf5
-        self._prism_file = pipeline_obj._prism_file
-        self._save_statistic = pipeline_obj._save_statistic
+        # Save the provided pipeline object
+        self._pipeline = pipeline_obj
 
         # Load the emulator and data
         self._load_emulator(modellink_obj)
@@ -92,24 +87,6 @@ class Emulator(object):
 
 # %% CLASS PROPERTIES
     # General details
-    @property
-    def prism_file(self):
-        """
-        Absolute path to PRISM parameters file.
-
-        """
-
-        return(self._prism_file)
-
-    @property
-    def hdf5_file(self):
-        """
-        Absolute path to the loaded HDF5-file.
-
-        """
-
-        return(self._hdf5_file)
-
     @property
     def emul_load(self):
         """
@@ -157,6 +134,16 @@ class Emulator(object):
         """
 
         return(self._method)
+
+    @property
+    def use_mock(self):
+        """
+        Bool indicating whether or not mock data has been used for the creation
+        of this emulator instead of actual data.
+
+        """
+
+        return(bool(self._use_mock))
 
     # TODO: Allow selective regr_cov usage?
     @property
@@ -299,26 +286,6 @@ class Emulator(object):
 
         return(self._prior_exp_sam_set)
 
-    # ModelLink
-    @property
-    def modellink(self):
-        """
-        The :obj:`~ModelLink` instance provided during Pipeline initialization.
-
-        """
-
-        return(self._modellink)
-
-    @property
-    def use_mock(self):
-        """
-        Bool indicating whether or not mock data has been used for the creation
-        of this emulator instead of actual data.
-
-        """
-
-        return(bool(self._use_mock))
-
     # Covariances
     @property
     def sigma(self):
@@ -384,19 +351,13 @@ class Emulator(object):
         return(emul_i)
 
     # Creates a new emulator file and writes all information to it
-    def _create_new_emulator(self, call_model):
+    def _create_new_emulator(self):
         """
         Creates a new HDF5-file that holds all the information of a new
         emulator system and writes all important emulator details to it.
         Afterward, resets all loaded emulator data and prepares the HDF5-file
         and emulator system for the construction of the first emulator
         iteration.
-
-        Parameters
-        ----------
-        use_mock : bool
-            Bool indicating whether or not to use mock_data over real data in
-            the new emulator system.
 
         Generates
         ---------
@@ -409,7 +370,7 @@ class Emulator(object):
         # Start logger
         logger = logging.getLogger('INIT')
         logger.info("Creating a new emulator system in HDF5-file '%s'."
-                    % (self._hdf5_file))
+                    % (self._pipeline._hdf5_file))
 
         # If no constructed emulator was provided, it will be constructed now
         # Therefore, set emul_load to 1 and emul_i to 0
@@ -420,7 +381,7 @@ class Emulator(object):
         self._read_parameters()
 
         # Create hdf5-file
-        file = self._open_hdf5('w')
+        file = self._pipeline._open_hdf5('w')
 
         # Save all relevant emulator parameters to hdf5
         file.attrs['sigma'] = self._sigma
@@ -434,11 +395,11 @@ class Emulator(object):
         file.attrs['emul_type'] = self._emul_type.encode('ascii', 'ignore')
         file.attrs['use_mock'] = self._use_mock
         if self._use_mock:
-            self._get_mock_data(call_model)
+            self._pipeline._get_mock_data()
             file.attrs['mock_par'] = self._modellink._par_est
 
         # Close hdf5-file
-        self._close_hdf5(file)
+        self._pipeline._close_hdf5(file)
 
         # Load relevant data
         self._load_data(0)
@@ -509,14 +470,14 @@ class Emulator(object):
                         "requested and all subsequent iterations.")
 
             # Open hdf5-file
-            file = self._open_hdf5('r+')
+            file = self._pipeline._open_hdf5('r+')
 
             # Delete requested and subsequent emulator iterations
             for i in range(emul_i, self._emul_i+1):
                 del file['%s' % (i)]
 
             # Close hdf5-file
-            self._close_hdf5(file)
+            self._pipeline._close_hdf5(file)
 
             # Set last emul_i to preceding requested iteration
             self._emul_i = emul_i-1
@@ -552,25 +513,26 @@ class Emulator(object):
             reload = 1
 
         # Open hdf5-file
-        file = self._open_hdf5('r+')
+        file = self._pipeline._open_hdf5('r+')
 
         # Make group for this emulator iteration
         file.create_group('%s' % (emul_i))
 
-        # Save the number of data sets
+        # Save the number of data points
         file['%s' % (emul_i)].attrs['n_data'] = self._modellink._n_data
         self._n_data.append(self._modellink._n_data)
 
         # Create an empty data set for statistics as attributes
         file.create_dataset('%s/statistics' % (emul_i), data=h5py.Empty(float))
 
-        # Create empty lists for the three data arrays
+        # Create empty lists for the four data arrays
         data_val = []
         data_err = []
         data_idx = []
+        data_prev = []
 
-        # Create groups for all data sets
-        # TODO: Add check if all previous data sets are still present?
+        # Create groups for all data points
+        # TODO: Add check if all previous data points are still present?
         for i in range(self._modellink._n_data):
             data_set = file.create_group('%s/data_point_%s' % (emul_i, i))
             data_set.attrs['data_val'] = self._modellink._data_val[i]
@@ -594,13 +556,23 @@ class Emulator(object):
                     data_set.attrs['data_idx'] = self._modellink._data_idx[i]
             data_idx.append(self._modellink._data_idx[i])
 
+            # Check if this data point was present in previous iteration
+            try:
+                data_prev.append(self._data_idx[emul_i-1].index(data_idx[-1]))
+            except ValueError:
+                data_prev.append(None)
+                data_set.attrs['data_prev'] = -1
+            else:
+                data_set.attrs['data_prev'] = data_prev[-1]
+
         # Close hdf5-file
-        self._close_hdf5(file)
+        self._pipeline._close_hdf5(file)
 
         # Save model data arrays to memory
         self._data_val.append(data_val)
         self._data_err.append(data_err)
         self._data_idx.append(data_idx)
+        self._data_prev.append(data_prev)
 
         # Logging
         logger.info("Finished preparing emulator iteration.")
@@ -629,6 +601,9 @@ class Emulator(object):
         # Save current time
         start_time = time()
 
+        # Determine active parameters
+        self._get_active_par(emul_i)
+
         # Check if regression is required
         if(self._method.lower() in ('regression', 'full')):
             self._do_regression(emul_i)
@@ -637,9 +612,12 @@ class Emulator(object):
         self._get_prior_exp_sam_set(emul_i)
         self._get_cov_matrix(emul_i)
 
+        # Set current emul_i to constructed emul_i
+        self._emul_i = emul_i
+
         # Save time difference
-        self._save_statistic(emul_i, 'emul_construct_time',
-                             '%.2f' % (time()-start_time), 's')
+        self._pipeline._save_statistic(emul_i, 'emul_construct_time',
+                                       '%.2f' % (time()-start_time), 's')
 
     # This is function 'E_D(f(x'))'
     # This function gives the adjusted emulator expectation value back
@@ -761,6 +739,124 @@ class Emulator(object):
         # Return adj_exp_val and adj_var_val
         return(adj_exp_val, adj_var_val)
 
+    # This function extracts the set of active parameters
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _get_active_par(self, emul_i):
+        """
+        Determines the active parameters to be used for every individual data
+        point in the provided emulator iteration `emul_i`. Uses backwards
+        stepwise elimination to determine the set of active parameters.
+
+        Parameters
+        ----------
+        %(emul_i)s
+
+        Generates
+        ---------
+        active_par : 1D :obj:`~numpy.ndarray` object
+            Array containing the indices of all the parameters that are active
+            in the emulator iteration `emul_i`.
+        active_par_data : List of 1D :obj:`~numpy.ndarray` objects
+            List containing the indices of all the parameters that are active
+            in the emulator iteration `emul_i` for every individual data point.
+
+        """
+
+        # Log that active parameters are being determined
+        logger = logging.getLogger('ACTIVE_PAR')
+        logger.info("Determining active parameters.")
+
+        # Initialize active parameter data sets
+        active_par = SortedSet()
+        active_par_data = [SortedSet()]*self._n_data[emul_i]
+
+        # Check if previously active parameters must be active again
+        if self._pipeline._freeze_active_par:
+            for i, j in enumerate(self._data_prev[emul_i]):
+                if j is not None:
+                    active_par_data[i].update(
+                        self._active_par_data[emul_i-1][j])
+                active_par.update(active_par_data[i])
+
+        # Check if active parameters analysis has been requested
+        if not self._pipeline._do_active_anal:
+            # If not requested, then save all potentially active parameters
+            active_par.update(self._pipeline._pot_active_par)
+            for i in range(self._n_data[emul_i]):
+                active_par_data[i].update(self._pipeline._pot_active_par)
+
+        # If requested, perform a sequential backward stepwise regression
+        # TODO: Include frozen parameters in analysis
+        else:
+            # Create empty lists
+            pot_act_idx = list(range(len(self._pipeline._pot_active_par)))
+            pot_act_sam_set =\
+                self._sam_set[emul_i][:, self._pipeline._pot_active_par]
+
+            # Obtain polynomial terms of pot_act_sam_set
+            pf_obj = PF(self._poly_order, include_bias=False)
+            pot_act_poly_terms = pf_obj.fit_transform(pot_act_sam_set)
+
+            # Determine active parameters for all data points
+            for i in range(self._n_data[emul_i]):
+                # Create SequentialFeatureSelector object
+                sfs_obj = SFS(LR(), k_features='parsimonious', forward=False,
+                              floating=False, scoring='r2')
+
+                # Perform linear regression with linear terms only
+                sfs_obj.fit(pot_act_sam_set, self._mod_set[emul_i][i])
+
+                # Extract active parameters due to linear significance
+                act_idx_lin = list(sfs_obj.k_feature_idx_)
+                act_idx = list(act_idx_lin)
+
+                # Get passive parameters in linear significance
+                pas_idx_lin = [j for j in pot_act_idx if j not in act_idx_lin]
+
+                # Perform n-order polynomial regression for every passive par
+                for j in pas_idx_lin:
+                    # Obtain polynomial terms for this passive parameter
+                    poly_idx = pf_obj.powers_[:, j] != 0
+                    poly_idx[act_idx_lin] = 1
+                    poly_idx = np.arange(len(poly_idx))[poly_idx]
+                    poly_terms = pot_act_poly_terms[:, poly_idx]
+
+                    # Perform linear regression with addition of poly terms
+                    sfs_obj.fit(poly_terms, self._mod_set[emul_i][i])
+
+                    # Extract indices of active polynomial terms
+                    act_idx_poly = poly_idx[list(sfs_obj.k_feature_idx_)]
+
+                    # Check if any additional polynomial terms survived
+                    # Add i to act_idx if this is the case
+                    if np.any([k not in act_idx_lin for k in act_idx_poly]):
+                        act_idx.append(j)
+
+                # Extract the active parameters for this data set
+                active_par_data[i].update(
+                    self._pipeline._pot_active_par[act_idx])
+
+                # And extract the unique active parameters for this iteration
+                active_par.update(active_par_data[i])
+
+                # Log the resulting active parameters
+                logger.info("Active parameters for data point %s: %s"
+                            % (i, [self._modellink._par_name[par]
+                                   for par in active_par_data[i]]))
+
+        # Convert active_par to a NumPy array
+        active_par = np.array(list(active_par))
+
+        # Convert active_par_data to a list of NumPy arrays
+        for i in range(self._n_data[emul_i]):
+            active_par_data[i] = np.array(list(active_par_data[i]))
+
+        # Save the active parameters
+        self._save_data(emul_i, 'active_par', [active_par, active_par_data])
+
+        # Log that active parameter determination is finished
+        logger.info("Finished determining active parameters.")
+
     # This function performs a forward stepwise regression on sam_set
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _do_regression(self, emul_i):
@@ -801,7 +897,7 @@ class Emulator(object):
 
         # Create SequentialFeatureSelector object
         sfs_obj = SFS(LR(), k_features='best', forward=True, floating=True,
-                      scoring='neg_mean_squared_error', n_jobs=-1)
+                      scoring='neg_mean_squared_error')
 
         # Create Pipeline object
         # The bias/intercept/constant-term is not included in the SFS object to
@@ -1400,8 +1496,8 @@ class Emulator(object):
         try:
             logger.info("Checking if provided emulator file '%s' is a "
                         "constructed emulator system."
-                        % (self._hdf5_file))
-            file = self._open_hdf5('r')
+                        % (self._pipeline._hdf5_file))
+            file = self._pipeline._open_hdf5('r')
         except (OSError, IOError):
             # No existing emulator was provided
             logger.info("Non-existing HDF5-file provided.")
@@ -1419,7 +1515,7 @@ class Emulator(object):
             self._emul_i = len(file.keys())
 
             # Close hdf5-file
-            self._close_hdf5(file)
+            self._pipeline._close_hdf5(file)
 
             # Read all emulator parameters from the hdf5-file
             modellink_loaded = self._retrieve_parameters()
@@ -1471,6 +1567,7 @@ class Emulator(object):
             logger.info("No constructed emulator system is loaded.")
             # Set ModelLink object
             self._modellink = modellink_obj
+            self._pipeline._modellink = modellink_obj
 
         # If an existing emulator system is loaded, check if classes are equal
         elif(modellink_obj._name == modellink_loaded):
@@ -1478,6 +1575,7 @@ class Emulator(object):
                         "subclass used for emulator construction.")
             # Set ModelLink object
             self._modellink = modellink_obj
+            self._pipeline._modellink = modellink_obj
 
             # If mock data has been used, set the ModelLink object to use it
             if self._use_mock:
@@ -1536,6 +1634,7 @@ class Emulator(object):
         self._data_val = [[]]
         self._data_err = [[]]
         self._data_idx = [[]]
+        self._data_prev = [[]]
 
         # If no file has been provided
         if(emul_i == 0 or self._emul_load == 0):
@@ -1557,7 +1656,7 @@ class Emulator(object):
                         % (emul_i))
 
             # Open hdf5-file
-            file = self._open_hdf5('r')
+            file = self._pipeline._open_hdf5('r')
 
             # Read in the data
             for i in range(1, emul_i+1):
@@ -1572,6 +1671,7 @@ class Emulator(object):
                 data_val = []
                 data_err = []
                 data_idx = []
+                data_prev = []
                 for j in range(self._n_data[i]):
                     data_set = file['%s/data_point_%s' % (i, j)]
                     mod_set.append(data_set['mod_set'][()])
@@ -1596,6 +1696,13 @@ class Emulator(object):
                             else:
                                 tmp_data_idx.append(data_set.attrs[key])
                         data_idx.append(tmp_data_idx)
+
+                    # Obtain data_prev
+                    if(data_set.attrs['data_prev'] == -1):
+                        data_prev.append(None)
+                    else:
+                        data_prev.append(data_set.attrs['data_prev'])
+
                 self._mod_set.append(mod_set)
                 self._cov_mat_inv.append(cov_mat_inv)
                 self._prior_exp_sam_set.append(prior_exp_sam_set)
@@ -1603,6 +1710,7 @@ class Emulator(object):
                 self._data_val.append(data_val)
                 self._data_err.append(data_err)
                 self._data_idx.append(data_idx)
+                self._data_prev.append(data_prev)
 
                 if self._method.lower() in ('regression', 'full'):
                     rsdl_var = []
@@ -1627,7 +1735,7 @@ class Emulator(object):
                     self._poly_idx.append(poly_idx)
 
             # Close hdf5-file
-            self._close_hdf5(file)
+            self._pipeline._close_hdf5(file)
 
             # Log that loading is finished
             logger.info("Finished loading relevant emulator data.")
@@ -1663,7 +1771,7 @@ class Emulator(object):
                     % (keyword, emul_i))
 
         # Open hdf5-file
-        file = self._open_hdf5('r+')
+        file = self._pipeline._open_hdf5('r+')
 
         # Check what data keyword has been provided
         # ACTIVE PARAMETERS
@@ -1727,7 +1835,7 @@ class Emulator(object):
             raise ValueError("Invalid keyword argument provided!")
 
         # Close hdf5-file
-        self._close_hdf5(file)
+        self._pipeline._close_hdf5(file)
 
         # More logging
         logger.info("Finished saving data to HDF5.")
@@ -1745,7 +1853,7 @@ class Emulator(object):
         logger.info("Retrieving emulator parameters from provided HDF5-file.")
 
         # Open hdf5-file
-        file = self._open_hdf5('r')
+        file = self._pipeline._open_hdf5('r')
 
         # Read in all the emulator parameters
         self._sigma = file.attrs['sigma']
@@ -1778,7 +1886,7 @@ class Emulator(object):
                                % (emul_type, self._emul_type))
 
         # Close hdf5-file
-        self._close_hdf5(file)
+        self._pipeline._close_hdf5(file)
 
         # Check if provided emul_version is compatible
         check_compatibility(emul_version)
@@ -1836,8 +1944,8 @@ class Emulator(object):
         par_dict = self._get_default_parameters()
 
         # Read in data from provided PRISM parameters file
-        if self._prism_file is not None:
-            emul_par = np.genfromtxt(self._prism_file, dtype=(str),
+        if self._pipeline._prism_file is not None:
+            emul_par = np.genfromtxt(self._pipeline._prism_file, dtype=(str),
                                      delimiter=': ', autostrip=True)
 
             # Make sure that emul_par is 2D
@@ -1880,72 +1988,16 @@ class Emulator(object):
         elif(par_dict['use_mock'].lower() in ('true', '1')):
             self._use_mock = 1
         else:
-            logger.error("Pipeline parameter 'use_mock' is not of type "
+            logger.error("Emulator parameter 'use_mock' is not of type "
                          "'bool'!")
-            raise TypeError("Pipeline parameter 'use_mock' is not of type "
+            raise TypeError("Emulator parameter 'use_mock' is not of type "
                             "'bool'!")
 
         # Log that reading has been finished
         logger.info("Finished reading emulator parameters.")
 
-    # This function generates mock data and loads it into ModelLink
-    def _get_mock_data(self, call_model):
-        """
-        Generates mock data and loads it into the :obj:`~ModelLink` object that
-        was provided during class initialization.
-        This function overwrites the :class:`~ModelLink` properties holding the
-        parameter estimates, data values and data errors.
-
-        Parameters
-        ----------
-        call_model : :meth:`~Pipeline._call_model` method
-            The :meth:`~Pipeline._call_model` method, which allows this method
-            to generate mock data.
-
-        Generates
-        ---------
-        Overwrites the corresponding :class:`~ModelLink` class properties with
-        the generated values.
-
-        """
-
-        # Start logger
-        logger = logging.getLogger('MOCK_DATA')
-
-        # Log new mock_data being created
-        logger.info("Generating mock data for new emulator system.")
-
-        # Set non-default parameter estimate
-        self._modellink._par_est =\
-            (self._modellink._par_rng[:, 0] +
-             random(self._modellink._n_par) *
-             (self._modellink._par_rng[:, 1] -
-              self._modellink._par_rng[:, 0])).tolist()
-
-        # Set non-default model data values
-        self._modellink._data_val =\
-            call_model(0, self._modellink._par_est).tolist()
-
-        # Use model discrepancy variance as model data errors
-        try:
-            md_var = self._modellink.get_md_var(0, self._modellink._data_idx)
-        except NotImplementedError:
-            md_var = pow(np.array(self._modellink._data_val)/6, 2)
-        finally:
-            # Check if all values are non-negative floats
-            for value in md_var:
-                check_nneg_float(value, 'md_var')
-            self._modellink._data_err = np.sqrt(md_var).tolist()
-
-        # Add model data errors as noise to model data values
-        self._modellink._data_val =\
-            (self._modellink._data_val +
-             normal(scale=self._modellink._data_err)).tolist()
-
-        # Logger
-        logger.info("Generated mock data.")
-
     # This function loads previously generated mock data into ModelLink
+    # TODO: Allow user to add/remove mock data? Requires consistency check
     def _set_mock_data(self):
         """
         Loads previously used mock data into the :class:`~ModelLink` object,
@@ -1967,16 +2019,17 @@ class Emulator(object):
         logger.info("Loading previously used mock data into ModelLink.")
 
         # Open hdf5-file
-        file = self._open_hdf5('r')
+        file = self._pipeline._open_hdf5('r')
 
         # Overwrite ModelLink properties
         self._modellink._par_est = file.attrs['mock_par'].tolist()
+        self._modellink._n_data = self._n_data[1]
         self._modellink._data_val = self._data_val[1]
         self._modellink._data_err = self._data_err[1]
         self._modellink._data_idx = self._data_idx[1]
 
         # Close hdf5-file
-        self._close_hdf5(file)
+        self._pipeline._close_hdf5(file)
 
         # Log end
         logger.info("Loaded mock data.")
