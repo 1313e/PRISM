@@ -149,118 +149,8 @@ class Projection(object):
         # Make abbreviations for certain variables
         res = self._proj_res
 
-        # Check the proj_par that were provided
-        # If none was provided, make figures for all model parameters
-        if proj_par is None:
-            proj_par = self._emulator._active_par[self._emul_i]
-
-        # Else, an array of str/int must be provided
-        else:
-            # Convert to string, remove unwanted characters and split it up
-            proj_par = convert_str_seq(proj_par)
-
-            # Check elements if they are ints or strings, and if they are valid
-            for i, val in enumerate(proj_par):
-                try:
-                    try:
-                        par_idx = int(val)
-                    except ValueError:
-                        proj_par[i] = self._modellink._par_name.index(val)
-                    else:
-                        self._modellink._par_name[par_idx]
-                        proj_par[i] = par_idx % self._modellink._n_par
-                except Exception as error:
-                    raise InputError("Input argument 'proj_par' is invalid! "
-                                     "(%s)" % (error))
-
-            # If everything went without exceptions, remove duplicates and sort
-            proj_par = list(SortedSet(proj_par))
-
-            # Check which values in proj_par are also in active_par
-            proj_par = np.array(
-                [i for i in self._emulator._active_par[self._emul_i] if
-                 i in proj_par])
-
-            # Make sure that there are still enough values left
-            if(self._modellink._n_par == 2 and len(proj_par) >= 1):
-                pass
-            elif(self._modellink._n_par > 2 and len(proj_par) >= 2):
-                pass
-            else:
-                raise RequestError("Not enough active model parameters have "
-                                   "been provided to make a projection "
-                                   "figure!")
-
-        # Obtain list of hypercube names
-        if(self._modellink._n_par == 2):
-            hcube_idx = list(combinations(range(len(proj_par)), 1))
-            hcube_par = proj_par[np.array(hcube_idx)].tolist()
-        else:
-            hcube_idx = list(combinations(range(len(proj_par)), 2))
-            hcube_par = proj_par[np.array(hcube_idx)].tolist()
-
-        # Create empty list holding cube_par that needs to be created
-        create_hcube_par = []
-
-        # Open hdf5-file
-        logger.info("Checking if projection data already exists.")
-        file = self._pipeline._open_hdf5('r+')
-
-        # Check if data is already there and act accordingly
-        for hcube in hcube_par:
-            if(self._modellink._n_par == 2):
-                # Make abbreviation for the parameter name
-                par_name = self._modellink._par_name[hcube[0]]
-
-                try:
-                    file['%s/proj_hcube/%s' % (self._emul_i, par_name)]
-#                    file.create_group('%s/proj_hcube/%s'
-#                                      % (self._emul_i, par_name))
-                except KeyError:
-                    logger.info("Projection data '%s' not found. Will be "
-                                "created."
-                                % (par_name))
-                    create_hcube_par.append(hcube)
-                else:
-                    if force:
-                        del file['%s/proj_hcube/%s'
-                                 % (self._emul_i, par_name)]
-                        logger.info("Projection data '%s' already exists. "
-                                    "Deleting."
-                                    % (par_name))
-                        create_hcube_par.append(hcube)
-                    else:
-                        logger.info("Projection data '%s' already exists. "
-                                    "Skipping data creation."
-                                    % (par_name))
-            else:
-                # Make abbreviation for the parameter names
-                par1_name = self._modellink._par_name[hcube[0]]
-                par2_name = self._modellink._par_name[hcube[1]]
-
-                try:
-                    file['%s/proj_hcube/%s-%s'
-                         % (self._emul_i, par1_name, par2_name)]
-                except KeyError:
-                    logger.info("Projection data '%s-%s' not found. Will "
-                                "be created."
-                                % (par1_name, par2_name))
-                    create_hcube_par.append(hcube)
-                else:
-                    if force:
-                        del file['%s/proj_hcube/%s-%s'
-                                 % (self._emul_i, par1_name, par2_name)]
-                        logger.info("Projection data '%s-%s' already "
-                                    "exists. Deleting."
-                                    % (par1_name, par2_name))
-                        create_hcube_par.append(hcube)
-                    else:
-                        logger.info("Projection data '%s-%s' already "
-                                    "exists. Skipping data creation."
-                                    % (par1_name, par2_name))
-
-        # Close hdf5-file
-        self._pipeline._close_hdf5(file)
+        # Obtain requested projection cubes
+        hcube_par, create_hcube_par = self._get_req_cubes(proj_par, force)
 
         # Save current time again
         start_time2 = time()
@@ -598,6 +488,161 @@ class Projection(object):
 
 
 # %% HIDDEN CLASS METHODS
+    # This function determines the projection cubes to be analyzed
+    def _get_req_cubes(self, proj_par, force):
+        """
+        Determines which projection hypercubes have been requested by the user.
+        Also checks if these projection hypercubes have been calculated before,
+        and depending on the value of `force`, either skips them or recreates
+        them.
+
+        Parameters
+        ----------
+        proj_par : 1D array_like of {int, str} or None
+            For which model parameters to construct the projection figures.
+            If 1D array_like, construct projection figures for all combinations
+            of active model parameters.
+            If 1D array_like of str, the strings refer to the names of the
+            model parameters.
+            If 1D array_like of int, the integers refer to the order in which
+            the model parameters are shown in the :meth:`~details` method.
+            If *None*, projection figures are made for all model parameters.
+        force : bool
+            Controls what to do if a projection hypercube has been calculated
+            at the emulator iteration `emul_i` before.
+            If *False*, it will use the previously acquired projection data to
+            create the projection figure.
+            If *True*, it will recalculate all the data required to create the
+            projection figure.
+
+        Returns
+        -------
+        hcube_par : list of lists
+            List containing the parameter indices of the requested projection
+            hypercubes.
+        create_hcube_par : list of lists
+            List containing the parameter indices of the requested projection
+            hypercubes that need to be created first.
+
+        """
+
+        # Start logger
+        logger = logging.getLogger('PROJECTION')
+
+        # Check the proj_par that were provided
+        # If none was provided, make figures for all model parameters
+        if proj_par is None:
+            proj_par = self._emulator._active_par[self._emul_i]
+
+        # Else, an array of str/int must be provided
+        else:
+            # Convert to string, remove unwanted characters and split it up
+            proj_par = convert_str_seq(proj_par)
+
+            # Check elements if they are ints or strings, and if they are valid
+            for i, val in enumerate(proj_par):
+                try:
+                    try:
+                        par_idx = int(val)
+                    except ValueError:
+                        proj_par[i] = self._modellink._par_name.index(val)
+                    else:
+                        self._modellink._par_name[par_idx]
+                        proj_par[i] = par_idx % self._modellink._n_par
+                except Exception as error:
+                    raise InputError("Input argument 'proj_par' is invalid! "
+                                     "(%s)" % (error))
+
+            # If everything went without exceptions, remove duplicates and sort
+            proj_par = list(SortedSet(proj_par))
+
+            # Check which values in proj_par are also in active_par
+            proj_par = np.array(
+                [i for i in self._emulator._active_par[self._emul_i] if
+                 i in proj_par])
+
+            # Make sure that there are still enough values left
+            if(self._modellink._n_par == 2 and len(proj_par) >= 1):
+                pass
+            elif(self._modellink._n_par > 2 and len(proj_par) >= 2):
+                pass
+            else:
+                raise RequestError("Not enough active model parameters have "
+                                   "been provided to make a projection "
+                                   "figure!")
+
+        # Obtain list of hypercube names
+        if(self._modellink._n_par == 2):
+            hcube_idx = list(combinations(range(len(proj_par)), 1))
+            hcube_par = proj_par[np.array(hcube_idx)].tolist()
+        else:
+            hcube_idx = list(combinations(range(len(proj_par)), 2))
+            hcube_par = proj_par[np.array(hcube_idx)].tolist()
+
+        # Create empty list holding cube_par that needs to be created
+        create_hcube_par = []
+
+        # Open hdf5-file
+        logger.info("Checking if projection data already exists.")
+        file = self._pipeline._open_hdf5('r+')
+
+        # Check if data is already there and act accordingly
+        for hcube in hcube_par:
+            if(self._modellink._n_par == 2):
+                # Make abbreviation for the parameter name
+                par_name = self._modellink._par_name[hcube[0]]
+
+                try:
+                    file['%s/proj_hcube/%s' % (self._emul_i, par_name)]
+                except KeyError:
+                    logger.info("Projection data '%s' not found. Will be "
+                                "created."
+                                % (par_name))
+                    create_hcube_par.append(hcube)
+                else:
+                    if force:
+                        del file['%s/proj_hcube/%s'
+                                 % (self._emul_i, par_name)]
+                        logger.info("Projection data '%s' already exists. "
+                                    "Deleting."
+                                    % (par_name))
+                        create_hcube_par.append(hcube)
+                    else:
+                        logger.info("Projection data '%s' already exists. "
+                                    "Skipping data creation."
+                                    % (par_name))
+            else:
+                # Make abbreviation for the parameter names
+                par1_name = self._modellink._par_name[hcube[0]]
+                par2_name = self._modellink._par_name[hcube[1]]
+
+                try:
+                    file['%s/proj_hcube/%s-%s'
+                         % (self._emul_i, par1_name, par2_name)]
+                except KeyError:
+                    logger.info("Projection data '%s-%s' not found. Will "
+                                "be created."
+                                % (par1_name, par2_name))
+                    create_hcube_par.append(hcube)
+                else:
+                    if force:
+                        del file['%s/proj_hcube/%s-%s'
+                                 % (self._emul_i, par1_name, par2_name)]
+                        logger.info("Projection data '%s-%s' already "
+                                    "exists. Deleting."
+                                    % (par1_name, par2_name))
+                        create_hcube_par.append(hcube)
+                    else:
+                        logger.info("Projection data '%s-%s' already "
+                                    "exists. Skipping data creation."
+                                    % (par1_name, par2_name))
+
+        # Close hdf5-file
+        self._pipeline._close_hdf5(file)
+
+        # Return requested proj_cubes and those that need to be created
+        return(hcube_par, create_hcube_par)
+
     # This function reads in the impl_cut list from the PRISM parameters file
     def _get_impl_par(self):
         """
