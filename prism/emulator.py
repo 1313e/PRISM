@@ -1973,7 +1973,7 @@ class Emulator(object):
 
         # Gaussian correlation length
         self._l_corr = check_pos_float(float(par_dict['l_corr']), 'l_corr') *\
-            (self._modellink._par_rng[:, 1]-self._modellink._par_rng[:, 0])
+            abs(self._modellink._par_rng[:, 1]-self._modellink._par_rng[:, 0])
 
         # Method used to calculate emulator functions
         # Future will include 'gaussian', 'regression', 'auto' and 'full'
