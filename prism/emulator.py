@@ -259,7 +259,7 @@ class Emulator(object):
     @property
     def mod_set(self):
         """
-        Array containg all model outputs in the currently loaded emulator
+        Array containing all model outputs in the currently loaded emulator
         iteration.
 
         """

@@ -159,7 +159,7 @@ class Pipeline(object):
             raise
         else:
             # Perform projection
-            if self._prc[-1]:
+            if self._prc:
                 self.create_projection()
 
             # Print details
@@ -273,7 +273,7 @@ class Pipeline(object):
     @property
     def pot_active_par(self):
         """
-        Array of potentially active parameters. Only parameters from this array
+        List of potentially active parameters. Only parameters from this list
         can become active.
 
         """
@@ -290,18 +290,28 @@ class Pipeline(object):
 
         return(self._n_sam_init)
 
-    # TODO: Should this be renamed to 'n_base_samples'?
     @property
-    def n_eval_samples(self):
+    def n_eval_sam(self):
         """
-        Array with the base number of emulator evaluations used to analyze the
-        the emulator system. This number is scaled up by the number of model
-        parameters and the current emulator iteration to generate the true
-        number of emulator evaluations.
+        List containing the number of evaluation samples used to analyze the
+        corresponding emulator iteration of the emulator system. The number of
+        plausible evaluation samples is stored in :attr:`~Pipeline.n_impl_sam`.
 
         """
 
-        return(self._n_eval_samples)
+        return(self._n_eval_sam)
+
+    @property
+    def base_eval_sam(self):
+        """
+        Base number of emulator evaluations used to analyze the emulator
+        system. This number is scaled up by the number of model parameters and
+        the current emulator iteration to generate the true number of emulator
+        evaluations (:attr:`~Pipeline.n_eval_sam`).
+
+        """
+
+        return(self._base_eval_sam)
 
     @property
     def impl_cut(self):
@@ -325,18 +335,28 @@ class Pipeline(object):
     @property
     def prc(self):
         """
-        List of bools indicating whether or not plausible regions have been
-        found in the corresponding emulator iteration.
+        Bool indicating whether or not plausible regions have been found in the
+        last emulator iteration.
 
         """
 
-        return([bool(self._prc[i]) for i in range(self._emulator._emul_i+1)])
+        return(bool(self._prc))
+
+    @property
+    def n_impl_sam(self):
+        """
+        List of number of model evaluation samples that have been added to the
+        corresponding emulator iteration.
+
+        """
+
+        return(self._n_impl_sam)
 
     @property
     def impl_sam(self):
         """
-        List of arrays containing all model evaluation samples that will be
-        added to the next emulator iteration.
+        Array containing all model evaluation samples that will be added to the
+        next emulator iteration.
 
         """
 
@@ -478,7 +498,7 @@ class Pipeline(object):
 
         # Create parameter dict with default parameters
         par_dict = {'n_sam_init': '500',
-                    'n_eval_samples': '800',
+                    'base_eval_sam': '800',
                     'impl_cut': '[0, 4.0, 3.8, 3.5]',
                     'criterion': "'multi'",
                     'do_active_anal': 'True',
@@ -521,6 +541,10 @@ class Pipeline(object):
         # Number of starting samples
         self._n_sam_init = check_pos_int(int(par_dict['n_sam_init']),
                                          'n_sam_init')
+
+        # Base number of emulator evaluation samples
+        self._base_eval_sam = check_pos_int(int(par_dict['base_eval_sam']),
+                                            'base_eval_sam')
 
         # Criterion parameter used for Latin Hypercube Sampling
         if(par_dict['criterion'].lower() in ('none')):
@@ -604,11 +628,11 @@ class Pipeline(object):
 
     # This function controls how n_eval_samples is calculated
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def _get_n_eval_samples(self, emul_i):
+    def _get_n_eval_sam(self, emul_i):
         """
         This function calculates the total amount of emulator evaluation
         samples at a given emulator iteration `emul_i` from the
-        `n_eval_samples` provided during class initialization.
+        `base_eval_sam` provided during class initialization.
 
         Parameters
         ----------
@@ -616,13 +640,13 @@ class Pipeline(object):
 
         Returns
         -------
-        n_eval_samples : int
+        n_eval_sam : int
             Number of emulator evaluation samples.
 
         """
 
-        # Calculate n_eval_samples
-        return(emul_i*self._n_eval_samples[emul_i]*self._modellink._n_par)
+        # Calculate n_eval_sam
+        return(emul_i*self._base_eval_sam*self._modellink._n_par)
 
     # Obtains the paths for the root directory, working directory, pipeline
     # hdf5-file and prism parameters file
@@ -873,11 +897,10 @@ class Pipeline(object):
 
         # Initialize all data sets with empty lists
         logger.info("Initializing pipeline data sets.")
-        self._prc = [[]]
-        self._impl_sam = [[]]
+        self._n_impl_sam = [[]]
         self._impl_cut = [[]]
         self._cut_idx = [[]]
-        self._n_eval_samples = [[]]
+        self._n_eval_sam = [[]]
 
         # If an emulator system currently exists, load in all data
         if self._emulator._emul_i:
@@ -885,10 +908,10 @@ class Pipeline(object):
             file = self._open_hdf5('r')
 
             # Read in the data up to the last emulator iteration
-            for i in range(1, self._emulator._emul_i+1):
+            for emul in file.values():
                 # Check if analysis has been carried out (only if i=emul_i)
                 try:
-                    self._impl_cut.append(file['%s' % (i)].attrs['impl_cut'])
+                    self._impl_cut.append(emul.attrs['impl_cut'])
 
                 # If not, no plausible regions were found
                 except KeyError:
@@ -896,12 +919,14 @@ class Pipeline(object):
 
                 # If so, load in all data
                 else:
-                    self._cut_idx.append(file['%s' % (i)].attrs['cut_idx'])
+                    self._cut_idx.append(emul.attrs['cut_idx'])
                 finally:
-                    self._prc.append(file['%s' % (i)].attrs['prc'])
-                    self._impl_sam.append(file['%s/impl_sam' % (i)][()])
-                    self._n_eval_samples.append(
-                        file['%s' % (i)].attrs['n_eval_samples'])
+                    self._n_impl_sam.append(emul.attrs['n_impl_sam'])
+                    self._n_eval_sam.append(emul.attrs['n_eval_sam'])
+
+            # Read in the samples that survived the implausibility check
+            self._prc = emul.attrs['prc']
+            self._impl_sam = emul['impl_sam'][()]
 
             # Close hdf5-file
             self._close_hdf5(file)
@@ -915,7 +940,7 @@ class Pipeline(object):
 
         Parameters
         ----------
-        keyword : {'impl_cut', 'impl_sam', 'n_eval_samples'}
+        keyword : {'impl_cut', 'impl_sam', 'n_eval_sam'}
             String specifying the type of data that needs to be saved.
         data : list
             The actual data that needs to be saved at data keyword `keyword`.
@@ -953,34 +978,37 @@ class Pipeline(object):
         # IMPL_SAM
         elif(keyword == 'impl_sam'):
             # Check if any plausible regions have been found at all
-            prc = 1 if(np.shape(data)[0] != 0) else 0
+            n_impl_sam = np.shape(data)[0]
+            prc = 1 if(n_impl_sam != 0) else 0
 
-            # Check if impl_sam data has been saved before (analysis was done)
+            # Check if impl_sam data has been saved before
             try:
-                self._prc[self._emulator._emul_i] = prc
+                self._n_impl_sam[self._emulator._emul_i] = n_impl_sam
             except IndexError:
-                self._prc.append(prc)
                 file.create_dataset('%s/impl_sam'
                                     % (self._emulator._emul_i), data=data)
-                self._impl_sam.append(data)
+                self._n_impl_sam.append(n_impl_sam)
             else:
                 del file['%s/impl_sam' % (self._emulator._emul_i)]
                 file.create_dataset('%s/impl_sam' % (self._emulator._emul_i),
                                     data=data)
-                self._impl_sam[self._emulator._emul_i] = data
             finally:
+                self._prc = prc
+                self._impl_sam = data
                 file['%s' % (self._emulator._emul_i)].attrs['prc'] = prc
+                file['%s' % (self._emulator._emul_i)].attrs['n_impl_sam'] =\
+                    n_impl_sam
 
         # N_EVAL_SAMPLES
-        elif(keyword == 'n_eval_samples'):
-            # Check if n_eval_samples has been saved before (analysis was done)
+        elif(keyword == 'n_eval_sam'):
+            # Check if n_eval_samples has been saved before
             try:
-                self._n_eval_samples[self._emulator._emul_i] = data
+                self._n_eval_sam[self._emulator._emul_i] = data
             except IndexError:
-                self._n_eval_samples.append(data)
+                self._n_eval_sam.append(data)
             finally:
                 file['%s'
-                     % (self._emulator._emul_i)].attrs['n_eval_samples'] = data
+                     % (self._emulator._emul_i)].attrs['n_eval_sam'] = data
 
         # INVALID KEYWORD
         else:
@@ -1113,12 +1141,12 @@ class Pipeline(object):
         logger = logging.getLogger('EVAL_SAMS')
 
         # Obtain number of samples
-        n_samples = self._get_n_eval_samples(emul_i)
+        n_eval_sam = self._get_n_eval_sam(emul_i)
 
         # Create array containing all new samples to evaluate with emulator
         logger.info("Creating emulator evaluation sample set with size %s."
-                    % (n_samples))
-        eval_sam_set = lhd(n_samples, self._modellink._n_par,
+                    % (n_eval_sam))
+        eval_sam_set = lhd(n_eval_sam, self._modellink._n_par,
                            self._modellink._par_rng, 'fixed',
                            self._criterion, 100,
                            constraints=self._emulator._sam_set[emul_i])
@@ -1339,9 +1367,6 @@ class Pipeline(object):
         cut_idx : int
             Index of the first impl_cut-off in the impl_cut list that is not
             0.
-        n_eval_samples : int
-            Number of emulator evaluation samples used for implausibility
-            evaluations.
 
         """
 
@@ -1370,11 +1395,6 @@ class Pipeline(object):
         # Convert list of strings to list of floats and perform completion
         self._get_impl_cut(
             self, list(float(impl_cut) for impl_cut in impl_cut_str))
-
-        # Number of samples used for implausibility evaluations
-        n_eval_samples = int(par_dict['n_eval_samples'])
-        self._save_data('n_eval_samples',
-                        check_pos_int(n_eval_samples, 'n_eval_samples'))
 
         # Finish logging
         logger.info("Finished obtaining implausibility analysis parameters.")
@@ -1434,6 +1454,7 @@ class Pipeline(object):
         try:
             # Create an emulator evaluation sample set
             eval_sam_set = self._get_eval_sam_set(emul_i)
+            n_eval_sam = eval_sam_set.shape[0]
 
             # Create empty list holding indices of samples that pass impl_check
             impl_idx = []
@@ -1470,41 +1491,38 @@ class Pipeline(object):
 
             # Save the results
             self._save_data('impl_sam', eval_sam_set[impl_idx])
+            self._save_data('n_eval_sam', n_eval_sam)
         except KeyboardInterrupt:
             logger.info("Emulator system analysis has been interrupted by "
                         "user.")
             print("Emulator system analysis has been interrupted by user.")
             self._save_data('impl_sam', [])
-            self._save_data('n_eval_samples', 0)
+            self._save_data('n_eval_sam', 0)
         except Exception as error:
             self._save_data('impl_sam', [])
-            self._save_data('n_eval_samples', 0)
+            self._save_data('n_eval_sam', 0)
             raise error
         else:
             # Save statistics about analyzing time, evaluation speed, par_space
             self._save_statistic(emul_i, 'tot_analyze_time',
                                  '%.2f' % (time_diff_total), 's')
             self._save_statistic(emul_i, 'avg_emul_eval_rate',
-                                 '%.2f'
-                                 % (eval_sam_set.shape[0]/time_diff_eval),
-                                 '1/s')
+                                 '%.2f' % (n_eval_sam/time_diff_eval), '1/s')
             self._save_statistic(emul_i, 'par_space_remaining',
-                                 '%.3g'
-                                 % ((len(impl_idx)/eval_sam_set.shape[0])*100),
+                                 '%.3g' % ((len(impl_idx)/n_eval_sam)*100),
                                  '%')
 
             # Log that analysis has been finished and their statistics
             print("Finished analysis of emulator system in %.2f seconds, "
                   "averaging %.2f emulator evaluations per second."
-                  % (time_diff_total, eval_sam_set.shape[0]/time_diff_eval))
+                  % (time_diff_total, n_eval_sam/time_diff_eval))
             print("There is %.3g%% of parameter space remaining."
-                  % ((len(impl_idx)/eval_sam_set.shape[0])*100))
+                  % ((len(impl_idx)/n_eval_sam)*100))
             logger.info("Finished analysis of emulator system in %.2f seconds,"
                         " averaging %.2f emulator evaluations per second."
-                        % (time_diff_total,
-                           eval_sam_set.shape[0]/time_diff_eval))
+                        % (time_diff_total, n_eval_sam/time_diff_eval))
             logger.info("There is %.3g%% of parameter space remaining."
-                        % ((len(impl_idx)/eval_sam_set.shape[0])*100))
+                        % ((len(impl_idx)/n_eval_sam)*100))
 
         # Display details about current state of pipeline
         self.details(emul_i)
@@ -1578,13 +1596,13 @@ class Pipeline(object):
 
         else:
             # Check if previous iteration has been analyzed and do so if not
-            if not self._n_eval_samples[emul_i-1]:
+            if not self._n_eval_sam[emul_i-1]:
                 logger.info("Previous emulator iteration has not been "
                             "analyzed. Performing analysis first.")
                 self.analyze(emul_i-1)
 
             # Check if a new emulator iteration can be constructed
-            if not self._prc[emul_i-1]:
+            if not self._prc:
                 logger.error("No plausible regions were found in the analysis "
                              "of the previous emulator iteration. Construction"
                              " is not possible!")
@@ -1600,7 +1618,7 @@ class Pipeline(object):
                 self._load_data()
 
             # Obtain additional sam_set
-            add_sam_set = self._impl_sam[emul_i-1]
+            add_sam_set = self._impl_sam
 
         # Obtain corresponding set of model evaluations
         self._evaluate_model(emul_i, add_sam_set)
@@ -1617,12 +1635,14 @@ class Pipeline(object):
         logger.info("Finished construction of emulator system in %.2f seconds."
                     % (time_diff_total))
 
+        # Save that emulator system has not been analyzed yet
+        self._save_data('impl_sam', [])
+        self._save_data('n_eval_sam', 0)
+
         # Analyze the emulator system if requested
         if analyze:
             self.analyze(emul_i)
         else:
-            self._save_data('impl_sam', [])
-            self._save_data('n_eval_samples', 0)
             self.details(emul_i)
 
     # This function creates the projection figures of a given emul_i
@@ -1720,10 +1740,6 @@ class Pipeline(object):
         except RequestError:
             return
         else:
-            # Get number of plausible and analysis evaluation samples
-            n_impl_sam = len(self._impl_sam[emul_i])
-            n_eval_samples = self._get_n_eval_samples(emul_i)
-
             # Get max lengths of various strings for parameter space section
             name_len =\
                 max([len(par_name) for par_name in self._modellink._par_name])
@@ -1825,10 +1841,10 @@ class Pipeline(object):
         print("{0: <{1}}\t{2}".format("Emulator iteration", width, emul_i))
 
         # Availability flags
-        if not n_eval_samples:
+        if not self._n_eval_sam[emul_i]:
             print("{0: <{1}}\t{2}".format("Plausible regions?", width,
                                           "N/A"))
-        elif not self._prc[emul_i]:
+        elif not self._prc:
             print("{0: <{1}}\t{2}".format("Plausible regions?", width,
                                           "No"))
         else:
@@ -1853,18 +1869,18 @@ class Pipeline(object):
                 self._emulator._n_sam[1:emul_i+1]))
         else:
             raise NotImplementedError
-        if not n_eval_samples:
+        if not self._n_eval_sam[emul_i]:
             print("{0: <{1}}\t{2}/{3}".format(
                 "# of plausible/analyzed samples", width, "-", "-"))
             print("{0: <{1}}\t{2}".format(
                 "% of parameter space remaining", width, "-"))
         else:
             print("{0: <{1}}\t{2}/{3}".format(
-                "# of plausible/analyzed samples", width, n_impl_sam,
-                n_eval_samples))
+                "# of plausible/analyzed samples", width,
+                self._n_impl_sam[emul_i], self._n_eval_sam[emul_i]))
             print("{0: <{1}}\t{2:.3g}%".format(
                 "% of parameter space remaining", width,
-                (n_impl_sam/n_eval_samples)*100))
+                (self._n_impl_sam[emul_i]/self._n_eval_sam[emul_i])*100))
         print("{0: <{1}}\t{2}/{3}".format(
             "# of active/total parameters", width,
             len(self._emulator._active_par[emul_i]), self._modellink._n_par))

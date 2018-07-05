@@ -1,7 +1,7 @@
 n_sam_init		: 500			# Number of initial model evaluation samples
 proj_res		: 15			# Number of projected grid points per model parameter
 proj_depth		: 150			# Number of emulator evaluation samples per projected grid point
-n_eval_samples		: 800			# Base number for growth in number of model evaluation samples
+base_eval_sam		: 800			# Base number for growth in number of model evaluation samples
 sigma			: 0.8			# Gaussian sigma (only required if method == 'gaussian')
 l_corr			: 0.3			# Gaussian correlation length
 impl_cut		: [0.0, 4.0, 3.8, 3.5]	# List of implausibility cut-off values

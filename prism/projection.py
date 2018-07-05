@@ -149,15 +149,16 @@ class Projection(object):
         # Make abbreviations for certain variables
         res = self._proj_res
 
-        # Obtain requested projection cubes
-        hcube_par, create_hcube_par = self._get_req_cubes(proj_par, force)
+        # Obtain requested projection hypercubes
+        hcube_par, create_hcube_par = self._get_req_hcubes(proj_par, force)
 
         # Save current time again
         start_time2 = time()
 
         # 2+D
-        # Loop over all requested projection cubes
-        for hcube in hcube_par:
+        # Loop over all requested projection hypercubes
+        for hcube in tqdm(hcube_par, desc="Creating projections",
+                          unit='hcube'):
             # ANALYZE PROJECTION 2+D
             # Create projection hypercube containing all samples if required
             if(self._modellink._n_par == 2 and hcube in create_hcube_par):
@@ -436,14 +437,15 @@ class Projection(object):
         time_diff_total = end_time-start_time1
         time_diff_figs = end_time-start_time2
 
-        print("Finished projection in %.2f seconds, averaging %.2f "
-              "seconds per projection %s."
-              % (time_diff_total, time_diff_figs/len(hcube_par),
-                 'figure' if figure else 'hypercube'))
+#        print("Finished projection in %.2f seconds, averaging %.2f "
+#              "seconds per projection %s."
+#              % (time_diff_total, time_diff_figs/len(hcube_par),
+#                 'figure' if figure else 'hypercube'))
         logger.info("Finished projection in %.2f seconds, averaging %.2f "
                     "seconds per projection %s."
                     % (time_diff_total, time_diff_figs/len(hcube_par),
                        'figure' if figure else 'hypercube'))
+        print("")
 
 
 # %% CLASS PROPERTIES
@@ -488,8 +490,8 @@ class Projection(object):
 
 
 # %% HIDDEN CLASS METHODS
-    # This function determines the projection cubes to be analyzed
-    def _get_req_cubes(self, proj_par, force):
+    # This function determines the projection hypercubes to be analyzed
+    def _get_req_hcubes(self, proj_par, force):
         """
         Determines which projection hypercubes have been requested by the user.
         Also checks if these projection hypercubes have been calculated before,
@@ -579,7 +581,7 @@ class Projection(object):
             hcube_idx = list(combinations(range(len(proj_par)), 2))
             hcube_par = proj_par[np.array(hcube_idx)].tolist()
 
-        # Create empty list holding cube_par that needs to be created
+        # Create empty list holding hcube_par that needs to be created
         create_hcube_par = []
 
         # Open hdf5-file
@@ -640,7 +642,7 @@ class Projection(object):
         # Close hdf5-file
         self._pipeline._close_hdf5(file)
 
-        # Return requested proj_cubes and those that need to be created
+        # Return requested proj_hcubes and those that need to be created
         return(hcube_par, create_hcube_par)
 
     # This function reads in the impl_cut list from the PRISM parameters file
@@ -891,7 +893,6 @@ class Projection(object):
         start_time = time()
 
         # Make abbreviations for certain variables
-        res = self._proj_res
         depth = self._proj_depth
 
         # CALCULATE AND ANALYZE IMPLAUSIBILITY
@@ -904,56 +905,63 @@ class Projection(object):
         impl_los_hcube = []
 
         # Iterate over all samples in the hcube
-        # For all grid points in the hcube
-        for i, grid_point in tqdm(enumerate(proj_hcube),
-                                  'Analyzing grid points', pow(res, 2),
-                                  unit='gp'):
+        total = proj_hcube.shape[0]*depth
+        with tqdm(desc="Analyzing hypercube ", total=proj_hcube.shape[0],
+                  unit='gp') as pbar:
 
-            # For all samples in the grid point
-            for j, par_set in enumerate(grid_point):
+            # For all grid points in the hcube
+            for i, grid_point in enumerate(proj_hcube):
 
-                # For all emulator iterations, check this sample
-                for k in range(1, self._emul_i+1):
-                    # Obtain implausibility
-                    adj_val = self._emulator._evaluate(k, par_set)
-                    uni_impl_val =\
-                        self._pipeline._get_uni_impl(k, *adj_val)
+                # For all samples in the grid point
+                for j, par_set in enumerate(grid_point):
 
-                    # Perform implausibility cut-off check
-                    impl_check, impl_cut_val =\
-                        self._pipeline._do_impl_check(self, k, uni_impl_val)
+                    # For all emulator iterations, check this sample
+                    for k in range(1, self._emul_i+1):
+                        # Obtain implausibility
+                        adj_val = self._emulator._evaluate(k, par_set)
+                        uni_impl_val =\
+                            self._pipeline._get_uni_impl(k, *adj_val)
 
-                    # If check is unsuccessful, break inner for-loop
-                    if not impl_check:
-                        break
+                        # Perform implausibility cut-off check
+                        impl_check, impl_cut_val =\
+                            self._pipeline._do_impl_check(self, k,
+                                                          uni_impl_val)
 
-                # If check was successful, add extra element to impl_check_line
-                else:
-                    impl_check_line.append(1)
+                        # If check is unsuccessful, break inner for-loop
+                        if not impl_check:
+                            break
 
-                # Save the implausibility value at the first real cut-off
-                impl_cut_line.append(impl_cut_val)
+                    # If check was successful, increment impl_check_line by 1
+                    else:
+                        impl_check_line.append(1)
 
-            # If a grid point has been checked, save the lowest impl and impl
-            # line-of-sight
-            # Calculate lowest impl in this grid point
-            impl_min_hcube.append(min(impl_cut_line))
+                    # Save the implausibility value at the first real cut-off
+                    impl_cut_line.append(impl_cut_val)
 
-            # Calculate impl line-of-sight in this grid point
-            impl_los_hcube.append(len(impl_check_line)/depth)
+                # If a grid point has been checked, save lowest impl and impl
+                # line-of-sight
+                # Calculate lowest impl in this grid point
+                impl_min_hcube.append(min(impl_cut_line))
 
-            # Clear both lists
-            impl_check_line = []
-            impl_cut_line = []
+                # Calculate impl line-of-sight in this grid point
+                impl_los_hcube.append(len(impl_check_line)/depth)
+
+                # Clear both lists
+                impl_check_line = []
+                impl_cut_line = []
+
+                # Advance progressbar
+                pbar.update()
+                pbar.set_postfix_str('%.2feval/s' % (depth/pbar.avg_time))
 
         # Log that analysis has been finished
         time_diff = time()-start_time
-        print("Finished projection hypercube analysis in %.2f seconds, "
-              "averaging %.2f emulator evaluations per second."
-              % (time_diff, proj_hcube.shape[0]*depth/(time_diff)))
+#        print("Finished projection hypercube analysis in %.2f seconds, "
+#              "averaging %.2f emulator evaluations per second."
+#              % (time_diff, total/(time_diff)))
         logger.info("Finished projection hypercube analysis in %.2f seconds, "
                     "averaging %.2f emulator evaluations per second."
-                    % (time_diff, proj_hcube.shape[0]*depth/(time_diff)))
+                    % (time_diff, total/(time_diff)))
 
         # Return impl_min and impl_los
         return(impl_min_hcube, impl_los_hcube)

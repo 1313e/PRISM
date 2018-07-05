@@ -13,4 +13,5 @@ Stores the different versions of the PRISM package.
 version = '0.4.13'
 
 # Compatibility versions
-compat_version = ['0.3.0', '0.3.5', '0.4.2', '0.4.5', '0.4.8', '0.4.11']
+compat_version = ['0.3.0', '0.3.5', '0.4.2', '0.4.5', '0.4.8', '0.4.11',
+                  '0.4.12']
