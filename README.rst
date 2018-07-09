@@ -1,7 +1,7 @@
 |PyPI| |Python| |License|
 
 Model dispersion with PRISM, a "Probabilistic Regression Instrument for Simulating Models"
-=========================================================================================
+==========================================================================================
 PRISM is a Python 2/3 package that provides an alternative method to MCMC for analyzing scientific models.
 
 Introduction
@@ -39,7 +39,7 @@ What characterizes PRISM?
 
 Installation and Usage
 ======================
-PRISM can be easily installed by either pulling the repository and running the setup-file with ``python setup.py install`` (or equivalent) or by installing it directly from the PyPI system with ``pip install prism-tool``.
+PRISM can be easily installed by either cloning the repository and running the setup-file with ``python setup.py install`` (or equivalent) or by installing it directly from the PyPI system with ``pip install prism-tool``.
 PRISM can now be imported as a package with ``import prism``.
 
 Dependencies

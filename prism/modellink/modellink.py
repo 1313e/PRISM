@@ -102,15 +102,17 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         -----
         The model parameters dict requires to have the name of the parameters
         as the keyword, and a 1D list containing the lower bound, the upper
-        bound and, if applicable, the estimate of this parameter.
+        bound and, if applicable, the estimate of this parameter. It is not
+        required to provide an estimate for every parameter.
         An example of a model parameters file can be found in the 'data' folder
         of the PRISM package.
 
         The model data array contains the data values in the first column, the
         data errors in the second column and, if applicable, the data index in
-        the third column. The data index is a supportive index that can be used
-        to determine which model data output needs to be given to the PRISM
-        pipeline. The pipeline itself does not require this data index.
+        the remaining columns. The data index is a supportive index that can be
+        used to determine which model data output needs to be given to the
+        PRISM pipeline. It can be provided as any sequence of any length for
+        any data point. The pipeline itself does not require this data index.
         An example of a model data file can be found in the 'data' folder of
         the PRISM package.
 
@@ -260,16 +262,16 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             data_file = path.abspath(add_model_data)
 
             # Read the data file and obtain data points and data identifiers
-            data_points = np.genfromtxt(data_file, dtype=(float),
-                                        usecols=(0, 1))
-            data_idx = np.genfromtxt(data_file, dtype=(str))[:, 2:]
+            data_points = np.genfromtxt(data_file, dtype=float, usecols=(0, 1))
+            data_str = np.genfromtxt(data_file, dtype=str, delimiter='\n')
 
-            # Create temporary list of data_idx
-            tmp_data_idx = []
+            # Create empty list of data_idx
+            data_idx = []
 
-            # Convert all data_idx sequences
-            for idx_seq in data_idx:
-                tmp_idx = convert_str_seq(idx_seq)
+            # Convert all data_str sequences to data_idx
+            for str_seq in data_str:
+                # Convert str_seq and remove first two elements (val and err)
+                tmp_idx = convert_str_seq(str_seq)[2:]
 
                 # Check if int, float or str was provided and save it
                 for i, idx in enumerate(tmp_idx):
@@ -285,11 +287,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                 if(len(tmp_idx) == 1):
                     tmp_idx = tmp_idx[0]
 
-                # Add converted data_idx sequence to the temporary list
-                tmp_data_idx.append(tmp_idx)
-
-            # Save temporary list as data_idx
-            data_idx = tmp_data_idx
+                # Add converted data_idx sequence to the data_idx list
+                data_idx.append(tmp_idx)
 
             # Update the model data list
             for (val, err), idx in zip(data_points, data_idx):
@@ -465,7 +464,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def data_idx(self):
         """
-        List with user-defined data point identifiers.
+        List of lists with user-defined data point identifiers.
 
         """
 

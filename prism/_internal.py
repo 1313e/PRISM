@@ -593,4 +593,4 @@ def start_logger(filename=None, mode='w'):
 
 # %% LIST DEFINITIONS
 seq_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/', '{', '}', '<',
-                 '>']
+                 '>', '´', '¨', '`']

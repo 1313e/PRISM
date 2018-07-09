@@ -556,11 +556,9 @@ class Pipeline(object):
                             "values of type 'bool'!")
         else:
             try:
-                float(par_dict['criterion'])
+                self._criterion = float(par_dict['criterion'])
             except ValueError:
                 self._criterion = str(par_dict['criterion']).replace("'", '')
-            else:
-                self._criterion = float(par_dict['criterion'])
 
         # Obtain the bool determining whether to do an active parameters
         # analysis
@@ -735,7 +733,7 @@ class Pipeline(object):
             # Check which directories in the root_dir satisfy the default
             # naming scheme of the emulator directories
             for dirname in dirnames:
-                if(dirname[0:prefix_len] != prefix):
+                if(dirname[0:prefix_len] != self._prefix):
                     emul_dirs.remove(dirname)
                 else:
                     try:
@@ -746,7 +744,7 @@ class Pipeline(object):
             # If no working directory exists, make a new one
             if(len(emul_dirs) == 0):
                 logger.info("No working directories found, creating it.")
-                working_dir = ''.join([prefix, strftime('%Y-%m-%d')])
+                working_dir = ''.join([self._prefix, strftime('%Y-%m-%d')])
                 self._working_dir = path.join(self._root_dir, working_dir)
                 os.mkdir(self._working_dir)
                 logger.info("Working directory set to '%s'." % (working_dir))
@@ -773,7 +771,7 @@ class Pipeline(object):
             emul_dirs.sort(reverse=True)
             if(len(emul_dirs) == 0):
                 pass
-            elif(len(emul_dirs[0]) == prefix_len+10):
+            elif(len(emul_dirs) == 1):
                 working_dir = ''.join([working_dir, '_1'])
             else:
                 working_dir =\
@@ -1404,6 +1402,7 @@ class Pipeline(object):
     # This function analyzes the emulator and determines the plausible regions
     # TODO: Implement check if impl_idx is big enough to be used in next emul_i
     # HINT: Allow analyze to be used on earlier iterations?
+    # TODO: Alternatively, should this method still take emul_i argument?
     @docstring_substitute(emul_i=user_emul_i_doc)
     def analyze(self, emul_i=None):
         """
@@ -1437,7 +1436,7 @@ class Pipeline(object):
         # Check emul_i
         if emul_i is None:
             emul_i = self._emulator._emul_i
-        elif not(emul_i == self._emulator._emul_i):
+        elif(emul_i != self._emulator._emul_i):
             logger.error("Reanalysis of the emulator system is only possible "
                          "on the last emulator iteration created (%s)!"
                          % (self._emulator._emul_i))
