@@ -189,7 +189,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             try:
                 par_dict = SortedDict(add_model_parameters)
             except Exception:
-                raise TypeError("Input cannot be converted to a dict!")
+                raise TypeError("Input cannot be converted to type 'dict'!")
             else:
                 model_parameters.update(par_dict)
 

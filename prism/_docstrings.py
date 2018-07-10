@@ -8,6 +8,26 @@ documentation of the various functions in the PRISM package.
 
 """
 
+# %% CHECK DOCSTRINGS
+check_bool_doc = \
+    """Checks if provided argument `name` of `value` is a bool.
+    Returns 0 or 1 if *True* and raises a :class:`~TypeError` if *False*."""
+
+check_fin_doc = \
+    """Checks if provided argument `name` of `value` is finite.
+    Returns `value` if *True* and raises a :class:`~ValueError` if *False*."""
+
+check_type_doc = \
+    """Checks if provided argument `name` of `value` is %s.
+    Returns `value` if *True* and raises a :class:`~TypeError` if *False*."""
+
+check_val_doc = \
+    """Checks if provided argument `name` of `value` is %s.
+    Returns `value` if *True* and raises a :class:`~TypeError` or
+    :class:`~ValueError` if *False*."""
+
+
+# %% EMUL_I DOCSTRINGS
 # Description of emul_i used in __call__/construct
 call_emul_i_doc = \
      """emul_i : int or None. Default: None

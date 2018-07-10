@@ -41,8 +41,9 @@ from sortedcontainers import SortedSet
 # PRISM imports
 from .__version__ import version as _prism_version
 from ._docstrings import get_emul_i_doc, std_emul_i_doc
-from ._internal import (RequestError, check_compatibility, check_pos_float,
-                        check_pos_int, check_str, docstring_substitute)
+from ._internal import (RequestError, check_bool, check_compatibility,
+                        check_nzero_float, check_pos_float, check_pos_int,
+                        docstring_substitute)
 from .modellink import ModelLink
 
 # All declaration
@@ -129,7 +130,7 @@ class Emulator(object):
     def method(self):
         """
         String indicating which emulator method to use.
-        Possible are 'gaussian', 'regression' and 'full'.
+        Possible are 'gaussian', 'regression', 'auto' and 'full'.
 
         """
 
@@ -1158,7 +1159,7 @@ class Emulator(object):
         if self._method.lower() in ('regression', 'full'):
             rsdl_var = self._rsdl_var[emul_i]
 #            rsdl_var = pow(self._sigma, 2)
-        elif self.method.lower() in ('gaussian'):
+        elif(self.method.lower() == 'gaussian'):
             rsdl_var = pow(self._sigma, 2)
 
         # If cov of sam_set with sam_set is requested (cov_mat)
@@ -1959,7 +1960,7 @@ class Emulator(object):
         # Read in data from provided PRISM parameters file
         if self._pipeline._prism_file is not None:
             emul_par = np.genfromtxt(self._pipeline._prism_file, dtype=(str),
-                                     delimiter=': ', autostrip=True)
+                                     delimiter=':', autostrip=True)
 
             # Make sure that emul_par is 2D
             emul_par = np.array(emul_par, ndmin=2)
@@ -1967,9 +1968,12 @@ class Emulator(object):
             # Combine default parameters with read-in parameters
             par_dict.update(emul_par)
 
+        # More logging
+        logger.info("Checking compatibility of provided emulator parameters.")
+
         # GENERAL
         # Gaussian sigma
-        self._sigma = check_pos_float(float(par_dict['sigma']), 'sigma')
+        self._sigma = check_nzero_float(float(par_dict['sigma']), 'sigma')
 
         # Gaussian correlation length
         self._l_corr = check_pos_float(float(par_dict['l_corr']), 'l_corr') *\
@@ -1977,34 +1981,27 @@ class Emulator(object):
 
         # Method used to calculate emulator functions
         # Future will include 'gaussian', 'regression', 'auto' and 'full'
-        self._method = check_str(str(par_dict['method']).replace("'", ''),
-                                 'method')
+        self._method = str(par_dict['method']).replace("'", '')
+        if self._method.lower() in ('gaussian', 'regression', 'full'):
+            pass
+        elif(self._method.lower() == 'auto'):
+            raise NotImplementedError
+        else:
+            logger.error("Input argument 'method' is invalid! (%s)"
+                         % (self._method.lower()))
+            raise ValueError("Input argument 'method' is invalid! (%s)"
+                             % (self._method.lower()))
 
         # Obtain the bool determining whether or not to use regr_cov
-        if(par_dict['use_regr_cov'].lower() in ('false', '0')):
-            self._use_regr_cov = 0
-        elif(par_dict['use_regr_cov'].lower() in ('true', '1')):
-            self._use_regr_cov = 1
-        else:
-            logger.error("Emulator parameter 'use_regr_cov' is not of type "
-                         "'bool'!")
-            raise TypeError("Emulator parameter 'use_regr_cov' is not of type "
-                            "'bool'!")
+        self._use_regr_cov = check_bool(par_dict['use_regr_cov'],
+                                        'use_regr_cov')
 
         # Obtain the polynomial order for the regression selection process
         self._poly_order = check_pos_int(int(par_dict['poly_order']),
                                          'poly_order')
 
         # Obtain the bool determining whether or not to use mock data
-        if(par_dict['use_mock'].lower() in ('false', '0')):
-            self._use_mock = 0
-        elif(par_dict['use_mock'].lower() in ('true', '1')):
-            self._use_mock = 1
-        else:
-            logger.error("Emulator parameter 'use_mock' is not of type "
-                         "'bool'!")
-            raise TypeError("Emulator parameter 'use_mock' is not of type "
-                            "'bool'!")
+        self._use_mock = check_bool(par_dict['use_mock'], 'use_mock')
 
         # Log that reading has been finished
         logger.info("Finished reading emulator parameters.")
@@ -2029,7 +2026,7 @@ class Emulator(object):
 
         # Overwrite ModelLink properties with previously generated values
         # Log that mock_data is being loaded in
-        logger.info("Loading previously used mock data into ModelLink.")
+        logger.info("Loading previously used mock data into ModelLink object.")
 
         # Open hdf5-file
         file = self._pipeline._open_hdf5('r')

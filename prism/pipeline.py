@@ -36,9 +36,10 @@ from sortedcontainers import SortedSet
 
 # PRISM imports
 from ._docstrings import call_emul_i_doc, std_emul_i_doc, user_emul_i_doc
-from ._internal import (RequestError, check_float, check_nneg_float,
-                        check_pos_int, convert_str_seq, docstring_copy,
-                        docstring_substitute, move_logger, start_logger)
+from ._internal import (RequestError, check_bool, check_float,
+                        check_nneg_float, check_pos_int, convert_str_seq,
+                        docstring_copy, docstring_substitute, move_logger,
+                        start_logger)
 from .emulator import Emulator
 from .projection import Projection
 
@@ -529,13 +530,16 @@ class Pipeline(object):
         # Read in data from provided PRISM parameters file
         if self._prism_file is not None:
             pipe_par = np.genfromtxt(self._prism_file, dtype=(str),
-                                     delimiter=': ', autostrip=True)
+                                     delimiter=':', autostrip=True)
 
             # Make sure that pipe_par is 2D
             pipe_par = np.array(pipe_par, ndmin=2)
 
             # Combine default parameters with read-in parameters
             par_dict.update(pipe_par)
+
+        # More logging
+        logger.info("Checking compatibility of provided pipeline parameters.")
 
         # GENERAL
         # Number of starting samples
@@ -547,12 +551,12 @@ class Pipeline(object):
                                             'base_eval_sam')
 
         # Criterion parameter used for Latin Hypercube Sampling
-        if(par_dict['criterion'].lower() in ('none')):
+        if(par_dict['criterion'].lower() == 'none'):
             self._criterion = None
-        elif(par_dict['criterion'].lower() in ('false', 'true')):
-            logger.error("Pipeline parameter 'criterion' does not accept "
-                         "values of type 'bool'!")
-            raise TypeError("Pipeline parameter 'criterion' does not accept "
+        elif par_dict['criterion'].lower() in ('false', 'true'):
+            logger.error("Input argument 'criterion' does not accept values "
+                         "of type 'bool'!")
+            raise TypeError("Input argument 'criterion' does not accept "
                             "values of type 'bool'!")
         else:
             try:
@@ -562,35 +566,21 @@ class Pipeline(object):
 
         # Obtain the bool determining whether to do an active parameters
         # analysis
-        if(par_dict['do_active_anal'].lower() in ('false', '0')):
-            self._do_active_anal = 0
-        elif(par_dict['do_active_anal'].lower() in ('true', '1')):
-            self._do_active_anal = 1
-        else:
-            logger.error("Pipeline parameter 'do_active_anal' is not of type "
-                         "'bool'!")
-            raise TypeError("Pipeline parameter 'do_active_anal' is not of "
-                            "type 'bool'!")
+        self._do_active_anal = check_bool(par_dict['do_active_anal'],
+                                          'do_active_anal')
 
         # Obtain the bool determining whether active parameters stay active
-        if(par_dict['freeze_active_par'].lower() in ('false', '0')):
-            self._freeze_active_par = 0
-        elif(par_dict['do_active_anal'].lower() in ('true', '1')):
-            self._freeze_active_par = 1
-        else:
-            logger.error("Pipeline parameter 'freeze_active_par' is not of "
-                         "type 'bool'!")
-            raise TypeError("Pipeline parameter 'freeze_active_par' is not of "
-                            "type 'bool'!")
+        self._freeze_active_par = check_bool(par_dict['freeze_active_par'],
+                                             'freeze_active_par')
 
         # Check which parameters can potentially be active
-        if(par_dict['pot_active_par'].lower() in ('none')):
+        if(par_dict['pot_active_par'].lower() == 'none'):
             self._pot_active_par = np.array(range(self._modellink._n_par))
-        elif(par_dict['pot_active_par'].lower() in ('false', 'true')):
-            logger.error("Pipeline parameter 'pot_active_par' does not accept "
+        elif par_dict['pot_active_par'].lower() in ('false', 'true'):
+            logger.error("Input argument 'pot_active_par' does not accept "
                          "values of type 'bool'!")
-            raise TypeError("Pipeline parameter 'pot_active_par' does not "
-                            "accept values of type 'bool'!")
+            raise TypeError("Input argument 'pot_active_par' does not accept "
+                            "values of type 'bool'!")
         else:
             # Remove all unwanted characters from the string and split it up
             pot_active_par = convert_str_seq(par_dict['pot_active_par'])
@@ -607,9 +597,9 @@ class Pipeline(object):
                         self._modellink._par_name[par_idx]
                         pot_active_par[i] = par_idx % self._modellink._n_par
                 except Exception as error:
-                    logger.error("Pipeline parameter 'pot_active_par' is "
-                                 "invalid! (%s)" % (error))
-                    raise InputError("Pipeline parameter 'pot_active_par' is "
+                    logger.error("Input argument 'pot_active_par' is invalid! "
+                                 "(%s)" % (error))
+                    raise InputError("Input argument 'pot_active_par' is "
                                      "invalid! (%s)" % (error))
 
             # If everything went without exceptions, check if list is not empty
@@ -617,9 +607,8 @@ class Pipeline(object):
                 self._pot_active_par =\
                     np.array(list(SortedSet(pot_active_par)))
             else:
-                logger.error("Pipeline parameter 'pot_active_par' is empty!")
-                raise ValueError("Pipeline parameter 'pot_active_par' is "
-                                 "empty!")
+                logger.error("Input argument 'pot_active_par' is empty!")
+                raise ValueError("Input argument 'pot_active_par' is empty!")
 
         # Log that reading has been finished
         logger.info("Finished reading pipeline parameters.")
@@ -1319,9 +1308,9 @@ class Pipeline(object):
         logger.info("Generating full implausibility cut-off list.")
 
         # Complete the impl_cut list
-        impl_cut[0] = check_nneg_float(impl_cut[0], 'impl_cut')
+        impl_cut[0] = check_nneg_float(impl_cut[0], 'impl_cut[0]')
         for i in range(1, len(impl_cut)):
-            impl_cut[i] = check_nneg_float(impl_cut[i], 'impl_cut')
+            impl_cut[i] = check_nneg_float(impl_cut[i], 'impl_cut[%s]' % (i))
             if(impl_cut[i] == 0):
                 impl_cut[i] = impl_cut[i-1]
             elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
@@ -1378,13 +1367,17 @@ class Pipeline(object):
         # Read in data from provided PRISM parameters file
         if self._prism_file is not None:
             pipe_par = np.genfromtxt(self._prism_file, dtype=(str),
-                                     delimiter=': ', autostrip=True)
+                                     delimiter=':', autostrip=True)
 
             # Make sure that pipe_par is 2D
             pipe_par = np.array(pipe_par, ndmin=2)
 
             # Combine default parameters with read-in parameters
             par_dict.update(pipe_par)
+
+        # More logging
+        logger.info("Checking compatibility of provided implausibility "
+                    "analysis parameters.")
 
         # Implausibility cut-off
         # Remove all unwanted characters from the string and split it up
@@ -1447,7 +1440,7 @@ class Pipeline(object):
         else:
             emul_i = check_pos_int(emul_i, 'emul_i')
 
-        # Get the impl_cut list and n_eval_samples
+        # Get the impl_cut list
         self._get_impl_par(emul_i)
 
         try:
@@ -1495,12 +1488,6 @@ class Pipeline(object):
             logger.info("Emulator system analysis has been interrupted by "
                         "user.")
             print("Emulator system analysis has been interrupted by user.")
-            self._save_data('impl_sam', [])
-            self._save_data('n_eval_sam', 0)
-        except Exception as error:
-            self._save_data('impl_sam', [])
-            self._save_data('n_eval_sam', 0)
-            raise error
         else:
             # Save statistics about analyzing time, evaluation speed, par_space
             self._save_statistic(emul_i, 'tot_analyze_time',
@@ -1825,12 +1812,8 @@ class Pipeline(object):
         elif(self._emulator._method.lower() == 'full'):
             print("{0: <{1}}\t{2}".format("Emulation method", width,
                                           "Regression + Gaussian"))
-        if use_mock:
-            print("{0: <{1}}\t{2}".format("Mock data used?", width,
-                                          "Yes"))
-        else:
-            print("{0: <{1}}\t{2}".format("Mock data used?", width,
-                                          "No"))
+        print("{0: <{1}}\t{2}".format("Mock data used?", width,
+                                      "Yes" if use_mock else "No"))
 
         # ITERATION DETAILS
         print("\nITERATION")
@@ -1843,21 +1826,16 @@ class Pipeline(object):
         if not self._n_eval_sam[emul_i]:
             print("{0: <{1}}\t{2}".format("Plausible regions?", width,
                                           "N/A"))
-        elif not self._prc:
-            print("{0: <{1}}\t{2}".format("Plausible regions?", width,
-                                          "No"))
         else:
             print("{0: <{1}}\t{2}".format("Plausible regions?", width,
-                                          "Yes"))
-        if(proj == 0):
+                                          "Yes" if self._prc else "No"))
+        if not proj:
             print("{0: <{1}}\t{2}".format("Projection available?", width,
                                           "No"))
-        elif(proj == 1):
-            print("{0: <{1}}\t{2}".format("Projection available?", width,
-                                          "Yes"))
         else:
             print("{0: <{1}}\t{2}".format("Projection available?", width,
-                                          "Yes (desynced)"))
+                                          "Yes%s" % ("" if proj == 1
+                                                     else " (desynced)")))
         print("-"*width)
 
         # Number details
@@ -1905,18 +1883,17 @@ class Pipeline(object):
                     self._modellink._par_rng[i, 0], lower_len,
                     self._modellink._par_rng[i, 1], upper_len,
                     self._modellink._par_est[i], est_len,
-                    '*' if i in self._emulator._active_par[emul_i] else ' '))
+                    "*" if i in self._emulator._active_par[emul_i] else " "))
             else:
                 print(str_format2.format(
                     self._modellink._par_name[i], name_len,
                     self._modellink._par_rng[i, 0], lower_len,
                     self._modellink._par_rng[i, 1], upper_len,
                     "", est_len,
-                    '*' if i in self._emulator._active_par[emul_i] else ' '))
+                    "*" if i in self._emulator._active_par[emul_i] else " "))
         print("="*width)
 
     # This function allows the user to evaluate a given sam_set in the emulator
-    # TODO: Allow function to be called if emulator has not been analyzed yet
     # TODO: Plot emul_i_stop for large LHDs, giving a nice mental statistic
     @docstring_substitute(emul_i=user_emul_i_doc)
     def evaluate(self, sam_set, emul_i=None):
@@ -1925,6 +1902,10 @@ class Pipeline(object):
         emulator iteration `emul_i`.
         The output of this function depends on the number of dimensions in
         `sam_set`.
+
+        If given emulator iteration `emul_i` has been analyzed before, the
+        implausibility parameters of the last analysis are used. If not, then
+        they are read in from the PRISM parameters file.
 
         Parameters
         ----------
@@ -1980,6 +1961,11 @@ class Pipeline(object):
 
         # Get emulator iteration
         emul_i = self._emulator._get_emul_i(emul_i)
+
+        # If this emulator has never been analyzed before, read in impl_par
+        if not self._n_eval_sam[emul_i]:
+            # Get the impl_cut list
+            self._get_impl_par(emul_i)
 
         # Make sure that sam_set is a NumPy array
         sam_set = np.array(sam_set)
@@ -2046,10 +2032,10 @@ class Pipeline(object):
             # Print results
             if impl_check[0]:
                 print("Plausible? Yes")
-                print('-'*14)
+                print("-"*14)
             else:
                 print("Plausible? No")
-                print('-'*13)
+                print("-"*13)
             print("emul_i_stop = %s" % (emul_i_stop[0]))
             print("adj_exp_val = %s" % (adj_exp_val[0]))
             print("adj_var_val = %s" % (adj_var_val[0]))

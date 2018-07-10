@@ -552,6 +552,8 @@ class Projection(object):
                         self._modellink._par_name[par_idx]
                         proj_par[i] = par_idx % self._modellink._n_par
                 except Exception as error:
+                    logger.error("Input argument 'proj_par' is invalid! (%s)"
+                                 % (error))
                     raise InputError("Input argument 'proj_par' is invalid! "
                                      "(%s)" % (error))
 
@@ -569,6 +571,8 @@ class Projection(object):
             elif(self._modellink._n_par > 2 and len(proj_par) >= 2):
                 pass
             else:
+                logger.error("Not enough active model parameters have been "
+                             "provided to make a projection figure!")
                 raise RequestError("Not enough active model parameters have "
                                    "been provided to make a projection "
                                    "figure!")
@@ -683,13 +687,17 @@ class Projection(object):
         # Read in data from provided PRISM parameters file
         if self._pipeline._prism_file is not None:
             pipe_par = np.genfromtxt(self._pipeline._prism_file, dtype=(str),
-                                     delimiter=': ', autostrip=True)
+                                     delimiter=':', autostrip=True)
 
             # Make sure that pipe_par is 2D
             pipe_par = np.array(pipe_par, ndmin=2)
 
             # Combine default parameters with read-in parameters
             par_dict.update(pipe_par)
+
+        # More logging
+        logger.info("Checking compatibility of provided implausibility "
+                    "analysis parameters.")
 
         # Implausibility cut-off
         # Remove all unwanted characters from the string and split it up
