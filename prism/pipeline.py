@@ -872,6 +872,9 @@ class Pipeline(object):
     def _load_data(self):
         """
         Loads in all the important pipeline data into memory.
+        If it is detected that the last emulator iteration has not been
+        analyzed yet, the implausibility analysis parameters are read in from
+        the PRISM parameters file and temporarily stored in memory.
 
         Generates
         ---------
@@ -902,7 +905,7 @@ class Pipeline(object):
 
                 # If not, no plausible regions were found
                 except KeyError:
-                    pass
+                    self._get_impl_par(self._emulator._emul_i, True)
 
                 # If so, load in all data
                 else:
@@ -949,7 +952,7 @@ class Pipeline(object):
         # Check what data keyword has been provided
         # IMPL_CUT
         if(keyword == 'impl_cut'):
-            # Check if impl_cut data has been saved before (analysis was done)
+            # Check if impl_cut data has been saved before
             try:
                 self._impl_cut[self._emulator._emul_i] = data[0]
                 self._cut_idx[self._emulator._emul_i] = data[1]
@@ -986,9 +989,9 @@ class Pipeline(object):
                 file['%s' % (self._emulator._emul_i)].attrs['n_impl_sam'] =\
                     n_impl_sam
 
-        # N_EVAL_SAMPLES
+        # N_EVAL_SAM
         elif(keyword == 'n_eval_sam'):
-            # Check if n_eval_samples has been saved before
+            # Check if n_eval_sam has been saved before
             try:
                 self._n_eval_sam[self._emulator._emul_i] = data
             except IndexError:
@@ -999,6 +1002,9 @@ class Pipeline(object):
 
         # INVALID KEYWORD
         else:
+            # Close hdf5
+            self._close_hdf5(file)
+
             logger.error("Invalid keyword argument provided!")
             raise ValueError("Invalid keyword argument provided!")
 
@@ -1278,7 +1284,7 @@ class Pipeline(object):
 
     # This function completes the list of implausibility cut-offs
     @staticmethod
-    def _get_impl_cut(obj, impl_cut):
+    def _get_impl_cut(obj, impl_cut, temp=False):
         """
         Generates the full list of impl_cut-offs from the incomplete, shortened
         `impl_cut` list and saves them in the given `obj`.
@@ -1291,6 +1297,12 @@ class Pipeline(object):
         impl_cut : 1D list
             Incomplete, shortened impl_cut-offs list provided during class
             initialization.
+
+        Optional
+        --------
+        temp : bool. Default: False
+            Whether the implausibility parameters should only be stored in
+            memory (*True*) or should also be saved to HDF5 (*False*).
 
         Generates
         ---------
@@ -1328,7 +1340,12 @@ class Pipeline(object):
                              "provided!")
 
         # Save both impl_cut and cut_idx
-        obj._save_data('impl_cut', [np.array(impl_cut), cut_idx])
+        if temp:
+            # If they need to be stored temporarily
+            obj._impl_cut.append(np.array(impl_cut))
+            obj._cut_idx.append(cut_idx)
+        else:
+            obj._save_data('impl_cut', [np.array(impl_cut), cut_idx])
 
         # Log end of process
         logger.info("Finished generating implausibility cut-off list.")
@@ -1336,7 +1353,7 @@ class Pipeline(object):
     # This function reads in the impl_cut list from the PRISM parameters file
     # TODO: Make impl_cut dynamic
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def _get_impl_par(self, emul_i):
+    def _get_impl_par(self, emul_i, temp=False):
         """
         Reads in the impl_cut list and other parameters for implausibility
         evaluations from the PRISM parameters file and saves them in the given
@@ -1345,6 +1362,12 @@ class Pipeline(object):
         Parameters
         ----------
         %(emul_i)s
+
+        Optional
+        --------
+        temp : bool. Default: False
+            Whether the implausibility parameters should only be stored in
+            memory (*True*) or should also be saved to HDF5 (*False*).
 
         Generates
         ---------
@@ -1385,7 +1408,7 @@ class Pipeline(object):
 
         # Convert list of strings to list of floats and perform completion
         self._get_impl_cut(
-            self, list(float(impl_cut) for impl_cut in impl_cut_str))
+            self, list(float(impl_cut) for impl_cut in impl_cut_str), temp)
 
         # Finish logging
         logger.info("Finished obtaining implausibility analysis parameters.")
@@ -1441,7 +1464,7 @@ class Pipeline(object):
             emul_i = check_pos_int(emul_i, 'emul_i')
 
         # Get the impl_cut list
-        self._get_impl_par(emul_i)
+        self._get_impl_par(emul_i, False)
 
         try:
             # Create an emulator evaluation sample set
@@ -1544,6 +1567,11 @@ class Pipeline(object):
         iteration. Using `emul_i` = 1 is equivalent to reconstructing the whole
         emulator system.
 
+        If no implausibility analysis is requested, then the implausibility
+        parameters are read in from the PRISM parameters file and temporarily
+        stored in memory in order to enable the usage of the :meth:`~evaluate`
+        method.
+
         """
 
         # Log that a new emulator iteration is being constructed
@@ -1629,6 +1657,7 @@ class Pipeline(object):
         if analyze:
             self.analyze(emul_i)
         else:
+            self._get_impl_par(emul_i, True)
             self.details(emul_i)
 
     # This function creates the projection figures of a given emul_i
@@ -1903,10 +1932,6 @@ class Pipeline(object):
         The output of this function depends on the number of dimensions in
         `sam_set`.
 
-        If given emulator iteration `emul_i` has been analyzed before, the
-        implausibility parameters of the last analysis are used. If not, then
-        they are read in from the PRISM parameters file.
-
         Parameters
         ----------
         sam_set : 1D or 2D array_like
@@ -1952,6 +1977,13 @@ class Pipeline(object):
         uni_impl_val : 1D :obj:`~numpy.ndarray` object
             The univariate implausibility values for the given sample.
 
+        Notes
+        -----
+        If given emulator iteration `emul_i` has been analyzed before, the
+        implausibility parameters of the last analysis are used. If not, then
+        the values are used that were read in when the emulator system was
+        loaded.
+
         """
 
         # Do some logging
@@ -1961,11 +1993,6 @@ class Pipeline(object):
 
         # Get emulator iteration
         emul_i = self._emulator._get_emul_i(emul_i)
-
-        # If this emulator has never been analyzed before, read in impl_par
-        if not self._n_eval_sam[emul_i]:
-            # Get the impl_cut list
-            self._get_impl_par(emul_i)
 
         # Make sure that sam_set is a NumPy array
         sam_set = np.array(sam_set)
