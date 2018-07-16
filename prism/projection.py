@@ -858,8 +858,7 @@ class Projection(object):
                     proj_hcube[i*res+j, :, par2] = proj_sam_set2[j]
 
                     # The remaining hidden parameters
-                    proj_hcube[i*res+j, :, par_hid] =\
-                        np.transpose(hidden_sam_set)
+                    proj_hcube[i*res+j, :, par_hid] = hidden_sam_set.T
 
             # Log that projection hypercube has been created
             logger.info("Finished creating projection hypercube '%s-%s'."

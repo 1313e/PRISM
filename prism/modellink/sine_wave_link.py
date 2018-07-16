@@ -41,6 +41,10 @@ class SineWaveLink(ModelLink):
     """
 
     def __init__(self, *args, **kwargs):
+        # Request single model calls
+        self.multi_call = False
+
+        # Inheriting ModelLink __init__()
         super(SineWaveLink, self).__init__(*args, **kwargs)
 
     @property

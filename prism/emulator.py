@@ -533,7 +533,6 @@ class Emulator(object):
         data_prev = []
 
         # Create groups for all data points
-        # TODO: Add check if all previous data points are still present?
         for i in range(self._modellink._n_data):
             data_set = file.create_group('%s/data_point_%s' % (emul_i, i))
             data_set.attrs['data_val'] = self._modellink._data_val[i]
@@ -654,8 +653,7 @@ class Emulator(object):
         # Calculate the adjusted emulator expectation value at given par_set
         for i in range(self._n_data[emul_i]):
             adj_exp_val[i] = prior_exp_par_set[i] +\
-                np.dot(np.transpose(cov_vec[i]),
-                       np.dot(self._cov_mat_inv[emul_i][i],
+                np.dot(cov_vec[i].T, np.dot(self._cov_mat_inv[emul_i][i],
                        (self._mod_set[emul_i][i] -
                         self._prior_exp_sam_set[emul_i][i])))
 
@@ -696,8 +694,8 @@ class Emulator(object):
         # Calculate the adjusted emulator variance value at given par_set
         for i in range(self._n_data[emul_i]):
             adj_var_val[i] = prior_var_par_set[i] -\
-                np.dot(np.transpose(cov_vec[i]),
-                       np.dot(self._cov_mat_inv[emul_i][i], cov_vec[i]))
+                np.dot(cov_vec[i].T, np.dot(self._cov_mat_inv[emul_i][i],
+                                            cov_vec[i]))
 
         # Return it
         return(adj_var_val)
@@ -964,8 +962,7 @@ class Emulator(object):
             # Calculate the poly_coef covariances
             if self._use_regr_cov:
                 poly_coef_cov.append(rsdl_var[i]*inv(
-                        np.dot(np.transpose(sam_set_poly),
-                               sam_set_poly)).flatten())
+                        np.dot(sam_set_poly.T, sam_set_poly)).flatten())
 
             # Obtain polynomial powers and include intercept term
             poly_powers_temp = pipe.named_steps['poly'].powers_[poly_idx_temp]
