@@ -388,13 +388,13 @@ class Emulator(object):
         file.attrs['sigma'] = self._sigma
         file.attrs['l_corr'] = self._l_corr
         file.attrs['method'] = self._method.encode('ascii', 'ignore')
-        file.attrs['use_regr_cov'] = self._use_regr_cov
+        file.attrs['use_regr_cov'] = bool(self._use_regr_cov)
         file.attrs['poly_order'] = self._poly_order
         file.attrs['modellink_name'] =\
             self._modellink._name.encode('ascii', 'ignore')
         file.attrs['prism_version'] = _prism_version.encode('ascii', 'ignore')
         file.attrs['emul_type'] = self._emul_type.encode('ascii', 'ignore')
-        file.attrs['use_mock'] = self._use_mock
+        file.attrs['use_mock'] = bool(self._use_mock)
         if self._use_mock:
             self._pipeline._get_mock_data()
             file.attrs['mock_par'] = self._modellink._par_est
@@ -1870,10 +1870,10 @@ class Emulator(object):
         self._sigma = file.attrs['sigma']
         self._l_corr = file.attrs['l_corr']
         self._method = file.attrs['method'].decode('utf-8')
-        self._use_regr_cov = file.attrs['use_regr_cov']
+        self._use_regr_cov = int(file.attrs['use_regr_cov'])
         self._poly_order = file.attrs['poly_order']
         modellink_name = file.attrs['modellink_name'].decode('utf-8')
-        self._use_mock = file.attrs['use_mock']
+        self._use_mock = int(file.attrs['use_mock'])
 
         # TODO: This try-statement becomes obsolete when PRISM is released
         try:

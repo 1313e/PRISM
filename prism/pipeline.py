@@ -965,7 +965,7 @@ class Pipeline(object):
                     self._n_eval_sam.append(emul.attrs['n_eval_sam'])
 
             # Read in the samples that survived the implausibility check
-            self._prc = emul.attrs['prc']
+            self._prc = int(emul.attrs['prc'])
             self._impl_sam = emul['impl_sam'][()]
 
             # Close hdf5-file
@@ -1035,7 +1035,7 @@ class Pipeline(object):
             finally:
                 self._prc = prc
                 self._impl_sam = data
-                file['%s' % (self._emulator._emul_i)].attrs['prc'] = prc
+                file['%s' % (self._emulator._emul_i)].attrs['prc'] = bool(prc)
                 file['%s' % (self._emulator._emul_i)].attrs['n_impl_sam'] =\
                     n_impl_sam
 
@@ -1643,6 +1643,9 @@ class Pipeline(object):
             pass
         else:
             emul_i = self._emulator._get_emul_i(emul_i-1)+1
+
+        # Check if analyze-parameter received a bool
+        analyze = check_bool(analyze, 'analyze')
 
         # Log that construction of emulator iteration is being started
         logger.info("Starting construction of emulator iteration %s."

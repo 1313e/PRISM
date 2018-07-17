@@ -39,8 +39,8 @@ from tqdm import tqdm
 
 # PRISM imports
 from ._docstrings import user_emul_i_doc
-from ._internal import (RequestError, check_pos_int, convert_str_seq,
-                        docstring_substitute)
+from ._internal import (RequestError, check_bool, check_pos_int,
+                        convert_str_seq, docstring_substitute)
 
 # All declaration
 __all__ = ['Projection']
@@ -140,6 +140,11 @@ class Projection(object):
 
         # Check what kind of hdf5-file has been provided
         self._emul_i = self._emulator._get_emul_i(emul_i)
+
+        # Check if figure, show and force-parameters are bools
+        figure = check_bool(figure, 'figure')
+        show = check_bool(show, 'show')
+        force = check_bool(force, 'force')
 
         # Get the impl_cut list and proj_res/proj_depth
         # TODO: Make sure that the same impl_cut is used for all figures
