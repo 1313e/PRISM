@@ -274,6 +274,10 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             data_points = np.genfromtxt(data_file, dtype=float, usecols=(0, 1))
             data_str = np.genfromtxt(data_file, dtype=str, delimiter='\n')
 
+            # Make sure that both arrays are 2D and 1D, respectively (n_data=1)
+            data_points = np.array(data_points, ndmin=2)
+            data_str = np.array(data_str, ndmin=1)
+
             # Create empty list of data_idx
             data_idx = []
 

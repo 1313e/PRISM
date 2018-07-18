@@ -27,7 +27,7 @@ import logging.config
 import numpy as np
 
 # PRISM imports
-from .__version__ import compat_version, version as prism_version
+from .__version__ import compat_version, prism_version
 from ._docstrings import (check_bool_doc, check_fin_doc, check_type_doc,
                           check_val_doc)
 

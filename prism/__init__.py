@@ -50,7 +50,7 @@ Available modules
 from __future__ import absolute_import, division, print_function
 
 # Import PRISM modules
-from .__version__ import version as __version__
+from .__version__ import prism_version as __version__
 from . import modellink
 from .modellink import ModelLink
 from .pipeline import Pipeline

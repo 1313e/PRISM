@@ -38,7 +38,7 @@ exec(open('prism/__version__.py', 'r').read())
 
 # Setup function declaration
 setup(name='prism-tool',
-      version=version,
+      version=prism_version,
       author="Ellert van der Velden",
       author_email="evandervelden@swin.edu.au",
       description=("PRISM: A \"Probabilistic Regression Instrument for "

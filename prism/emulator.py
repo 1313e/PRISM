@@ -39,7 +39,7 @@ from sklearn.preprocessing import PolynomialFeatures as PF
 from sortedcontainers import SortedSet
 
 # PRISM imports
-from .__version__ import version as _prism_version
+from .__version__ import prism_version as _prism_version
 from ._docstrings import get_emul_i_doc, std_emul_i_doc
 from ._internal import (RequestError, check_bool, check_compatibility,
                         check_nzero_float, check_pos_float, check_pos_int,
