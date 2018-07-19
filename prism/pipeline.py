@@ -117,7 +117,8 @@ class Pipeline(object):
         self._size = MPI.COMM_WORLD.Get_size()
         self._is_controller = 0
         self._is_worker = 0
-        if not self._rank:
+        print(self._rank)
+        if(self._rank == 0):
             self._is_controller = 1
         else:
             self._is_worker = 1

@@ -178,3 +178,15 @@ class PrismMhysa(Mhysa):
                 self._data_list[-1].append(data)
 
         return(0)
+
+
+# %% CLASS PROPERTIES
+    @property
+    def input_file(self):
+        """
+        String containing the absolute path to the input parameter file used
+        for Meraxes.
+
+        """
+
+        return(self._input_file)
