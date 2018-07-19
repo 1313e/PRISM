@@ -72,6 +72,9 @@ class MeraxesLink(ModelLink):
         # Request multi model calls
         self.multi_call = True
 
+        # Request MPI calls
+        self.MPI_call = True
+
         # Inheriting ModelLink __init__()
         super(MeraxesLink, self).__init__(*args, **kwargs)
 
@@ -88,7 +91,10 @@ class MeraxesLink(ModelLink):
                 mhysa.add_parameter(name, est, None)
 
         # Get sam_set
-        sam_set = map(lambda *args: args, *model_parameters.values())
+        if mhysa.is_controller:
+            sam_set = map(lambda *args: args, *model_parameters.values())
+        else:
+            sam_set = None
 
         # Evaluate Meraxes for the entire sam_set
         mhysa.multiple_runs(sam_set)

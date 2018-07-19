@@ -44,6 +44,9 @@ class SineWaveLink(ModelLink):
         # Request single model calls
         self.multi_call = False
 
+        # Request only controller calls
+        self.MPI_call = False
+
         # Inheriting ModelLink __init__()
         super(SineWaveLink, self).__init__(*args, **kwargs)
 

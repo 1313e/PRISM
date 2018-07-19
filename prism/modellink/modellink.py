@@ -129,6 +129,12 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         except AttributeError:
             self.multi_call = False
 
+        # Set MPI_call to default (False) if not modified before
+        try:
+            self._MPI_call
+        except AttributeError:
+            self.MPI_call = False
+
         # Generate model parameter properties
         self._set_model_parameters(model_parameters)
 
@@ -427,6 +433,22 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @multi_call.setter
     def multi_call(self, multi_call):
         self._multi_call = check_bool(multi_call, 'multi_call')
+
+    @property
+    def MPI_call(self):
+        """
+        Bool determining whether :meth:`~ModelLink.call_model` can/should be
+        called by all MPI processes simultaneously instead of by the
+        controller.
+        By default, only the controller calls the model (False).
+
+        """
+
+        return(bool(self._multi_call))
+
+    @MPI_call.setter
+    def MPI_call(self, MPI_call):
+        self._MPI_call = check_bool(MPI_call, 'MPI_call')
 
     # Model Parameters
     @property

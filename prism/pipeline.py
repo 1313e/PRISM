@@ -30,6 +30,7 @@ from e13tools import InputError, ShapeError
 from e13tools.sampling import lhd
 import h5py
 import logging
+from mpi4py import MPI
 import numpy as np
 from numpy.random import normal, random
 from sortedcontainers import SortedSet
@@ -111,33 +112,56 @@ class Pipeline(object):
 
         """
 
-        # Start logging
-        logging_file = start_logger()
-        logger = logging.getLogger('PIPELINE')
-        logger.info("")
-
-        # Initialize class
-        logger = logging.getLogger('INIT')
-        logger.info("Initializing Pipeline class.")
-
-        # Obtain paths
-        self._get_paths(root_dir, working_dir, prefix, hdf5_file, prism_file)
-
-        # Move logger to working directory
-        move_logger(self._working_dir, logging_file)
-
-        # Initialize Emulator class
-        if(emul_type == 'default'):
-            self._emulator = Emulator(self, modellink)
+        # Determine MPI ranks, size and statuses
+        self._rank = MPI.COMM_WORLD.Get_rank()
+        self._size = MPI.COMM_WORLD.Get_size()
+        self._is_controller = 0
+        self._is_worker = 0
+        if not self._rank:
+            self._is_controller = 1
         else:
-            raise RequestError("Input argument 'emul_type' is invalid!")
+            self._is_worker = 1
 
-        # Read/load in pipeline parameters
-        self._read_parameters()
-        self._load_data()
+        if self._is_controller:
+            # Start logging
+            logging_file = start_logger()
+            logger = logging.getLogger('PIPELINE')
+            logger.info("")
 
-        # Print out the details of the current state of the pipeline
-        self.details()
+            # Initialize class
+            logger = logging.getLogger('INIT')
+            logger.info("Initializing Pipeline class.")
+
+            # Obtain paths
+            self._get_paths(root_dir, working_dir, prefix, hdf5_file,
+                            prism_file)
+
+            # Move logger to working directory
+            move_logger(self._working_dir, logging_file)
+
+            # Initialize Emulator class
+            if(emul_type == 'default'):
+                self._emulator = Emulator(self, modellink)
+            else:
+                raise RequestError("Input argument 'emul_type' is invalid!")
+
+        # MPI Barrier
+        MPI.COMM_WORLD.Barrier()
+
+        # Let controller read in the data
+        if self._is_controller:
+            # Read/load in pipeline parameters
+            self._read_parameters()
+            self._load_data()
+
+            # Print out the details of the current state of the pipeline
+            self.details()
+        else:
+            # If no controller error, save modellink for workers
+            self._modellink = modellink
+
+        # MPI Barrier
+        MPI.COMM_WORLD.Barrier()
 
     # Allows one to call one full loop of the PRISM pipeline
     @docstring_substitute(emul_i=call_emul_i_doc)
@@ -1121,45 +1145,60 @@ class Pipeline(object):
 
         """
 
-        # Log that evaluation of model samples is started
-        logger = logging.getLogger('MODEL')
-        logger.info("Evaluating model samples.")
+        # Controller does logging
+        if self._is_controller:
+            # Log that evaluation of model samples is started
+            logger = logging.getLogger('MODEL')
+            logger.info("Evaluating model samples.")
 
         # Obtain number of samples
         n_sam = np.shape(sam_set)[0]
 
         # Do model evaluations
         start_time = time()
-        if self._modellink._multi_call:
-            # Request all evaluation samples at once
-            mod_set = self._multi_call_model(emul_i, sam_set)
-        else:
-            # Initialize mod_set
-            mod_set = np.zeros([self._emulator._n_data[emul_i], n_sam])
 
-            # Loop over all requested evaluation samples
-            for i in range(n_sam):
-                mod_set[:, i] = self._call_model(emul_i, sam_set[i])
+        # Check who needs to call the model
+        if(self._modellink._MPI_call or
+           (not self._modellink._MPI_call and self._is_controller)):
+            # Request all evaluation samples at once
+            if self._modellink._multi_call:
+                mod_set = self._multi_call_model(emul_i, sam_set)
+
+            # Request evaluation samples one-by-one
+            else:
+                # Initialize mod_set
+                mod_set = np.zeros([self._modellink._n_data, n_sam])
+
+                # Loop over all requested evaluation samples
+                for i in range(n_sam):
+                    mod_set[:, i] = self._call_model(emul_i, sam_set[i])
+
+        # Get end time
         end_time = time()-start_time
 
-        # Save data to hdf5
-        if(emul_i == 1 or self._emulator._emul_type == 'default'):
-            self._emulator._save_data(emul_i, 'sam_set', sam_set)
-            self._emulator._save_data(emul_i, 'mod_set', mod_set)
-        else:
-            raise NotImplementedError
+        # Controller finishing up
+        if self._is_controller:
+            # Save data to hdf5
+            if(emul_i == 1 or self._emulator._emul_type == 'default'):
+                self._emulator._save_data(emul_i, 'sam_set', sam_set)
+                self._emulator._save_data(emul_i, 'mod_set', mod_set)
+            else:
+                raise NotImplementedError
 
-        # Log that this is finished
-        self._save_statistic(emul_i, 'tot_model_eval_time',
-                             '%.2f' % (end_time), 's')
-        self._save_statistic(emul_i, 'avg_model_eval_time',
-                             '%.3g' % (end_time/n_sam), 's')
-        print("Finished evaluating model samples in %.2f seconds, "
-              "averaging %.3g seconds per model evaluation."
-              % (end_time, end_time/n_sam))
-        logger.info("Finished evaluating model samples in %.2f seconds, "
-                    "averaging %.3g seconds per model evaluation."
-                    % (end_time, end_time/n_sam))
+            # Log that this is finished
+            self._save_statistic(emul_i, 'tot_model_eval_time',
+                                 '%.2f' % (end_time), 's')
+            self._save_statistic(emul_i, 'avg_model_eval_time',
+                                 '%.3g' % (end_time/n_sam), 's')
+            print("Finished evaluating model samples in %.2f seconds, "
+                  "averaging %.3g seconds per model evaluation."
+                  % (end_time, end_time/n_sam))
+            logger.info("Finished evaluating model samples in %.2f seconds, "
+                        "averaging %.3g seconds per model evaluation."
+                        % (end_time, end_time/n_sam))
+
+        # MPI Barrier
+        MPI.COMM_WORLD.Barrier()
 
     # This function generates a large Latin Hypercube sample set to evaluate
     # the emulator at
@@ -1497,96 +1536,101 @@ class Pipeline(object):
 
         """
 
-        # Begin logging
-        logger = logging.getLogger('ANALYZE')
-        logger.info("Analyzing emulator system at iteration %s." % (emul_i))
+        # Only controller
+        if self._is_controller:
+            # Begin logging
+            logger = logging.getLogger('ANALYZE')
+            logger.info("Analyzing emulator system at iteration %s."
+                        % (emul_i))
 
-        # Save current time
-        start_time1 = time()
+            # Save current time
+            start_time1 = time()
 
-        # Check emul_i
-        if emul_i is None:
-            emul_i = self._emulator._emul_i
-        elif(emul_i != self._emulator._emul_i):
-            logger.error("Reanalysis of the emulator system is only possible "
-                         "on the last emulator iteration created (%s)!"
-                         % (self._emulator._emul_i))
-            raise RequestError("Reanalysis of the emulator system is only "
-                               "possible on the last emulator iteration "
-                               "created (%s)!"
-                               % (self._emulator._emul_i))
-        else:
-            emul_i = check_pos_int(emul_i, 'emul_i')
-
-        # Get the impl_cut list
-        self._get_impl_par(emul_i, False)
-
-        try:
-            # Create an emulator evaluation sample set
-            eval_sam_set = self._get_eval_sam_set(emul_i)
-            n_eval_sam = eval_sam_set.shape[0]
-
-            # Create empty list holding indices of samples that pass impl_check
-            impl_idx = []
-
-            # Save current time again
-            start_time2 = time()
-
-            # Default emulator
-            if(self._emulator._emul_type == 'default'):
-                # Calculate exp, var, impl for these samples
-                for i, par_set in enumerate(eval_sam_set):
-                    for j in range(1, emul_i+1):
-                        # Obtain implausibility
-                        adj_val = self._emulator._evaluate(j, par_set)
-                        uni_impl_val = self._get_uni_impl(j, *adj_val)
-
-                        # Do implausibility cut-off check
-                        # If check is unsuccessful, break inner for-loop and
-                        # skip save
-                        if not self._do_impl_check(self, j, uni_impl_val)[0]:
-                            break
-
-                    # If check was successful, save corresponding index
-                    else:
-                        impl_idx.append(i)
-
+            # Check emul_i
+            if emul_i is None:
+                emul_i = self._emulator._emul_i
+            elif(emul_i != self._emulator._emul_i):
+                logger.error("Reanalysis of the emulator system is only "
+                             "possible on the last emulator iteration created "
+                             "(%s)!" % (self._emulator._emul_i))
+                raise RequestError("Reanalysis of the emulator system is only "
+                                   "possible on the last emulator iteration "
+                                   "created (%s)!" % (self._emulator._emul_i))
             else:
-                raise NotImplementedError
+                emul_i = check_pos_int(emul_i, 'emul_i')
 
-            # Obtain some timers
-            end_time = time()
-            time_diff_total = end_time-start_time1
-            time_diff_eval = end_time-start_time2
+            # Get the impl_cut list
+            self._get_impl_par(emul_i, False)
 
-            # Save the results
-            self._save_data('impl_sam', eval_sam_set[impl_idx])
-            self._save_data('n_eval_sam', n_eval_sam)
-        except KeyboardInterrupt:
-            logger.info("Emulator system analysis has been interrupted by "
-                        "user.")
-            print("Emulator system analysis has been interrupted by user.")
-        else:
-            # Save statistics about analyzing time, evaluation speed, par_space
-            self._save_statistic(emul_i, 'tot_analyze_time',
-                                 '%.2f' % (time_diff_total), 's')
-            self._save_statistic(emul_i, 'avg_emul_eval_rate',
-                                 '%.2f' % (n_eval_sam/time_diff_eval), '1/s')
-            self._save_statistic(emul_i, 'par_space_remaining',
-                                 '%.3g' % ((len(impl_idx)/n_eval_sam)*100),
-                                 '%')
+            try:
+                # Create an emulator evaluation sample set
+                eval_sam_set = self._get_eval_sam_set(emul_i)
+                n_eval_sam = eval_sam_set.shape[0]
 
-            # Log that analysis has been finished and their statistics
-            print("Finished analysis of emulator system in %.2f seconds, "
-                  "averaging %.2f emulator evaluations per second."
-                  % (time_diff_total, n_eval_sam/time_diff_eval))
-            print("There is %.3g%% of parameter space remaining."
-                  % ((len(impl_idx)/n_eval_sam)*100))
-            logger.info("Finished analysis of emulator system in %.2f seconds,"
-                        " averaging %.2f emulator evaluations per second."
-                        % (time_diff_total, n_eval_sam/time_diff_eval))
-            logger.info("There is %.3g%% of parameter space remaining."
-                        % ((len(impl_idx)/n_eval_sam)*100))
+                # Create empty list for indices of samples that pass impl_check
+                impl_idx = []
+
+                # Save current time again
+                start_time2 = time()
+
+                # Default emulator
+                if(self._emulator._emul_type == 'default'):
+                    # Calculate exp, var, impl for these samples
+                    for i, par_set in enumerate(eval_sam_set):
+                        for j in range(1, emul_i+1):
+                            # Obtain implausibility
+                            adj_val = self._emulator._evaluate(j, par_set)
+                            uni_impl_val = self._get_uni_impl(j, *adj_val)
+
+                            # Do implausibility cut-off check
+                            # If check is unsuccessful, break inner for-loop
+                            # and skip save
+                            if not self._do_impl_check(self, j,
+                                                       uni_impl_val)[0]:
+                                break
+
+                        # If check was successful, save corresponding index
+                        else:
+                            impl_idx.append(i)
+
+                else:
+                    raise NotImplementedError
+
+                # Obtain some timers
+                end_time = time()
+                time_diff_total = end_time-start_time1
+                time_diff_eval = end_time-start_time2
+
+                # Save the results
+                self._save_data('impl_sam', eval_sam_set[impl_idx])
+                self._save_data('n_eval_sam', n_eval_sam)
+            except KeyboardInterrupt:
+                logger.info("Emulator system analysis has been interrupted by "
+                            "user.")
+                print("Emulator system analysis has been interrupted by user.")
+            else:
+                # Save statistics about anal time, evaluation speed, par_space
+                self._save_statistic(emul_i, 'tot_analyze_time',
+                                     '%.2f' % (time_diff_total), 's')
+                self._save_statistic(emul_i, 'avg_emul_eval_rate',
+                                     '%.2f' % (n_eval_sam/time_diff_eval),
+                                     '1/s')
+                self._save_statistic(emul_i, 'par_space_remaining',
+                                     '%.3g' % ((len(impl_idx)/n_eval_sam)*100),
+                                     '%')
+
+                # Log that analysis has been finished and their statistics
+                print("Finished analysis of emulator system in %.2f seconds, "
+                      "averaging %.2f emulator evaluations per second."
+                      % (time_diff_total, n_eval_sam/time_diff_eval))
+                print("There is %.3g%% of parameter space remaining."
+                      % ((len(impl_idx)/n_eval_sam)*100))
+                logger.info("Finished analysis of emulator system in %.2f "
+                            "seconds, averaging %.2f emulator evaluations per "
+                            "second."
+                            % (time_diff_total, n_eval_sam/time_diff_eval))
+                logger.info("There is %.3g%% of parameter space remaining."
+                            % ((len(impl_idx)/n_eval_sam)*100))
 
         # Display details about current state of pipeline
         self.details(emul_i)
@@ -1633,99 +1677,116 @@ class Pipeline(object):
         # Log that a new emulator iteration is being constructed
         logger = logging.getLogger('CONSTRUCT')
 
-        # Save current time
-        start_time = time()
+        # Only the controller should run this
+        if self._is_controller:
+            # Save current time
+            start_time = time()
 
-        # Set emul_i correctly
-        if emul_i is None:
-            emul_i = self._emulator._emul_i+1
-        elif(emul_i == 1):
-            pass
-        else:
-            emul_i = self._emulator._get_emul_i(emul_i-1)+1
+            # Set emul_i correctly
+            if emul_i is None:
+                emul_i = self._emulator._emul_i+1
+            elif(emul_i == 1):
+                pass
+            else:
+                emul_i = self._emulator._get_emul_i(emul_i-1)+1
 
-        # Check if analyze-parameter received a bool
-        analyze = check_bool(analyze, 'analyze')
+            # Check if analyze-parameter received a bool
+            analyze = check_bool(analyze, 'analyze')
 
-        # Log that construction of emulator iteration is being started
-        logger.info("Starting construction of emulator iteration %s."
-                    % (emul_i))
+            # Log that construction of emulator iteration is being started
+            logger.info("Starting construction of emulator iteration %s."
+                        % (emul_i))
 
-        # Check emul_i and act accordingly
-        if(emul_i == 1):
-            # Create a new emulator system
-            self._emulator._create_new_emulator()
+            # Check emul_i and act accordingly
+            if(emul_i == 1):
+                # Create a new emulator system
+                self._emulator._create_new_emulator()
 
-            # Reload the data
-            self._load_data()
-
-            # Create initial set of model evaluation samples
-            logger.info("Creating initial model evaluation sample set with "
-                        "size %s." % (self._n_sam_init))
-            add_sam_set = lhd(self._n_sam_init, self._modellink._n_par,
-                              self._modellink._par_rng, 'fixed',
-                              self._criterion)
-            logger.info("Finished creating initial sample set.")
-
-        else:
-            # Check if previous iteration has been analyzed and do so if not
-            if not self._n_eval_sam[emul_i-1]:
-                logger.info("Previous emulator iteration has not been "
-                            "analyzed. Performing analysis first.")
-                self.analyze(emul_i-1)
-
-            # Check if a new emulator iteration can be constructed
-            if not self._prc:
-                logger.error("No plausible regions were found in the analysis "
-                             "of the previous emulator iteration. Construction"
-                             " is not possible!")
-                raise RequestError("No plausible regions were found in the "
-                                   "analysis of the previous emulator "
-                                   "iteration. Construction is not possible!")
-
-            # Make the emulator prepare for a new iteration
-            reload = self._emulator._prepare_new_iteration(emul_i)
-
-            # Make sure the correct pipeline data is loaded in
-            if reload:
+                # Reload the data
                 self._load_data()
 
-            # Obtain additional sam_set
-            add_sam_set = self._impl_sam
+                # Create initial set of model evaluation samples
+                logger.info("Creating initial model evaluation sample set "
+                            "with size %s." % (self._n_sam_init))
+                add_sam_set = lhd(self._n_sam_init, self._modellink._n_par,
+                                  self._modellink._par_rng, 'fixed',
+                                  self._criterion)
+                logger.info("Finished creating initial sample set.")
+
+            else:
+                # Check if previous iteration has been analyzed, do so if not
+                if not self._n_eval_sam[emul_i-1]:
+                    logger.info("Previous emulator iteration has not been "
+                                "analyzed. Performing analysis first.")
+                    self.analyze(emul_i-1)
+
+                # Check if a new emulator iteration can be constructed
+                if not self._prc:
+                    logger.error("No plausible regions were found in the "
+                                 "analysis of the previous emulator iteration."
+                                 " Construction is not possible!")
+                    raise RequestError("No plausible regions were found in the"
+                                       " analysis of the previous emulator "
+                                       "iteration. Construction is not "
+                                       "possible!")
+
+                # Make the emulator prepare for a new iteration
+                reload = self._emulator._prepare_new_iteration(emul_i)
+
+                # Make sure the correct pipeline data is loaded in
+                if reload:
+                    self._load_data()
+
+                # Obtain additional sam_set
+                add_sam_set = self._impl_sam
+
+        # All workers get a dummy add_sam_set
+        else:
+            add_sam_set = []
+
+        # Broadcast emul_i to workers
+        emul_i = MPI.COMM_WORLD.bcast(emul_i, 0)
+
+        # Broadcast add_sam_set to workers
+        add_sam_set = MPI.COMM_WORLD.bcast(add_sam_set, 0)
 
         # Obtain corresponding set of model evaluations
         self._evaluate_model(emul_i, add_sam_set)
 
-        # Construct emulator
-        self._emulator._construct_iteration(emul_i)
+        # Only controller
+        if self._is_controller:
+            # Construct emulator
+            self._emulator._construct_iteration(emul_i)
 
-        # Log that construction has been completed
-        time_diff_total = time()-start_time
-        self._save_statistic(emul_i, 'tot_construct_time',
-                             '%.2f' % (time_diff_total), 's')
-        print("Finished construction of emulator system in %.2f seconds."
-              % (time_diff_total))
-        logger.info("Finished construction of emulator system in %.2f seconds."
-                    % (time_diff_total))
+            # Log that construction has been completed
+            time_diff_total = time()-start_time
+            self._save_statistic(emul_i, 'tot_construct_time',
+                                 '%.2f' % (time_diff_total), 's')
+            print("Finished construction of emulator system in %.2f seconds."
+                  % (time_diff_total))
+            logger.info("Finished construction of emulator system in %.2f "
+                        "seconds." % (time_diff_total))
 
-        # Save that emulator system has not been analyzed yet
-        self._save_data('impl_sam', [])
-        self._save_data('n_eval_sam', 0)
+            # Save that emulator system has not been analyzed yet
+            self._save_data('impl_sam', [])
+            self._save_data('n_eval_sam', 0)
 
-        # Analyze the emulator system if requested
-        if analyze:
-            self.analyze(emul_i)
-        else:
-            self._get_impl_par(emul_i, True)
-            self.details(emul_i)
+            # Analyze the emulator system if requested
+            if analyze:
+                self.analyze(emul_i)
+            else:
+                self._get_impl_par(emul_i, True)
+                self.details(emul_i)
 
     # This function creates the projection figures of a given emul_i
     @docstring_copy(Projection.__call__)
     def create_projection(self, emul_i=None, proj_par=None, figure=True,
                           show=False, force=False):
 
-        # Initialize the Projection class and make the figures
-        Projection(self)(emul_i, proj_par, figure, show, force)
+        # Only controller
+        if self._is_controller:
+            # Initialize the Projection class and make the figures
+            Projection(self)(emul_i, proj_par, figure, show, force)
 
     # This function allows one to obtain the pipeline details/properties
     @docstring_substitute(emul_i=user_emul_i_doc)
@@ -1804,182 +1865,188 @@ class Pipeline(object):
 
         """
 
-        # Define details logger
-        logger = logging.getLogger("DETAILS")
-        logger.info("Collecting details about current pipeline instance.")
+        # Only controller
+        if self._is_controller:
+            # Define details logger
+            logger = logging.getLogger("DETAILS")
+            logger.info("Collecting details about current pipeline instance.")
 
-        # Check what kind of hdf5-file was provided
-        try:
-            emul_i = self._emulator._get_emul_i(emul_i)
-        except RequestError:
-            return
-        else:
-            # Get max lengths of various strings for parameter space section
-            name_len =\
-                max([len(par_name) for par_name in self._modellink._par_name])
-            lower_len =\
-                max([len(str(i)) for i in self._modellink._par_rng[:, 0]])
-            upper_len =\
-                max([len(str(i)) for i in self._modellink._par_rng[:, 1]])
-            est_len =\
-                max([len('%.5f' % (i)) for i in self._modellink._par_est
-                     if i is not None])
-
-            # Open hdf5-file
-            file = self._open_hdf5('r')
-
-            # Check if mock_data was used by trying to access mock_par
+            # Check what kind of hdf5-file was provided
             try:
-                file.attrs['mock_par']
-            except KeyError:
-                use_mock = 0
+                emul_i = self._emulator._get_emul_i(emul_i)
+            except RequestError:
+                return
             else:
-                use_mock = 1
+                # Get max lengths of various strings for parameter section
+                name_len =\
+                    max([len(par_name) for par_name in
+                         self._modellink._par_name])
+                lower_len =\
+                    max([len(str(i)) for i in self._modellink._par_rng[:, 0]])
+                upper_len =\
+                    max([len(str(i)) for i in self._modellink._par_rng[:, 1]])
+                est_len =\
+                    max([len('%.5f' % (i)) for i in self._modellink._par_est
+                         if i is not None])
 
-            # Check if projection data is available
-            try:
-                file['%s/proj_hcube' % (emul_i)]
-            except KeyError:
-                proj = 0
+                # Open hdf5-file
+                file = self._open_hdf5('r')
 
-            # If projection data is available
-            else:
-                proj_impl_cut =\
-                    file['%s/proj_hcube' % (emul_i)].attrs['impl_cut']
-                proj_cut_idx =\
-                    file['%s/proj_hcube' % (emul_i)].attrs['cut_idx']
-
-                # Check if projection was made with the same impl_cut
+                # Check if mock_data was used by trying to access mock_par
                 try:
-                    # If it was, projection is synced
-                    if((proj_impl_cut == self._impl_cut[emul_i]).all() and
-                       proj_cut_idx == self._cut_idx[emul_i]):
+                    file.attrs['mock_par']
+                except KeyError:
+                    use_mock = 0
+                else:
+                    use_mock = 1
+
+                # Check if projection data is available
+                try:
+                    file['%s/proj_hcube' % (emul_i)]
+                except KeyError:
+                    proj = 0
+
+                # If projection data is available
+                else:
+                    proj_impl_cut =\
+                        file['%s/proj_hcube' % (emul_i)].attrs['impl_cut']
+                    proj_cut_idx =\
+                        file['%s/proj_hcube' % (emul_i)].attrs['cut_idx']
+
+                    # Check if projection was made with the same impl_cut
+                    try:
+                        # If it was, projection is synced
+                        if((proj_impl_cut == self._impl_cut[emul_i]).all() and
+                           proj_cut_idx == self._cut_idx[emul_i]):
+                            proj = 1
+
+                        # If not, projection is desynced
+                        else:
+                            proj = 2
+
+                    # If analysis was never done, projection is synced
+                    except IndexError:
                         proj = 1
 
-                    # If not, projection is desynced
-                    else:
-                        proj = 2
+            # Close hdf5-file
+            self._close_hdf5(file)
 
-                # If analysis was never done, projection is considered synced
-                except IndexError:
-                    proj = 1
+            # Log file being closed
+            logger.info("Finished collecting details about current pipeline "
+                        "instance.")
 
-        # Close hdf5-file
-        self._close_hdf5(file)
+            # Set width of detail names
+            width = 31
 
-        # Log file being closed
-        logger.info("Finished collecting details about current pipeline "
-                    "instance.")
+            # PRINT DETAILS
+            # HEADER
+            print("\n")
+            print("PIPELINE DETAILS")
+            print("="*width)
 
-        # Set width of detail names
-        width = 31
+            # GENERAL
+            print("\nGENERAL")
+            print("-"*width)
 
-        # PRINT DETAILS
-        # HEADER
-        print("\n")
-        print("PIPELINE DETAILS")
-        print("="*width)
+            # General details about loaded emulator system
+            print("{0: <{1}}\t'{2}'".format("HDF5-file name", width,
+                                            self._hdf5_file_name))
+            print("{0: <{1}}\t'{2}'".format("Emulator type", width,
+                                            self._emulator._emul_type))
+            print("{0: <{1}}\t{2}".format("ModelLink subclass", width,
+                                          self._modellink._name))
+            if(self._emulator._method.lower() == 'regression'):
+                print("{0: <{1}}\t{2}".format("Emulation method", width,
+                                              "Regression"))
+            elif(self._emulator._method.lower() == 'gaussian'):
+                print("{0: <{1}}\t{2}".format("Emulation method", width,
+                                              "Gaussian"))
+            elif(self._emulator._method.lower() == 'full'):
+                print("{0: <{1}}\t{2}".format("Emulation method", width,
+                                              "Regression + Gaussian"))
+            print("{0: <{1}}\t{2}".format("Mock data used?", width,
+                                          "Yes" if use_mock else "No"))
 
-        # GENERAL
-        print("\nGENERAL")
-        print("-"*width)
+            # ITERATION DETAILS
+            print("\nITERATION")
+            print("-"*width)
 
-        # General details about loaded emulator system
-        print("{0: <{1}}\t'{2}'".format("HDF5-file name", width,
-                                        self._hdf5_file_name))
-        print("{0: <{1}}\t'{2}'".format("Emulator type", width,
-                                        self._emulator._emul_type))
-        print("{0: <{1}}\t{2}".format("ModelLink subclass", width,
-                                      self._modellink._name))
-        if(self._emulator._method.lower() == 'regression'):
-            print("{0: <{1}}\t{2}".format("Emulation method", width,
-                                          "Regression"))
-        elif(self._emulator._method.lower() == 'gaussian'):
-            print("{0: <{1}}\t{2}".format("Emulation method", width,
-                                          "Gaussian"))
-        elif(self._emulator._method.lower() == 'full'):
-            print("{0: <{1}}\t{2}".format("Emulation method", width,
-                                          "Regression + Gaussian"))
-        print("{0: <{1}}\t{2}".format("Mock data used?", width,
-                                      "Yes" if use_mock else "No"))
+            # Emulator iteration corresponding to this details overview
+            print("{0: <{1}}\t{2}".format("Emulator iteration", width, emul_i))
 
-        # ITERATION DETAILS
-        print("\nITERATION")
-        print("-"*width)
-
-        # Emulator iteration corresponding to this details overview
-        print("{0: <{1}}\t{2}".format("Emulator iteration", width, emul_i))
-
-        # Availability flags
-        if not self._n_eval_sam[emul_i]:
-            print("{0: <{1}}\t{2}".format("Plausible regions?", width,
-                                          "N/A"))
-        else:
-            print("{0: <{1}}\t{2}".format("Plausible regions?", width,
-                                          "Yes" if self._prc else "No"))
-        if not proj:
-            print("{0: <{1}}\t{2}".format("Projection available?", width,
-                                          "No"))
-        else:
-            print("{0: <{1}}\t{2}".format("Projection available?", width,
-                                          "Yes%s" % ("" if proj == 1
-                                                     else " (desynced)")))
-        print("-"*width)
-
-        # Number details
-        if(self._emulator._emul_type == 'default'):
-            print("{0: <{1}}\t{2} ({3})".format(
-                "# of model evaluation samples", width,
-                sum(self._emulator._n_sam[1:emul_i+1]),
-                self._emulator._n_sam[1:emul_i+1]))
-        else:
-            raise NotImplementedError
-        if not self._n_eval_sam[emul_i]:
-            print("{0: <{1}}\t{2}/{3}".format(
-                "# of plausible/analyzed samples", width, "-", "-"))
-            print("{0: <{1}}\t{2}".format(
-                "% of parameter space remaining", width, "-"))
-        else:
-            print("{0: <{1}}\t{2}/{3}".format(
-                "# of plausible/analyzed samples", width,
-                self._n_impl_sam[emul_i], self._n_eval_sam[emul_i]))
-            print("{0: <{1}}\t{2:.3g}%".format(
-                "% of parameter space remaining", width,
-                (self._n_impl_sam[emul_i]/self._n_eval_sam[emul_i])*100))
-        print("{0: <{1}}\t{2}/{3}".format(
-            "# of active/total parameters", width,
-            len(self._emulator._active_par[emul_i]), self._modellink._n_par))
-        print("{0: <{1}}\t{2}".format("# of emulated data points", width,
-                                      self._emulator._n_data[emul_i]))
-        print("-"*width)
-
-        # PARAMETER SPACE
-        # Define string format if par_est was provided
-        str_format1 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6: >{7}.5f})"
-
-        # Define string format if par_est was not provided
-        str_format2 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6:->{7}})"
-
-        print("\nPARAMETER SPACE")
-        print("-"*width)
-
-        # Print details about every model parameter in parameter space
-        for i in range(self._modellink._n_par):
-            if self._modellink._par_est[i] is not None:
-                print(str_format1.format(
-                    self._modellink._par_name[i], name_len,
-                    self._modellink._par_rng[i, 0], lower_len,
-                    self._modellink._par_rng[i, 1], upper_len,
-                    self._modellink._par_est[i], est_len,
-                    "*" if i in self._emulator._active_par[emul_i] else " "))
+            # Availability flags
+            if not self._n_eval_sam[emul_i]:
+                print("{0: <{1}}\t{2}".format("Plausible regions?", width,
+                                              "N/A"))
             else:
-                print(str_format2.format(
-                    self._modellink._par_name[i], name_len,
-                    self._modellink._par_rng[i, 0], lower_len,
-                    self._modellink._par_rng[i, 1], upper_len,
-                    "", est_len,
-                    "*" if i in self._emulator._active_par[emul_i] else " "))
-        print("="*width)
+                print("{0: <{1}}\t{2}".format("Plausible regions?", width,
+                                              "Yes" if self._prc else "No"))
+            if not proj:
+                print("{0: <{1}}\t{2}".format("Projection available?", width,
+                                              "No"))
+            else:
+                print("{0: <{1}}\t{2}".format("Projection available?", width,
+                                              "Yes%s" % ("" if proj == 1
+                                                         else " (desynced)")))
+            print("-"*width)
+
+            # Number details
+            if(self._emulator._emul_type == 'default'):
+                print("{0: <{1}}\t{2} ({3})".format(
+                    "# of model evaluation samples", width,
+                    sum(self._emulator._n_sam[1:emul_i+1]),
+                    self._emulator._n_sam[1:emul_i+1]))
+            else:
+                raise NotImplementedError
+            if not self._n_eval_sam[emul_i]:
+                print("{0: <{1}}\t{2}/{3}".format(
+                    "# of plausible/analyzed samples", width, "-", "-"))
+                print("{0: <{1}}\t{2}".format(
+                    "% of parameter space remaining", width, "-"))
+            else:
+                print("{0: <{1}}\t{2}/{3}".format(
+                    "# of plausible/analyzed samples", width,
+                    self._n_impl_sam[emul_i], self._n_eval_sam[emul_i]))
+                print("{0: <{1}}\t{2:.3g}%".format(
+                    "% of parameter space remaining", width,
+                    (self._n_impl_sam[emul_i]/self._n_eval_sam[emul_i])*100))
+            print("{0: <{1}}\t{2}/{3}".format(
+                "# of active/total parameters", width,
+                len(self._emulator._active_par[emul_i]),
+                self._modellink._n_par))
+            print("{0: <{1}}\t{2}".format("# of emulated data points", width,
+                                          self._emulator._n_data[emul_i]))
+            print("-"*width)
+
+            # PARAMETER SPACE
+            # Define string format if par_est was provided
+            str_format1 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6: >{7}.5f})"
+
+            # Define string format if par_est was not provided
+            str_format2 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6:->{7}})"
+
+            print("\nPARAMETER SPACE")
+            print("-"*width)
+
+            # Print details about every model parameter in parameter space
+            for i in range(self._modellink._n_par):
+                if self._modellink._par_est[i] is not None:
+                    print(str_format1.format(
+                        self._modellink._par_name[i], name_len,
+                        self._modellink._par_rng[i, 0], lower_len,
+                        self._modellink._par_rng[i, 1], upper_len,
+                        self._modellink._par_est[i], est_len,
+                        "*" if i in self._emulator._active_par[emul_i]
+                        else " "))
+                else:
+                    print(str_format2.format(
+                        self._modellink._par_name[i], name_len,
+                        self._modellink._par_rng[i, 0], lower_len,
+                        self._modellink._par_rng[i, 1], upper_len,
+                        "", est_len,
+                        "*" if i in self._emulator._active_par[emul_i]
+                        else " "))
+            print("="*width)
 
     # This function allows the user to evaluate a given sam_set in the emulator
     # TODO: Plot emul_i_stop for large LHDs, giving a nice mental statistic
@@ -2045,90 +2112,93 @@ class Pipeline(object):
 
         """
 
-        # Do some logging
-        logger = logging.getLogger('EVALUATE')
-        logger.info("Evaluating emulator system for provided set of model "
-                    "parameter samples.")
+        # Only controller
+        if self._is_controller:
+            # Do some logging
+            logger = logging.getLogger('EVALUATE')
+            logger.info("Evaluating emulator system for provided set of model "
+                        "parameter samples.")
 
-        # Get emulator iteration
-        emul_i = self._emulator._get_emul_i(emul_i)
+            # Get emulator iteration
+            emul_i = self._emulator._get_emul_i(emul_i)
 
-        # Make sure that sam_set is a NumPy array
-        sam_set = np.array(sam_set)
+            # Make sure that sam_set is a NumPy array
+            sam_set = np.array(sam_set)
 
-        # Check the number of dimensions in sam_set
-        if(sam_set.ndim == 1):
-            print_output = 1
-            sam_set = np.array(sam_set, ndmin=2)
-        elif(sam_set.ndim == 2):
-            print_output = 0
-        else:
-            logger.error("Input argument 'sam_set' is not one-dimensional or "
-                         "two-dimensional!")
-            raise ShapeError("Input argument 'sam_set' is not one-dimensional "
+            # Check the number of dimensions in sam_set
+            if(sam_set.ndim == 1):
+                print_output = 1
+                sam_set = np.array(sam_set, ndmin=2)
+            elif(sam_set.ndim == 2):
+                print_output = 0
+            else:
+                logger.error("Input argument 'sam_set' is not one-dimensional "
                              "or two-dimensional!")
+                raise ShapeError("Input argument 'sam_set' is not "
+                                 "one-dimensional or two-dimensional!")
 
-        # Check if sam_set has n_par parameter values
-        if not(sam_set.shape[1] == self._modellink._n_par):
-            logger.error("Input argument 'sam_set' has incorrect number of "
-                         "parameters (%s != %s)!"
-                         % (sam_set.shape[1], self._modellink._n_par))
-            raise ShapeError("Input argument 'sam_set' has incorrect number of"
+            # Check if sam_set has n_par parameter values
+            if not(sam_set.shape[1] == self._modellink._n_par):
+                logger.error("Input argument 'sam_set' has incorrect number of"
                              " parameters (%s != %s)!"
                              % (sam_set.shape[1], self._modellink._n_par))
+                raise ShapeError("Input argument 'sam_set' has incorrect "
+                                 "number of parameters (%s != %s)!"
+                                 % (sam_set.shape[1], self._modellink._n_par))
 
-        # Check if sam_set consists only out of floats (or ints)
-        else:
-            for i, par_set in enumerate(sam_set):
-                for j, par_val in enumerate(par_set):
-                    check_float(par_val, 'sam_set[%s, %s]' % (i, j))
-
-        # Make empty lists
-        adj_exp_val = []
-        adj_var_val = []
-        uni_impl_val = []
-        emul_i_stop = []
-        impl_check = []
-
-        # Iterate over all emulator iterations
-        for par_set in sam_set:
-            for j in range(1, emul_i+1):
-                # Obtain implausibility
-                adj_val = self._emulator._evaluate(j, par_set)
-                uni_impl_val_par_set = self._get_uni_impl(j, *adj_val)
-
-                # Check if this sample is plausible
-                if not self._do_impl_check(self, j, uni_impl_val_par_set)[0]:
-                    impl_check.append(0)
-                    break
+            # Check if sam_set consists only out of floats (or ints)
             else:
-                impl_check.append(1)
+                for i, par_set in enumerate(sam_set):
+                    for j, par_val in enumerate(par_set):
+                        check_float(par_val, 'sam_set[%s, %s]' % (i, j))
 
-            # Save expectation, variance and implausibility values
-            adj_exp_val.append(adj_val[0])
-            adj_var_val.append(adj_val[1])
-            uni_impl_val.append(uni_impl_val_par_set)
-            emul_i_stop.append(j)
+            # Make empty lists
+            adj_exp_val = []
+            adj_var_val = []
+            uni_impl_val = []
+            emul_i_stop = []
+            impl_check = []
 
-        # Do more logging
-        logger.info("Finished evaluating emulator system.")
+            # Iterate over all emulator iterations
+            for par_set in sam_set:
+                for j in range(1, emul_i+1):
+                    # Obtain implausibility
+                    adj_val = self._emulator._evaluate(j, par_set)
+                    uni_impl_val_par_set = self._get_uni_impl(j, *adj_val)
 
-        # If ndim(sam_set) == 1, print the results
-        if print_output:
-            # Print results
-            if impl_check[0]:
-                print("Plausible? Yes")
-                print("-"*14)
+                    # Check if this sample is plausible
+                    if not self._do_impl_check(self, j,
+                                               uni_impl_val_par_set)[0]:
+                        impl_check.append(0)
+                        break
+                else:
+                    impl_check.append(1)
+
+                # Save expectation, variance and implausibility values
+                adj_exp_val.append(adj_val[0])
+                adj_var_val.append(adj_val[1])
+                uni_impl_val.append(uni_impl_val_par_set)
+                emul_i_stop.append(j)
+
+            # Do more logging
+            logger.info("Finished evaluating emulator system.")
+
+            # If ndim(sam_set) == 1, print the results
+            if print_output:
+                # Print results
+                if impl_check[0]:
+                    print("Plausible? Yes")
+                    print("-"*14)
+                else:
+                    print("Plausible? No")
+                    print("-"*13)
+                print("emul_i_stop = %s" % (emul_i_stop[0]))
+                print("adj_exp_val = %s" % (adj_exp_val[0]))
+                print("adj_var_val = %s" % (adj_var_val[0]))
+                print("sigma_val = %s" % (np.sqrt(adj_var_val[0])))
+                print("uni_impl_val = %s" % (uni_impl_val[0]))
+
+            # Else, return the lists
             else:
-                print("Plausible? No")
-                print("-"*13)
-            print("emul_i_stop = %s" % (emul_i_stop[0]))
-            print("adj_exp_val = %s" % (adj_exp_val[0]))
-            print("adj_var_val = %s" % (adj_var_val[0]))
-            print("sigma_val = %s" % (np.sqrt(adj_var_val[0])))
-            print("uni_impl_val = %s" % (uni_impl_val[0]))
-
-        # Else, return the lists
-        else:
-            return(impl_check, emul_i_stop, adj_exp_val, adj_var_val,
-                   uni_impl_val)
+                return(impl_check, emul_i_stop, adj_exp_val, adj_var_val,
+                       uni_impl_val)
