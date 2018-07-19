@@ -193,6 +193,44 @@ class Pipeline(object):
 
 # %% CLASS PROPERTIES
     # TODO: Hide class attributes that do not exist yet
+    # MPI properties
+    @property
+    def rank(self):
+        """
+        The rank of this MPI process in MPI.COMM_WORLD.
+
+        """
+
+        return(self._rank)
+
+    @property
+    def size(self):
+        """
+        The number of MPI processes in MPI.COMM_WORLD.
+
+        """
+
+        return(self._size)
+
+    @property
+    def is_controller(self):
+        """
+        Bool indicating whether or not this MPI process is a controller
+        process.
+
+        """
+
+        return(bool(self._is_controller))
+
+    @property
+    def is_worker(self):
+        """
+        Bool indicating whether or not this MPI process is a worker process.
+
+        """
+
+        return(bool(self._is_worker))
+
     # Pipeline Settings/Attributes/Details
     @property
     def root_dir(self):
