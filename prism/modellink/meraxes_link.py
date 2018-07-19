@@ -112,13 +112,27 @@ class MeraxesLink(ModelLink):
 
 class PrismMhysa(Mhysa):
     """
-
+    A :class:`~Mhysa` subclass manipulating the outputs of Meraxes to be used
+    by the :class:`~prism.Pipeline` class.
 
     """
 
     def __init__(self, data_idx, *args, **kwargs):
         """
+        Initialize an instance of the :class:`~PrismMhysa` class.
 
+        Parameters
+        ----------
+        data_idx : list
+            List containing the user-defined data point identifiers
+            corresponding to the requested data points.
+
+        Optional
+        --------
+        args : arguments
+            Arguments to be provided to the :class:`~Mhysa` class.
+        kwargs : keyword arguments
+            Keyword arguments to be provided to the :class:`~Mhysa` class.
 
         """
 
@@ -139,11 +153,6 @@ class PrismMhysa(Mhysa):
         super(PrismMhysa, self).__init__(*args, **kwargs)
 
     def __exit__(self, *args, **kwargs):
-        """
-
-
-        """
-
         # Inheriting Mhysa __exit__()
         super(PrismMhysa, self).__exit__(*args, **kwargs)
 
@@ -153,11 +162,6 @@ class PrismMhysa(Mhysa):
             self._data_list = []
 
     def meraxes_hook(self, snapshot, ngals):
-        """
-
-
-        """
-
         # Create new empty list at snapshot 0
         if(self.is_controller and snapshot == 0):
             self._data_list.append([])

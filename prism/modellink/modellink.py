@@ -357,7 +357,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         model_parameters : dict
             Dict containing the values for all model parameters corresponding
             to the requested model realization(s).
-        data_idx : list of int
+        data_idx : list
             List containing the user-defined data point identifiers
             corresponding to the requested data points.
 
