@@ -961,10 +961,15 @@ class Pipeline(object):
         if(self._modellink._MPI_call or
            (not self._modellink._MPI_call and self._is_controller)):
             if self._modellink._multi_call:
+                # Multi-call model
                 mod_out = self._multi_call_model(0, self._modellink._par_est)
-                self._modellink._data_val = mod_out[:, 0].tolist()
+
+                # Only controller receives output and can thus using indexing
+                if self._is_controller:
+                    self._modellink._data_val = mod_out[:, 0].tolist()
 
             else:
+                # Controller only call model
                 self._modellink._data_val =\
                     self._call_model(0, self._modellink._par_est).tolist()
 
