@@ -939,46 +939,59 @@ class Pipeline(object):
 
         """
 
-        # Start logger
-        logger = logging.getLogger('MOCK_DATA')
+        # Controller only
+        if self._is_controller:
+            # Start logger
+            logger = logging.getLogger('MOCK_DATA')
 
-        # Log new mock_data being created
-        logger.info("Generating mock data for new emulator system.")
+            # Log new mock_data being created
+            logger.info("Generating mock data for new emulator system.")
 
-        # Set non-default parameter estimate
-        self._modellink._par_est =\
-            (self._modellink._par_rng[:, 0] +
-             random(self._modellink._n_par) *
-             (self._modellink._par_rng[:, 1] -
-              self._modellink._par_rng[:, 0])).tolist()
+            # Set non-default parameter estimate
+            self._modellink._par_est =\
+                (self._modellink._par_rng[:, 0] +
+                 random(self._modellink._n_par) *
+                 (self._modellink._par_rng[:, 1] -
+                  self._modellink._par_rng[:, 0])).tolist()
+
+        # MPI Barrier
+        MPI.COMM_WORLD.Barrier()
 
         # Set non-default model data values
-        if self._modellink._multi_call:
+        if(self._modellink._MPI_call or
+           (not self._modellink._MPI_call and self._is_controller)):
+            if self._modellink._multi_call:
+                mod_out = self._multi_call_model(0, self._modellink._par_est)
+                self._modellink._data_val = mod_out[:, 0].tolist()
+
+            else:
+                self._modellink._data_val =\
+                    self._call_model(0, self._modellink._par_est).tolist()
+
+        # Controller only
+        if self._is_controller:
+            # Use model discrepancy variance as model data errors
+            try:
+                md_var =\
+                    self._modellink.get_md_var(0, self._modellink._data_idx)
+            except NotImplementedError:
+                md_var = pow(np.array(self._modellink._data_val)/6, 2)
+            finally:
+                # Check if all values are non-negative floats
+                for value in md_var:
+                    check_nneg_float(value, 'md_var')
+                self._modellink._data_err = np.sqrt(md_var).tolist()
+
+            # Add model data errors as noise to model data values
             self._modellink._data_val =\
-                self._multi_call_model(0,
-                                       self._modellink._par_est)[:, 0].tolist()
-        else:
-            self._modellink._data_val =\
-                self._call_model(0, self._modellink._par_est).tolist()
+                (self._modellink._data_val +
+                 normal(scale=self._modellink._data_err)).tolist()
 
-        # Use model discrepancy variance as model data errors
-        try:
-            md_var = self._modellink.get_md_var(0, self._modellink._data_idx)
-        except NotImplementedError:
-            md_var = pow(np.array(self._modellink._data_val)/6, 2)
-        finally:
-            # Check if all values are non-negative floats
-            for value in md_var:
-                check_nneg_float(value, 'md_var')
-            self._modellink._data_err = np.sqrt(md_var).tolist()
+            # Logger
+            logger.info("Generated mock data.")
 
-        # Add model data errors as noise to model data values
-        self._modellink._data_val =\
-            (self._modellink._data_val +
-             normal(scale=self._modellink._data_err)).tolist()
-
-        # Logger
-        logger.info("Generated mock data.")
+        # Broadcast modellink object
+        self._modellink = MPI.COMM_WORLD.bcast(self._modellink, 0)
 
     # This function loads pipeline data
     def _load_data(self):
@@ -1728,6 +1741,11 @@ class Pipeline(object):
             else:
                 emul_i = self._emulator._get_emul_i(emul_i-1)+1
 
+        # Broadcast emul_i to workers
+        emul_i = MPI.COMM_WORLD.bcast(emul_i, 0)
+
+        # Controller only
+        if self._is_controller:
             # Check if analyze-parameter received a bool
             analyze = check_bool(analyze, 'analyze')
 
@@ -1778,12 +1796,19 @@ class Pipeline(object):
                 # Obtain additional sam_set
                 add_sam_set = self._impl_sam
 
-        # All workers get a dummy add_sam_set
+        # Remaining workers
         else:
-            add_sam_set = []
+            # Listen for calls from controller during emulator creation
+            if(emul_i == 1):
+                # Check if mock_data is requested
+                get_mock = MPI.COMM_WORLD.recv(source=0, tag=999+self._rank)
 
-        # Broadcast emul_i to workers
-        emul_i = MPI.COMM_WORLD.bcast(emul_i, 0)
+                # If mock_data is requested, call for it
+                if get_mock:
+                    self._get_mock_data()
+
+            # All workers get a dummy add_sam_set
+            add_sam_set = []
 
         # Broadcast add_sam_set to workers
         add_sam_set = MPI.COMM_WORLD.bcast(add_sam_set, 0)

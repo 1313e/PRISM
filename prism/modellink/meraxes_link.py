@@ -39,7 +39,7 @@ __all__ = ['MeraxesLink']
 logger = logging.getLogger('MERAXES')
 
 
-# %% CLASS DEFINITION
+# %% MERAXESLINK CLASS DEFINITION
 class MeraxesLink(ModelLink):
     """
     :class:`~ModelLink` class wrapper for the semi-analytic galaxy evolution
@@ -110,6 +110,19 @@ class MeraxesLink(ModelLink):
         super(MeraxesLink, self).get_md_var(emul_i=emul_i, data_idx=data_idx)
 
 
+# %% MERAXESLINK CLASS PROPERTIES
+    @property
+    def input_file(self):
+        """
+        String containing the absolute path to the input parameter file used
+        for Meraxes.
+
+        """
+
+        return(self._input_file)
+
+
+# %% PRISMMHYSA CLASS DEFINITION
 class PrismMhysa(Mhysa):
     """
     A :class:`~Mhysa` subclass manipulating the outputs of Meraxes to be used
@@ -183,14 +196,3 @@ class PrismMhysa(Mhysa):
 
         return(0)
 
-
-# %% CLASS PROPERTIES
-    @property
-    def input_file(self):
-        """
-        String containing the absolute path to the input parameter file used
-        for Meraxes.
-
-        """
-
-        return(self._input_file)

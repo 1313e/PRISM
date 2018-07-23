@@ -29,6 +29,7 @@ from e13tools.math import diff, nearest_PD
 import h5py
 import logging
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
+from mpi4py import MPI
 import numpy as np
 from numpy.linalg import inv, norm
 # TODO: Do some research on sklearn.linear_model.SGDRegressor
@@ -396,8 +397,13 @@ class Emulator(object):
         file.attrs['emul_type'] = self._emul_type.encode('ascii', 'ignore')
         file.attrs['use_mock'] = bool(self._use_mock)
         if self._use_mock:
+            for rank in range(1, self._pipeline._size):
+                MPI.COMM_WORLD.send(1, dest=rank, tag=999+rank)
             self._pipeline._get_mock_data()
             file.attrs['mock_par'] = self._modellink._par_est
+        else:
+            for rank in range(1, self._pipeline._size):
+                MPI.COMM_WORLD.send(0, dest=rank, tag=999+rank)
 
         # Close hdf5-file
         self._pipeline._close_hdf5(file)
