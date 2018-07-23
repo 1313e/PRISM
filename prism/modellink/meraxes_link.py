@@ -160,7 +160,7 @@ class PrismMhysa(Mhysa):
                                    delimiter=':', autostrip=True)
         snap_file = dict(input_data)['FileWithOutputSnaps']
         snap_file = path.join(path.dirname(kwargs['input_file']), snap_file)
-        np.savetxt(snap_file, sorted(self._data_idx[0]), '%i')
+        np.savetxt(snap_file, sorted(self._data_idx[0]), '%i', newline=' ')
 
         # Inheriting Mhysa __init__()
         super(PrismMhysa, self).__init__(*args, **kwargs)
