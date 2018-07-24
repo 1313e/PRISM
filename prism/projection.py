@@ -141,6 +141,26 @@ class Projection(object):
         # Check what kind of hdf5-file has been provided
         self._emul_i = self._emulator._get_emul_i(emul_i)
 
+        # Check if it makes sense to create a projection
+        if(self._emul_i == self._emulator._emul_i):
+            if not self._pipeline._n_eval_sam[self._emul_i]:
+                logger.info("Requested emulator iteration %s has not been "
+                            "analyzed yet. Creating projections may not be "
+                            "useful." % (self._emul_i))
+                print("Requested emulator iteration %s has not been analyzed "
+                      "yet. Creating projections may not be useful."
+                      % (self._emul_i))
+            elif self._pipeline._prc:
+                pass
+            else:
+                logger.info("Requested emulator iteration %s has no plausible "
+                            "regions. Creating projections has no use."
+                            % (self._emul_i))
+                print("Requested emulator iteration %s has no plausible "
+                      "regions. Creating projections has no use."
+                      % (self._emul_i))
+                return
+
         # Check if figure, show and force-parameters are bools
         figure = check_bool(figure, 'figure')
         show = check_bool(show, 'show')

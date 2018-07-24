@@ -122,6 +122,7 @@ class Pipeline(object):
         else:
             self._is_worker = 1
 
+        # Controller only
         if self._is_controller:
             # Start logging
             logging_file = start_logger()
@@ -145,23 +146,22 @@ class Pipeline(object):
             else:
                 raise RequestError("Input argument 'emul_type' is invalid!")
 
-        # MPI Barrier
-        MPI.COMM_WORLD.Barrier()
+        # Remaining workers
+        else:
+            # Listen for controller sending updated modellink object
+            self._modellink = MPI.COMM_WORLD.recv(source=0, tag=888+self._rank)
 
         # Let controller read in the data
         if self._is_controller:
             # Read/load in pipeline parameters
             self._read_parameters()
             self._load_data()
-
-            # Print out the details of the current state of the pipeline
-            self.details()
         else:
             # If no controller error, save modellink for workers
             self._modellink = modellink
 
-        # MPI Barrier
-        MPI.COMM_WORLD.Barrier()
+        # Print out the details of the current state of the pipeline
+        self.details()
 
     # Allows one to call one full loop of the PRISM pipeline
     @docstring_substitute(emul_i=call_emul_i_doc)
@@ -184,8 +184,7 @@ class Pipeline(object):
             raise
         else:
             # Perform projection
-            if self._prc:
-                self.create_projection()
+            self.create_projection()
 
             # Print details
             self.details()
@@ -964,7 +963,7 @@ class Pipeline(object):
                 # Multi-call model
                 mod_out = self._multi_call_model(0, self._modellink._par_est)
 
-                # Only controller receives output and can thus using indexing
+                # Only controller receives output and can thus use indexing
                 if self._is_controller:
                     self._modellink._data_val = mod_out[:, 0].tolist()
 
@@ -996,6 +995,7 @@ class Pipeline(object):
             logger.info("Generated mock data.")
 
         # Broadcast modellink object
+        # TODO: Should entire modellink be broadcasted or just the changes?
         self._modellink = MPI.COMM_WORLD.bcast(self._modellink, 0)
 
     # This function loads pipeline data
@@ -1207,11 +1207,11 @@ class Pipeline(object):
             logger = logging.getLogger('MODEL')
             logger.info("Evaluating model samples.")
 
+            # Do model evaluations
+            start_time = time()
+
         # Obtain number of samples
         n_sam = np.shape(sam_set)[0]
-
-        # Do model evaluations
-        start_time = time()
 
         # Check who needs to call the model
         if(self._modellink._MPI_call or
@@ -1229,11 +1229,11 @@ class Pipeline(object):
                 for i in range(n_sam):
                     mod_set[:, i] = self._call_model(emul_i, sam_set[i])
 
-        # Get end time
-        end_time = time()-start_time
-
         # Controller finishing up
         if self._is_controller:
+            # Get end time
+            end_time = time()-start_time
+
             # Save data to hdf5
             if(emul_i == 1 or self._emulator._emul_type == 'default'):
                 self._emulator._save_data(emul_i, 'sam_set', sam_set)
@@ -1530,38 +1530,41 @@ class Pipeline(object):
 
         """
 
-        # Do some logging
-        logger = logging.getLogger('INIT')
-        logger.info("Obtaining implausibility analysis parameters.")
+        # Controller only
+        if self._is_controller:
+            # Do some logging
+            logger = logging.getLogger('INIT')
+            logger.info("Obtaining implausibility analysis parameters.")
 
-        # Obtaining default pipeline parameter dict
-        par_dict = self._get_default_parameters()
+            # Obtaining default pipeline parameter dict
+            par_dict = self._get_default_parameters()
 
-        # Read in data from provided PRISM parameters file
-        if self._prism_file is not None:
-            pipe_par = np.genfromtxt(self._prism_file, dtype=(str),
-                                     delimiter=':', autostrip=True)
+            # Read in data from provided PRISM parameters file
+            if self._prism_file is not None:
+                pipe_par = np.genfromtxt(self._prism_file, dtype=(str),
+                                         delimiter=':', autostrip=True)
 
-            # Make sure that pipe_par is 2D
-            pipe_par = np.array(pipe_par, ndmin=2)
+                # Make sure that pipe_par is 2D
+                pipe_par = np.array(pipe_par, ndmin=2)
 
-            # Combine default parameters with read-in parameters
-            par_dict.update(pipe_par)
+                # Combine default parameters with read-in parameters
+                par_dict.update(pipe_par)
 
-        # More logging
-        logger.info("Checking compatibility of provided implausibility "
-                    "analysis parameters.")
+            # More logging
+            logger.info("Checking compatibility of provided implausibility "
+                        "analysis parameters.")
 
-        # Implausibility cut-off
-        # Remove all unwanted characters from the string and split it up
-        impl_cut_str = convert_str_seq(par_dict['impl_cut'])
+            # Implausibility cut-off
+            # Remove all unwanted characters from the string and split it up
+            impl_cut_str = convert_str_seq(par_dict['impl_cut'])
 
-        # Convert list of strings to list of floats and perform completion
-        self._get_impl_cut(
-            self, list(float(impl_cut) for impl_cut in impl_cut_str), temp)
+            # Convert list of strings to list of floats and perform completion
+            self._get_impl_cut(
+                self, list(float(impl_cut) for impl_cut in impl_cut_str), temp)
 
-        # Finish logging
-        logger.info("Finished obtaining implausibility analysis parameters.")
+            # Finish logging
+            logger.info("Finished obtaining implausibility analysis "
+                        "parameters.")
 
 
 # %% VISIBLE CLASS METHODS
@@ -1747,14 +1750,14 @@ class Pipeline(object):
             else:
                 emul_i = self._emulator._get_emul_i(emul_i-1)+1
 
+        # Check if analyze-parameter received a bool
+        analyze = check_bool(analyze, 'analyze')
+
         # Broadcast emul_i to workers
         emul_i = MPI.COMM_WORLD.bcast(emul_i, 0)
 
         # Controller only
         if self._is_controller:
-            # Check if analyze-parameter received a bool
-            analyze = check_bool(analyze, 'analyze')
-
             # Log that construction of emulator iteration is being started
             logger.info("Starting construction of emulator iteration %s."
                         % (emul_i))
@@ -1840,12 +1843,12 @@ class Pipeline(object):
             self._save_data('impl_sam', [])
             self._save_data('n_eval_sam', 0)
 
-            # Analyze the emulator system if requested
-            if analyze:
-                self.analyze(emul_i)
-            else:
-                self._get_impl_par(emul_i, True)
-                self.details(emul_i)
+        # Analyze the emulator system if requested
+        if analyze:
+            self.analyze(emul_i)
+        else:
+            self._get_impl_par(emul_i, True)
+            self.details(emul_i)
 
     # This function creates the projection figures of a given emul_i
     @docstring_copy(Projection.__call__)
@@ -1856,6 +1859,9 @@ class Pipeline(object):
         if self._is_controller:
             # Initialize the Projection class and make the figures
             Projection(self)(emul_i, proj_par, figure, show, force)
+
+        # MPI Barrier
+        MPI.COMM_WORLD.Barrier()
 
     # This function allows one to obtain the pipeline details/properties
     # TODO: Allow the viewing of the entire polynomial function in SymPy
@@ -2117,6 +2123,9 @@ class Pipeline(object):
                         "*" if i in self._emulator._active_par[emul_i]
                         else " "))
             print("="*width)
+
+        # MPI Barrier
+        MPI.COMM_WORLD.Barrier()
 
     # This function allows the user to evaluate a given sam_set in the emulator
     # TODO: Plot emul_i_stop for large LHDs, giving a nice mental statistic

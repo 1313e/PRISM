@@ -398,12 +398,18 @@ class Emulator(object):
         file.attrs['prism_version'] = _prism_version.encode('ascii', 'ignore')
         file.attrs['emul_type'] = self._emul_type.encode('ascii', 'ignore')
         file.attrs['use_mock'] = bool(self._use_mock)
+
+        # Check if mock data is requested
         if self._use_mock:
+            # If so, let workers know to call _get_mock_data() as well
             for rank in range(1, self._pipeline._size):
                 MPI.COMM_WORLD.send(1, dest=rank, tag=999+rank)
+
+            # Controller calling _get_mock_data() and saving to hdf5
             self._pipeline._get_mock_data()
             file.attrs['mock_par'] = self._modellink._par_est
         else:
+            # If not, let workers know
             for rank in range(1, self._pipeline._size):
                 MPI.COMM_WORLD.send(0, dest=rank, tag=999+rank)
 
@@ -1586,19 +1592,21 @@ class Emulator(object):
             logger.info("No constructed emulator system is loaded.")
             # Set ModelLink object
             self._modellink = modellink_obj
-            self._pipeline._modellink = modellink_obj
+            self._pipeline._modellink = self._modellink
 
         # If an existing emulator system is loaded, check if classes are equal
         elif(modellink_obj._name == modellink_loaded):
             logger.info("Provided ModelLink subclass matches ModelLink "
                         "subclass used for emulator construction.")
-            # Set ModelLink object
+            # Set ModelLink object for Emulator
             self._modellink = modellink_obj
-            self._pipeline._modellink = modellink_obj
 
             # If mock data has been used, set the ModelLink object to use it
             if self._use_mock:
                 self._set_mock_data()
+
+            # Set ModelLink object for Pipeline
+            self._pipeline._modellink = self._modellink
         else:
             logger.error("Provided ModelLink subclass '%s' does not match "
                          "the ModelLink subclass '%s' used for emulator "
@@ -1608,6 +1616,10 @@ class Emulator(object):
                              "match the ModelLink subclass '%s' used for "
                              "emulator construction!"
                              % (modellink_obj._name, modellink_loaded))
+
+        # Send updated modellink object to workers
+        for rank in range(1, self._pipeline._size):
+                MPI.COMM_WORLD.send(self._modellink, dest=rank, tag=888+rank)
 
         # Logging
         logger.info("ModelLink object set to '%s'." % (self._modellink._name))
