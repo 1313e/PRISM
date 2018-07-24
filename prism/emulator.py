@@ -1619,7 +1619,7 @@ class Emulator(object):
 
         # Send updated modellink object to workers
         for rank in range(1, self._pipeline._size):
-                MPI.COMM_WORLD.send(self._modellink, dest=rank, tag=888+rank)
+            MPI.COMM_WORLD.send(self._modellink, dest=rank, tag=888+rank)
 
         # Logging
         logger.info("ModelLink object set to '%s'." % (self._modellink._name))
