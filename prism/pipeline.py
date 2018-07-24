@@ -156,9 +156,6 @@ class Pipeline(object):
             # Read/load in pipeline parameters
             self._read_parameters()
             self._load_data()
-        else:
-            # If no controller error, save modellink for workers
-            self._modellink = modellink
 
         # Print out the details of the current state of the pipeline
         self.details()
