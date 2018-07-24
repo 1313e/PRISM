@@ -32,6 +32,7 @@ import numpy as np
 
 # PRISM imports
 from prism import ModelLink
+from prism._internal import RequestError
 
 # All declaration
 __all__ = ['MeraxesLink']
@@ -103,8 +104,13 @@ class MeraxesLink(ModelLink):
         mhysa.finish()
 
         # Return it
+        # Controller returns the gathered data_list
         if mhysa.is_controller:
             return(mhysa._data_list)
+
+        # The workers return a dummy value
+        else:
+            return(0)
 
     def get_md_var(self, emul_i, data_idx):
         super(MeraxesLink, self).get_md_var(emul_i=emul_i, data_idx=data_idx)
@@ -175,24 +181,37 @@ class PrismMhysa(Mhysa):
             self._data_list = []
 
     def meraxes_hook(self, snapshot, ngals):
-        # Create new empty list at snapshot 0
-        if(self.is_controller and snapshot == 0):
-            self._data_list.append([])
+        # Wrap entire process in a try-statement
+        try:
+            # Create new empty list at snapshot 0
+            if(self.is_controller and snapshot == 0):
+                self._data_list.append([])
 
-        # Check if this snapshot is required by data
-        if snapshot in self._data_idx[0]:
-            data_id = self._data_idx[0].index(snapshot)
-            gals = self.collect_global_gals(ngals)
-            if self.is_controller:
-                # TODO: Not all gal_props need Hubble scaling
-                data = gals[self._data_idx[1][data_id]] /\
-                    self.meraxes_globals.Hubble_h
-                if(self._data_idx[2][data_id] == 'sum'):
-                    data = data.sum()
-                else:
-                    raise NotImplementedError
+            # Check if this snapshot is required by data
+            if snapshot in self._data_idx[0]:
+                data_id = self._data_idx[0].index(snapshot)
+                gals = self.collect_global_gals(ngals)
+                if self.is_controller:
+                    # TODO: Not all gal_props need Hubble scaling
+                    # Perform Hubble scaling
+                    data = gals[self._data_idx[1][data_id]] /\
+                        self.meraxes_globals.Hubble_h
 
-                self._data_list[-1].append(data)
+                    # Perform user-defined operation
+                    if(self._data_idx[2][data_id] == 'sum'):
+                        data = data.sum()
+                    else:
+                        raise RequestError("The requested operation '%s' is "
+                                           "invalid!"
+                                           % (self._data_idx[2][data_id]))
 
+                    # Save resulting data value
+                    self._data_list[-1].append(data)
+
+        # If any errors are raised, catch them and return -1
+        except Exception as error:
+            logger.error(error)
+            return(-1)
+
+        # If everything went correctly, return 0
         return(0)
-
