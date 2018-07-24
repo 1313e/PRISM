@@ -494,13 +494,13 @@ class Pipeline(object):
 
         """
 
+        # Make sure that sam_set is at least 2D and a numpy array
+        sam_set = np.array(sam_set, ndmin=2)
+
         # Log that model is being multi-called
         logger = logging.getLogger('CALL_MODEL')
         logger.info("Multi-calling model for sample set of size %s."
                     % (np.shape(sam_set)[0]))
-
-        # Make sure that sam_set is at least 2D and a numpy array
-        sam_set = np.array(sam_set, ndmin=2)
 
         # Create sam_dict
         sam_dict = dict(zip(self._modellink._par_name, sam_set.T))
@@ -1695,6 +1695,7 @@ class Pipeline(object):
     # TODO: Make time and RAM cost plots
     # TODO: Implement try-statement for KeyboardInterrupt like in analyze()
     # TODO: !Allow model evaluation data to be provided by an external source
+    # Not only is this useful for starting, but also restores crashed processes
     @docstring_substitute(emul_i=call_emul_i_doc)
     def construct(self, emul_i=None, analyze=True):
         """
@@ -1767,8 +1768,8 @@ class Pipeline(object):
                 self._load_data()
 
                 # Create initial set of model evaluation samples
-                logger.info("Creating initial model evaluation sample set "
-                            "with size %s." % (self._n_sam_init))
+                logger.info("Creating initial model evaluation sample set of "
+                            "size %s." % (self._n_sam_init))
                 add_sam_set = lhd(self._n_sam_init, self._modellink._n_par,
                                   self._modellink._par_rng, 'fixed',
                                   self._criterion)
@@ -1857,6 +1858,7 @@ class Pipeline(object):
             Projection(self)(emul_i, proj_par, figure, show, force)
 
     # This function allows one to obtain the pipeline details/properties
+    # TODO: Allow the viewing of the entire polynomial function in SymPy
     @docstring_substitute(emul_i=user_emul_i_doc)
     def details(self, emul_i=None):
         """

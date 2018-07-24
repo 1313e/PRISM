@@ -353,6 +353,8 @@ class Emulator(object):
         return(emul_i)
 
     # Creates a new emulator file and writes all information to it
+    # TODO: Allow for user-provided code to be executed here
+    # Like, copying files after creating a new emulator
     def _create_new_emulator(self):
         """
         Creates a new HDF5-file that holds all the information of a new
