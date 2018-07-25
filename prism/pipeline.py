@@ -446,12 +446,13 @@ class Pipeline(object):
 
         """
 
-        # Log that model is being called
-        logger = logging.getLogger('CALL_MODEL')
-        logger.info("Calling model at parameters %s." % (par_set))
-
         # Make sure par_set is at least 1D and a numpy array
         sam = np.array(par_set, ndmin=1)
+
+        # Log that model is being called
+        if self._is_controller:
+            logger = logging.getLogger('CALL_MODEL')
+            logger.info("Calling model at parameters %s." % (sam))
 
         # Create par_dict
         par_dict = dict(zip(self._modellink._par_name, sam))
@@ -461,7 +462,8 @@ class Pipeline(object):
                                              self._modellink._data_idx)
 
         # Log that calling model has been finished
-        logger.info("Model returned %s." % (mod_out))
+        if self._is_controller:
+            logger.info("Model returned %s." % (mod_out))
 
         # Return it
         return(np.array(mod_out))
@@ -494,9 +496,10 @@ class Pipeline(object):
         sam_set = np.array(sam_set, ndmin=2)
 
         # Log that model is being multi-called
-        logger = logging.getLogger('CALL_MODEL')
-        logger.info("Multi-calling model for sample set of size %s."
-                    % (np.shape(sam_set)[0]))
+        if self._is_controller:
+            logger = logging.getLogger('CALL_MODEL')
+            logger.info("Multi-calling model for sample set of size %s."
+                        % (np.shape(sam_set)[0]))
 
         # Create sam_dict
         sam_dict = dict(zip(self._modellink._par_name, sam_set.T))
@@ -506,7 +509,8 @@ class Pipeline(object):
                                              self._modellink._data_idx)
 
         # Log that multi-calling model has been finished
-        logger.info("Finished model multi-call.")
+        if self._is_controller:
+            logger.info("Finished model multi-call.")
 
         # Return it
         return(np.array(mod_set).T)
@@ -1948,6 +1952,8 @@ class Pipeline(object):
             try:
                 emul_i = self._emulator._get_emul_i(emul_i)
             except RequestError:
+                # MPI Barrier for controller to sync with workers at the end
+                MPI.COMM_WORLD.Barrier()
                 return
             else:
                 # Get max lengths of various strings for parameter section
