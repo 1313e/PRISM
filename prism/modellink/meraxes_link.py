@@ -46,6 +46,17 @@ class MeraxesLink(ModelLink):
     :class:`~ModelLink` class wrapper for the semi-analytic galaxy evolution
     model *Meraxes*.
 
+    Formatting data_idx
+    -------------------
+    snap : int
+        The snapshot at which the data value needs to be obtained.
+    gal_prop : str
+        The specific galaxy property that needs to be used for the data value,
+        using the names as defined by *Meraxes*.
+    operation : {'sum'}
+        The specific operation that needs to be performed in order to obtain
+        the data value.
+
     """
 
     def __init__(self, input_file, *args, **kwargs):
@@ -56,7 +67,7 @@ class MeraxesLink(ModelLink):
         ----------
         input_file : str
             The name of the file that contains the input parameters for
-            Meraxes.
+            *Meraxes*.
 
         Optional
         --------
@@ -121,7 +132,7 @@ class MeraxesLink(ModelLink):
     def input_file(self):
         """
         String containing the absolute path to the input parameter file used
-        for Meraxes.
+        for *Meraxes*.
 
         """
 
@@ -131,7 +142,7 @@ class MeraxesLink(ModelLink):
 # %% PRISMMHYSA CLASS DEFINITION
 class PrismMhysa(Mhysa):
     """
-    A :class:`~Mhysa` subclass manipulating the outputs of Meraxes to be used
+    A :class:`~Mhysa` subclass manipulating the outputs of *Meraxes* to be used
     by the :class:`~prism.Pipeline` class.
 
     """

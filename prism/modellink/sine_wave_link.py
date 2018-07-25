@@ -38,6 +38,12 @@ class SineWaveLink(ModelLink):
     :class:`~ModelLink` class wrapper for a simple sine wave model, used for
     testing the functionality of the PRISM pipeline in unittests.
 
+    Formatting data_idx
+    -------------------
+    x : int
+        The value that needs to be used for :math:`x` in the function
+        :math:`A+0.1*B*\\sin(C*x+D)` to obtain the data value.
+
     """
 
     def __init__(self, *args, **kwargs):
