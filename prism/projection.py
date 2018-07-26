@@ -202,8 +202,8 @@ class Projection(object):
                             % (self._modellink._par_name[hcube[0]]))
 
                 # Save projection data to hdf5
-                self._save_data('2D_proj_hcube',
-                                [hcube, impl_min_hcube, impl_los_hcube])
+                self._save_data({
+                    '2D_proj_hcube': [hcube, impl_min_hcube, impl_los_hcube]})
             elif(self._modellink._n_par > 2 and hcube in create_hcube_par):
                 # Log that projection data is being created
                 logger.info("Calculating projection data '%s-%s'."
@@ -222,8 +222,8 @@ class Projection(object):
                                self._modellink._par_name[hcube[1]]))
 
                 # Save projection data to hdf5
-                self._save_data('nD_proj_hcube',
-                                [hcube, impl_min_hcube, impl_los_hcube])
+                self._save_data({
+                    'nD_proj_hcube': [hcube, impl_min_hcube, impl_los_hcube]})
 
             # PLOTTING
             # Plotting 2D
@@ -735,9 +735,9 @@ class Projection(object):
         # Number of samples used for implausibility evaluations
         proj_res = int(par_dict['proj_res'])
         proj_depth = int(par_dict['proj_depth'])
-        self._save_data('proj_grid',
-                        [check_pos_int(proj_res, 'proj_res'),
-                         check_pos_int(proj_depth, 'proj_depth')])
+        self._save_data({
+            'proj_grid': [check_pos_int(proj_res, 'proj_res'),
+                          check_pos_int(proj_depth, 'proj_depth')]})
 
         # Finish logging
         logger.info("Finished obtaining implausibility analysis parameters.")
@@ -999,10 +999,10 @@ class Projection(object):
         return(impl_min_hcube, impl_los_hcube)
 
     # This function saves projection data to hdf5
-    def _save_data(self, keyword, data):
+    def _save_data(self, data_dict):
         """
-        Saves the provided `data` for the specified data-type `keyword` at the
-        emulator iteration this class was initialized for, to the HDF5-file.
+        Saves a given data dict {`keyword`: `data`} at the emulator iteration
+        this class was initialized for, to the HDF5-file.
 
         Parameters
         ----------
@@ -1020,68 +1020,75 @@ class Projection(object):
 
         # Do some logging
         logger = logging.getLogger('SAVE_DATA')
-        logger.info("Saving %s data at iteration %s to HDF5."
-                    % (keyword, self._emul_i))
 
         # Open hdf5-file
         file = self._pipeline._open_hdf5('r+')
 
-        # 2D_PROJ_HCUBE
-        if(keyword == '2D_proj_hcube'):
-            file.create_dataset('%s/proj_hcube/%s/impl_min'
-                                % (self._emul_i,
-                                   self._modellink._par_name[data[0][0]]),
-                                data=data[1])
-            file.create_dataset('%s/proj_hcube/%s/impl_los'
-                                % (self._emul_i,
-                                   self._modellink._par_name[data[0][0]]),
-                                data=data[2])
+        # Loop over entire provided data dict
+        for keyword, data in data_dict.items():
+            # Log what data is being saved
+            logger.info("Saving %s data at iteration %s to HDF5."
+                        % (keyword, self._emul_i))
 
-        # IMPL_CUT
-        elif(keyword == 'impl_cut'):
-            # Check if projection has been created before
-            try:
-                file.create_group('%s/proj_hcube' % (self._emul_i))
-            except ValueError:
-                pass
+            # Check what data keyword has been provided
+            # 2D_PROJ_HCUBE
+            if(keyword == '2D_proj_hcube'):
+                file.create_dataset('%s/proj_hcube/%s/impl_min'
+                                    % (self._emul_i,
+                                       self._modellink._par_name[data[0][0]]),
+                                    data=data[1])
+                file.create_dataset('%s/proj_hcube/%s/impl_los'
+                                    % (self._emul_i,
+                                       self._modellink._par_name[data[0][0]]),
+                                    data=data[2])
 
-            self._impl_cut.append(data[0])
-            self._cut_idx.append(data[1])
-            file['%s/proj_hcube' % (self._emul_i)].attrs['impl_cut'] = data[0]
-            file['%s/proj_hcube' % (self._emul_i)].attrs['cut_idx'] = data[1]
+            # IMPL_CUT
+            elif(keyword == 'impl_cut'):
+                # Check if projection has been created before
+                try:
+                    file.create_group('%s/proj_hcube' % (self._emul_i))
+                except ValueError:
+                    pass
 
-        # PROJ_GRID
-        elif(keyword == 'proj_grid'):
-            # Check if projection has been created before
-            try:
-                file.create_group('%s/proj_hcube' % (self._emul_i))
-            except ValueError:
-                pass
+                self._impl_cut.append(data[0])
+                self._cut_idx.append(data[1])
+                file['%s/proj_hcube' % (self._emul_i)].attrs['impl_cut'] =\
+                    data[0]
+                file['%s/proj_hcube' % (self._emul_i)].attrs['cut_idx'] =\
+                    data[1]
 
-            self._proj_res = data[0]
-            self._proj_depth = data[1]
-            file['%s/proj_hcube' % (self._emul_i)].attrs['proj_res'] =\
-                data[0]
-            file['%s/proj_hcube' % (self._emul_i)].attrs['proj_depth'] =\
-                data[1]
+            # PROJ_GRID
+            elif(keyword == 'proj_grid'):
+                # Check if projection has been created before
+                try:
+                    file.create_group('%s/proj_hcube' % (self._emul_i))
+                except ValueError:
+                    pass
 
-        # ND_PROJ_HCUBE
-        elif(keyword == 'nD_proj_hcube'):
-            file.create_dataset('%s/proj_hcube/%s-%s/impl_min'
-                                % (self._emul_i,
-                                   self._modellink._par_name[data[0][0]],
-                                   self._modellink._par_name[data[0][1]]),
-                                data=data[1])
-            file.create_dataset('%s/proj_hcube/%s-%s/impl_los'
-                                % (self._emul_i,
-                                   self._modellink._par_name[data[0][0]],
-                                   self._modellink._par_name[data[0][1]]),
-                                data=data[2])
+                self._proj_res = data[0]
+                self._proj_depth = data[1]
+                file['%s/proj_hcube' % (self._emul_i)].attrs['proj_res'] =\
+                    data[0]
+                file['%s/proj_hcube' % (self._emul_i)].attrs['proj_depth'] =\
+                    data[1]
 
-        # INVALID KEYWORD
-        else:
-            logger.error("Invalid keyword argument provided!")
-            raise ValueError("Invalid keyword argument provided!")
+            # ND_PROJ_HCUBE
+            elif(keyword == 'nD_proj_hcube'):
+                file.create_dataset('%s/proj_hcube/%s-%s/impl_min'
+                                    % (self._emul_i,
+                                       self._modellink._par_name[data[0][0]],
+                                       self._modellink._par_name[data[0][1]]),
+                                    data=data[1])
+                file.create_dataset('%s/proj_hcube/%s-%s/impl_los'
+                                    % (self._emul_i,
+                                       self._modellink._par_name[data[0][0]],
+                                       self._modellink._par_name[data[0][1]]),
+                                    data=data[2])
+
+            # INVALID KEYWORD
+            else:
+                logger.error("Invalid keyword argument provided!")
+                raise ValueError("Invalid keyword argument provided!")
 
         # Close hdf5-file
         self._pipeline._close_hdf5(file)

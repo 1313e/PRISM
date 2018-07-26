@@ -630,8 +630,9 @@ class Emulator(object):
         self._emul_i = emul_i
 
         # Save time difference
-        self._pipeline._save_statistic(emul_i, 'emul_construct_time',
-                                       '%.2f' % (time()-start_time), 's')
+        self._pipeline._save_statistics(emul_i, {
+            'emul_construct_time': ['%.2f' % (time()-start_time), 's'],
+            'MPI_comm_size_cons': ['%i' % (self._pipeline._size), '']})
 
     # This is function 'E_D(f(x'))'
     # This function gives the adjusted emulator expectation value back
@@ -878,7 +879,8 @@ class Emulator(object):
             active_par_data[i] = np.array(list(active_par_data[i]))
 
         # Save the active parameters
-        self._save_data(emul_i, 'active_par', [active_par, active_par_data])
+        self._save_data(emul_i, {
+            'active_par': [active_par, active_par_data]})
 
         # Log that active parameter determination is finished
         logger.info("Finished determining active parameters.")
@@ -996,12 +998,12 @@ class Emulator(object):
 
         # Save everything to hdf5
         if self._use_regr_cov:
-            self._save_data(emul_i, 'regression',
-                            [rsdl_var, poly_coef, poly_powers, poly_idx,
-                             poly_coef_cov])
+            self._save_data(emul_i, {
+                'regression': [rsdl_var, poly_coef, poly_powers, poly_idx,
+                               poly_coef_cov]})
         else:
-            self._save_data(emul_i, 'regression',
-                            [rsdl_var, poly_coef, poly_powers, poly_idx])
+            self._save_data(emul_i, {
+                'regression': [rsdl_var, poly_coef, poly_powers, poly_idx]})
 
         # Log that this is finished
         logger.info("Finished performing regression.")
@@ -1103,7 +1105,8 @@ class Emulator(object):
         prior_exp_sam_set = self._get_prior_exp(emul_i, None)
 
         # Save the prior expectation values to hdf5
-        self._save_data(emul_i, 'prior_exp_sam_set', prior_exp_sam_set)
+        self._save_data(emul_i, {
+            'prior_exp_sam_set': prior_exp_sam_set})
 
         # Log again
         logger.info("Finished calculating prior expectation values.")
@@ -1470,7 +1473,8 @@ class Emulator(object):
             cov_mat_inv[i] = self._get_inv_matrix(cov_mat[i])
 
         # Save the covariance matrices to hdf5
-        self._save_data(emul_i, 'cov_mat', [cov_mat, cov_mat_inv])
+        self._save_data(emul_i, {
+            'cov_mat': [cov_mat, cov_mat_inv]})
 
         # Log that calculation has been finished
         logger.info("Finished calculating covariance matrix.")
@@ -1775,19 +1779,22 @@ class Emulator(object):
 
     # This function saves emulator data to hdf5
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def _save_data(self, emul_i, keyword, data):
+    def _save_data(self, emul_i, data_dict):
         """
-        Saves the provided `data` for the specified data-type `keyword` at the
-        given emulator iteration `emul_i` to the HDF5-file and as an data
-        attribute to the current :obj:`~Emulator` instance.
+        Saves a given data dict {`keyword`: `data`} at the given emulator
+        iteration `emul_i` to the HDF5-file and as an data attribute to the
+        current :obj:`~Emulator` instance.
 
         Parameters
         ----------
         %(emul_i)s
+
+        Dict Variables
+        --------------
         keyword : {'active_par', 'cov_mat', 'mod_set', 'prior_exp_sam_set',\
                    'regression', 'sam_set'}
             String specifying the type of data that needs to be saved.
-        data : list
+        data : int, float, list
             The actual data that needs to be saved at data keyword `keyword`.
 
         Generates
@@ -1798,72 +1805,77 @@ class Emulator(object):
 
         # Do some logging
         logger = logging.getLogger('SAVE_DATA')
-        logger.info("Saving %s data at iteration %s to HDF5."
-                    % (keyword, emul_i))
 
         # Open hdf5-file
         file = self._pipeline._open_hdf5('r+')
 
-        # Check what data keyword has been provided
-        # ACTIVE PARAMETERS
-        if(keyword == 'active_par'):
-            file.create_dataset('%s/active_par' % (emul_i), data=data[0])
-            for i in range(self._n_data[emul_i]):
-                data_set = file['%s/data_point_%s' % (emul_i, i)]
-                data_set.create_dataset('active_par_data', data=data[1][i])
-            self._active_par.append(data[0])
-            self._active_par_data.append(data[1])
+        # Loop over entire provided data dict
+        for keyword, data in data_dict.items():
+            # Log what data is being saved
+            logger.info("Saving %s data at iteration %s to HDF5."
+                        % (keyword, emul_i))
 
-        # COV_MAT
-        elif(keyword == 'cov_mat'):
-            for i in range(self._n_data[emul_i]):
-                data_set = file['%s/data_point_%s' % (emul_i, i)]
-                data_set.create_dataset('cov_mat', data=data[0][i])
-                data_set.create_dataset('cov_mat_inv', data=data[1][i])
-            self._cov_mat_inv.append(data[1])
+            # Check what data keyword has been provided
+            # ACTIVE PARAMETERS
+            if(keyword == 'active_par'):
+                file.create_dataset('%s/active_par' % (emul_i), data=data[0])
+                for i in range(self._n_data[emul_i]):
+                    data_set = file['%s/data_point_%s' % (emul_i, i)]
+                    data_set.create_dataset('active_par_data', data=data[1][i])
+                self._active_par.append(data[0])
+                self._active_par_data.append(data[1])
 
-        # MOD_SET
-        elif(keyword == 'mod_set'):
-            for i in range(self._n_data[emul_i]):
-                data_set = file['%s/data_point_%s' % (emul_i, i)]
-                data_set.create_dataset('mod_set', data=data[i])
-            self._mod_set.append(data)
+            # COV_MAT
+            elif(keyword == 'cov_mat'):
+                for i in range(self._n_data[emul_i]):
+                    data_set = file['%s/data_point_%s' % (emul_i, i)]
+                    data_set.create_dataset('cov_mat', data=data[0][i])
+                    data_set.create_dataset('cov_mat_inv', data=data[1][i])
+                self._cov_mat_inv.append(data[1])
 
-        # PRIOR_EXP_SAM_SET
-        elif(keyword == 'prior_exp_sam_set'):
-            for i in range(self._n_data[emul_i]):
-                data_set = file['%s/data_point_%s' % (emul_i, i)]
-                data_set.create_dataset('prior_exp_sam_set', data=data[i])
-            self._prior_exp_sam_set.append(data)
+            # MOD_SET
+            elif(keyword == 'mod_set'):
+                for i in range(self._n_data[emul_i]):
+                    data_set = file['%s/data_point_%s' % (emul_i, i)]
+                    data_set.create_dataset('mod_set', data=data[i])
+                self._mod_set.append(data)
 
-        # REGRESSION
-        elif(keyword == 'regression'):
-            for i in range(self._n_data[emul_i]):
-                data_set = file['%s/data_point_%s' % (emul_i, i)]
-                data_set.attrs['rsdl_var'] = data[0][i]
-                data_set.create_dataset('poly_coef', data=data[1][i])
-                data_set.create_dataset('poly_powers', data=data[2][i])
-                data_set.create_dataset('poly_idx', data=data[3][i])
+            # PRIOR_EXP_SAM_SET
+            elif(keyword == 'prior_exp_sam_set'):
+                for i in range(self._n_data[emul_i]):
+                    data_set = file['%s/data_point_%s' % (emul_i, i)]
+                    data_set.create_dataset('prior_exp_sam_set', data=data[i])
+                self._prior_exp_sam_set.append(data)
+
+            # REGRESSION
+            elif(keyword == 'regression'):
+                for i in range(self._n_data[emul_i]):
+                    data_set = file['%s/data_point_%s' % (emul_i, i)]
+                    data_set.attrs['rsdl_var'] = data[0][i]
+                    data_set.create_dataset('poly_coef', data=data[1][i])
+                    data_set.create_dataset('poly_powers', data=data[2][i])
+                    data_set.create_dataset('poly_idx', data=data[3][i])
+                    if self._use_regr_cov:
+                        data_set.create_dataset('poly_coef_cov',
+                                                data=data[4][i])
+                self._rsdl_var.append(data[0])
+                self._poly_coef.append(data[1])
+                self._poly_powers.append(data[2])
+                self._poly_idx.append(data[3])
                 if self._use_regr_cov:
-                    data_set.create_dataset('poly_coef_cov', data=data[4][i])
-            self._rsdl_var.append(data[0])
-            self._poly_coef.append(data[1])
-            self._poly_powers.append(data[2])
-            self._poly_idx.append(data[3])
-            if self._use_regr_cov:
-                self._poly_coef_cov.append(data[4])
+                    self._poly_coef_cov.append(data[4])
 
-        # SAM_SET
-        elif(keyword == 'sam_set'):
-            file.create_dataset('%s/sam_set' % (emul_i), data=data)
-            file['%s' % (emul_i)].attrs['n_sam'] = np.shape(data)[0]
-            self._sam_set.append(data)
-            self._n_sam.append(np.shape(data)[0])
+            # SAM_SET
+            elif(keyword == 'sam_set'):
+                file.create_dataset('%s/sam_set' % (emul_i), data=data)
+                file['%s' % (emul_i)].attrs['n_sam'] = np.shape(data)[0]
+                self._sam_set.append(data)
+                self._n_sam.append(np.shape(data)[0])
 
-        # INVALID KEYWORD
-        else:
-            logger.error("Invalid keyword argument provided!")
-            raise ValueError("Invalid keyword argument provided!")
+            # INVALID KEYWORD
+            else:
+                logger.error("Invalid keyword argument provided!")
+                raise ValueError("Invalid keyword argument provided!")
 
         # Close hdf5-file
         self._pipeline._close_hdf5(file)

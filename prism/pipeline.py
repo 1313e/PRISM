@@ -1053,17 +1053,17 @@ class Pipeline(object):
             self._close_hdf5(file)
 
     # This function saves pipeline data to hdf5
-    def _save_data(self, keyword, data):
+    def _save_data(self, data_dict):
         """
-        Saves the provided `data` for the specified data-type `keyword` at the
-        last emulator iteration to the HDF5-file and as an data
-        attribute to the current :obj:`~Pipeline` instance.
+        Saves a given data dict {`keyword`: `data`} at the last emulator
+        iteration to the HDF5-file and as an data attribute to the current
+        :obj:`~Pipeline` instance.
 
-        Parameters
-        ----------
+        Dict Variables
+        --------------
         keyword : {'impl_cut', 'impl_sam', 'n_eval_sam'}
             String specifying the type of data that needs to be saved.
-        data : list
+        data : int, float, list
             The actual data that needs to be saved at data keyword `keyword`.
 
         Generates
@@ -1074,105 +1074,107 @@ class Pipeline(object):
 
         # Do some logging
         logger = logging.getLogger('SAVE_DATA')
-        logger.info("Saving %s data at iteration %s to HDF5."
-                    % (keyword, self._emulator._emul_i))
+
+        # Obtain last emul_i
+        emul_i = self._emulator._emul_i
 
         # Open hdf5-file
         file = self._open_hdf5('r+')
 
-        # Check what data keyword has been provided
-        # IMPL_CUT
-        if(keyword == 'impl_cut'):
-            # Check if impl_cut data has been saved before
-            try:
-                self._impl_cut[self._emulator._emul_i] = data[0]
-                self._cut_idx[self._emulator._emul_i] = data[1]
-            except IndexError:
-                self._impl_cut.append(data[0])
-                self._cut_idx.append(data[1])
-            finally:
-                file['%s' % (self._emulator._emul_i)].attrs['impl_cut'] =\
-                    data[0]
-                file['%s' % (self._emulator._emul_i)].attrs['cut_idx'] =\
-                    data[1]
+        # Loop over entire provided data dict
+        for keyword, data in data_dict.items():
+            # Log what data is being saved
+            logger.info("Saving %s data at iteration %s to HDF5."
+                        % (keyword, emul_i))
 
-        # IMPL_SAM
-        elif(keyword == 'impl_sam'):
-            # Check if any plausible regions have been found at all
-            n_impl_sam = np.shape(data)[0]
-            prc = 1 if(n_impl_sam != 0) else 0
+            # Check what data keyword has been provided
+            # IMPL_CUT
+            if(keyword == 'impl_cut'):
+                # Check if impl_cut data has been saved before
+                try:
+                    self._impl_cut[emul_i] = data[0]
+                    self._cut_idx[emul_i] = data[1]
+                except IndexError:
+                    self._impl_cut.append(data[0])
+                    self._cut_idx.append(data[1])
+                finally:
+                    file['%s' % (emul_i)].attrs['impl_cut'] = data[0]
+                    file['%s' % (emul_i)].attrs['cut_idx'] = data[1]
 
-            # Check if impl_sam data has been saved before
-            try:
-                self._n_impl_sam[self._emulator._emul_i] = n_impl_sam
-            except IndexError:
-                file.create_dataset('%s/impl_sam'
-                                    % (self._emulator._emul_i), data=data)
-                self._n_impl_sam.append(n_impl_sam)
+            # IMPL_SAM
+            elif(keyword == 'impl_sam'):
+                # Check if any plausible regions have been found at all
+                n_impl_sam = np.shape(data)[0]
+                prc = 1 if(n_impl_sam != 0) else 0
+
+                # Check if impl_sam data has been saved before
+                try:
+                    self._n_impl_sam[emul_i] = n_impl_sam
+                except IndexError:
+                    file.create_dataset('%s/impl_sam' % (emul_i), data=data)
+                    self._n_impl_sam.append(n_impl_sam)
+                else:
+                    del file['%s/impl_sam' % (emul_i)]
+                    file.create_dataset('%s/impl_sam' % (emul_i), data=data)
+                finally:
+                    self._prc = prc
+                    self._impl_sam = data
+                    file['%s' % (emul_i)].attrs['prc'] = bool(prc)
+                    file['%s' % (emul_i)].attrs['n_impl_sam'] = n_impl_sam
+
+            # N_EVAL_SAM
+            elif(keyword == 'n_eval_sam'):
+                # Check if n_eval_sam has been saved before
+                try:
+                    self._n_eval_sam[emul_i] = data
+                except IndexError:
+                    self._n_eval_sam.append(data)
+                finally:
+                    file['%s' % (emul_i)].attrs['n_eval_sam'] = data
+
+            # INVALID KEYWORD
             else:
-                del file['%s/impl_sam' % (self._emulator._emul_i)]
-                file.create_dataset('%s/impl_sam' % (self._emulator._emul_i),
-                                    data=data)
-            finally:
-                self._prc = prc
-                self._impl_sam = data
-                file['%s' % (self._emulator._emul_i)].attrs['prc'] = bool(prc)
-                file['%s' % (self._emulator._emul_i)].attrs['n_impl_sam'] =\
-                    n_impl_sam
+                # Close hdf5
+                self._close_hdf5(file)
 
-        # N_EVAL_SAM
-        elif(keyword == 'n_eval_sam'):
-            # Check if n_eval_sam has been saved before
-            try:
-                self._n_eval_sam[self._emulator._emul_i] = data
-            except IndexError:
-                self._n_eval_sam.append(data)
-            finally:
-                file['%s'
-                     % (self._emulator._emul_i)].attrs['n_eval_sam'] = data
-
-        # INVALID KEYWORD
-        else:
-            # Close hdf5
-            self._close_hdf5(file)
-
-            logger.error("Invalid keyword argument provided!")
-            raise ValueError("Invalid keyword argument provided!")
+                logger.error("Invalid keyword argument provided!")
+                raise ValueError("Invalid keyword argument provided!")
 
         # Close hdf5
         self._close_hdf5(file)
 
     # This function saves a statistic to hdf5
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def _save_statistic(self, emul_i, keyword, value, unit=''):
+    def _save_statistics(self, emul_i, stat_dict):
         """
-        Saves a given statistic `keyword` with `value` and `unit` at emulator
-        iteration `emul_i` to the HDF5-file. The provided `value` is always
-        saved as a string.
+        Saves a given statistics dict {`keyword`: [`value`, `unit`]} at
+        emulator iteration `emul_i` to the HDF5-file. The provided values are
+        always saved as strings.
 
         Parameters
         ----------
         %(emul_i)s
+
+        Dict Variables
+        --------------
         keyword : str
             String containing the name/keyword of the statistic that is being
             saved.
         value : int, float or str
             The value of the statistic.
-
-        Optional
-        --------
-        unit : str. Default: ''
-            The unit of the statistic. Default is no unit.
+        unit : str
+            The unit of the statistic.
 
         """
 
         # Open hdf5-file
         file = self._open_hdf5('r+')
 
-        # Save statistic
-        file['%s/statistics' % (emul_i)].attrs[keyword] =\
-            [str(value).encode('ascii', 'ignore'),
-             unit.encode('ascii', 'ignore')]
+        # Save statistics
+        for keyword, (value, unit) in stat_dict.items():
+            file['%s/statistics' % (emul_i)].attrs[keyword] =\
+                [str(value).encode('ascii', 'ignore'),
+                 unit.encode('ascii', 'ignore')]
 
         # Close hdf5-file
         self._close_hdf5(file)
@@ -1237,16 +1239,17 @@ class Pipeline(object):
 
             # Save data to hdf5
             if(emul_i == 1 or self._emulator._emul_type == 'default'):
-                self._emulator._save_data(emul_i, 'sam_set', sam_set)
-                self._emulator._save_data(emul_i, 'mod_set', mod_set)
+                self._emulator._save_data(emul_i, {
+                    'sam_set': sam_set,
+                    'mod_set': mod_set})
             else:
                 raise NotImplementedError
 
             # Log that this is finished
-            self._save_statistic(emul_i, 'tot_model_eval_time',
-                                 '%.2f' % (end_time), 's')
-            self._save_statistic(emul_i, 'avg_model_eval_time',
-                                 '%.3g' % (end_time/n_sam), 's')
+            self._save_statistics(emul_i, {
+                'tot_model_eval_time': ['%.2f' % (end_time), 's'],
+                'avg_model_eval_time': ['%.3g' % (end_time/n_sam), 's'],
+                'MPI_comm_size_model': ['%i' % (self._size), '']})
             print("Finished evaluating model samples in %.2f seconds, "
                   "averaging %.3g seconds per model evaluation."
                   % (end_time, end_time/n_sam))
@@ -1496,7 +1499,8 @@ class Pipeline(object):
             obj._impl_cut.append(np.array(impl_cut))
             obj._cut_idx.append(cut_idx)
         else:
-            obj._save_data('impl_cut', [np.array(impl_cut), cut_idx])
+            obj._save_data({
+                'impl_cut': [np.array(impl_cut), cut_idx]})
 
         # Log end of process
         logger.info("Finished generating implausibility cut-off list.")
@@ -1662,22 +1666,22 @@ class Pipeline(object):
                 time_diff_eval = end_time-start_time2
 
                 # Save the results
-                self._save_data('impl_sam', eval_sam_set[impl_idx])
-                self._save_data('n_eval_sam', n_eval_sam)
+                self._save_data({
+                    'impl_sam': eval_sam_set[impl_idx],
+                    'n_eval_sam': n_eval_sam})
             except KeyboardInterrupt:
                 logger.info("Emulator system analysis has been interrupted by "
                             "user.")
                 print("Emulator system analysis has been interrupted by user.")
             else:
                 # Save statistics about anal time, evaluation speed, par_space
-                self._save_statistic(emul_i, 'tot_analyze_time',
-                                     '%.2f' % (time_diff_total), 's')
-                self._save_statistic(emul_i, 'avg_emul_eval_rate',
-                                     '%.2f' % (n_eval_sam/time_diff_eval),
-                                     '1/s')
-                self._save_statistic(emul_i, 'par_space_remaining',
-                                     '%.3g' % ((len(impl_idx)/n_eval_sam)*100),
-                                     '%')
+                avg_eval_rate = n_eval_sam/time_diff_eval
+                par_space_rem = (len(impl_idx)/n_eval_sam)*100
+                self._save_statistics(emul_i, {
+                    'tot_analyze_time': ['%.2f' % (time_diff_total), 's'],
+                    'avg_emul_eval_rate': ['%.2f' % (avg_eval_rate), '1/s'],
+                    'par_space_remaining': ['%.3g' % (par_space_rem), '%'],
+                    'MPI_comm_size_anal': ['%i' % (self._size), '']})
 
                 # Log that analysis has been finished and their statistics
                 print("Finished analysis of emulator system in %.2f seconds, "
@@ -1833,16 +1837,17 @@ class Pipeline(object):
 
             # Log that construction has been completed
             time_diff_total = time()-start_time
-            self._save_statistic(emul_i, 'tot_construct_time',
-                                 '%.2f' % (time_diff_total), 's')
+            self._save_statistics(emul_i, {
+                'tot_construct_time': ['%.2f' % (time_diff_total), 's']})
             print("Finished construction of emulator system in %.2f seconds."
                   % (time_diff_total))
             logger.info("Finished construction of emulator system in %.2f "
                         "seconds." % (time_diff_total))
 
             # Save that emulator system has not been analyzed yet
-            self._save_data('impl_sam', [])
-            self._save_data('n_eval_sam', 0)
+            self._save_data({
+                'impl_sam': [],
+                'n_eval_sam': 0})
 
         # Analyze the emulator system if requested
         if analyze:
