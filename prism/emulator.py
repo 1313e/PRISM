@@ -154,7 +154,7 @@ class Emulator(object):
         Bool indicating whether or not to take into account the regression
         covariance when calculating the covariance of the emulator, in addition
         to the Gaussian covariance.
-        If method == 'gaussian', this bool is not required.
+        If `method` == 'gaussian', this bool is not required.
 
         """
 
@@ -164,7 +164,7 @@ class Emulator(object):
     def poly_order(self):
         """
         Polynomial order that is considered for the regression process.
-        If method == 'gaussian', this number is not required.
+        If `method` == 'gaussian', this number is not required.
 
         """
 
@@ -293,8 +293,8 @@ class Emulator(object):
     def sigma(self):
         """
         List with Gaussian sigmas.
-        If method == 'regression' or 'full', this value is not required, since
-        it is obtained from the regression process instead.
+        If `method` == 'regression' or 'full', this value is not required,
+        since it is obtained from the regression process instead.
 
         """
 
@@ -1791,8 +1791,8 @@ class Emulator(object):
 
         Dict Variables
         --------------
-        keyword : {'active_par', 'cov_mat', 'mod_set', 'prior_exp_sam_set',\
-                   'regression', 'sam_set'}
+        keyword : {'active_par', 'cov_mat', 'prior_exp_sam_set', 'real_set',\
+                   'regression'}
             String specifying the type of data that needs to be saved.
         data : int, float, list
             The actual data that needs to be saved at data keyword `keyword`.
@@ -1833,19 +1833,26 @@ class Emulator(object):
                     data_set.create_dataset('cov_mat_inv', data=data[1][i])
                 self._cov_mat_inv.append(data[1])
 
-            # MOD_SET
-            elif(keyword == 'mod_set'):
-                for i in range(self._n_data[emul_i]):
-                    data_set = file['%s/data_point_%s' % (emul_i, i)]
-                    data_set.create_dataset('mod_set', data=data[i])
-                self._mod_set.append(data)
-
             # PRIOR_EXP_SAM_SET
             elif(keyword == 'prior_exp_sam_set'):
                 for i in range(self._n_data[emul_i]):
                     data_set = file['%s/data_point_%s' % (emul_i, i)]
                     data_set.create_dataset('prior_exp_sam_set', data=data[i])
                 self._prior_exp_sam_set.append(data)
+
+            # REAL_SET
+            elif(keyword == 'real_set'):
+                file.create_dataset('%s/sam_set' % (emul_i), data=data[0])
+                file['%s' % (emul_i)].attrs['n_sam'] = np.shape(data[0])[0]
+                self._sam_set.append(data[0])
+                self._n_sam.append(np.shape(data[0])[0])
+
+                for i in range(self._n_data[emul_i]):
+                    data_set = file['%s/data_point_%s' % (emul_i, i)]
+                    data_set.create_dataset('mod_set', data=data[1][i])
+                self._mod_set.append(data[1])
+
+                file['%s' % (emul_i)].attrs['use_ext_real_set'] = bool(data[2])
 
             # REGRESSION
             elif(keyword == 'regression'):
@@ -1864,13 +1871,6 @@ class Emulator(object):
                 self._poly_idx.append(data[3])
                 if self._use_regr_cov:
                     self._poly_coef_cov.append(data[4])
-
-            # SAM_SET
-            elif(keyword == 'sam_set'):
-                file.create_dataset('%s/sam_set' % (emul_i), data=data)
-                file['%s' % (emul_i)].attrs['n_sam'] = np.shape(data)[0]
-                self._sam_set.append(data)
-                self._n_sam.append(np.shape(data)[0])
 
             # INVALID KEYWORD
             else:

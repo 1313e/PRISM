@@ -577,10 +577,10 @@ class Projection(object):
                         self._modellink._par_name[par_idx]
                         proj_par[i] = par_idx % self._modellink._n_par
                 except Exception as error:
-                    logger.error("Input argument 'proj_par' is invalid! (%s)"
+                    logger.error("Input argument 'proj_par' is invalid (%s)!"
                                  % (error))
-                    raise InputError("Input argument 'proj_par' is invalid! "
-                                     "(%s)" % (error))
+                    raise InputError("Input argument 'proj_par' is invalid "
+                                     "(%s)!" % (error))
 
             # If everything went without exceptions, remove duplicates and sort
             proj_par = list(SortedSet(proj_par))

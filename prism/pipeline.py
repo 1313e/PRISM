@@ -809,6 +809,7 @@ class Pipeline(object):
                 logger.info("Root directory did not exist, created it.")
                 pass
         else:
+            logger.error("Input argument 'root_dir' is invalid!")
             raise InputError("Input argument 'root_dir' is invalid!")
 
         # Check if a valid working directory prefix string is given
@@ -816,6 +817,7 @@ class Pipeline(object):
             self._prefix = prefix
             prefix_len = len(prefix)
         else:
+            logger.error("Input argument 'prefix' is not of type 'str'!")
             raise TypeError("Input argument 'prefix' is not of type 'str'!")
 
         # Obtain working directory path
@@ -844,6 +846,8 @@ class Pipeline(object):
                 self._working_dir = path.join(self._root_dir, working_dir)
                 os.mkdir(self._working_dir)
                 logger.info("Working directory set to '%s'." % (working_dir))
+
+            # If working directories exist, load last one created
             else:
                 logger.info("Working directories found, loading last one.")
                 emul_dirs.sort(reverse=True)
@@ -896,6 +900,7 @@ class Pipeline(object):
                 logger.info("Working directory did not exist, created it.")
                 pass
         else:
+            logger.error("Input argument 'working_dir' is invalid!")
             raise InputError("Input argument 'working_dir' is invalid!")
 
         # Obtain hdf5-file path
@@ -904,6 +909,7 @@ class Pipeline(object):
             logger.info("HDF5-file set to '%s'." % (hdf5_file))
             self._hdf5_file_name = path.join(working_dir, hdf5_file)
         else:
+            logger.error("Input argument 'hdf5_file' is not of type 'str'!")
             raise TypeError("Input argument 'hdf5_file' is not of type 'str'!")
 
         # Obtain PRISM parameter file path
@@ -918,10 +924,13 @@ class Pipeline(object):
             elif path.exists(path.join(self._root_dir, prism_file)):
                 self._prism_file = path.join(self._root_dir, prism_file)
             else:
+                logger.error("Input argument 'prism_file' is a non-existing "
+                             "path (%s)!" % (prism_file))
                 raise OSError("Input argument 'prism_file' is a non-existing "
                               "path (%s)!" % (prism_file))
             logger.info("PRISM parameters file set to '%s'." % (prism_file))
         else:
+            logger.error("Input argument 'prism_file' is invalid!")
             raise InputError("Input argument 'prism_file' is invalid!")
 
     # This function generates mock data and loads it into ModelLink
@@ -1036,7 +1045,7 @@ class Pipeline(object):
 
                 # If not, no plausible regions were found
                 except KeyError:
-                    self._get_impl_par(self._emulator._emul_i, True)
+                    self._get_impl_par(True)
 
                 # If so, load in all data
                 else:
@@ -1186,7 +1195,7 @@ class Pipeline(object):
     # This is function 'k'
     # Reminder that this function should only be called once per sample set
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def _evaluate_model(self, emul_i, sam_set):
+    def _evaluate_model(self, emul_i, sam_set, ext_sam_set, ext_mod_set):
         """
         Evaluates the model at all specified model evaluation samples at a
         given emulator iteration `emul_i`.
@@ -1196,6 +1205,11 @@ class Pipeline(object):
         %(emul_i)s
         sam_set : 2D :obj:`~numpy.ndarray` object
             Array containing the model evaluation samples.
+        ext_sam_set : 1D or 2D :obj:`~numpy.ndarray` object
+            Array containing the externally provided model evaluation samples.
+        ext_mod_set : 1D or 2D :obj:`~numpy.ndarray` object
+            Array containing the model outputs of all specified externally
+            provided model evaluation samples.
 
         Generates
         ---------
@@ -1241,11 +1255,18 @@ class Pipeline(object):
             # Get end time
             end_time = time()-start_time
 
+            # Check if ext_real_set was provided
+            if(np.shape(ext_sam_set)[0] != 0):
+                sam_set = np.concatenate([sam_set, ext_sam_set], axis=0)
+                mod_set = np.concatenate([mod_set, ext_mod_set], axis=1)
+                use_ext_real_set = 1
+            else:
+                use_ext_real_set = 0
+
             # Save data to hdf5
             if(emul_i == 1 or self._emulator._emul_type == 'default'):
                 self._emulator._save_data(emul_i, {
-                    'sam_set': sam_set,
-                    'mod_set': mod_set})
+                    'real_set': [sam_set, mod_set, use_ext_real_set]})
             else:
                 raise NotImplementedError
 
@@ -1442,7 +1463,7 @@ class Pipeline(object):
 
     # This function completes the list of implausibility cut-offs
     @staticmethod
-    def _get_impl_cut(obj, impl_cut, temp=False):
+    def _get_impl_cut(obj, impl_cut, temp):
         """
         Generates the full list of impl_cut-offs from the incomplete, shortened
         `impl_cut` list and saves them in the given `obj`.
@@ -1455,10 +1476,7 @@ class Pipeline(object):
         impl_cut : 1D list
             Incomplete, shortened impl_cut-offs list provided during class
             initialization.
-
-        Optional
-        --------
-        temp : bool. Default: False
+        temp : bool
             Whether the implausibility parameters should only be stored in
             memory (*True*) or should also be saved to HDF5 (*False*).
 
@@ -1511,20 +1529,15 @@ class Pipeline(object):
 
     # This function reads in the impl_cut list from the PRISM parameters file
     # TODO: Make impl_cut dynamic
-    @docstring_substitute(emul_i=std_emul_i_doc)
-    def _get_impl_par(self, emul_i, temp=False):
+    def _get_impl_par(self, temp):
         """
         Reads in the impl_cut list and other parameters for implausibility
-        evaluations from the PRISM parameters file and saves them in the given
-        emulator iteration `emul_i`.
+        evaluations from the PRISM parameters file and saves them in the last
+        emulator iteration.
 
         Parameters
         ----------
-        %(emul_i)s
-
-        Optional
-        --------
-        temp : bool. Default: False
+        temp : bool
             Whether the implausibility parameters should only be stored in
             memory (*True*) or should also be saved to HDF5 (*False*).
 
@@ -1574,6 +1587,140 @@ class Pipeline(object):
             # Finish logging
             logger.info("Finished obtaining implausibility analysis "
                         "parameters.")
+
+    # This function processes an externally provided real_set
+    def _get_ext_real_set(self, ext_real_set):
+        """
+        Processes an externally provided model realization set `ext_real_set`,
+        containing the used sample set and the corresponding data value set.
+
+        Parameters
+        ----------
+        ext_real_set : list, dict or None
+            List of arrays containing an externally calculated set of model
+            evaluation samples and its data values, a dict with keys
+            [`sam_set`, `mod_set`] containing these arrays or *None* if no
+            external set needs to be used.
+
+        Returns
+        -------
+        ext_sam_set : 1D or 2D :obj:`~numpy.ndarray` object
+            Array containing the externally provided model evaluation samples.
+        ext_mod_set : 1D or 2D :obj:`~numpy.ndarray` object
+            Array containing the model outputs of all specified externally
+            provided model evaluation samples.
+
+        """
+
+        # If no ext_real_set is provided, return empty arrays without logging
+        if ext_real_set is None:
+            return(np.array([]), np.array([]))
+
+        # Do some logging
+        logger = logging.getLogger('INIT')
+        logger.info("Processing externally provided model realization set.")
+
+        # If a list is given
+        if isinstance(ext_real_set, list):
+            # Check if ext_real_set contains 2 elements
+            if(len(ext_real_set) != 2):
+                logger.error("Input argument 'ext_real_set' is not of length "
+                             "2!")
+                raise ShapeError("Input argument 'ext_real_set' is not of "
+                                 "length 2!")
+
+            # Try to extract ext_sam_set and ext_mod_set
+            try:
+                ext_sam_set = ext_real_set[0]
+                ext_mod_set = ext_real_set[1]
+            except Exception as error:
+                logger.error("Input argument 'ext_real_set' is invalid (%s)!"
+                             % (error))
+                raise InputError("Input argument 'ext_real_set' is invalid "
+                                 "(%s)!" % (error))
+
+        # If a dict is given
+        elif isinstance(ext_real_set, dict):
+            # Check if ext_real_set contains correct keys
+            if 'sam_set' not in ext_real_set.keys():
+                logger.error("Input argument 'ext_real_set' does not contain "
+                             "key 'sam_set'!")
+                raise KeyError("Input argument 'ext_real_set' does not contain"
+                               " key 'sam_set'!")
+            if 'mod_set' not in ext_real_set.keys():
+                logger.error("Input argument 'ext_real_set' does not contain "
+                             "key 'mod_set'!")
+                raise KeyError("Input argument 'ext_real_set' does not contain"
+                               " key 'mod_set'!")
+
+            # Try to extract ext_sam_set and ext_mod_set
+            try:
+                ext_sam_set = ext_real_set['sam_set']
+                ext_mod_set = ext_real_set['mod_set']
+            except Exception as error:
+                logger.error("Input argument 'ext_real_set' is invalid (%s)!"
+                             % (error))
+                raise InputError("Input argument 'ext_real_set' is invalid "
+                                 "(%s)!" % (error))
+
+        # If anything else is given
+        else:
+            logger.error("Input argument 'ext_real_set' is invalid!")
+            raise InputError("Input argument 'ext_real_set' is invalid!")
+
+        # Check if ext_sam_set and ext_mod_set can be converted to NumPy arrays
+        try:
+            ext_sam_set = np.array(ext_sam_set, ndmin=2)
+            ext_mod_set = np.array(ext_mod_set, ndmin=2)
+        except Exception as error:
+            logger.error("Input argument 'ext_real_set' is invalid (%s)!"
+                         % (error))
+            raise InputError("Input argument 'ext_real_set' is invalid (%s)!"
+                             % (error))
+
+        # Check if ext_sam_set and ext_mod_set have correct shapes
+        if not(ext_sam_set.shape[1] == self._modellink._n_par):
+            logger.error("External sample set has incorrect number of "
+                         "parameters (%s != %s)!"
+                         % (ext_sam_set.shape[1], self._modellink._n_par))
+            raise ShapeError("External sample set has incorrect number of "
+                             "parameters (%s != %s)!"
+                             % (ext_sam_set.shape[1], self._modellink._n_par))
+        if not(ext_mod_set.shape[1] == self._modellink._n_data):
+            logger.error("External model output set has incorrect number of "
+                         "data values (%s != %s)!"
+                         % (ext_mod_set.shape[1], self._modellink._n_data))
+            raise ShapeError("External model output set has incorrect number "
+                             "of data values (%s != %s)!"
+                             % (ext_mod_set.shape[1], self._modellink._n_data))
+        if not(ext_sam_set.shape[0] == ext_mod_set.shape[0]):
+            logger.error("External sample and model output sets do not contain"
+                         " the same number of samples (%s != %s)!"
+                         % (ext_sam_set.shape[0], ext_mod_set.shape[0]))
+
+        # Check if ext_sam_set and ext_mod_set solely contain floats
+        for i, (par_set, mod_out) in enumerate(zip(ext_sam_set, ext_mod_set)):
+            for j, (par, out) in enumerate(zip(par_set, mod_out)):
+                check_float(par, 'ext_sam_set[%s, %s]' % (i, j))
+                check_float(out, 'ext_mod_set[%s, %s]' % (i, j))
+
+        # Check if all samples are within parameter space
+        lower_bnd = self._modellink._par_rng[:, 0]
+        upper_bnd = self._modellink._par_rng[:, 1]
+        for i, par_set in enumerate(ext_sam_set):
+            if not(((lower_bnd <= par_set)*(par_set <= upper_bnd)).all()):
+                logger.error("External sample set contains a sample outside of"
+                             " parameter space at index %s!" % (i))
+                raise ValueError("External sample set contains a sample "
+                                 "outside of parameter space at index %s!"
+                                 % (i))
+
+        # Log that processing has been finished
+        logger.info("Finished processing externally provided model realization"
+                    " set of size %s." % (ext_sam_set.shape[0]))
+
+        # If all checks are passed, return ext_sam_set and ext_mod_set
+        return(ext_sam_set, ext_mod_set.T)
 
 
 # %% VISIBLE CLASS METHODS
@@ -1630,7 +1777,7 @@ class Pipeline(object):
                         % (emul_i))
 
             # Get the impl_cut list
-            self._get_impl_par(emul_i, False)
+            self._get_impl_par(False)
 
             try:
                 # Create an emulator evaluation sample set
@@ -1708,10 +1855,9 @@ class Pipeline(object):
     # This function constructs a specified iteration of the emulator system
     # TODO: Make time and RAM cost plots
     # TODO: Implement try-statement for KeyboardInterrupt like in analyze()
-    # TODO: !Allow initial model evaluation data to be given by external source
-    # Not only is this useful for starting, but also restores crashed processes
+    # TODO: !Allow initial model realization data be given by external source
     @docstring_substitute(emul_i=call_emul_i_doc)
-    def construct(self, emul_i=None, analyze=True):
+    def construct(self, emul_i=None, analyze=True, ext_init_set=None):
         """
         Constructs the emulator at the specified emulator iteration `emul_i`,
         and performs an implausibility analysis on the emulator systems right
@@ -1724,6 +1870,12 @@ class Pipeline(object):
             Bool indicating whether or not to perform an analysis after the
             specified emulator iteration has been successfully constructed,
             which is required for constructing the next iteration.
+        ext_init_set : list, dict or None. Default: None
+            List of arrays containing an externally calculated set of initial
+            model evaluation samples and its data values, a dict with keys
+            [`sam_set`, `mod_set`] containing these arrays or *None* if no
+            external realization set needs to be used.
+            This parameter has no use for `emul_i` != 1.
 
         Generates
         ---------
@@ -1775,6 +1927,12 @@ class Pipeline(object):
 
             # Check emul_i and act accordingly
             if(emul_i == 1):
+                # Process ext_init_set
+                ext_sam_set, ext_mod_set = self._get_ext_real_set(ext_init_set)
+
+                # Obtain number of externally provided model realizations
+                n_ext_sam = np.shape(ext_sam_set)[0]
+
                 # Create a new emulator system
                 self._emulator._create_new_emulator()
 
@@ -1782,14 +1940,19 @@ class Pipeline(object):
                 self._load_data()
 
                 # Create initial set of model evaluation samples
-                logger.info("Creating initial model evaluation sample set of "
-                            "size %s." % (self._n_sam_init))
-                add_sam_set = lhd(self._n_sam_init, self._modellink._n_par,
-                                  self._modellink._par_rng, 'fixed',
-                                  self._criterion)
-                logger.info("Finished creating initial sample set.")
+                n_sam_init = max(0, self._n_sam_init-n_ext_sam)
+                if n_sam_init:
+                    logger.info("Creating initial model evaluation sample set "
+                                "of size %s." % (n_sam_init))
+                    add_sam_set = lhd(n_sam_init, self._modellink._n_par,
+                                      self._modellink._par_rng, 'fixed',
+                                      self._criterion, constraints=ext_sam_set)
+                    logger.info("Finished creating initial sample set.")
 
             else:
+                # Get dummy ext_real_set
+                ext_sam_set, ext_mod_set = self._get_ext_real_set(None)
+
                 # Check if previous iteration has been analyzed, do so if not
                 if not self._n_eval_sam[emul_i-1]:
                     logger.info("Previous emulator iteration has not been "
@@ -1827,14 +1990,16 @@ class Pipeline(object):
                 if get_mock:
                     self._get_mock_data()
 
-            # All workers get a dummy add_sam_set
+            # All workers get dummy sets
             add_sam_set = []
+            ext_sam_set = []
+            ext_mod_set = []
 
         # Broadcast add_sam_set to workers
         add_sam_set = MPI.COMM_WORLD.bcast(add_sam_set, 0)
 
         # Obtain corresponding set of model evaluations
-        self._evaluate_model(emul_i, add_sam_set)
+        self._evaluate_model(emul_i, add_sam_set, ext_sam_set, ext_mod_set)
 
         # Only controller
         if self._is_controller:
@@ -1859,7 +2024,7 @@ class Pipeline(object):
         if analyze:
             self.analyze(emul_i)
         else:
-            self._get_impl_par(emul_i, True)
+            self._get_impl_par(True)
             self.details(emul_i)
 
     # This function creates the projection figures of a given emul_i

@@ -106,6 +106,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         required to provide an estimate for every parameter.
         An example of a model parameters file can be found in the 'data' folder
         of the PRISM package.
+        *Formatting*: {`par_name`: [`lower_bnd`, `upper_bnd`, `par_est`]}.
 
         The model data array contains the data values in the first column, the
         data errors in the second column and, if applicable, the data index in
@@ -115,6 +116,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         any data point. The pipeline itself does not require this data index.
         An example of a model data file can be found in the 'data' folder of
         the PRISM package.
+        *Formatting*: ([`data_val`, `data_err`, `data_idx_0`, `data_idx_1`,\
+                        ..., `data_idx_n`]).
 
         """
         # Save name of this class if not saved already
@@ -152,7 +155,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         Parameters
         ----------
-        add_model_parameters : array_like, dict or str
+        add_model_parameters : array_like, dict, str or None
             Anything that can be converted to a dict that provides non-default
             model parameters information or *None* if only default information
             is used from :meth:`~_default_model_parameters`.
@@ -246,7 +249,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         Parameters
         ---------
-        add_model_data : array_like or str
+        add_model_data : array_like, str or None
             Array containing the non-default data the model will be compared
             against, a filename with data that can be converted to it or *None*
             if only default data is used from :meth:`~_default_model_data`.
