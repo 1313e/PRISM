@@ -1167,6 +1167,10 @@ class Pipeline(object):
 
         """
 
+        # Do logging
+        logger = logging.getLogger('STATISTICS')
+        logger.info("Saving statistics to HDF5.")
+
         # Open hdf5-file
         file = self._open_hdf5('r+')
 
@@ -1604,8 +1608,6 @@ class Pipeline(object):
         if self._is_controller:
             # Begin logging
             logger = logging.getLogger('ANALYZE')
-            logger.info("Analyzing emulator system at iteration %s."
-                        % (emul_i))
 
             # Save current time
             start_time1 = time()
@@ -1622,6 +1624,10 @@ class Pipeline(object):
                                    "created (%s)!" % (self._emulator._emul_i))
             else:
                 emul_i = check_pos_int(emul_i, 'emul_i')
+
+            # Begin analyzing
+            logger.info("Analyzing emulator system at iteration %s."
+                        % (emul_i))
 
             # Get the impl_cut list
             self._get_impl_par(emul_i, False)
@@ -1702,7 +1708,7 @@ class Pipeline(object):
     # This function constructs a specified iteration of the emulator system
     # TODO: Make time and RAM cost plots
     # TODO: Implement try-statement for KeyboardInterrupt like in analyze()
-    # TODO: !Allow model evaluation data to be provided by an external source
+    # TODO: !Allow initial model evaluation data to be given by external source
     # Not only is this useful for starting, but also restores crashed processes
     @docstring_substitute(emul_i=call_emul_i_doc)
     def construct(self, emul_i=None, analyze=True):
@@ -2287,5 +2293,12 @@ class Pipeline(object):
 
             # Else, return the lists
             else:
+                # MPI Barrier for controller
+                MPI.COMM_WORLD.Barrier()
+
+                # Return results
                 return(impl_check, emul_i_stop, adj_exp_val, adj_var_val,
                        uni_impl_val)
+
+        # MPI Barrier
+        MPI.COMM_WORLD.Barrier()
