@@ -1,5 +1,5 @@
 # data_val	data_err	snap	gal_prop	operation	oper_info
-  0		0.05		10	'StellarMass'	'sum'	
+  0		0.05		10	'StellarMass'	'sum'
   0		0.05		15	'StellarMass'	'sum'
   0		0.05		20	'StellarMass'	'sum'
   0		0.05		25	'StellarMass'	'sum'

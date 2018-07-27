@@ -1319,7 +1319,7 @@ class Pipeline(object):
         logger.info("Creating emulator evaluation sample set with size %s."
                     % (n_eval_sam))
         eval_sam_set = lhd(n_eval_sam, self._modellink._n_par,
-                           self._modellink._par_rng, 'fixed',
+                           self._modellink._par_rng, 'center',
                            self._criterion, 100,
                            constraints=self._emulator._sam_set[emul_i])
         logger.info("Finished creating sample set.")
@@ -1944,7 +1944,7 @@ class Pipeline(object):
                     logger.info("Creating initial model evaluation sample set "
                                 "of size %s." % (n_sam_init))
                     add_sam_set = lhd(n_sam_init, self._modellink._n_par,
-                                      self._modellink._par_rng, 'fixed',
+                                      self._modellink._par_rng, 'center',
                                       self._criterion, constraints=ext_sam_set)
                     logger.info("Finished creating initial sample set.")
 
