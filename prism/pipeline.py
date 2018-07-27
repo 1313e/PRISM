@@ -1855,7 +1855,6 @@ class Pipeline(object):
     # This function constructs a specified iteration of the emulator system
     # TODO: Make time and RAM cost plots
     # TODO: Implement try-statement for KeyboardInterrupt like in analyze()
-    # TODO: !Allow initial model realization data be given by external source
     @docstring_substitute(emul_i=call_emul_i_doc)
     def construct(self, emul_i=None, analyze=True, ext_init_set=None):
         """

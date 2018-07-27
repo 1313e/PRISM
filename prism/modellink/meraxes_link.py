@@ -26,6 +26,7 @@ from __future__ import absolute_import, division, print_function
 from os import path
 
 # Package imports
+from dragons import meraxes, munge
 import logging
 from mhysa import Mhysa
 import numpy as np
@@ -50,12 +51,21 @@ class MeraxesLink(ModelLink):
     -------------------
     snap : int
         The snapshot at which the data value needs to be obtained.
-    gal_prop : str
+    gal_prop : {'BHemissivity', 'BlackHoleMass', 'ColdGas', 'dt', 'Fesc',\
+                'FescBH', 'GrossStellarMass', 'MetalsColdGas',\
+                'MetalsStellarMass', 'Mvir', 'Sfr', 'StellarMass', 'Type',\
+                'ghost_flag'}
         The specific galaxy property that needs to be used for the data value,
         using the names as defined by *Meraxes*.
-    operation : {'sum'}
+    operation : {'smf', 'sum'}
         The specific operation that needs to be performed in order to obtain
         the data value.
+    oper_info : type
+        Additional information which depends on the specified `operation`. Can
+        be left empty if not required.
+
+        - 'smf': This is the :math:`\\log_{10}(M_*/{\\rm M_{\\odot}})` at\
+        which :math:`\\log_{10}(\\phi/{\\rm Mpc^{-3}})` needs to be returned.
 
     """
 
@@ -166,18 +176,20 @@ class PrismMhysa(Mhysa):
 
         """
 
-        # Transpose the data_idx list
-        # OPTIMIZE: Improve this
+        # Ignore NumPy error messages
+        np.seterr(divide='ignore')
+
+        # Extract the snap_list
         self._n_data = len(data_idx)
-        self._data_idx = [[idx[i] for idx in data_idx]
-                          for i in range(len(data_idx[0]))]
+        self._snaps = np.array([idx[0] for idx in data_idx])
+        self._data_idx = data_idx
 
         # Make a new snaplist file
         input_data = np.genfromtxt(kwargs['input_file'], dtype=(str),
                                    delimiter=':', autostrip=True)
         snap_file = dict(input_data)['FileWithOutputSnaps']
         snap_file = path.join(path.dirname(kwargs['input_file']), snap_file)
-        np.savetxt(snap_file, sorted(self._data_idx[0]), '%i', newline=' ')
+        np.savetxt(snap_file, sorted(self._snaps), '%i', newline=' ')
 
         # Inheriting Mhysa __init__()
         super(PrismMhysa, self).__init__(*args, **kwargs)
@@ -191,33 +203,50 @@ class PrismMhysa(Mhysa):
         if self.is_controller:
             self._data_list = []
 
+        # Make shortcuts for some Meraxes global variables
+        self._hubble_h = self.meraxes_globals.Hubble_h
+        self._volume = pow(self.meraxes_globals.BoxSize/self._hubble_h, 3) *\
+            self.meraxes_globals.VolumeFactor
+
     def meraxes_hook(self, snapshot, ngals):
         # Wrap entire process in a try-statement
         try:
             # Create new empty list at snapshot 0
             if(self.is_controller and snapshot == 0):
-                self._data_list.append([])
+                self._data_list.append([0]*self._n_data)
 
             # Check if this snapshot is required by data
-            if snapshot in self._data_idx[0]:
-                data_id = self._data_idx[0].index(snapshot)
+            for data_id in np.arange(0, self._n_data)[self._snaps == snapshot]:
+                idx = self._data_idx[data_id]
                 gals = self.collect_global_gals(ngals)
+
+                # Controller only
                 if self.is_controller:
-                    # TODO: Not all gal_props need Hubble scaling
                     # Perform Hubble scaling
-                    data = gals[self._data_idx[1][data_id]] /\
-                        self.meraxes_globals.Hubble_h
+                    if idx[1] not in ('ghost_flag', 'Type', 'FescBH', 'Fesc',
+                                      'Sfr', 'BHemissivity'):
+                        data = gals[idx[1]]/self._hubble_h
 
                     # Perform user-defined operation
-                    if(self._data_idx[2][data_id] == 'sum'):
+                    # Calculate the stellar mass function
+                    if(idx[1] == 'StellarMass' and idx[2] == 'smf'):
+                        data = np.log10(data*1e10)
+                        mf, edges = munge.mass_function(data, self._volume,
+                                                        100, (0, 12), 0, 1)
+                        mass_idx = edges.searchsorted(idx[3])-1
+                        data = np.log10(mf[mass_idx, 1])
+
+                    # Take the sum of the galaxy property
+                    elif(idx[2] == 'sum'):
                         data = data.sum()
+
+                    # If unknown operation is given
                     else:
                         raise RequestError("The requested operation '%s' is "
-                                           "invalid!"
-                                           % (self._data_idx[2][data_id]))
+                                           "invalid!" % (idx[2]))
 
                     # Save resulting data value
-                    self._data_list[-1].append(data)
+                    self._data_list[-1][data_id] = data
 
         # If any errors are raised, catch them and return -1
         except Exception as error:
