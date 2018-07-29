@@ -1266,7 +1266,7 @@ class Pipeline(object):
             # Save data to hdf5
             if(emul_i == 1 or self._emulator._emul_type == 'default'):
                 self._emulator._save_data(emul_i, {
-                    'real_set': [sam_set, mod_set, use_ext_real_set]})
+                    'mod_real_set': [sam_set, mod_set, use_ext_real_set]})
             else:
                 raise NotImplementedError
 
@@ -1954,9 +1954,18 @@ class Pipeline(object):
 
                 # Check if previous iteration has been analyzed, do so if not
                 if not self._n_eval_sam[emul_i-1]:
+                    # Let workers know that emulator needs analyzing
+                    for rank in range(1, self._size):
+                        MPI.COMM_WORLD.send(1, dest=rank, tag=999+rank)
+
+                    # Analyze previous iteration
                     logger.info("Previous emulator iteration has not been "
                                 "analyzed. Performing analysis first.")
                     self.analyze(emul_i-1)
+                else:
+                    # If not, let workers know
+                    for rank in range(1, self._size):
+                        MPI.COMM_WORLD.send(0, dest=rank, tag=999+rank)
 
                 # Check if a new emulator iteration can be constructed
                 if not self._prc:
@@ -1989,10 +1998,22 @@ class Pipeline(object):
                 if get_mock:
                     self._get_mock_data()
 
+            # Listen for calls from controller during any other iteration
+            else:
+                # Check if analysis is required
+                do_analyze = MPI.COMM_WORLD.recv(source=0, tag=999+self._rank)
+
+                # If previous iteration needs analyzing, call analyze()
+                if do_analyze:
+                    self.analyze(emul_i-1)
+
             # All workers get dummy sets
             add_sam_set = []
             ext_sam_set = []
             ext_mod_set = []
+
+        # MPI Barrier to free up workers
+        MPI.COMM_WORLD.Barrier()
 
         # Broadcast add_sam_set to workers
         add_sam_set = MPI.COMM_WORLD.bcast(add_sam_set, 0)

@@ -903,11 +903,10 @@ class Emulator(object):
         ---------
         rsdl_var : 1D list
             List containing the residual variances of the regression function.
+        regr_score : 1D list
+            List containing the regression scores of the regression function.
         poly_coef : 2D list
             List containing the expectation values of the polynomial
-            coefficients for all data points.
-        poly_coef_cov : 2D list (if use_regr_cov is True)
-            List containing the covariance values of the polynomial
             coefficients for all data points.
         poly_powers : 2D list
             List containing the powers every sample needs to be raised to, in
@@ -916,6 +915,9 @@ class Emulator(object):
         poly_idx : 2D list
             List containing the indices of the polynomial terms that are used
             in the regression function.
+        poly_coef_cov : 2D list (if use_regr_cov is True)
+            List containing the covariance values of the polynomial
+            coefficients for all data points.
 
         """
 
@@ -938,11 +940,12 @@ class Emulator(object):
 
         # Create empty lists containing the various regression coefficients
         rsdl_var = []
+        regr_score = []
         poly_coef = []
-        if self._use_regr_cov:
-            poly_coef_cov = []
         poly_powers = []
         poly_idx = []
+        if self._use_regr_cov:
+            poly_coef_cov = []
 
         # Loop over all data points and perform a regression on all of them
         # TODO: Redetermine active parameters after regression process
@@ -967,9 +970,10 @@ class Emulator(object):
                                         sam_set_poly)))
 
             # Log the score of the regression process
+            regr_score.append(pipe.named_steps['linear'].score(
+                              sam_set_poly, self._mod_set[emul_i][i]))
             logger.info("Regression score for data point %s: %s."
-                        % (i, pipe.named_steps['linear'].score(
-                           sam_set_poly, self._mod_set[emul_i][i])))
+                        % (i, regr_score[i]))
 
             # Add the intercept term to sam_set_poly
             sam_set_poly = np.concatenate([np.ones([self._n_sam[emul_i], 1]),
@@ -999,11 +1003,12 @@ class Emulator(object):
         # Save everything to hdf5
         if self._use_regr_cov:
             self._save_data(emul_i, {
-                'regression': [rsdl_var, poly_coef, poly_powers, poly_idx,
-                               poly_coef_cov]})
+                'regression': [rsdl_var, regr_score, poly_coef, poly_powers,
+                               poly_idx, poly_coef_cov]})
         else:
             self._save_data(emul_i, {
-                'regression': [rsdl_var, poly_coef, poly_powers, poly_idx]})
+                'regression': [rsdl_var, regr_score, poly_coef, poly_powers,
+                               poly_idx]})
 
         # Log that this is finished
         logger.info("Finished performing regression.")
@@ -1791,8 +1796,8 @@ class Emulator(object):
 
         Dict Variables
         --------------
-        keyword : {'active_par', 'cov_mat', 'prior_exp_sam_set', 'real_set',\
-                   'regression'}
+        keyword : {'active_par', 'cov_mat', 'mod_real_set',\
+                   'prior_exp_sam_set', 'regression'}
             String specifying the type of data that needs to be saved.
         data : int, float, list
             The actual data that needs to be saved at data keyword `keyword`.
@@ -1833,15 +1838,8 @@ class Emulator(object):
                     data_set.create_dataset('cov_mat_inv', data=data[1][i])
                 self._cov_mat_inv.append(data[1])
 
-            # PRIOR_EXP_SAM_SET
-            elif(keyword == 'prior_exp_sam_set'):
-                for i in range(self._n_data[emul_i]):
-                    data_set = file['%s/data_point_%s' % (emul_i, i)]
-                    data_set.create_dataset('prior_exp_sam_set', data=data[i])
-                self._prior_exp_sam_set.append(data)
-
-            # REAL_SET
-            elif(keyword == 'real_set'):
+            # MOD_REAL_SET
+            elif(keyword == 'mod_real_set'):
                 file.create_dataset('%s/sam_set' % (emul_i), data=data[0])
                 file['%s' % (emul_i)].attrs['n_sam'] = np.shape(data[0])[0]
                 self._sam_set.append(data[0])
@@ -1854,23 +1852,31 @@ class Emulator(object):
 
                 file['%s' % (emul_i)].attrs['use_ext_real_set'] = bool(data[2])
 
+            # PRIOR_EXP_SAM_SET
+            elif(keyword == 'prior_exp_sam_set'):
+                for i in range(self._n_data[emul_i]):
+                    data_set = file['%s/data_point_%s' % (emul_i, i)]
+                    data_set.create_dataset('prior_exp_sam_set', data=data[i])
+                self._prior_exp_sam_set.append(data)
+
             # REGRESSION
             elif(keyword == 'regression'):
                 for i in range(self._n_data[emul_i]):
                     data_set = file['%s/data_point_%s' % (emul_i, i)]
                     data_set.attrs['rsdl_var'] = data[0][i]
-                    data_set.create_dataset('poly_coef', data=data[1][i])
-                    data_set.create_dataset('poly_powers', data=data[2][i])
-                    data_set.create_dataset('poly_idx', data=data[3][i])
+                    data_set.attrs['regr_score'] = data[1][i]
+                    data_set.create_dataset('poly_coef', data=data[2][i])
+                    data_set.create_dataset('poly_powers', data=data[3][i])
+                    data_set.create_dataset('poly_idx', data=data[4][i])
                     if self._use_regr_cov:
                         data_set.create_dataset('poly_coef_cov',
-                                                data=data[4][i])
+                                                data=data[5][i])
                 self._rsdl_var.append(data[0])
-                self._poly_coef.append(data[1])
-                self._poly_powers.append(data[2])
-                self._poly_idx.append(data[3])
+                self._poly_coef.append(data[2])
+                self._poly_powers.append(data[3])
+                self._poly_idx.append(data[4])
                 if self._use_regr_cov:
-                    self._poly_coef_cov.append(data[4])
+                    self._poly_coef_cov.append(data[5])
 
             # INVALID KEYWORD
             else:
