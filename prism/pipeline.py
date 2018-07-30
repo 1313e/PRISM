@@ -1038,7 +1038,10 @@ class Pipeline(object):
             file = self._open_hdf5('r')
 
             # Read in the data up to the last emulator iteration
-            for emul in file.values():
+            for i in range(1, self._emulator._emul_i+1):
+                # Get this emulator
+                emul = file['%s' % (i)]
+
                 # Check if analysis has been carried out (only if i=emul_i)
                 try:
                     self._impl_cut.append(emul.attrs['impl_cut'])
@@ -1067,6 +1070,11 @@ class Pipeline(object):
         Saves a given data dict {`keyword`: `data`} at the last emulator
         iteration to the HDF5-file and as an data attribute to the current
         :obj:`~Pipeline` instance.
+
+        Parameters
+        ----------
+        data_dict : dict
+            Dict containing the data that needs to be saved to the HDF5-file.
 
         Dict Variables
         --------------
@@ -1726,19 +1734,12 @@ class Pipeline(object):
 # %% VISIBLE CLASS METHODS
     # This function analyzes the emulator and determines the plausible regions
     # TODO: Implement check if impl_idx is big enough to be used in next emul_i
-    # HINT: Allow analyze to be used on earlier iterations?
-    # TODO: Alternatively, should this method still take emul_i argument?
-    @docstring_substitute(emul_i=user_emul_i_doc)
-    def analyze(self, emul_i=None):
+    def analyze(self):
         """
-        Analyzes the emulator system at the specified emulator iteration
-        `emul_i` for a large number of emulator evaluation samples. All samples
-        that survive the implausibility checks, are used in the construction of
-        the next emulator iteration.
-
-        Optional
-        --------
-        %(emul_i)s
+        Analyzes the emulator system at the last emulator iteration for a large
+        number of emulator evaluation samples. All samples that survive the
+        implausibility checks, are used in the construction of the next
+        emulator iteration.
 
         Generates
         ---------
@@ -1759,18 +1760,8 @@ class Pipeline(object):
             # Save current time
             start_time1 = time()
 
-            # Check emul_i
-            if emul_i is None:
-                emul_i = self._emulator._emul_i
-            elif(emul_i != self._emulator._emul_i):
-                logger.error("Reanalysis of the emulator system is only "
-                             "possible on the last emulator iteration created "
-                             "(%s)!" % (self._emulator._emul_i))
-                raise RequestError("Reanalysis of the emulator system is only "
-                                   "possible on the last emulator iteration "
-                                   "created (%s)!" % (self._emulator._emul_i))
-            else:
-                emul_i = check_pos_int(emul_i, 'emul_i')
+            # Get emul_i
+            emul_i = self._emulator._get_emul_i(None)
 
             # Begin analyzing
             logger.info("Analyzing emulator system at iteration %s."
@@ -1836,7 +1827,7 @@ class Pipeline(object):
                     'par_space_remaining': ['%.3g' % (par_space_rem), '%'],
                     'MPI_comm_size_anal': ['%i' % (self._size), '']})
 
-                # Log that analysis has been finished and their statistics
+                # Log that analysis has been finished and save their statistics
                 print("Finished analysis of emulator system in %.2f seconds, "
                       "averaging %.2f emulator evaluations per second."
                       % (time_diff_total, n_eval_sam/time_diff_eval))
@@ -1854,9 +1845,10 @@ class Pipeline(object):
 
     # This function constructs a specified iteration of the emulator system
     # TODO: Make time and RAM cost plots
-    # TODO: Implement try-statement for KeyboardInterrupt like in analyze()
+    # TODO: Fix the timers for interrupted constructs
     @docstring_substitute(emul_i=call_emul_i_doc)
-    def construct(self, emul_i=None, analyze=True, ext_init_set=None):
+    def construct(self, emul_i=None, analyze=True, ext_init_set=None,
+                  force=False):
         """
         Constructs the emulator at the specified emulator iteration `emul_i`,
         and performs an implausibility analysis on the emulator systems right
@@ -1875,6 +1867,12 @@ class Pipeline(object):
             [`sam_set`, `mod_set`] containing these arrays or *None* if no
             external realization set needs to be used.
             This parameter has no use for `emul_i` != 1.
+        force : bool. Default: False
+            Controls what to do if the specified emulator iteration `emul_i`
+            already (partly) exists.
+            If *False*, finish construction of the specified iteration or skip
+            it if already finished.
+            If *True*, reconstruct the specified iteration entirely.
 
         Generates
         ---------
@@ -1884,10 +1882,12 @@ class Pipeline(object):
 
         Notes
         -----
-        Using an emulator iteration that has been constructed before, will
-        delete that and all following iterations, and reconstruct the specified
-        iteration. Using `emul_i` = 1 is equivalent to reconstructing the whole
-        emulator system.
+        Using an emulator iteration that has been (partly) constructed before,
+        will finish that construction or skip construction if already finished
+        when `force` = *False; or it will delete that and all following
+        iterations, and reconstruct the specified iteration when `force` =
+        *True*. Using `emul_i` = 1 and `force` = *True* is equivalent to
+        reconstructing the entire emulator system.
 
         If no implausibility analysis is requested, then the implausibility
         parameters are read in from the PRISM parameters file and temporarily
@@ -1904,6 +1904,9 @@ class Pipeline(object):
             # Save current time
             start_time = time()
 
+            # Check if force-parameter received a bool
+            force = check_bool(force, 'force')
+
             # Set emul_i correctly
             if emul_i is None:
                 emul_i = self._emulator._emul_i+1
@@ -1912,119 +1915,167 @@ class Pipeline(object):
             else:
                 emul_i = self._emulator._get_emul_i(emul_i-1)+1
 
+            # Check if iteration was interrupted or not, or if force is True
+            logger.info("Checking state of emulator iteration %s." % (emul_i))
+            try:
+                # If force is True, reconstruct full iteration
+                if force:
+                    logger.info("Emulator iteration %s has been requested to "
+                                "be reconstructed." % (emul_i))
+                    construct_emul_i = 1
+
+                # If interrupted at start, reconstruct full iteration
+                elif('mod_real_set' in self._emulator._ccheck[emul_i]):
+                    logger.info("Emulator iteration %s does not contain "
+                                "evaluated model realization data. Will be "
+                                "constructed from start." % (emul_i))
+                    construct_emul_i = 1
+
+                # If interrupted midway, do not reconstruct full iteration
+                else:
+                    logger.info("Construction of emulator iteration %s was "
+                                "interrupted. Continuing from point of "
+                                "interruption." % (emul_i))
+                    construct_emul_i = 0
+
+            # If never constructed before, construct full iteration
+            except IndexError:
+                logger.info("Emulator iteration %s has not been constructed."
+                            % (emul_i))
+                construct_emul_i = 1
+
+        # Remaining workers
+        else:
+            construct_emul_i = None
+
         # Check if analyze-parameter received a bool
         analyze = check_bool(analyze, 'analyze')
 
         # Broadcast emul_i to workers
         emul_i = MPI.COMM_WORLD.bcast(emul_i, 0)
 
-        # Controller only
-        if self._is_controller:
-            # Log that construction of emulator iteration is being started
-            logger.info("Starting construction of emulator iteration %s."
-                        % (emul_i))
+        # Broadcast construct_emul_i to workers
+        construct_emul_i = MPI.COMM_WORLD.bcast(construct_emul_i, 0)
 
-            # Check emul_i and act accordingly
-            if(emul_i == 1):
-                # Process ext_init_set
-                ext_sam_set, ext_mod_set = self._get_ext_real_set(ext_init_set)
+        # If iteration needs to be constructed completely, create/prepare it
+        if construct_emul_i:
+            # Controller only
+            if self._is_controller:
+                # Log that construction of emulator iteration is being started
+                logger.info("Starting construction of emulator iteration %s."
+                            % (emul_i))
 
-                # Obtain number of externally provided model realizations
-                n_ext_sam = np.shape(ext_sam_set)[0]
+                # Check emul_i and act accordingly
+                if(emul_i == 1):
+                    # Process ext_init_set
+                    ext_sam_set, ext_mod_set =\
+                        self._get_ext_real_set(ext_init_set)
 
-                # Create a new emulator system
-                self._emulator._create_new_emulator()
+                    # Obtain number of externally provided model realizations
+                    n_ext_sam = np.shape(ext_sam_set)[0]
 
-                # Reload the data
-                self._load_data()
+                    # Create a new emulator system
+                    self._emulator._create_new_emulator()
 
-                # Create initial set of model evaluation samples
-                n_sam_init = max(0, self._n_sam_init-n_ext_sam)
-                if n_sam_init:
-                    logger.info("Creating initial model evaluation sample set "
-                                "of size %s." % (n_sam_init))
-                    add_sam_set = lhd(n_sam_init, self._modellink._n_par,
-                                      self._modellink._par_rng, 'center',
-                                      self._criterion, constraints=ext_sam_set)
-                    logger.info("Finished creating initial sample set.")
-
-            else:
-                # Get dummy ext_real_set
-                ext_sam_set, ext_mod_set = self._get_ext_real_set(None)
-
-                # Check if previous iteration has been analyzed, do so if not
-                if not self._n_eval_sam[emul_i-1]:
-                    # Let workers know that emulator needs analyzing
-                    for rank in range(1, self._size):
-                        MPI.COMM_WORLD.send(1, dest=rank, tag=999+rank)
-
-                    # Analyze previous iteration
-                    logger.info("Previous emulator iteration has not been "
-                                "analyzed. Performing analysis first.")
-                    self.analyze(emul_i-1)
-                else:
-                    # If not, let workers know
-                    for rank in range(1, self._size):
-                        MPI.COMM_WORLD.send(0, dest=rank, tag=999+rank)
-
-                # Check if a new emulator iteration can be constructed
-                if not self._prc:
-                    logger.error("No plausible regions were found in the "
-                                 "analysis of the previous emulator iteration."
-                                 " Construction is not possible!")
-                    raise RequestError("No plausible regions were found in the"
-                                       " analysis of the previous emulator "
-                                       "iteration. Construction is not "
-                                       "possible!")
-
-                # Make the emulator prepare for a new iteration
-                reload = self._emulator._prepare_new_iteration(emul_i)
-
-                # Make sure the correct pipeline data is loaded in
-                if reload:
+                    # Reload the data
                     self._load_data()
 
-                # Obtain additional sam_set
-                add_sam_set = self._impl_sam
+                    # Create initial set of model evaluation samples
+                    n_sam_init = max(0, self._n_sam_init-n_ext_sam)
+                    if n_sam_init:
+                        logger.info("Creating initial model evaluation sample "
+                                    "set of size %s." % (n_sam_init))
+                        add_sam_set = lhd(n_sam_init, self._modellink._n_par,
+                                          self._modellink._par_rng, 'center',
+                                          self._criterion,
+                                          constraints=ext_sam_set)
+                        logger.info("Finished creating initial sample set.")
 
-        # Remaining workers
-        else:
-            # Listen for calls from controller during emulator creation
-            if(emul_i == 1):
-                # Check if mock_data is requested
-                get_mock = MPI.COMM_WORLD.recv(source=0, tag=999+self._rank)
+                else:
+                    # Get dummy ext_real_set
+                    ext_sam_set, ext_mod_set = self._get_ext_real_set(None)
 
-                # If mock_data is requested, call for it
-                if get_mock:
-                    self._get_mock_data()
+                    # Check if previous iteration was analyzed, do so if not
+                    if not self._n_eval_sam[emul_i-1]:
+                        # Let workers know that emulator needs analyzing
+                        for rank in range(1, self._size):
+                            MPI.COMM_WORLD.send(1, dest=rank, tag=999+rank)
 
-            # Listen for calls from controller during any other iteration
+                        # Analyze previous iteration
+                        logger.info("Previous emulator iteration has not been "
+                                    "analyzed. Performing analysis first.")
+                        self.analyze()
+                    else:
+                        # If not, let workers know
+                        for rank in range(1, self._size):
+                            MPI.COMM_WORLD.send(0, dest=rank, tag=999+rank)
+
+                    # Check if a new emulator iteration can be constructed
+                    if not self._prc:
+                        logger.error("No plausible regions were found in the "
+                                     "analysis of the previous emulator "
+                                     "iteration. Construction is not "
+                                     "possible!")
+                        raise RequestError("No plausible regions were found in"
+                                           " the analysis of the previous "
+                                           "emulator iteration. Construction "
+                                           "is not possible!")
+
+                    # Make the emulator prepare for a new iteration
+                    reload = self._emulator._prepare_new_iteration(emul_i)
+
+                    # Make sure the correct pipeline data is loaded in
+                    if reload:
+                        self._load_data()
+
+                    # Obtain additional sam_set
+                    add_sam_set = self._impl_sam
+
+            # Remaining workers
             else:
-                # Check if analysis is required
-                do_analyze = MPI.COMM_WORLD.recv(source=0, tag=999+self._rank)
+                # Listen for calls from controller during emulator creation
+                if(emul_i == 1):
+                    # Check if mock_data is requested
+                    get_mock = MPI.COMM_WORLD.recv(source=0,
+                                                   tag=999+self._rank)
 
-                # If previous iteration needs analyzing, call analyze()
-                if do_analyze:
-                    self.analyze(emul_i-1)
+                    # If mock_data is requested, call for it
+                    if get_mock:
+                        self._get_mock_data()
 
-            # All workers get dummy sets
-            add_sam_set = []
-            ext_sam_set = []
-            ext_mod_set = []
+                # Listen for calls from controller during any other iteration
+                else:
+                    # Check if analysis is required
+                    do_analyze = MPI.COMM_WORLD.recv(source=0,
+                                                     tag=999+self._rank)
 
-        # MPI Barrier to free up workers
-        MPI.COMM_WORLD.Barrier()
+                    # If previous iteration needs analyzing, call analyze()
+                    if do_analyze:
+                        self.analyze()
 
-        # Broadcast add_sam_set to workers
-        add_sam_set = MPI.COMM_WORLD.bcast(add_sam_set, 0)
+                # All workers get dummy sets
+                add_sam_set = []
+                ext_sam_set = []
+                ext_mod_set = []
 
-        # Obtain corresponding set of model evaluations
-        self._evaluate_model(emul_i, add_sam_set, ext_sam_set, ext_mod_set)
+            # MPI Barrier to free up workers
+            MPI.COMM_WORLD.Barrier()
+
+            # Broadcast add_sam_set to workers
+            add_sam_set = MPI.COMM_WORLD.bcast(add_sam_set, 0)
+
+            # Obtain corresponding set of model evaluations
+            self._evaluate_model(emul_i, add_sam_set, ext_sam_set, ext_mod_set)
 
         # Only controller
         if self._is_controller:
             # Construct emulator
             self._emulator._construct_iteration(emul_i)
+
+            # Save that emulator system has not been analyzed yet
+            self._save_data({
+                'impl_sam': [],
+                'n_eval_sam': 0})
 
             # Log that construction has been completed
             time_diff_total = time()-start_time
@@ -2035,14 +2086,9 @@ class Pipeline(object):
             logger.info("Finished construction of emulator system in %.2f "
                         "seconds." % (time_diff_total))
 
-            # Save that emulator system has not been analyzed yet
-            self._save_data({
-                'impl_sam': [],
-                'n_eval_sam': 0})
-
         # Analyze the emulator system if requested
         if analyze:
-            self.analyze(emul_i)
+            self.analyze()
         else:
             self._get_impl_par(True)
             self.details(emul_i)
@@ -2095,6 +2141,10 @@ class Pipeline(object):
         Emulator iteration
             The iteration of the emulator system this details overview is
             about. By default, this is the last constructed iteration.
+        Construction completed?
+            Whether or not the construction of this emulator iteration is
+            completed. If not, the missing components are listed and the
+            remaining information of this iteration is not printed.
         Plausible regions?
             Whether or not plausible regions have been found during the
             analysis of this emulator iteration. If no analysis has been done
@@ -2134,7 +2184,9 @@ class Pipeline(object):
             provided) of all model parameters defined in the used
             :class:`~ModelLink` subclass. An asterisk is printed in front of
             the parameter name if this model parameter was considered active
-            during the construction of this emulator iteration.
+            during the construction of this emulator iteration. A question mark
+            is used instead if the construction of this emulator iteration is
+            not finished.
 
         """
 
@@ -2146,7 +2198,15 @@ class Pipeline(object):
 
             # Check what kind of hdf5-file was provided
             try:
-                emul_i = self._emulator._get_emul_i(emul_i)
+                if len(self._emulator._ccheck[-1]):
+                    if emul_i is None:
+                        emul_i = self._emulator._emul_i+1
+                    elif(emul_i == self._emulator._emul_i+1):
+                        pass
+                    else:
+                        emul_i = self._emulator._get_emul_i(emul_i)
+                else:
+                    emul_i = self._emulator._get_emul_i(emul_i)
             except RequestError:
                 # MPI Barrier for controller to sync with workers at the end
                 MPI.COMM_WORLD.Barrier()
@@ -2250,77 +2310,113 @@ class Pipeline(object):
             print("{0: <{1}}\t{2}".format("Emulator iteration", width, emul_i))
 
             # Availability flags
-            if not self._n_eval_sam[emul_i]:
-                print("{0: <{1}}\t{2}".format("Plausible regions?", width,
-                                              "N/A"))
-            else:
-                print("{0: <{1}}\t{2}".format("Plausible regions?", width,
-                                              "Yes" if self._prc else "No"))
-            if not proj:
-                print("{0: <{1}}\t{2}".format("Projection available?", width,
-                                              "No"))
-            else:
-                print("{0: <{1}}\t{2}".format("Projection available?", width,
-                                              "Yes%s" % ("" if proj == 1
-                                                         else " (desynced)")))
-            print("-"*width)
+            # If this iteration is fully constructed, print flags and numbers
+            if not len(self._emulator._ccheck[emul_i]):
+                print("{0: <{1}}\t{2}".format("Construction completed?", width,
+                                              "Yes"))
+                if not self._n_eval_sam[emul_i]:
+                    print("{0: <{1}}\t{2}".format("Plausible regions?", width,
+                                                  "N/A"))
+                else:
+                    print("{0: <{1}}\t{2}".format(
+                        "Plausible regions?", width,
+                        "Yes" if self._prc else "No"))
+                if not proj:
+                    print("{0: <{1}}\t{2}".format("Projection available?",
+                                                  width, "No"))
+                else:
+                    print("{0: <{1}}\t{2}".format(
+                        "Projection available?", width,
+                        "Yes%s" % ("" if proj == 1 else " (desynced)")))
+                print("-"*width)
 
-            # Number details
-            if(self._emulator._emul_type == 'default'):
-                print("{0: <{1}}\t{2} ({3})".format(
-                    "# of model evaluation samples", width,
-                    sum(self._emulator._n_sam[1:emul_i+1]),
-                    self._emulator._n_sam[1:emul_i+1]))
-            else:
-                raise NotImplementedError
-            if not self._n_eval_sam[emul_i]:
+                # Number details
+                if(self._emulator._emul_type == 'default'):
+                    print("{0: <{1}}\t{2} ({3})".format(
+                        "# of model evaluation samples", width,
+                        sum(self._emulator._n_sam[1:emul_i+1]),
+                        self._emulator._n_sam[1:emul_i+1]))
+                else:
+                    raise NotImplementedError
+                if not self._n_eval_sam[emul_i]:
+                    print("{0: <{1}}\t{2}/{3}".format(
+                        "# of plausible/analyzed samples", width, "-", "-"))
+                    print("{0: <{1}}\t{2}".format(
+                        "% of parameter space remaining", width, "-"))
+                else:
+                    print("{0: <{1}}\t{2}/{3}".format(
+                        "# of plausible/analyzed samples", width,
+                        self._n_impl_sam[emul_i], self._n_eval_sam[emul_i]))
+                    print("{0: <{1}}\t{2:.3g}%".format(
+                        "% of parameter space remaining", width,
+                        (self._n_impl_sam[emul_i] /
+                         self._n_eval_sam[emul_i])*100))
                 print("{0: <{1}}\t{2}/{3}".format(
-                    "# of plausible/analyzed samples", width, "-", "-"))
-                print("{0: <{1}}\t{2}".format(
-                    "% of parameter space remaining", width, "-"))
+                    "# of active/total parameters", width,
+                    len(self._emulator._active_par[emul_i]),
+                    self._modellink._n_par))
+                print("{0: <{1}}\t{2}".format("# of emulated data points",
+                                              width,
+                                              self._emulator._n_data[emul_i]))
+
+            # If not, then print which components are still missing
             else:
-                print("{0: <{1}}\t{2}/{3}".format(
-                    "# of plausible/analyzed samples", width,
-                    self._n_impl_sam[emul_i], self._n_eval_sam[emul_i]))
-                print("{0: <{1}}\t{2:.3g}%".format(
-                    "% of parameter space remaining", width,
-                    (self._n_impl_sam[emul_i]/self._n_eval_sam[emul_i])*100))
-            print("{0: <{1}}\t{2}/{3}".format(
-                "# of active/total parameters", width,
-                len(self._emulator._active_par[emul_i]),
-                self._modellink._n_par))
-            print("{0: <{1}}\t{2}".format("# of emulated data points", width,
-                                          self._emulator._n_data[emul_i]))
+                ccheck = self._emulator._ccheck[emul_i]
+                print("{0: <{1}}\t{2}".format("Construction completed?", width,
+                                              "No"))
+                print("  - {0: <{1}}\t{2}".format(
+                    "'mod_real_set'?", width-4,
+                    "No" if 'mod_real_set' in ccheck else "Yes"))
+                print("  - {0: <{1}}\t{2}".format(
+                    "'active_par'?", width-4,
+                    "No" if 'active_par' in ccheck else "Yes"))
+                if self._emulator._method.lower() in ('regression', 'full'):
+                    print("  - {0: <{1}}\t{2}".format(
+                        "'regression'?", width-4,
+                        "No" if 'regression' in ccheck else "Yes"))
+                print("  - {0: <{1}}\t{2}".format(
+                    "'prior_exp_sam_set'?", width-4,
+                    "No" if 'prior_exp_sam_set' in ccheck else "Yes"))
+                print("  - {0: <{1}}\t{2}".format(
+                    "'cov_mat'?", width-4,
+                    "No" if 'cov_mat' in ccheck else "Yes"))
             print("-"*width)
 
             # PARAMETER SPACE
+            print("\nPARAMETER SPACE")
+            print("-"*width)
+
             # Define string format if par_est was provided
             str_format1 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6: >{7}.5f})"
 
             # Define string format if par_est was not provided
             str_format2 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6:->{7}})"
 
-            print("\nPARAMETER SPACE")
-            print("-"*width)
-
             # Print details about every model parameter in parameter space
             for i in range(self._modellink._n_par):
+                # Determine what string to use for the active flag
+                if len(self._emulator._ccheck[emul_i]):
+                    active_str = "?"
+                elif i in self._emulator._active_par[emul_i]:
+                    active_str = "*"
+                else:
+                    active_str = " "
+
+                # Check if par_est is given and use correct string formatting
                 if self._modellink._par_est[i] is not None:
                     print(str_format1.format(
                         self._modellink._par_name[i], name_len,
                         self._modellink._par_rng[i, 0], lower_len,
                         self._modellink._par_rng[i, 1], upper_len,
-                        self._modellink._par_est[i], est_len,
-                        "*" if i in self._emulator._active_par[emul_i]
-                        else " "))
+                        self._modellink._par_est[i], est_len, active_str))
                 else:
                     print(str_format2.format(
                         self._modellink._par_name[i], name_len,
                         self._modellink._par_rng[i, 0], lower_len,
                         self._modellink._par_rng[i, 1], upper_len,
-                        "", est_len,
-                        "*" if i in self._emulator._active_par[emul_i]
-                        else " "))
+                        "", est_len, active_str))
+
+            # FOOTER
             print("="*width)
 
         # MPI Barrier

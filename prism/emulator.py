@@ -118,10 +118,20 @@ class Emulator(object):
         return(self._emul_i)
 
     @property
+    def ccheck(self):
+        """
+        List of strings indicating which parts of the emulator are still
+        required to complete the construction of the specified emulator
+        iteration.
+
+        """
+
+        return(self._ccheck)
+
+    @property
     def n_sam(self):
         """
-        Number of model evaluation samples in currently loaded emulator
-        iteration.
+        Number of model evaluation samples in the specified emulator iteration.
 
         """
 
@@ -175,7 +185,7 @@ class Emulator(object):
     def active_par(self):
         """
         List containing the model parameter identifiers that are considered
-        active in the currently loaded emulator iteration.
+        active in the specified emulator iteration.
 
         """
 
@@ -185,8 +195,8 @@ class Emulator(object):
     def active_par_data(self):
         """
         List containing the model parameter identifiers that are considered
-        active in the currently loaded emulator iteration, separated for every
-        data point.
+        active in the specified emulator iteration, separated for every data
+        point.
 
         """
 
@@ -196,8 +206,8 @@ class Emulator(object):
     @property
     def rsdl_var(self):
         """
-        List with residual variances for every data point in the currently
-        loaded emulator iteration.
+        List with residual variances for every data point in the specified
+        emulator iteration.
         Obtained from regression process and replaces the Gaussian sigma.
 
         """
@@ -208,8 +218,8 @@ class Emulator(object):
     def poly_coef(self):
         """
         List with non-zero coefficients for the polynomial terms in the
-        regression function in the currently loaded emulator iteration,
-        separated per data point.
+        regression function in the specified emulator iteration, separated per
+        data point.
 
         """
 
@@ -219,8 +229,8 @@ class Emulator(object):
     def poly_coef_cov(self):
         """
         List with covariances for all polynomial coefficients in the
-        regression function in the currently loaded emulator iteration,
-        separated per data point.
+        regression function in the specified emulator iteration, separated per
+        data point.
 
         """
 
@@ -229,8 +239,8 @@ class Emulator(object):
     @property
     def poly_powers(self):
         """
-        List containing the polynomial term powers in the currently loaded
-        emulator iteration, separated per data point.
+        List containing the polynomial term powers in the specified emulator
+        iteration, separated per data point.
 
         """
 
@@ -240,8 +250,8 @@ class Emulator(object):
     def poly_idx(self):
         """
         List containing the indices of the polynomial terms with non-zero
-        coefficients in the currently loaded emulator iteration, separated per
-        data point.
+        coefficients in the specified emulator iteration, separated per data
+        point.
 
         """
 
@@ -251,8 +261,8 @@ class Emulator(object):
     @property
     def sam_set(self):
         """
-        Array containing all model evaluation samples in the currently loaded
-        emulator iteration.
+        Array containing all model evaluation samples in the specified emulator
+        iteration.
 
         """
 
@@ -261,8 +271,7 @@ class Emulator(object):
     @property
     def mod_set(self):
         """
-        Array containing all model outputs in the currently loaded emulator
-        iteration.
+        Array containing all model outputs in the specified emulator iteration.
 
         """
 
@@ -272,7 +281,7 @@ class Emulator(object):
     def cov_mat_inv(self):
         """
         Array containing the inverses of the covariance matrices in the
-        currently loaded emulator iteration, separated per data point.
+        specified emulator iteration, separated per data point.
 
         """
 
@@ -282,7 +291,7 @@ class Emulator(object):
     def prior_exp_sam_set(self):
         """
         Array containing the prior emulator expectation values of all model
-        evaluation samples in the currently loaded emulator iteration.
+        evaluation samples in the specified emulator iteration.
 
         """
 
@@ -334,7 +343,7 @@ class Emulator(object):
         logger.info("Selecting emulator iteration for user-method.")
 
         # Check if provided emul_i is correct/allowed
-        if(emul_i == 0 or self._emul_load == 0):
+        if(emul_i == 0 or self._emul_load == 0 or self._emul_i == 0):
             raise RequestError("Emulator HDF5-file is not built yet!")
         elif emul_i is None:
             emul_i = self._emul_i
@@ -588,6 +597,12 @@ class Emulator(object):
         self._data_idx.append(data_idx)
         self._data_prev.append(data_prev)
 
+        # Update construct check list
+        self._ccheck.append(['active_par', 'cov_mat', 'mod_real_set',
+                             'prior_exp_sam_set'])
+        if self._method.lower() in ('regression', 'full'):
+            self._ccheck[-1].append('regression')
+
         # Logging
         logger.info("Finished preparing emulator iteration.")
 
@@ -616,20 +631,24 @@ class Emulator(object):
         start_time = time()
 
         # Determine active parameters
-        self._get_active_par(emul_i)
+        if 'active_par' in self._ccheck[emul_i]:
+            self._get_active_par(emul_i)
 
         # Check if regression is required
-        if(self._method.lower() in ('regression', 'full')):
+        if(self._method.lower() in ('regression', 'full') and
+           'regression' in self._ccheck[emul_i]):
             self._do_regression(emul_i)
 
         # Calculate the prior expectation and variance values of sam_set
-        self._get_prior_exp_sam_set(emul_i)
-        self._get_cov_matrix(emul_i)
+        if 'prior_exp_sam_set' in self._ccheck[emul_i]:
+            self._get_prior_exp_sam_set(emul_i)
+        if 'cov_mat' in self._ccheck[emul_i]:
+            self._get_cov_matrix(emul_i)
 
         # Set current emul_i to constructed emul_i
         self._emul_i = emul_i
 
-        # Save time difference
+        # Save time difference and communicator size
         self._pipeline._save_statistics(emul_i, {
             'emul_construct_time': ['%.2f' % (time()-start_time), 's'],
             'MPI_comm_size_cons': ['%i' % (self._pipeline._size), '']})
@@ -1676,6 +1695,8 @@ class Emulator(object):
         self._data_idx = [[]]
         self._data_prev = [[]]
 
+        self._ccheck = [[]]
+
         # If no file has been provided
         if(emul_i == 0 or self._emul_load == 0):
             logger.info("Non-existent emulator file provided. No additional "
@@ -1700,9 +1721,23 @@ class Emulator(object):
 
             # Read in the data
             for i in range(1, emul_i+1):
-                self._n_sam.append(file['%s' % (i)].attrs['n_sam'])
-                self._sam_set.append(file['%s/sam_set' % (i)][()])
-                self._active_par.append(file['%s/active_par' % (i)][()])
+                # Create empty construct check list
+                ccheck = []
+
+                # Check if sam_set is available
+                try:
+                    self._n_sam.append(file['%s' % (i)].attrs['n_sam'])
+                    self._sam_set.append(file['%s/sam_set' % (i)][()])
+                except KeyError:
+                    ccheck.append('mod_real_set')
+
+                # Check if active_par is available
+                try:
+                    self._active_par.append(file['%s/active_par' % (i)][()])
+                except KeyError:
+                    ccheck.append('active_par')
+
+                # Initialize empty data sets
                 mod_set = []
                 cov_mat_inv = []
                 prior_exp_sam_set = []
@@ -1714,10 +1749,34 @@ class Emulator(object):
                 data_prev = []
                 for j in range(self._n_data[i]):
                     data_set = file['%s/data_point_%s' % (i, j)]
-                    mod_set.append(data_set['mod_set'][()])
-                    cov_mat_inv.append(data_set['cov_mat_inv'][()])
-                    prior_exp_sam_set.append(data_set['prior_exp_sam_set'][()])
-                    active_par_data.append(data_set['active_par_data'][()])
+
+                    # Check if mod_set is available
+                    try:
+                        mod_set.append(data_set['mod_set'][()])
+                    except KeyError:
+                        pass
+
+                    # Check if cov_mat is available
+                    try:
+                        cov_mat_inv.append(data_set['cov_mat_inv'][()])
+                    except KeyError:
+                        if(j == 0):
+                            ccheck.append('cov_mat')
+
+                    # Check if prior_exp_sam_set is available
+                    try:
+                        prior_exp_sam_set.append(
+                            data_set['prior_exp_sam_set'][()])
+                    except KeyError:
+                        if(j == 0):
+                            ccheck.append('prior_exp_sam_set')
+
+                    # Check if active_par_data is available
+                    try:
+                        active_par_data.append(data_set['active_par_data'][()])
+                    except KeyError:
+                        pass
+
                     data_val.append(data_set.attrs['data_val'])
                     data_err.append(data_set.attrs['data_err'])
 
@@ -1743,10 +1802,14 @@ class Emulator(object):
                     else:
                         data_prev.append(data_set.attrs['data_prev'])
 
-                self._mod_set.append(mod_set)
-                self._cov_mat_inv.append(cov_mat_inv)
-                self._prior_exp_sam_set.append(prior_exp_sam_set)
-                self._active_par_data.append(active_par_data)
+                if 'mod_real_set' not in ccheck:
+                    self._mod_set.append(mod_set)
+                if 'cov_mat' not in ccheck:
+                    self._cov_mat_inv.append(cov_mat_inv)
+                if 'prior_exp_sam_set' not in ccheck:
+                    self._prior_exp_sam_set.append(prior_exp_sam_set)
+                if 'active_par' not in ccheck:
+                    self._active_par_data.append(active_par_data)
                 self._data_val.append(data_val)
                 self._data_err.append(data_err)
                 self._data_idx.append(data_idx)
@@ -1761,18 +1824,37 @@ class Emulator(object):
                     poly_idx = []
                     for j in range(self._n_data[i]):
                         data_set = file['%s/data_point_%s' % (i, j)]
-                        rsdl_var.append(data_set.attrs['rsdl_var'])
-                        poly_coef.append(data_set['poly_coef'][()])
+
+                        # Check if regression variables are available
+                        try:
+                            rsdl_var.append(data_set.attrs['rsdl_var'])
+                            poly_coef.append(data_set['poly_coef'][()])
+                            if self._use_regr_cov:
+                                poly_coef_cov.append(
+                                    data_set['poly_coef_cov'][()])
+                            poly_powers.append(data_set['poly_powers'][()])
+                            poly_idx.append(data_set['poly_idx'][()])
+                        except KeyError:
+                            if(j == 0):
+                                ccheck.append('regression')
+
+                    if 'regression' not in ccheck:
+                        self._rsdl_var.append(rsdl_var)
+                        self._poly_coef.append(poly_coef)
                         if self._use_regr_cov:
-                            poly_coef_cov.append(data_set['poly_coef_cov'][()])
-                        poly_powers.append(data_set['poly_powers'][()])
-                        poly_idx.append(data_set['poly_idx'][()])
-                    self._rsdl_var.append(rsdl_var)
-                    self._poly_coef.append(poly_coef)
-                    if self._use_regr_cov:
-                        self._poly_coef_cov.append(poly_coef_cov)
-                    self._poly_powers.append(poly_powers)
-                    self._poly_idx.append(poly_idx)
+                            self._poly_coef_cov.append(poly_coef_cov)
+                        self._poly_powers.append(poly_powers)
+                        self._poly_idx.append(poly_idx)
+
+                # Add ccheck to Emulator if it does not contain 4/5 elements
+                n_elements = 5 if self._method.lower() in ('regression',
+                                                           'full') else 4
+                if(len(ccheck) != n_elements):
+                    self._ccheck.append(ccheck)
+
+                # If ccheck contains any elements, decrease emul_i by one
+                if len(ccheck):
+                    self._emul_i -= 1
 
             # Close hdf5-file
             self._pipeline._close_hdf5(file)
@@ -1793,6 +1875,8 @@ class Emulator(object):
         Parameters
         ----------
         %(emul_i)s
+        data_dict : dict
+            Dict containing the data that needs to be saved to the HDF5-file.
 
         Dict Variables
         --------------
@@ -1829,6 +1913,7 @@ class Emulator(object):
                     data_set.create_dataset('active_par_data', data=data[1][i])
                 self._active_par.append(data[0])
                 self._active_par_data.append(data[1])
+                self._ccheck[emul_i].remove('active_par')
 
             # COV_MAT
             elif(keyword == 'cov_mat'):
@@ -1837,6 +1922,7 @@ class Emulator(object):
                     data_set.create_dataset('cov_mat', data=data[0][i])
                     data_set.create_dataset('cov_mat_inv', data=data[1][i])
                 self._cov_mat_inv.append(data[1])
+                self._ccheck[emul_i].remove('cov_mat')
 
             # MOD_REAL_SET
             elif(keyword == 'mod_real_set'):
@@ -1851,6 +1937,7 @@ class Emulator(object):
                 self._mod_set.append(data[1])
 
                 file['%s' % (emul_i)].attrs['use_ext_real_set'] = bool(data[2])
+                self._ccheck[emul_i].remove('mod_real_set')
 
             # PRIOR_EXP_SAM_SET
             elif(keyword == 'prior_exp_sam_set'):
@@ -1858,6 +1945,7 @@ class Emulator(object):
                     data_set = file['%s/data_point_%s' % (emul_i, i)]
                     data_set.create_dataset('prior_exp_sam_set', data=data[i])
                 self._prior_exp_sam_set.append(data)
+                self._ccheck[emul_i].remove('prior_exp_sam_set')
 
             # REGRESSION
             elif(keyword == 'regression'):
@@ -1877,6 +1965,7 @@ class Emulator(object):
                 self._poly_idx.append(data[4])
                 if self._use_regr_cov:
                     self._poly_coef_cov.append(data[5])
+                self._ccheck[emul_i].remove('regression')
 
             # INVALID KEYWORD
             else:

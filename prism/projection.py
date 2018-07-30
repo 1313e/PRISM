@@ -1006,6 +1006,11 @@ class Projection(object):
 
         Parameters
         ----------
+        data_dict : dict
+            Dict containing the data that needs to be saved to the HDF5-file.
+
+        Dict Variables
+        --------------
         keyword : {'2D_proj_hcube', 'impl_cut', 'proj_grid', \
                    'nD_proj_hcube'}
             String specifying the type of data that needs to be saved.
