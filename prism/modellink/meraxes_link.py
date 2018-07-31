@@ -228,7 +228,7 @@ class PrismMhysa(Mhysa):
                 gals = self.collect_global_gals(ngals)
 
                 # Controller only
-                if self.controller:
+                if self.is_controller:
                     # Perform Hubble scaling
                     for name in gals.dtype.names:
                         if name not in ('ghost_flag', 'Type', 'FescBH',
