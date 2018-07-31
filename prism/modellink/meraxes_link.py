@@ -219,39 +219,55 @@ class PrismMhysa(Mhysa):
                 self._data_list.append([0]*self._n_data)
 
             # Check if this snapshot is required by data
-            for data_id in np.arange(0, self._n_data)[self._snaps == snapshot]:
-                idx = self._data_idx[data_id]
+            snap_req = np.arange(0, self._n_data)[self._snaps == snapshot]
+            if(snap_req.size > 0):
+                # Flag that StellarMass SMF has not been made yet
+                smf_flag = 0
+
+                # Collect galaxy properties
                 gals = self.collect_global_gals(ngals)
 
                 # Controller only
-                if self.is_controller:
+                if self.controller:
                     # Perform Hubble scaling
-                    if idx[1] not in ('ghost_flag', 'Type', 'FescBH', 'Fesc',
-                                      'Sfr', 'BHemissivity'):
-                        data = gals[idx[1]]/self._hubble_h
+                    for name in gals.dtype.names:
+                        if name not in ('ghost_flag', 'Type', 'FescBH',
+                                        'Fesc', 'Sfr', 'BHemissivity'):
+                            gals[name] /= self._hubble_h
 
-                    # Perform user-defined operation
-                    # Calculate the stellar mass function
-                    if(idx[2] == 'smf' and idx[1] in ('GrossStellarMass',
-                                                      'MetalsStellarMass',
-                                                      'StellarMass')):
-                        data = np.log10(data*1e10)
-                        mf, edges = munge.mass_function(data, self._volume,
-                                                        100, (0, 12), 0, 1)
-                        mass_idx = edges.searchsorted(idx[3])-1
-                        data = np.log10(mf[mass_idx, 1])
+                    # Loop over all requested data points at this snapshot
+                    for data_id in snap_req:
+                        # Extract the idx corresponding to this data point
+                        idx = self._data_idx[data_id]
 
-                    # Take the sum of the galaxy property
-                    elif(idx[2] == 'sum'):
-                        data = data.sum()
+                        # Select required galaxy property
+                        data = gals[idx[1]]
 
-                    # If unknown operation is given
-                    else:
-                        raise RequestError("The requested operation '%s' is "
-                                           "invalid!" % (idx[2]))
+                        # Perform user-defined operation
+                        # Calculate the stellar mass function
+                        if(idx[2] == 'smf' and idx[1] == 'StellarMass'):
+                            # If StellarMass SMF has not been created yet
+                            if not smf_flag:
+                                data = np.log10(data*1e10)
+                                mf, edges = munge.mass_function(
+                                    data, self._volume, 100, (0, 12), 0, 1)
+                                smf_flag = 1
 
-                    # Save resulting data value
-                    self._data_list[-1][data_id] = data
+                            # Select required mass index
+                            mass_idx = edges.searchsorted(idx[3])-1
+                            data = np.log10(mf[mass_idx, 1])
+
+                        # Take the sum of the galaxy property
+                        elif(idx[2] == 'sum'):
+                            data = data.sum()
+
+                        # If unknown operation is given
+                        else:
+                            raise RequestError("The requested operation '%s' "
+                                               "is invalid!" % (idx[2]))
+
+                        # Save resulting data value
+                        self._data_list[-1][data_id] = data
 
         # If any errors are raised, catch them and return -1
         except Exception as error:
