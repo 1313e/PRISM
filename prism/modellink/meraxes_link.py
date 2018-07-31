@@ -26,7 +26,7 @@ from __future__ import absolute_import, division, print_function
 from os import path
 
 # Package imports
-from dragons import meraxes, munge
+from dragons import munge
 import logging
 from mhysa import Mhysa
 import numpy as np
@@ -46,6 +46,9 @@ class MeraxesLink(ModelLink):
     """
     :class:`~ModelLink` class wrapper for the semi-analytic galaxy evolution
     model *Meraxes*.
+
+    This class requires the `multi` branch of *Mhysa* and the `fesc_deps`
+    branch of *Meraxes* (for now).
 
     Formatting data_idx
     -------------------
@@ -229,7 +232,9 @@ class PrismMhysa(Mhysa):
 
                     # Perform user-defined operation
                     # Calculate the stellar mass function
-                    if(idx[1] == 'StellarMass' and idx[2] == 'smf'):
+                    if(idx[2] == 'smf' and idx[1] in ('GrossStellarMass',
+                                                      'MetalsStellarMass',
+                                                      'StellarMass')):
                         data = np.log10(data*1e10)
                         mf, edges = munge.mass_function(data, self._volume,
                                                         100, (0, 12), 0, 1)
