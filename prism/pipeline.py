@@ -1597,6 +1597,7 @@ class Pipeline(object):
                         "parameters.")
 
     # This function processes an externally provided real_set
+    # TODO: Perform maximin/mincorr analysis on provided samples?
     def _get_ext_real_set(self, ext_real_set):
         """
         Processes an externally provided model realization set `ext_real_set`,

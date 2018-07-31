@@ -408,22 +408,30 @@ class Emulator(object):
         file.attrs['emul_type'] = self._emul_type.encode('ascii', 'ignore')
         file.attrs['use_mock'] = bool(self._use_mock)
 
+        # Close hdf5-file
+        self._pipeline._close_hdf5(file)
+
         # Check if mock data is requested
         if self._use_mock:
             # If so, let workers know to call _get_mock_data() as well
             for rank in range(1, self._pipeline._size):
                 MPI.COMM_WORLD.send(1, dest=rank, tag=999+rank)
 
-            # Controller calling _get_mock_data() and saving to hdf5
+            # Controller calling _get_mock_data()
             self._pipeline._get_mock_data()
+
+            # Open hdf5
+            file = self._pipeline._open_hdf5('r+')
+
+            # Save mock_data to hdf5
             file.attrs['mock_par'] = self._modellink._par_est
+
+            # Close hdf5-file
+            self._pipeline._close_hdf5(file)
         else:
             # If not, let workers know
             for rank in range(1, self._pipeline._size):
                 MPI.COMM_WORLD.send(0, dest=rank, tag=999+rank)
-
-        # Close hdf5-file
-        self._pipeline._close_hdf5(file)
 
         # Load relevant data
         self._load_data(0)
