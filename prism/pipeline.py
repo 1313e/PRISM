@@ -1842,7 +1842,7 @@ class Pipeline(object):
                             % ((len(impl_idx)/n_eval_sam)*100))
 
         # Display details about current state of pipeline
-        self.details(emul_i)
+        self.details()
 
     # This function constructs a specified iteration of the emulator system
     # TODO: Make time and RAM cost plots

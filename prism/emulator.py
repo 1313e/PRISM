@@ -782,6 +782,7 @@ class Emulator(object):
 
     # This function extracts the set of active parameters
     # TODO: Write code cleaner, if possible
+    # TODO: Save active_par results for every data point individually?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_active_par(self, emul_i):
         """
@@ -913,6 +914,7 @@ class Emulator(object):
         logger.info("Finished determining active parameters.")
 
     # This function performs a forward stepwise regression on sam_set
+    # TODO: Save regression results for every data point individually?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _do_regression(self, emul_i):
         """
@@ -1442,6 +1444,7 @@ class Emulator(object):
     # This is function 'Var(D)' or 'A'
     # Reminder that this function should only be called once per sample set
     # OPTIMIZE: Look into using GPUs for calculating and inverting cov_mat
+    # TODO: Save cov_mat results for every data point individually?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_cov_matrix(self, emul_i):
         """

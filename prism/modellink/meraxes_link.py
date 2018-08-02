@@ -128,9 +128,27 @@ class MeraxesLink(ModelLink):
         mhysa.finish()
 
         # Return it
-        # Controller returns the gathered data_list
+        # Controller returns the gathered data_list after some processing
         if mhysa.is_controller:
-            return(mhysa._data_list)
+            # Gather the data_list
+            data_list = np.array(mhysa._data_list)
+
+            # Get the operation data_idx
+            ops = np.array([idx[2] for idx in data_idx])
+
+            # Check if any operation involved the SMF
+            smf_idx = np.arange(len(data_idx))[ops == 'smf']
+
+            # Loop over all data points that involved the SMF
+            for idx in smf_idx:
+                # Obtain the data phi for this data point
+                data_phi = self._data_val[idx]
+
+                # If there are any values -np.infty (no gals), penalize them
+                data_list[~np.isfinite(data_list[:, idx]), idx] = data_phi-5
+
+            # Return the data_list
+            return(data_list)
 
         # The workers return a dummy value
         else:
@@ -210,6 +228,8 @@ class PrismMhysa(Mhysa):
         self._hubble_h = self.meraxes_globals.Hubble_h
         self._volume = pow(self.meraxes_globals.BoxSize/self._hubble_h, 3) *\
             self.meraxes_globals.VolumeFactor
+        self._no_hubble_scaling = ['ghost_flag', 'Type', 'FescBH', 'Fesc',
+                                   'Sfr', 'BHemissivity']
 
     def meraxes_hook(self, snapshot, ngals):
         # Wrap entire process in a try-statement
@@ -219,7 +239,7 @@ class PrismMhysa(Mhysa):
                 self._data_list.append([0]*self._n_data)
 
             # Check if this snapshot is required by data
-            snap_req = np.arange(0, self._n_data)[self._snaps == snapshot]
+            snap_req = np.arange(self._n_data)[self._snaps == snapshot]
             if(snap_req.size > 0):
                 # Flag that StellarMass SMF has not been made yet
                 smf_flag = 0
@@ -229,26 +249,18 @@ class PrismMhysa(Mhysa):
 
                 # Controller only
                 if self.is_controller:
-                    # Perform Hubble scaling
-                    for name in gals.dtype.names:
-                        if name not in ('ghost_flag', 'Type', 'FescBH',
-                                        'Fesc', 'Sfr', 'BHemissivity'):
-                            gals[name] /= self._hubble_h
-
                     # Loop over all requested data points at this snapshot
                     for data_id in snap_req:
                         # Extract the idx corresponding to this data point
                         idx = self._data_idx[data_id]
-
-                        # Select required galaxy property
-                        data = gals[idx[1]]
 
                         # Perform user-defined operation
                         # Calculate the stellar mass function
                         if(idx[2] == 'smf' and idx[1] == 'StellarMass'):
                             # If StellarMass SMF has not been created yet
                             if not smf_flag:
-                                data = np.log10(data*1e10)
+                                data = np.log10(gals[idx[1]][gals[idx[1]] > 0])
+                                data = data+10-np.log10(self._hubble_h)
                                 mf, edges = munge.mass_function(
                                     data, self._volume, 100, (0, 12), 0, 1)
                                 smf_flag = 1
@@ -259,7 +271,11 @@ class PrismMhysa(Mhysa):
 
                         # Take the sum of the galaxy property
                         elif(idx[2] == 'sum'):
-                            data = data.sum()
+                            data = gals[idx[1]].sum()
+
+                            # Perform Hubble scaling if required
+                            if idx[1] not in self._no_hubble_scaling:
+                                data /= self._hubble_h
 
                         # If unknown operation is given
                         else:

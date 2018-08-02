@@ -730,7 +730,7 @@ class Projection(object):
 
         # Convert list of strings to list of floats and perform completion
         self._pipeline._get_impl_cut(
-            self, list(float(impl_cut) for impl_cut in impl_cut_str), True)
+            self, list(float(impl_cut) for impl_cut in impl_cut_str), False)
 
         # Number of samples used for implausibility evaluations
         proj_res = int(par_dict['proj_res'])
