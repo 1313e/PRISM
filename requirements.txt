@@ -1,7 +1,7 @@
 numpy>=1.8
 setuptools>=36.3.0
 matplotlib>=1.4.3
-e13tools>=0.4.5a0
+e13tools>=0.4.6a0
 scipy>=1.0.0
 h5py>=2.8.0
 mlxtend>=0.9.1

@@ -26,7 +26,7 @@ from time import time
 
 # Package imports
 from e13tools import InputError
-from e13tools.pyplot import draw_textline
+from e13tools.pyplot import draw_textline, suplabel
 from e13tools.sampling import lhd
 import logging
 import matplotlib.cm as cm
@@ -243,8 +243,8 @@ class Projection(object):
 
                 # Skip making figure if it already exists
                 if path.exists(fig_path):
-                    logger.info("Projection figure '%s' already exists."
-                                "Skipping." % (par_name))
+                    logger.info("Projection figure '%s' already exists. "
+                                "Skipping figure creation." % (par_name))
                     continue
 
                 # Log that figures are being created
@@ -346,8 +346,9 @@ class Projection(object):
 
                 # Skip making figure if it already exists
                 if path.exists(fig_path):
-                    logger.info("Projection figure '%s-%s' already exists."
-                                "Skipping." % (par1_name, par2_name))
+                    logger.info("Projection figure '%s-%s' already exists. "
+                                "Skipping figure creation."
+                                % (par1_name, par2_name))
                     continue
 
                 # Log that figures are being created
@@ -422,7 +423,6 @@ class Projection(object):
                 fig1 = axarr[0].hexbin(
                     x, y, z_min, gridsize, cmap=cm.jet, vmin=0,
                     vmax=vmax)
-                axarr[0].set_ylabel("%s" % (par2_name), fontsize='x-large')
 #                axarr[0].tick_params(axis='both', labelsize='large')
                 if self._modellink._par_est[par1] is not None:
                     draw_textline(r"", x=self._modellink._par_est[par1],
@@ -440,8 +440,6 @@ class Projection(object):
                 # Plot line-of-sight depth
                 fig2 = axarr[1].hexbin(x, y, z_los, gridsize, cmap=cm.hot,
                                        vmin=0, vmax=min(1, np.max(z_los)))
-                axarr[1].set_xlabel("%s" % (par1_name), fontsize='x-large')
-                axarr[1].set_ylabel("%s" % (par2_name), fontsize='x-large')
 #                axarr[1].tick_params(axis='both', labelsize='large')
                 if self._modellink._par_est[par1] is not None:
                     draw_textline(r"", x=self._modellink._par_est[par1],
@@ -455,6 +453,10 @@ class Projection(object):
                                self._modellink._par_rng[par2, 1]])
                 plt.colorbar(fig2, ax=axarr[1]).set_label(
                     "Line-of-Sight Depth", fontsize='large')
+
+                # Make super axis labels
+                axarr[1].set_xlabel("%s" % (par1_name), fontsize='x-large')
+                suplabel("%s" % (par2_name), axis='y', fontsize='x-large')
 
                 # Save the figure
                 plt.savefig(fig_path)
