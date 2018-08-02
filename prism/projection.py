@@ -141,6 +141,10 @@ class Projection(object):
         # Check what kind of hdf5-file has been provided
         self._emul_i = self._emulator._get_emul_i(emul_i)
 
+        # Obtain figure name prefix
+        self._fig_prefix = path.join(self._pipeline._working_dir,
+                                     '%s_proj_' % (self._emul_i))
+
         # Check if it makes sense to create a projection
         if(self._emul_i == self._emulator._emul_i):
             if not self._pipeline._n_eval_sam[self._emul_i]:
@@ -234,6 +238,15 @@ class Projection(object):
                 # Make abbreviation for parameter name
                 par_name = self._modellink._par_name[par]
 
+                # Determine the path of this figure
+                fig_path = '%s(%s).png' % (self._fig_prefix, par_name)
+
+                # Skip making figure if it already exists
+                if path.exists(fig_path):
+                    logger.info("Projection figure '%s' already exists."
+                                "Skipping." % (par_name))
+                    continue
+
                 # Log that figures are being created
                 logger.info("Drawing projection figure '%s'."
                             % (par_name))
@@ -257,11 +270,6 @@ class Projection(object):
 
                 # Close hdf5-file
                 self._pipeline._close_hdf5(file)
-
-                # Obtain figure name prefix
-                fig_prefix =\
-                    path.join(self._pipeline._working_dir, '%s_proj_'
-                              % (self._emul_i))
 
                 # Recreate the parameter value array used to create the hcube
                 proj_sam_set = np.linspace(self._modellink._par_rng[par, 0],
@@ -310,7 +318,7 @@ class Projection(object):
 #                axarr[1].tick_params(axis='both', labelsize='large')
 
                 # Save the figure
-                plt.savefig('%s(%s).png' % (fig_prefix, par_name))
+                plt.savefig(fig_path)
 
                 # If show is set to True, show the figure
                 if show:
@@ -331,6 +339,16 @@ class Projection(object):
                 # Make abbreviation for the parameter names
                 par1_name = self._modellink._par_name[par1]
                 par2_name = self._modellink._par_name[par2]
+
+                # Determine the path of this figure
+                fig_path = '%s(%s-%s).png' % (
+                    self._fig_prefix, par1_name, par2_name)
+
+                # Skip making figure if it already exists
+                if path.exists(fig_path):
+                    logger.info("Projection figure '%s-%s' already exists."
+                                "Skipping." % (par1_name, par2_name))
+                    continue
 
                 # Log that figures are being created
                 logger.info("Drawing projection figure '%s-%s'."
@@ -355,11 +373,6 @@ class Projection(object):
 
                 # Close hdf5-file
                 self._pipeline._close_hdf5(file)
-
-                # Obtain figure name prefix
-                fig_prefix =\
-                    path.join(self._pipeline._working_dir, '%s_proj_'
-                              % (self._emul_i))
 
                 # Recreate the parameter value arrays used to create the hcube
                 proj_sam_set1 = np.linspace(self._modellink._par_rng[par1, 0],
@@ -444,8 +457,7 @@ class Projection(object):
                     "Line-of-Sight Depth", fontsize='large')
 
                 # Save the figure
-                plt.savefig('%s(%s-%s).png'
-                            % (fig_prefix, par1_name, par2_name))
+                plt.savefig(fig_path)
 
                 # If show is set to True, show the figure
                 if show:
