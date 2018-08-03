@@ -456,7 +456,8 @@ class Projection(object):
 
                 # Make super axis labels
                 axarr[1].set_xlabel("%s" % (par1_name), fontsize='x-large')
-                suplabel("%s" % (par2_name), axis='y', fontsize='x-large')
+                suplabel("%s" % (par2_name), axis='y', fig=f,
+                         fontsize='x-large')
 
                 # Save the figure
                 plt.savefig(fig_path)

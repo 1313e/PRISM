@@ -1202,6 +1202,7 @@ class Pipeline(object):
 
     # This is function 'k'
     # Reminder that this function should only be called once per sample set
+    # TODO: Allow variable n_sam for each data point? More versatile and chaos
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _evaluate_model(self, emul_i, sam_set, ext_sam_set, ext_mod_set):
         """

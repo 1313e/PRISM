@@ -165,6 +165,7 @@ class Emulator(object):
         covariance when calculating the covariance of the emulator, in addition
         to the Gaussian covariance.
         If `method` == 'gaussian', this bool is not required.
+        If `method` == 'regression', this bool is always set to *True*.
 
         """
 
@@ -174,7 +175,8 @@ class Emulator(object):
     def poly_order(self):
         """
         Polynomial order that is considered for the regression process.
-        If `method` == 'gaussian', this number is not required.
+        If `method` == 'gaussian' and :attr:`~Pipeline.do_active_anal` ==
+        *False*, this number is not required.
 
         """
 
@@ -2130,6 +2132,10 @@ class Emulator(object):
         # Obtain the bool determining whether or not to use regr_cov
         self._use_regr_cov = check_bool(par_dict['use_regr_cov'],
                                         'use_regr_cov')
+
+        # Check if method == 'regression' and set use_regr_cov to True if so
+        if self._method.lower() == 'regression':
+            self._use_regr_cov = 1
 
         # Obtain the polynomial order for the regression selection process
         self._poly_order = check_pos_int(int(par_dict['poly_order']),
