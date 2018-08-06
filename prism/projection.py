@@ -17,7 +17,8 @@ Available classes
 
 # %% IMPORTS
 # Future imports
-from __future__ import absolute_import, division, print_function
+from __future__ import (absolute_import, division, print_function,
+                        with_statement)
 
 # Built-in imports
 from itertools import chain, combinations
@@ -39,7 +40,7 @@ from tqdm import tqdm
 
 # PRISM imports
 from ._docstrings import user_emul_i_doc
-from ._internal import (RequestError, check_bool, check_pos_int,
+from ._internal import (PRISM_File, RequestError, check_bool, check_pos_int,
                         convert_str_seq, docstring_substitute)
 
 # All declaration
@@ -72,6 +73,7 @@ class Projection(object):
         self._modellink = self._pipeline._modellink
 
     # Function that creates all projection figures
+    # TODO: Allow for impl, los and line kwargs to be provided
     @docstring_substitute(emul_i=user_emul_i_doc)
     def __call__(self, emul_i=None, proj_par=None, figure=True, show=False,
                  force=False):
@@ -252,24 +254,20 @@ class Projection(object):
                             % (par_name))
 
                 # Open hdf5-file
-                file = self._pipeline._open_hdf5('r')
+                with PRISM_File('r') as file:
+                    # Log that projection data is being obtained
+                    logger.info("Obtaining projection data '%s'."
+                                % (par_name))
 
-                # Log that projection data is being obtained
-                logger.info("Obtaining projection data '%s'."
-                            % (par_name))
+                    # Obtain data
+                    impl_los = file['%s/proj_hcube/%s/impl_los'
+                                    % (self._emul_i, par_name)][()]
+                    impl_min = file['%s/proj_hcube/%s/impl_min'
+                                    % (self._emul_i, par_name)][()]
 
-                # Obtain data
-                impl_los = file['%s/proj_hcube/%s/impl_los'
-                                % (self._emul_i, par_name)][()]
-                impl_min = file['%s/proj_hcube/%s/impl_min'
-                                % (self._emul_i, par_name)][()]
-
-                # Log that projection data was obtained successfully
-                logger.info("Finished obtaining projection data '%s'."
-                            % (par_name))
-
-                # Close hdf5-file
-                self._pipeline._close_hdf5(file)
+                    # Log that projection data was obtained successfully
+                    logger.info("Finished obtaining projection data '%s'."
+                                % (par_name))
 
                 # Recreate the parameter value array used to create the hcube
                 proj_sam_set = np.linspace(self._modellink._par_rng[par, 0],
@@ -356,24 +354,20 @@ class Projection(object):
                             % (par1_name, par2_name))
 
                 # Open hdf5-file
-                file = self._pipeline._open_hdf5('r')
+                with PRISM_File('r') as file:
+                    # Log that projection data is being obtained
+                    logger.info("Obtaining projection data '%s-%s'."
+                                % (par1_name, par2_name))
 
-                # Log that projection data is being obtained
-                logger.info("Obtaining projection data '%s-%s'."
-                            % (par1_name, par2_name))
+                    # Obtain data
+                    impl_los = file['%s/proj_hcube/%s-%s/impl_los'
+                                    % (self._emul_i, par1_name, par2_name)][()]
+                    impl_min = file['%s/proj_hcube/%s-%s/impl_min'
+                                    % (self._emul_i, par1_name, par2_name)][()]
 
-                # Obtain data
-                impl_los = file['%s/proj_hcube/%s-%s/impl_los'
-                                % (self._emul_i, par1_name, par2_name)][()]
-                impl_min = file['%s/proj_hcube/%s-%s/impl_min'
-                                % (self._emul_i, par1_name, par2_name)][()]
-
-                # Log that projection data was obtained successfully
-                logger.info("Finished obtaining projection data '%s-%s'."
-                            % (par1_name, par2_name))
-
-                # Close hdf5-file
-                self._pipeline._close_hdf5(file)
+                    # Log that projection data was obtained successfully
+                    logger.info("Finished obtaining projection data '%s-%s'."
+                                % (par1_name, par2_name))
 
                 # Recreate the parameter value arrays used to create the hcube
                 proj_sam_set1 = np.linspace(self._modellink._par_rng[par1, 0],
@@ -420,16 +414,18 @@ class Projection(object):
                 # Plot minimum implausibility
                 vmax =\
                     self._impl_cut[self._emul_i][self._cut_idx[self._emul_i]]
-                fig1 = axarr[0].hexbin(
-                    x, y, z_min, gridsize, cmap=cm.jet, vmin=0,
-                    vmax=vmax)
+                fig1 = axarr[0].hexbin(x, y, z_min, gridsize,
+                                       cmap=cm.get_cmap('rainforest_r'),
+                                       vmin=0, vmax=vmax)
 #                axarr[0].tick_params(axis='both', labelsize='large')
                 if self._modellink._par_est[par1] is not None:
                     draw_textline(r"", x=self._modellink._par_est[par1],
-                                  ax=axarr[0], line_kwargs={'linestyle': '--'})
+                                  ax=axarr[0], line_kwargs={'linestyle': '--',
+                                                            'color': 'grey'})
                 if self._modellink._par_est[par2] is not None:
                     draw_textline(r"", y=self._modellink._par_est[par2],
-                                  ax=axarr[0], line_kwargs={'linestyle': '--'})
+                                  ax=axarr[0], line_kwargs={'linestyle': '--',
+                                                            'color': 'grey'})
                 axarr[0].axis([self._modellink._par_rng[par1, 0],
                                self._modellink._par_rng[par1, 1],
                                self._modellink._par_rng[par2, 0],
@@ -438,15 +434,18 @@ class Projection(object):
                     "Minimum Implausibility", fontsize='large')
 
                 # Plot line-of-sight depth
-                fig2 = axarr[1].hexbin(x, y, z_los, gridsize, cmap=cm.hot,
-                                       vmin=0, vmax=min(1, np.max(z_los)))
+                fig2 = axarr[1].hexbin(x, y, z_los, gridsize,
+                                       cmap=cm.get_cmap('blaze'), vmin=0,
+                                       vmax=min(1, np.max(z_los)))
 #                axarr[1].tick_params(axis='both', labelsize='large')
                 if self._modellink._par_est[par1] is not None:
                     draw_textline(r"", x=self._modellink._par_est[par1],
-                                  ax=axarr[1], line_kwargs={'linestyle': '--'})
+                                  ax=axarr[1], line_kwargs={'linestyle': '--',
+                                                            'color': 'gray'})
                 if self._modellink._par_est[par2] is not None:
                     draw_textline(r"", y=self._modellink._par_est[par2],
-                                  ax=axarr[1], line_kwargs={'linestyle': '--'})
+                                  ax=axarr[1], line_kwargs={'linestyle': '--',
+                                                            'color': 'gray'})
                 axarr[1].axis([self._modellink._par_rng[par1, 0],
                                self._modellink._par_rng[par1, 1],
                                self._modellink._par_rng[par2, 0],
@@ -630,61 +629,57 @@ class Projection(object):
 
         # Open hdf5-file
         logger.info("Checking if projection data already exists.")
-        file = self._pipeline._open_hdf5('r+')
+        with PRISM_File('r+') as file:
+            # Check if data is already there and act accordingly
+            for hcube in hcube_par:
+                if(self._modellink._n_par == 2):
+                    # Make abbreviation for the parameter name
+                    par_name = self._modellink._par_name[hcube[0]]
 
-        # Check if data is already there and act accordingly
-        for hcube in hcube_par:
-            if(self._modellink._n_par == 2):
-                # Make abbreviation for the parameter name
-                par_name = self._modellink._par_name[hcube[0]]
-
-                try:
-                    file['%s/proj_hcube/%s' % (self._emul_i, par_name)]
-                except KeyError:
-                    logger.info("Projection data '%s' not found. Will be "
-                                "created."
-                                % (par_name))
-                    create_hcube_par.append(hcube)
-                else:
-                    if force:
-                        del file['%s/proj_hcube/%s'
-                                 % (self._emul_i, par_name)]
-                        logger.info("Projection data '%s' already exists. "
-                                    "Deleting."
+                    try:
+                        file['%s/proj_hcube/%s' % (self._emul_i, par_name)]
+                    except KeyError:
+                        logger.info("Projection data '%s' not found. Will be "
+                                    "created."
                                     % (par_name))
                         create_hcube_par.append(hcube)
                     else:
-                        logger.info("Projection data '%s' already exists. "
-                                    "Skipping data creation."
-                                    % (par_name))
-            else:
-                # Make abbreviation for the parameter names
-                par1_name = self._modellink._par_name[hcube[0]]
-                par2_name = self._modellink._par_name[hcube[1]]
-
-                try:
-                    file['%s/proj_hcube/%s-%s'
-                         % (self._emul_i, par1_name, par2_name)]
-                except KeyError:
-                    logger.info("Projection data '%s-%s' not found. Will "
-                                "be created."
-                                % (par1_name, par2_name))
-                    create_hcube_par.append(hcube)
+                        if force:
+                            del file['%s/proj_hcube/%s'
+                                     % (self._emul_i, par_name)]
+                            logger.info("Projection data '%s' already exists. "
+                                        "Deleting."
+                                        % (par_name))
+                            create_hcube_par.append(hcube)
+                        else:
+                            logger.info("Projection data '%s' already exists. "
+                                        "Skipping data creation."
+                                        % (par_name))
                 else:
-                    if force:
-                        del file['%s/proj_hcube/%s-%s'
-                                 % (self._emul_i, par1_name, par2_name)]
-                        logger.info("Projection data '%s-%s' already "
-                                    "exists. Deleting."
+                    # Make abbreviation for the parameter names
+                    par1_name = self._modellink._par_name[hcube[0]]
+                    par2_name = self._modellink._par_name[hcube[1]]
+
+                    try:
+                        file['%s/proj_hcube/%s-%s'
+                             % (self._emul_i, par1_name, par2_name)]
+                    except KeyError:
+                        logger.info("Projection data '%s-%s' not found. Will "
+                                    "be created."
                                     % (par1_name, par2_name))
                         create_hcube_par.append(hcube)
                     else:
-                        logger.info("Projection data '%s-%s' already "
-                                    "exists. Skipping data creation."
-                                    % (par1_name, par2_name))
-
-        # Close hdf5-file
-        self._pipeline._close_hdf5(file)
+                        if force:
+                            del file['%s/proj_hcube/%s-%s'
+                                     % (self._emul_i, par1_name, par2_name)]
+                            logger.info("Projection data '%s-%s' already "
+                                        "exists. Deleting."
+                                        % (par1_name, par2_name))
+                            create_hcube_par.append(hcube)
+                        else:
+                            logger.info("Projection data '%s-%s' already "
+                                        "exists. Skipping data creation."
+                                        % (par1_name, par2_name))
 
         # Return requested proj_hcubes and those that need to be created
         return(hcube_par, create_hcube_par)
@@ -1042,73 +1037,66 @@ class Projection(object):
         logger = logging.getLogger('SAVE_DATA')
 
         # Open hdf5-file
-        file = self._pipeline._open_hdf5('r+')
+        with PRISM_File('r+') as file:
+            # Loop over entire provided data dict
+            for keyword, data in data_dict.items():
+                # Log what data is being saved
+                logger.info("Saving %s data at iteration %s to HDF5."
+                            % (keyword, self._emul_i))
 
-        # Loop over entire provided data dict
-        for keyword, data in data_dict.items():
-            # Log what data is being saved
-            logger.info("Saving %s data at iteration %s to HDF5."
-                        % (keyword, self._emul_i))
+                # Check what data keyword has been provided
+                # 2D_PROJ_HCUBE
+                if(keyword == '2D_proj_hcube'):
+                    par_name = self._modellink._par_name[data[0][0]]
+                    file.create_dataset('%s/proj_hcube/%s/impl_min'
+                                        % (self._emul_i, par_name),
+                                        data=data[1])
+                    file.create_dataset('%s/proj_hcube/%s/impl_los'
+                                        % (self._emul_i, par_name),
+                                        data=data[2])
 
-            # Check what data keyword has been provided
-            # 2D_PROJ_HCUBE
-            if(keyword == '2D_proj_hcube'):
-                file.create_dataset('%s/proj_hcube/%s/impl_min'
-                                    % (self._emul_i,
-                                       self._modellink._par_name[data[0][0]]),
-                                    data=data[1])
-                file.create_dataset('%s/proj_hcube/%s/impl_los'
-                                    % (self._emul_i,
-                                       self._modellink._par_name[data[0][0]]),
-                                    data=data[2])
+                # IMPL_CUT
+                elif(keyword == 'impl_cut'):
+                    # Check if projection has been created before
+                    try:
+                        file.create_group('%s/proj_hcube' % (self._emul_i))
+                    except ValueError:
+                        pass
 
-            # IMPL_CUT
-            elif(keyword == 'impl_cut'):
-                # Check if projection has been created before
-                try:
-                    file.create_group('%s/proj_hcube' % (self._emul_i))
-                except ValueError:
-                    pass
+                    self._impl_cut.append(data[0])
+                    self._cut_idx.append(data[1])
+                    file['%s/proj_hcube' % (self._emul_i)].attrs['impl_cut'] =\
+                        data[0]
+                    file['%s/proj_hcube' % (self._emul_i)].attrs['cut_idx'] =\
+                        data[1]
 
-                self._impl_cut.append(data[0])
-                self._cut_idx.append(data[1])
-                file['%s/proj_hcube' % (self._emul_i)].attrs['impl_cut'] =\
-                    data[0]
-                file['%s/proj_hcube' % (self._emul_i)].attrs['cut_idx'] =\
-                    data[1]
+                # PROJ_GRID
+                elif(keyword == 'proj_grid'):
+                    # Check if projection has been created before
+                    try:
+                        file.create_group('%s/proj_hcube' % (self._emul_i))
+                    except ValueError:
+                        pass
 
-            # PROJ_GRID
-            elif(keyword == 'proj_grid'):
-                # Check if projection has been created before
-                try:
-                    file.create_group('%s/proj_hcube' % (self._emul_i))
-                except ValueError:
-                    pass
+                    self._proj_res = data[0]
+                    self._proj_depth = data[1]
+                    file['%s/proj_hcube' % (self._emul_i)].attrs['proj_res'] =\
+                        data[0]
+                    file['%s/proj_hcube'
+                         % (self._emul_i)].attrs['proj_depth'] = data[1]
 
-                self._proj_res = data[0]
-                self._proj_depth = data[1]
-                file['%s/proj_hcube' % (self._emul_i)].attrs['proj_res'] =\
-                    data[0]
-                file['%s/proj_hcube' % (self._emul_i)].attrs['proj_depth'] =\
-                    data[1]
+                # ND_PROJ_HCUBE
+                elif(keyword == 'nD_proj_hcube'):
+                    par_name1 = self._modellink._par_name[data[0][0]]
+                    par_name2 = self._modellink._par_name[data[0][1]]
+                    file.create_dataset('%s/proj_hcube/%s-%s/impl_min'
+                                        % (self._emul_i, par_name1, par_name2),
+                                        data=data[1])
+                    file.create_dataset('%s/proj_hcube/%s-%s/impl_los'
+                                        % (self._emul_i, par_name1, par_name2),
+                                        data=data[2])
 
-            # ND_PROJ_HCUBE
-            elif(keyword == 'nD_proj_hcube'):
-                file.create_dataset('%s/proj_hcube/%s-%s/impl_min'
-                                    % (self._emul_i,
-                                       self._modellink._par_name[data[0][0]],
-                                       self._modellink._par_name[data[0][1]]),
-                                    data=data[1])
-                file.create_dataset('%s/proj_hcube/%s-%s/impl_los'
-                                    % (self._emul_i,
-                                       self._modellink._par_name[data[0][0]],
-                                       self._modellink._par_name[data[0][1]]),
-                                    data=data[2])
-
-            # INVALID KEYWORD
-            else:
-                logger.error("Invalid keyword argument provided!")
-                raise ValueError("Invalid keyword argument provided!")
-
-        # Close hdf5-file
-        self._pipeline._close_hdf5(file)
+                # INVALID KEYWORD
+                else:
+                    logger.error("Invalid keyword argument provided!")
+                    raise ValueError("Invalid keyword argument provided!")

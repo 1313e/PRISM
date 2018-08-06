@@ -17,18 +17,20 @@ Available classes
 
 # %% IMPORTS
 # Future imports
-from __future__ import absolute_import, division, print_function
+from __future__ import (absolute_import, division, print_function,
+                        with_statement)
 
 # Built-in imports
 import os
 from os import path
 import sys
 from time import strftime, strptime, time
+import warnings
 
 # Package imports
 from e13tools import InputError, ShapeError
+from e13tools.math import nCr
 from e13tools.sampling import lhd
-import h5py
 import logging
 from mpi4py import MPI
 import numpy as np
@@ -37,7 +39,7 @@ from sortedcontainers import SortedSet
 
 # PRISM imports
 from ._docstrings import call_emul_i_doc, std_emul_i_doc, user_emul_i_doc
-from ._internal import (RequestError, check_bool, check_float,
+from ._internal import (PRISM_File, RequestError, check_bool, check_float,
                         check_nneg_float, check_pos_int, convert_str_seq,
                         docstring_copy, docstring_substitute, move_logger,
                         start_logger)
@@ -106,9 +108,9 @@ class Pipeline(object):
         prism_file : str or None. Default: 'prism.txt'
             String containing the absolute or relative path to the TXT-file
             containing the PRISM parameters that need to be changed from their
-            default values. If a relative path is given, this file must be
-            located inside `root_dir`. If *None*, no changes will be made to
-            the default parameters.
+            default values. If a relative path is given, its path must be
+            relative to `root_dir` or the current directory. If *None*, no
+            changes will be made to the default parameters.
 
         """
 
@@ -180,11 +182,14 @@ class Pipeline(object):
         except Exception:
             raise
         else:
-            # Perform projection
-            self.create_projection()
+            try:
+                # Perform projection
+                self.project()
 
-            # Print details
-            self.details()
+                # Print details
+                self.details()
+            except Exception:
+                raise
 
 
 # %% CLASS PROPERTIES
@@ -515,79 +520,6 @@ class Pipeline(object):
         # Return it
         return(np.array(mod_set).T)
 
-    # Open hdf5-file
-    def _open_hdf5(self, mode, filename=None, **kwargs):
-        """
-        Opens the HDF5-file `filename` according to some set of default
-        parameters and returns the opened HDF5-object.
-
-        Parameters
-        ----------
-        mode : {'r', 'r+', 'w', 'w-'/'x', 'a'}
-            String indicating how the HDF5-file needs to be opened.
-
-        Optional
-        --------
-        filename : str. Default: None
-            The name/path of the HDF5-file that needs to be opened in
-            `working_dir`. Default is to open the HDF5-file that was provided
-            during class initialization.
-        **kwargs : dict. Default: {'driver': None, 'libver': 'earliest'}
-            Other keyword arguments that need to be given to the
-            :func:`~h5py.File` function.
-
-        Returns
-        -------
-        file : :obj:`~h5py._hl.files.File` object
-            Opened HDF5-file object.
-
-        """
-
-        # Log that an HDF5-file is being opened
-        logger = logging.getLogger('HDF5-FILE')
-
-        # Set default settings
-        hdf5_kwargs = {'driver': None,
-                       'libver': 'earliest'}
-
-        # Check filename
-        if filename is None:
-            filename = self._hdf5_file
-        else:
-            pass
-
-        # Update hdf5_kwargs with provided ones
-        hdf5_kwargs.update(kwargs)
-
-        # Open hdf5-file
-        logger.info("Opening HDF5-file '%s' (mode: '%s')." % (filename, mode))
-        file = h5py.File(filename, mode, **hdf5_kwargs)
-
-        # Return the opened hdf5-file
-        return(file)
-
-    # Close hdf5-file
-    def _close_hdf5(self, file):
-        """
-        Closes the opened HDF5-file object `file`. This method exists only
-        for logging purposes.
-
-        Parameters
-        ----------
-        file : :obj:`~h5py._hl.files.File` object
-            Opened HDF5-file object requiring closing.
-
-        """
-
-        # Log that an HDF5-file will be closed
-        logger = logging.getLogger('HDF5-FILE')
-
-        # Close hdf5-file
-        file.close()
-
-        # Log about closing the file
-        logger.info("Closed HDF5-file.")
-
     # This function automatically loads default pipeline parameters
     def _get_default_parameters(self):
         """
@@ -770,9 +702,9 @@ class Pipeline(object):
         prism_file : str or None
             String containing the absolute or relative path to the TXT-file
             containing the PRISM parameters that need to be changed from their
-            default values. If a relative path is given, this file must be
-            located inside `root_dir`. If *None*, no changes will be made to
-            the default parameters.
+            default values. If a relative path is given, its path must be
+            relative to `root_dir` or the current directory. If *None*, no
+            changes will be made to the default parameters.
 
         Generates
         ---------
@@ -905,9 +837,13 @@ class Pipeline(object):
 
         # Obtain hdf5-file path
         if isinstance(hdf5_file, (str, unicode)):
+            # Save hdf5-file path and name
             self._hdf5_file = path.join(self._working_dir, hdf5_file)
             logger.info("HDF5-file set to '%s'." % (hdf5_file))
             self._hdf5_file_name = path.join(working_dir, hdf5_file)
+
+            # Save hdf5-file path as a PRISM_File class attribute
+            PRISM_File._hdf5_file = self._hdf5_file
         else:
             logger.error("Input argument 'hdf5_file' is not of type 'str'!")
             raise TypeError("Input argument 'hdf5_file' is not of type 'str'!")
@@ -1035,34 +971,30 @@ class Pipeline(object):
         # If an emulator system currently exists, load in all data
         if self._emulator._emul_i:
             # Open hdf5-file
-            file = self._open_hdf5('r')
+            with PRISM_File('r') as file:
+                # Read in the data up to the last emulator iteration
+                for i in range(1, self._emulator._emul_i+1):
+                    # Get this emulator
+                    emul = file['%s' % (i)]
 
-            # Read in the data up to the last emulator iteration
-            for i in range(1, self._emulator._emul_i+1):
-                # Get this emulator
-                emul = file['%s' % (i)]
+                    # Check if analysis has been carried out (only if i=emul_i)
+                    try:
+                        self._impl_cut.append(emul.attrs['impl_cut'])
 
-                # Check if analysis has been carried out (only if i=emul_i)
-                try:
-                    self._impl_cut.append(emul.attrs['impl_cut'])
+                    # If not, no plausible regions were found
+                    except KeyError:
+                        self._get_impl_par(True)
 
-                # If not, no plausible regions were found
-                except KeyError:
-                    self._get_impl_par(True)
+                    # If so, load in all data
+                    else:
+                        self._cut_idx.append(emul.attrs['cut_idx'])
+                    finally:
+                        self._n_impl_sam.append(emul.attrs['n_impl_sam'])
+                        self._n_eval_sam.append(emul.attrs['n_eval_sam'])
 
-                # If so, load in all data
-                else:
-                    self._cut_idx.append(emul.attrs['cut_idx'])
-                finally:
-                    self._n_impl_sam.append(emul.attrs['n_impl_sam'])
-                    self._n_eval_sam.append(emul.attrs['n_eval_sam'])
-
-            # Read in the samples that survived the implausibility check
-            self._prc = int(emul.attrs['prc'])
-            self._impl_sam = emul['impl_sam'][()]
-
-            # Close hdf5-file
-            self._close_hdf5(file)
+                # Read in the samples that survived the implausibility check
+                self._prc = int(emul.attrs['prc'])
+                self._impl_sam = emul['impl_sam'][()]
 
     # This function saves pipeline data to hdf5
     def _save_data(self, data_dict):
@@ -1096,69 +1028,64 @@ class Pipeline(object):
         emul_i = self._emulator._emul_i
 
         # Open hdf5-file
-        file = self._open_hdf5('r+')
+        with PRISM_File('r+') as file:
+            # Loop over entire provided data dict
+            for keyword, data in data_dict.items():
+                # Log what data is being saved
+                logger.info("Saving %s data at iteration %s to HDF5."
+                            % (keyword, emul_i))
 
-        # Loop over entire provided data dict
-        for keyword, data in data_dict.items():
-            # Log what data is being saved
-            logger.info("Saving %s data at iteration %s to HDF5."
-                        % (keyword, emul_i))
+                # Check what data keyword has been provided
+                # IMPL_CUT
+                if(keyword == 'impl_cut'):
+                    # Check if impl_cut data has been saved before
+                    try:
+                        self._impl_cut[emul_i] = data[0]
+                        self._cut_idx[emul_i] = data[1]
+                    except IndexError:
+                        self._impl_cut.append(data[0])
+                        self._cut_idx.append(data[1])
+                    finally:
+                        file['%s' % (emul_i)].attrs['impl_cut'] = data[0]
+                        file['%s' % (emul_i)].attrs['cut_idx'] = data[1]
 
-            # Check what data keyword has been provided
-            # IMPL_CUT
-            if(keyword == 'impl_cut'):
-                # Check if impl_cut data has been saved before
-                try:
-                    self._impl_cut[emul_i] = data[0]
-                    self._cut_idx[emul_i] = data[1]
-                except IndexError:
-                    self._impl_cut.append(data[0])
-                    self._cut_idx.append(data[1])
-                finally:
-                    file['%s' % (emul_i)].attrs['impl_cut'] = data[0]
-                    file['%s' % (emul_i)].attrs['cut_idx'] = data[1]
+                # IMPL_SAM
+                elif(keyword == 'impl_sam'):
+                    # Check if any plausible regions have been found at all
+                    n_impl_sam = np.shape(data)[0]
+                    prc = 1 if(n_impl_sam != 0) else 0
 
-            # IMPL_SAM
-            elif(keyword == 'impl_sam'):
-                # Check if any plausible regions have been found at all
-                n_impl_sam = np.shape(data)[0]
-                prc = 1 if(n_impl_sam != 0) else 0
+                    # Check if impl_sam data has been saved before
+                    try:
+                        self._n_impl_sam[emul_i] = n_impl_sam
+                    except IndexError:
+                        file.create_dataset('%s/impl_sam' % (emul_i),
+                                            data=data)
+                        self._n_impl_sam.append(n_impl_sam)
+                    else:
+                        del file['%s/impl_sam' % (emul_i)]
+                        file.create_dataset('%s/impl_sam' % (emul_i),
+                                            data=data)
+                    finally:
+                        self._prc = prc
+                        self._impl_sam = data
+                        file['%s' % (emul_i)].attrs['prc'] = bool(prc)
+                        file['%s' % (emul_i)].attrs['n_impl_sam'] = n_impl_sam
 
-                # Check if impl_sam data has been saved before
-                try:
-                    self._n_impl_sam[emul_i] = n_impl_sam
-                except IndexError:
-                    file.create_dataset('%s/impl_sam' % (emul_i), data=data)
-                    self._n_impl_sam.append(n_impl_sam)
+                # N_EVAL_SAM
+                elif(keyword == 'n_eval_sam'):
+                    # Check if n_eval_sam has been saved before
+                    try:
+                        self._n_eval_sam[emul_i] = data
+                    except IndexError:
+                        self._n_eval_sam.append(data)
+                    finally:
+                        file['%s' % (emul_i)].attrs['n_eval_sam'] = data
+
+                # INVALID KEYWORD
                 else:
-                    del file['%s/impl_sam' % (emul_i)]
-                    file.create_dataset('%s/impl_sam' % (emul_i), data=data)
-                finally:
-                    self._prc = prc
-                    self._impl_sam = data
-                    file['%s' % (emul_i)].attrs['prc'] = bool(prc)
-                    file['%s' % (emul_i)].attrs['n_impl_sam'] = n_impl_sam
-
-            # N_EVAL_SAM
-            elif(keyword == 'n_eval_sam'):
-                # Check if n_eval_sam has been saved before
-                try:
-                    self._n_eval_sam[emul_i] = data
-                except IndexError:
-                    self._n_eval_sam.append(data)
-                finally:
-                    file['%s' % (emul_i)].attrs['n_eval_sam'] = data
-
-            # INVALID KEYWORD
-            else:
-                # Close hdf5
-                self._close_hdf5(file)
-
-                logger.error("Invalid keyword argument provided!")
-                raise ValueError("Invalid keyword argument provided!")
-
-        # Close hdf5
-        self._close_hdf5(file)
+                    logger.error("Invalid keyword argument provided!")
+                    raise ValueError("Invalid keyword argument provided!")
 
     # This function saves a statistic to hdf5
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -1189,16 +1116,12 @@ class Pipeline(object):
         logger.info("Saving statistics to HDF5.")
 
         # Open hdf5-file
-        file = self._open_hdf5('r+')
-
-        # Save statistics
-        for keyword, (value, unit) in stat_dict.items():
-            file['%s/statistics' % (emul_i)].attrs[keyword] =\
-                [str(value).encode('ascii', 'ignore'),
-                 unit.encode('ascii', 'ignore')]
-
-        # Close hdf5-file
-        self._close_hdf5(file)
+        with PRISM_File('r+') as file:
+            # Save statistics
+            for keyword, (value, unit) in stat_dict.items():
+                file['%s/statistics' % (emul_i)].attrs[keyword] =\
+                    [str(value).encode('ascii', 'ignore'),
+                     unit.encode('ascii', 'ignore')]
 
     # This is function 'k'
     # Reminder that this function should only be called once per sample set
@@ -1924,31 +1847,31 @@ class Pipeline(object):
                 if force:
                     logger.info("Emulator iteration %s has been requested to "
                                 "be reconstructed." % (emul_i))
-                    construct_emul_i = 1
+                    c_from_start = 1
 
                 # If interrupted at start, reconstruct full iteration
                 elif('mod_real_set' in self._emulator._ccheck[emul_i]):
                     logger.info("Emulator iteration %s does not contain "
                                 "evaluated model realization data. Will be "
                                 "constructed from start." % (emul_i))
-                    construct_emul_i = 1
+                    c_from_start = 1
 
                 # If interrupted midway, do not reconstruct full iteration
                 else:
                     logger.info("Construction of emulator iteration %s was "
                                 "interrupted. Continuing from point of "
                                 "interruption." % (emul_i))
-                    construct_emul_i = 0
+                    c_from_start = 0
 
             # If never constructed before, construct full iteration
             except IndexError:
                 logger.info("Emulator iteration %s has not been constructed."
                             % (emul_i))
-                construct_emul_i = 1
+                c_from_start = 1
 
         # Remaining workers
         else:
-            construct_emul_i = None
+            c_from_start = None
 
         # Check if analyze-parameter received a bool
         analyze = check_bool(analyze, 'analyze')
@@ -1957,10 +1880,10 @@ class Pipeline(object):
         emul_i = MPI.COMM_WORLD.bcast(emul_i, 0)
 
         # Broadcast construct_emul_i to workers
-        construct_emul_i = MPI.COMM_WORLD.bcast(construct_emul_i, 0)
+        c_from_start = MPI.COMM_WORLD.bcast(c_from_start, 0)
 
         # If iteration needs to be constructed completely, create/prepare it
-        if construct_emul_i:
+        if c_from_start:
             # Controller only
             if self._is_controller:
                 # Log that construction of emulator iteration is being started
@@ -2095,19 +2018,6 @@ class Pipeline(object):
             self._get_impl_par(True)
             self.details(emul_i)
 
-    # This function creates the projection figures of a given emul_i
-    @docstring_copy(Projection.__call__)
-    def create_projection(self, emul_i=None, proj_par=None, figure=True,
-                          show=False, force=False):
-
-        # Only controller
-        if self._is_controller:
-            # Initialize the Projection class and make the figures
-            Projection(self)(emul_i, proj_par, figure, show, force)
-
-        # MPI Barrier
-        MPI.COMM_WORLD.Barrier()
-
     # This function allows one to obtain the pipeline details/properties
     # TODO: Allow the viewing of the entire polynomial function in SymPy
     @docstring_substitute(emul_i=user_emul_i_doc)
@@ -2151,11 +2061,12 @@ class Pipeline(object):
             Whether or not plausible regions have been found during the
             analysis of this emulator iteration. If no analysis has been done
             yet, "N/A" will be printed.
-        Projection available?
-            Whether or not a projection has been created for this emulator
-            iteration. If a projection is available and analysis has been done,
+        Projections available?
+            Whether or not projections have been created for this emulator
+            iteration. If projections are available and analysis has been done,
             but with different implausibility cut-offs, a "desync" note is
-            added.
+            added. Also prints number of available projections versus maximum
+            number of projections in brackets.
 
         # of model evaluation samples
             The total number of model evaluation samples used to construct all
@@ -2227,46 +2138,43 @@ class Pipeline(object):
                          if i is not None])
 
                 # Open hdf5-file
-                file = self._open_hdf5('r')
-
-                # Check if mock_data was used by trying to access mock_par
-                try:
-                    file.attrs['mock_par']
-                except KeyError:
-                    use_mock = 0
-                else:
-                    use_mock = 1
-
-                # Check if projection data is available
-                try:
-                    file['%s/proj_hcube' % (emul_i)]
-                except KeyError:
-                    proj = 0
-
-                # If projection data is available
-                else:
-                    proj_impl_cut =\
-                        file['%s/proj_hcube' % (emul_i)].attrs['impl_cut']
-                    proj_cut_idx =\
-                        file['%s/proj_hcube' % (emul_i)].attrs['cut_idx']
-
-                    # Check if projection was made with the same impl_cut
+                with PRISM_File('r') as file:
+                    # Check if projection data is available
                     try:
-                        # If it was, projection is synced
-                        if((proj_impl_cut == self._impl_cut[emul_i]).all() and
-                           proj_cut_idx == self._cut_idx[emul_i]):
+                        file['%s/proj_hcube' % (emul_i)]
+                    except KeyError:
+                        proj = 0
+                        n_proj = 0
+
+                    # If projection data is available
+                    else:
+                        n_proj = len(file['%s/proj_hcube' % (emul_i)].keys())
+                        proj_impl_cut =\
+                            file['%s/proj_hcube' % (emul_i)].attrs['impl_cut']
+                        proj_cut_idx =\
+                            file['%s/proj_hcube' % (emul_i)].attrs['cut_idx']
+
+                        # Check if projections were made with the same impl_cut
+                        try:
+                            # If it was, projections are synced
+                            if((proj_impl_cut == self._impl_cut[emul_i]).all()
+                               and proj_cut_idx == self._cut_idx[emul_i]):
+                                proj = 1
+
+                            # If not, projections are desynced
+                            else:
+                                proj = 2
+
+                        # If analysis was never done, projections are synced
+                        except IndexError:
                             proj = 1
 
-                        # If not, projection is desynced
-                        else:
-                            proj = 2
+            # Determine the number of (active) parameters
+            n_par = self._modellink._n_par
+            n_active_par = len(self._emulator._active_par[emul_i])
 
-                    # If analysis was never done, projection is synced
-                    except IndexError:
-                        proj = 1
-
-            # Close hdf5-file
-            self._close_hdf5(file)
+            # Calculate the maximum number of projections
+            n_proj_max = nCr(n_active_par, 1 if(n_par == 2) else 2)
 
             # Log file being closed
             logger.info("Finished collecting details about current pipeline "
@@ -2302,7 +2210,8 @@ class Pipeline(object):
                 print("{0: <{1}}\t{2}".format("Emulation method", width,
                                               "Regression + Gaussian"))
             print("{0: <{1}}\t{2}".format("Mock data used?", width,
-                                          "Yes" if use_mock else "No"))
+                                          "Yes" if self._emulator._use_mock
+                                          else "No"))
 
             # ITERATION DETAILS
             print("\nITERATION")
@@ -2324,12 +2233,13 @@ class Pipeline(object):
                         "Plausible regions?", width,
                         "Yes" if self._prc else "No"))
                 if not proj:
-                    print("{0: <{1}}\t{2}".format("Projection available?",
+                    print("{0: <{1}}\t{2}".format("Projections available?",
                                                   width, "No"))
                 else:
-                    print("{0: <{1}}\t{2}".format(
-                        "Projection available?", width,
-                        "Yes%s" % ("" if proj == 1 else " (desynced)")))
+                    print("{0: <{1}}\t{2} ({3}/{4})".format(
+                        "Projections available?", width,
+                        "Yes%s" % ("" if proj == 1 else ", desynced"),
+                        n_proj, n_proj_max))
                 print("-"*width)
 
                 # Number details
@@ -2355,8 +2265,7 @@ class Pipeline(object):
                          self._n_eval_sam[emul_i])*100))
                 print("{0: <{1}}\t{2}/{3}".format(
                     "# of active/total parameters", width,
-                    len(self._emulator._active_par[emul_i]),
-                    self._modellink._n_par))
+                    n_active_par, n_par))
                 print("{0: <{1}}\t{2}".format("# of emulated data points",
                                               width,
                                               self._emulator._n_data[emul_i]))
@@ -2395,7 +2304,7 @@ class Pipeline(object):
             str_format2 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6:->{7}})"
 
             # Print details about every model parameter in parameter space
-            for i in range(self._modellink._n_par):
+            for i in range(n_par):
                 # Determine what string to use for the active flag
                 if len(self._emulator._ccheck[emul_i]):
                     active_str = "?"
@@ -2582,6 +2491,31 @@ class Pipeline(object):
                 # Return results
                 return(impl_check, emul_i_stop, adj_exp_val, adj_var_val,
                        uni_impl_val)
+
+        # MPI Barrier
+        MPI.COMM_WORLD.Barrier()
+
+    # TODO: Deprecated
+    @docstring_copy(Projection.__call__)
+    def create_projection(self, *args, **kwargs):
+        # Print warning that this name is deprecated
+        if self._is_controller:
+            warnings.warn("This method has been renamed to 'project()' in "
+                          "v0.4.22 and will be removed in v0.5.0!",
+                          FutureWarning, stacklevel=2)
+
+        # Call project()
+        self.project(*args, **kwargs)
+
+    # This function creates the projection figures of a given emul_i
+    @docstring_copy(Projection.__call__)
+    def project(self, emul_i=None, proj_par=None, figure=True, show=False,
+                force=False):
+
+        # Only controller
+        if self._is_controller:
+            # Initialize the Projection class and make the figures
+            Projection(self)(emul_i, proj_par, figure, show, force)
 
         # MPI Barrier
         MPI.COMM_WORLD.Barrier()

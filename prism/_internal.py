@@ -21,9 +21,12 @@ import sys
 from tempfile import mkstemp
 
 # Package imports
-from e13tools.core import _compare_versions
+from e13tools.core import _compare_versions, InputError
+import h5py
 import logging
 import logging.config
+from matplotlib.colors import LinearSegmentedColormap as LSC
+from matplotlib.cm import register_cmap
 import numpy as np
 
 # PRISM imports
@@ -32,13 +35,14 @@ from ._docstrings import (check_bool_doc, check_fin_doc, check_type_doc,
                           check_val_doc)
 
 # All declaration
-__all__ = ['RequestError', 'check_bool', 'check_compatibility', 'check_finite',
-           'check_float', 'check_int', 'check_neg_float', 'check_neg_int',
-           'check_nneg_float', 'check_nneg_int', 'check_npos_float',
-           'check_npos_int', 'check_nzero_float', 'check_nzero_int',
-           'check_pos_float', 'check_pos_int', 'check_str', 'convert_str_seq',
-           'docstring_append', 'docstring_copy', 'docstring_substitute',
-           'move_logger', 'start_logger', 'aux_char_list']
+__all__ = ['PRISM_File', 'RequestError', 'check_bool', 'check_compatibility',
+           'check_finite', 'check_float', 'check_int', 'check_neg_float',
+           'check_neg_int', 'check_nneg_float', 'check_nneg_int',
+           'check_npos_float', 'check_npos_int', 'check_nzero_float',
+           'check_nzero_int', 'check_pos_float', 'check_pos_int', 'check_str',
+           'convert_str_seq', 'docstring_append', 'docstring_copy',
+           'docstring_substitute', 'import_cmaps', 'move_logger',
+           'start_logger', 'aux_char_list']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -49,6 +53,67 @@ logger = logging.getLogger('CHECK')
 
 
 # %% CLASS DEFINITIONS
+# Override h5py's File.__init__() and __exit__() methods
+class PRISM_File(h5py.File):
+    # Override __init__() to include default settings and logging
+    def __init__(self, mode, filename=None, **kwargs):
+        """
+        Opens the HDF5-file `filename` in `mode` according to some set of
+        default parameters. This method only works properly if the
+        :class:`~PRISM_File` class is initialized within a :obj:`~Pipeline`
+        object.
+
+        Parameters
+        ----------
+        mode : {'r', 'r+', 'w', 'w-'/'x', 'a'}
+            String indicating how the HDF5-file needs to be opened.
+
+        Optional
+        --------
+        filename : str. Default: None
+            The name/path of the HDF5-file that needs to be opened in
+            `working_dir`. Default is to open the HDF5-file that was provided
+            during class initialization.
+        **kwargs : dict. Default: {'driver': None, 'libver': 'earliest'}
+            Other keyword arguments that need to be given to the
+            :func:`~h5py.File` function.
+
+        """
+
+        # Log that an HDF5-file is being opened
+        logger = logging.getLogger('HDF5-FILE')
+
+        # Set default settings
+        hdf5_kwargs = {'driver': None,
+                       'libver': 'earliest'}
+
+        # Check filename
+        if filename is None:
+            filename = self._hdf5_file
+        else:
+            pass
+
+        # Update hdf5_kwargs with provided ones
+        hdf5_kwargs.update(kwargs)
+
+        # Open hdf5-file
+        logger.info("Opening HDF5-file '%s' (mode: '%s')." % (filename, mode))
+
+        # Inheriting File __init__()
+        super(PRISM_File, self).__init__(filename, mode, **hdf5_kwargs)
+
+    # Override __exit__() to include logging
+    def __exit__(self, *args, **kwargs):
+        # Log that an HDF5-file will be closed
+        logger = logging.getLogger('HDF5-FILE')
+
+        # Log about closing the file
+        logger.info("Closed HDF5-file.")
+
+        # Inheriting File __exit__()
+        super(PRISM_File, self).__exit__(*args, **kwargs)
+
+
 # Define Exception class for when a requested action is not possible
 class RequestError(Exception):
     """
@@ -387,6 +452,74 @@ def convert_str_seq(seq):
 
     # Return it
     return(seq)
+
+
+# Function to import all custom colormaps in a directory
+def import_cmaps(cmap_dir=None):
+    """
+    Reads in custom colormaps from a provided directory `cmap_dir`, transforms
+    them  into :obj:`~matplotlib.colors.LinearSegmentedColormap` objects and
+    adds them into the :mod:`~matplotlib.cm` module.
+
+    Optional
+    --------
+    cmap_dir : str or None. Default: None
+        If str, relative or absolute path to the directory that contains custom
+        colormap files. If *None*, read in colormap files from PRISM's 'data'
+        directory.
+
+    Notes
+    -----
+    All colormap files in `cmap_dir` must have names starting with 'cm_'. The
+    resulting colormaps will have the name of their file without the prefix.
+
+    """
+
+    # Obtain path to directory with colormaps
+    if cmap_dir is None:
+        cmap_dir = path.join(path.dirname(__file__), 'data')
+    else:
+        cmap_dir = path.abspath(cmap_dir)
+
+    # Obtain the names of all PRISM data files
+    filenames = next(os.walk(cmap_dir))[2]
+    cm_files = list(filenames)
+
+    # Extract the files with defined colormaps
+    for filename in filenames:
+        if(filename[0:3] != 'cm_'):
+            cm_files.remove(filename)
+
+    # Read in all the defined colormaps, transform and add them
+    for cm_file in cm_files:
+        # Determine the index of the extension
+        ext_idx = cm_file.find('.')
+
+        # Extract name of colormap
+        if(ext_idx == -1):
+            cm_name = cm_file[3:]
+        else:
+            cm_name = cm_file[3:ext_idx]
+
+        # Process colormap files
+        try:
+            # Obtain absolute path to colormap data file
+            cm_file = path.join(cmap_dir, cm_file)
+
+            # Read in colormap data
+            colorlist = np.genfromtxt(cm_file).tolist()
+
+            # Transform colorlist into a Colormap
+            cmap = LSC.from_list(cm_name, colorlist, N=len(colorlist))
+            cmap_r = LSC.from_list(cm_name+'_r', list(reversed(colorlist)),
+                                   N=len(colorlist))
+
+            # Add cmap to matplotlib's cmap list
+            register_cmap(cmap=cmap)
+            register_cmap(cmap=cmap_r)
+        except Exception as error:
+            raise InputError("Provided colormap '%s' is invalid (%s)!"
+                             % (cm_name, error))
 
 
 # Define function that can move the logging file of PRISM and restart logging

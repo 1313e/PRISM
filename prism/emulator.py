@@ -17,7 +17,8 @@ Available classes
 
 # %% IMPORTS
 # Future imports
-from __future__ import absolute_import, division, print_function
+from __future__ import (absolute_import, division, print_function,
+                        with_statement)
 
 # Built-in imports
 from time import time
@@ -42,9 +43,9 @@ from sortedcontainers import SortedSet
 # PRISM imports
 from .__version__ import prism_version as _prism_version
 from ._docstrings import get_emul_i_doc, std_emul_i_doc
-from ._internal import (RequestError, check_bool, check_compatibility,
-                        check_nzero_float, check_pos_float, check_pos_int,
-                        docstring_substitute)
+from ._internal import (PRISM_File, RequestError, check_bool,
+                        check_compatibility, check_nzero_float,
+                        check_pos_float, check_pos_int, docstring_substitute)
 from .modellink import ModelLink
 
 # All declaration
@@ -396,22 +397,19 @@ class Emulator(object):
         self._read_parameters()
 
         # Create hdf5-file
-        file = self._pipeline._open_hdf5('w')
-
-        # Save all relevant emulator parameters to hdf5
-        file.attrs['sigma'] = self._sigma
-        file.attrs['l_corr'] = self._l_corr
-        file.attrs['method'] = self._method.encode('ascii', 'ignore')
-        file.attrs['use_regr_cov'] = bool(self._use_regr_cov)
-        file.attrs['poly_order'] = self._poly_order
-        file.attrs['modellink_name'] =\
-            self._modellink._name.encode('ascii', 'ignore')
-        file.attrs['prism_version'] = _prism_version.encode('ascii', 'ignore')
-        file.attrs['emul_type'] = self._emul_type.encode('ascii', 'ignore')
-        file.attrs['use_mock'] = bool(self._use_mock)
-
-        # Close hdf5-file
-        self._pipeline._close_hdf5(file)
+        with PRISM_File('w') as file:
+            # Save all relevant emulator parameters to hdf5
+            file.attrs['sigma'] = self._sigma
+            file.attrs['l_corr'] = self._l_corr
+            file.attrs['method'] = self._method.encode('ascii', 'ignore')
+            file.attrs['use_regr_cov'] = bool(self._use_regr_cov)
+            file.attrs['poly_order'] = self._poly_order
+            file.attrs['modellink_name'] =\
+                self._modellink._name.encode('ascii', 'ignore')
+            file.attrs['prism_version'] =\
+                _prism_version.encode('ascii', 'ignore')
+            file.attrs['emul_type'] = self._emul_type.encode('ascii', 'ignore')
+            file.attrs['use_mock'] = bool(self._use_mock)
 
         # Check if mock data is requested
         if self._use_mock:
@@ -423,13 +421,9 @@ class Emulator(object):
             self._pipeline._get_mock_data()
 
             # Open hdf5
-            file = self._pipeline._open_hdf5('r+')
-
-            # Save mock_data to hdf5
-            file.attrs['mock_par'] = self._modellink._par_est
-
-            # Close hdf5-file
-            self._pipeline._close_hdf5(file)
+            with PRISM_File('r+') as file:
+                # Save mock_data to hdf5
+                file.attrs['mock_par'] = self._modellink._par_est
         else:
             # If not, let workers know
             for rank in range(1, self._pipeline._size):
@@ -483,123 +477,126 @@ class Emulator(object):
         logger.info("Preparing emulator iteration %s for construction."
                     % (emul_i))
 
-        # Check if new iteration can be constructed
-        logger.info("Checking if emulator iteration can be prepared.")
-        if(emul_i == 1):
-            # Set reload flag to 1
-            reload = 1
-        elif not(1 <= emul_i-1 <= self._emul_i):
-            logger.error("Preparation of emulator iteration %s is only "
-                         "available when all previous iterations exist!"
-                         % (emul_i))
-            raise RequestError("Preparation of emulator iteration %s is only "
-                               "available when all previous iterations exist!"
-                               % (emul_i))
-        elif(emul_i-1 == self._emul_i):
-            # Set reload flag to 0
-            reload = 0
-        else:
-            # TODO: Also delete all projection figures?
-            logger.info("Emulator iteration %s already exists. Deleting "
-                        "requested and all subsequent iterations.")
-
-            # Open hdf5-file
-            file = self._pipeline._open_hdf5('r+')
-
-            # Delete requested and subsequent emulator iterations
-            for i in range(emul_i, self._emul_i+1):
-                del file['%s' % (i)]
-
-            # Close hdf5-file
-            self._pipeline._close_hdf5(file)
-
-            # Set last emul_i to preceding requested iteration
-            self._emul_i = emul_i-1
-
-            # Check if repreparation was actually necessary
-            # TODO: Think about how to extend this check
-            for i in range(self._n_data[emul_i]):
-                if not(self._data_val[emul_i][i] in self._modellink._data_val):
-                    break
-                if not(self._data_err[emul_i][i] in self._modellink._data_err):
-                    break
-                if not(self._data_idx[emul_i][i] in self._modellink._data_idx):
-                    break
-            # If not, give out a warning
-            else:
-                logger.warning("No differences in model comparison data "
-                               "detected.\nUnless this repreparation was "
-                               "intentional, using the 'analyze' method of "
-                               "the Pipeline class is much faster for "
-                               "reanalyzing the emulator with new pipeline "
-                               "parameters.")
-                print("No differences in model comparison data "
-                      "detected.\nUnless this repreparation was "
-                      "intentional, using the 'analyze' method of "
-                      "the Pipeline class is much faster for "
-                      "reanalyzing the emulator with new pipeline "
-                      "parameters.")
-
-            # Reload emulator data
-            self._load_data(self._emul_i)
-
-            # Set reload flag to 1
-            reload = 1
-
         # Open hdf5-file
-        file = self._pipeline._open_hdf5('r+')
-
-        # Make group for this emulator iteration
-        file.create_group('%s' % (emul_i))
-
-        # Save the number of data points
-        file['%s' % (emul_i)].attrs['n_data'] = self._modellink._n_data
-        self._n_data.append(self._modellink._n_data)
-
-        # Create an empty data set for statistics as attributes
-        file.create_dataset('%s/statistics' % (emul_i), data=h5py.Empty(float))
-
-        # Create empty lists for the four data arrays
-        data_val = []
-        data_err = []
-        data_idx = []
-        data_prev = []
-
-        # Create groups for all data points
-        for i in range(self._modellink._n_data):
-            data_set = file.create_group('%s/data_point_%s' % (emul_i, i))
-            data_set.attrs['data_val'] = self._modellink._data_val[i]
-            data_val.append(self._modellink._data_val[i])
-            data_set.attrs['data_err'] = self._modellink._data_err[i]
-            data_err.append(self._modellink._data_err[i])
-
-            # Save the data_idx in portions to make it HDF5-compatible
-            if isinstance(self._modellink._data_idx[i], list):
-                for j, idx in enumerate(self._modellink._data_idx[i]):
-                    if isinstance(idx, (str, unicode)):
-                        data_set.attrs['data_idx_%s' % (j)] =\
-                            idx.encode('ascii', 'ignore')
-                    else:
-                        data_set.attrs['data_idx_%s' % (j)] = idx
+        with PRISM_File('r+') as file:
+            # Check if new iteration can be constructed
+            logger.info("Checking if emulator iteration can be prepared.")
+            if(emul_i == 1):
+                # Set reload flag to 1
+                reload = 1
+            elif not(1 <= emul_i-1 <= self._emul_i):
+                logger.error("Preparation of emulator iteration %s is only "
+                             "available when all previous iterations exist!"
+                             % (emul_i))
+                raise RequestError("Preparation of emulator iteration %s is "
+                                   "only available when all previous "
+                                   "iterations exist!" % (emul_i))
+            elif(emul_i-1 == self._emul_i):
+                # Set reload flag to 0
+                reload = 0
             else:
-                if isinstance(self._modellink._data_idx[i], (str, unicode)):
-                    data_set.attrs['data_idx'] =\
-                        self._modellink._data_idx[i].encode('ascii', 'ignore')
+                # TODO: Also delete all projection figures?
+                logger.info("Emulator iteration %s already exists. Deleting "
+                            "requested and all subsequent iterations.")
+
+                # Delete requested and subsequent emulator iterations
+                for i in range(emul_i, self._emul_i+1):
+                    del file['%s' % (i)]
+
+                # Set last emul_i to preceding requested iteration
+                self._emul_i = emul_i-1
+
+                # Check if repreparation was actually necessary
+                # TODO: Think about how to extend this check
+                for i in range(self._n_data[emul_i]):
+                    if not(self._data_val[emul_i][i] in
+                           self._modellink._data_val):
+                        break
+                    if not(self._data_err[emul_i][i] in
+                           self._modellink._data_err):
+                        break
+                    if not(self._data_idx[emul_i][i] in
+                           self._modellink._data_idx):
+                        break
+                # If not, give out a warning
                 else:
-                    data_set.attrs['data_idx'] = self._modellink._data_idx[i]
-            data_idx.append(self._modellink._data_idx[i])
+                    logger.warning("No differences in model comparison data "
+                                   "detected.\nUnless this repreparation was "
+                                   "intentional, using the 'analyze' method of"
+                                   " the Pipeline class is much faster for "
+                                   "reanalyzing the emulator with new pipeline"
+                                   " parameters.")
+                    print("No differences in model comparison data "
+                          "detected.\nUnless this repreparation was "
+                          "intentional, using the 'analyze' method of "
+                          "the Pipeline class is much faster for "
+                          "reanalyzing the emulator with new pipeline "
+                          "parameters.")
 
-            # Check if this data point was present in previous iteration
+                # Reload emulator data
+                self._load_data(self._emul_i)
+
+                # Set reload flag to 1
+                reload = 1
+
+            # Make group for emulator iteration, delete it first if it exists
             try:
-                data_prev.append(self._data_idx[emul_i-1].index(data_idx[-1]))
-            except ValueError:
-                data_prev.append(None)
-                data_set.attrs['data_prev'] = -1
-            else:
-                data_set.attrs['data_prev'] = data_prev[-1]
+                del file['%s' % (emul_i)]
+            except KeyError:
+                pass
+            finally:
+                file.create_group('%s' % (emul_i))
 
-        # Close hdf5-file
-        self._pipeline._close_hdf5(file)
+            # Save the number of data points
+            file['%s' % (emul_i)].attrs['n_data'] = self._modellink._n_data
+            self._n_data.append(self._modellink._n_data)
+
+            # Create an empty data set for statistics as attributes
+            file.create_dataset('%s/statistics' % (emul_i),
+                                data=h5py.Empty(float))
+
+            # Create empty lists for the four data arrays
+            data_val = []
+            data_err = []
+            data_idx = []
+            data_prev = []
+
+            # Create groups for all data points
+            for i in range(self._modellink._n_data):
+                data_set = file.create_group('%s/data_point_%s' % (emul_i, i))
+                data_set.attrs['data_val'] = self._modellink._data_val[i]
+                data_val.append(self._modellink._data_val[i])
+                data_set.attrs['data_err'] = self._modellink._data_err[i]
+                data_err.append(self._modellink._data_err[i])
+
+                # Save the data_idx in portions to make it HDF5-compatible
+                if isinstance(self._modellink._data_idx[i], list):
+                    for j, idx in enumerate(self._modellink._data_idx[i]):
+                        if isinstance(idx, (str, unicode)):
+                            data_set.attrs['data_idx_%s' % (j)] =\
+                                idx.encode('ascii', 'ignore')
+                        else:
+                            data_set.attrs['data_idx_%s' % (j)] = idx
+                else:
+                    if isinstance(self._modellink._data_idx[i],
+                                  (str, unicode)):
+                        data_set.attrs['data_idx'] =\
+                            self._modellink._data_idx[i].encode('ascii',
+                                                                'ignore')
+                    else:
+                        data_set.attrs['data_idx'] =\
+                            self._modellink._data_idx[i]
+                data_idx.append(self._modellink._data_idx[i])
+
+                # Check if this data point was present in previous iteration
+                try:
+                    data_prev.append(
+                        self._data_idx[emul_i-1].index(data_idx[-1]))
+                except ValueError:
+                    data_prev.append(None)
+                    data_set.attrs['data_prev'] = -1
+                else:
+                    data_set.attrs['data_prev'] = data_prev[-1]
 
         # Save model data arrays to memory
         self._data_val.append(data_val)
@@ -1563,7 +1560,13 @@ class Emulator(object):
             logger.info("Checking if provided emulator file '%s' is a "
                         "constructed emulator system."
                         % (self._pipeline._hdf5_file))
-            file = self._pipeline._open_hdf5('r')
+            with PRISM_File('r') as file:
+                # Existing emulator was provided
+                logger.info("Constructed emulator HDF5-file provided.")
+                self._emul_load = 1
+
+                # Obtain the number of emulator iterations constructed
+                self._emul_i = len(file.keys())
         except (OSError, IOError):
             # No existing emulator was provided
             logger.info("Non-existing HDF5-file provided.")
@@ -1573,16 +1576,6 @@ class Emulator(object):
             # No emulator provided, so no loaded modellink either
             modellink_loaded = None
         else:
-            # Existing emulator was provided
-            logger.info("Constructed emulator HDF5-file provided.")
-            self._emul_load = 1
-
-            # Obtain the number of emulator iterations constructed
-            self._emul_i = len(file.keys())
-
-            # Close hdf5-file
-            self._pipeline._close_hdf5(file)
-
             # Read all emulator parameters from the hdf5-file
             modellink_loaded = self._retrieve_parameters()
 
@@ -1730,147 +1723,146 @@ class Emulator(object):
                         % (emul_i))
 
             # Open hdf5-file
-            file = self._pipeline._open_hdf5('r')
+            with PRISM_File('r') as file:
+                # Read in the data
+                for i in range(1, emul_i+1):
+                    # Create empty construct check list
+                    ccheck = []
 
-            # Read in the data
-            for i in range(1, emul_i+1):
-                # Create empty construct check list
-                ccheck = []
-
-                # Check if sam_set is available
-                try:
-                    self._n_sam.append(file['%s' % (i)].attrs['n_sam'])
-                    self._sam_set.append(file['%s/sam_set' % (i)][()])
-                except KeyError:
-                    ccheck.append('mod_real_set')
-
-                # Check if active_par is available
-                try:
-                    self._active_par.append(file['%s/active_par' % (i)][()])
-                except KeyError:
-                    ccheck.append('active_par')
-
-                # Initialize empty data sets
-                mod_set = []
-                cov_mat_inv = []
-                prior_exp_sam_set = []
-                active_par_data = []
-                self._n_data.append(file['%s' % (i)].attrs['n_data'])
-                data_val = []
-                data_err = []
-                data_idx = []
-                data_prev = []
-                for j in range(self._n_data[i]):
-                    data_set = file['%s/data_point_%s' % (i, j)]
-
-                    # Check if mod_set is available
+                    # Check if sam_set is available
                     try:
-                        mod_set.append(data_set['mod_set'][()])
+                        self._n_sam.append(file['%s' % (i)].attrs['n_sam'])
+                        self._sam_set.append(file['%s/sam_set' % (i)][()])
                     except KeyError:
-                        pass
+                        ccheck.append('mod_real_set')
 
-                    # Check if cov_mat is available
+                    # Check if active_par is available
                     try:
-                        cov_mat_inv.append(data_set['cov_mat_inv'][()])
+                        self._active_par.append(
+                            file['%s/active_par' % (i)][()])
                     except KeyError:
-                        if(j == 0):
-                            ccheck.append('cov_mat')
+                        ccheck.append('active_par')
 
-                    # Check if prior_exp_sam_set is available
-                    try:
-                        prior_exp_sam_set.append(
-                            data_set['prior_exp_sam_set'][()])
-                    except KeyError:
-                        if(j == 0):
-                            ccheck.append('prior_exp_sam_set')
-
-                    # Check if active_par_data is available
-                    try:
-                        active_par_data.append(data_set['active_par_data'][()])
-                    except KeyError:
-                        pass
-
-                    data_val.append(data_set.attrs['data_val'])
-                    data_err.append(data_set.attrs['data_err'])
-
-                    # Read in all data_idx parts and combine them
-                    idx_keys = [key for key in data_set.attrs.keys()
-                                if key[:8] == 'data_idx']
-                    idx_len = len(idx_keys)
-                    if(idx_len == 1):
-                        data_idx.append(data_set.attrs['data_idx'])
-                    else:
-                        tmp_data_idx = []
-                        for key in idx_keys:
-                            if isinstance(data_set.attrs[key], bytes):
-                                idx_str = data_set.attrs[key].decode('utf-8')
-                                tmp_data_idx.append(idx_str)
-                            else:
-                                tmp_data_idx.append(data_set.attrs[key])
-                        data_idx.append(tmp_data_idx)
-
-                    # Obtain data_prev
-                    if(data_set.attrs['data_prev'] == -1):
-                        data_prev.append(None)
-                    else:
-                        data_prev.append(data_set.attrs['data_prev'])
-
-                if 'mod_real_set' not in ccheck:
-                    self._mod_set.append(mod_set)
-                if 'cov_mat' not in ccheck:
-                    self._cov_mat_inv.append(cov_mat_inv)
-                if 'prior_exp_sam_set' not in ccheck:
-                    self._prior_exp_sam_set.append(prior_exp_sam_set)
-                if 'active_par' not in ccheck:
-                    self._active_par_data.append(active_par_data)
-                self._data_val.append(data_val)
-                self._data_err.append(data_err)
-                self._data_idx.append(data_idx)
-                self._data_prev.append(data_prev)
-
-                if self._method.lower() in ('regression', 'full'):
-                    rsdl_var = []
-                    poly_coef = []
-                    if self._use_regr_cov:
-                        poly_coef_cov = []
-                    poly_powers = []
-                    poly_idx = []
+                    # Initialize empty data sets
+                    mod_set = []
+                    cov_mat_inv = []
+                    prior_exp_sam_set = []
+                    active_par_data = []
+                    self._n_data.append(file['%s' % (i)].attrs['n_data'])
+                    data_val = []
+                    data_err = []
+                    data_idx = []
+                    data_prev = []
                     for j in range(self._n_data[i]):
                         data_set = file['%s/data_point_%s' % (i, j)]
 
-                        # Check if regression variables are available
+                        # Check if mod_set is available
                         try:
-                            rsdl_var.append(data_set.attrs['rsdl_var'])
-                            poly_coef.append(data_set['poly_coef'][()])
-                            if self._use_regr_cov:
-                                poly_coef_cov.append(
-                                    data_set['poly_coef_cov'][()])
-                            poly_powers.append(data_set['poly_powers'][()])
-                            poly_idx.append(data_set['poly_idx'][()])
+                            mod_set.append(data_set['mod_set'][()])
+                        except KeyError:
+                            pass
+
+                        # Check if cov_mat is available
+                        try:
+                            cov_mat_inv.append(data_set['cov_mat_inv'][()])
                         except KeyError:
                             if(j == 0):
-                                ccheck.append('regression')
+                                ccheck.append('cov_mat')
 
-                    if 'regression' not in ccheck:
-                        self._rsdl_var.append(rsdl_var)
-                        self._poly_coef.append(poly_coef)
+                        # Check if prior_exp_sam_set is available
+                        try:
+                            prior_exp_sam_set.append(
+                                data_set['prior_exp_sam_set'][()])
+                        except KeyError:
+                            if(j == 0):
+                                ccheck.append('prior_exp_sam_set')
+
+                        # Check if active_par_data is available
+                        try:
+                            active_par_data.append(
+                                data_set['active_par_data'][()])
+                        except KeyError:
+                            pass
+
+                        data_val.append(data_set.attrs['data_val'])
+                        data_err.append(data_set.attrs['data_err'])
+
+                        # Read in all data_idx parts and combine them
+                        idx_keys = [key for key in data_set.attrs.keys()
+                                    if key[:8] == 'data_idx']
+                        idx_len = len(idx_keys)
+                        if(idx_len == 1):
+                            data_idx.append(data_set.attrs['data_idx'])
+                        else:
+                            tmp_data_idx = []
+                            for key in idx_keys:
+                                if isinstance(data_set.attrs[key], bytes):
+                                    idx_str =\
+                                        data_set.attrs[key].decode('utf-8')
+                                    tmp_data_idx.append(idx_str)
+                                else:
+                                    tmp_data_idx.append(data_set.attrs[key])
+                            data_idx.append(tmp_data_idx)
+
+                        # Obtain data_prev
+                        if(data_set.attrs['data_prev'] == -1):
+                            data_prev.append(None)
+                        else:
+                            data_prev.append(data_set.attrs['data_prev'])
+
+                    if 'mod_real_set' not in ccheck:
+                        self._mod_set.append(mod_set)
+                    if 'cov_mat' not in ccheck:
+                        self._cov_mat_inv.append(cov_mat_inv)
+                    if 'prior_exp_sam_set' not in ccheck:
+                        self._prior_exp_sam_set.append(prior_exp_sam_set)
+                    if 'active_par' not in ccheck:
+                        self._active_par_data.append(active_par_data)
+                    self._data_val.append(data_val)
+                    self._data_err.append(data_err)
+                    self._data_idx.append(data_idx)
+                    self._data_prev.append(data_prev)
+
+                    if self._method.lower() in ('regression', 'full'):
+                        rsdl_var = []
+                        poly_coef = []
                         if self._use_regr_cov:
-                            self._poly_coef_cov.append(poly_coef_cov)
-                        self._poly_powers.append(poly_powers)
-                        self._poly_idx.append(poly_idx)
+                            poly_coef_cov = []
+                        poly_powers = []
+                        poly_idx = []
+                        for j in range(self._n_data[i]):
+                            data_set = file['%s/data_point_%s' % (i, j)]
 
-                # Add ccheck to Emulator if it does not contain 4/5 elements
-                n_elements = 5 if self._method.lower() in ('regression',
-                                                           'full') else 4
-                if(len(ccheck) != n_elements):
-                    self._ccheck.append(ccheck)
+                            # Check if regression variables are available
+                            try:
+                                rsdl_var.append(data_set.attrs['rsdl_var'])
+                                poly_coef.append(data_set['poly_coef'][()])
+                                if self._use_regr_cov:
+                                    poly_coef_cov.append(
+                                        data_set['poly_coef_cov'][()])
+                                poly_powers.append(data_set['poly_powers'][()])
+                                poly_idx.append(data_set['poly_idx'][()])
+                            except KeyError:
+                                if(j == 0):
+                                    ccheck.append('regression')
 
-                # If ccheck contains any elements, decrease emul_i by one
-                if len(ccheck):
-                    self._emul_i -= 1
+                        if 'regression' not in ccheck:
+                            self._rsdl_var.append(rsdl_var)
+                            self._poly_coef.append(poly_coef)
+                            if self._use_regr_cov:
+                                self._poly_coef_cov.append(poly_coef_cov)
+                            self._poly_powers.append(poly_powers)
+                            self._poly_idx.append(poly_idx)
 
-            # Close hdf5-file
-            self._pipeline._close_hdf5(file)
+                    # Add ccheck to Emulator if it does not have 4/5 elements
+                    n_elements = 5 if self._method.lower() in ('regression',
+                                                               'full') else 4
+                    if(len(ccheck) != n_elements):
+                        self._ccheck.append(ccheck)
+
+                    # If ccheck contains any elements, decrease emul_i by one
+                    if len(ccheck):
+                        self._emul_i -= 1
 
             # Log that loading is finished
             logger.info("Finished loading relevant emulator data.")
@@ -1909,84 +1901,84 @@ class Emulator(object):
         logger = logging.getLogger('SAVE_DATA')
 
         # Open hdf5-file
-        file = self._pipeline._open_hdf5('r+')
+        with PRISM_File('r+') as file:
+            # Loop over entire provided data dict
+            for keyword, data in data_dict.items():
+                # Log what data is being saved
+                logger.info("Saving %s data at iteration %s to HDF5."
+                            % (keyword, emul_i))
 
-        # Loop over entire provided data dict
-        for keyword, data in data_dict.items():
-            # Log what data is being saved
-            logger.info("Saving %s data at iteration %s to HDF5."
-                        % (keyword, emul_i))
+                # Check what data keyword has been provided
+                # ACTIVE PARAMETERS
+                if(keyword == 'active_par'):
+                    file.create_dataset('%s/active_par' % (emul_i),
+                                        data=data[0])
+                    for i in range(self._n_data[emul_i]):
+                        data_set = file['%s/data_point_%s' % (emul_i, i)]
+                        data_set.create_dataset('active_par_data',
+                                                data=data[1][i])
+                    self._active_par.append(data[0])
+                    self._active_par_data.append(data[1])
+                    self._ccheck[emul_i].remove('active_par')
 
-            # Check what data keyword has been provided
-            # ACTIVE PARAMETERS
-            if(keyword == 'active_par'):
-                file.create_dataset('%s/active_par' % (emul_i), data=data[0])
-                for i in range(self._n_data[emul_i]):
-                    data_set = file['%s/data_point_%s' % (emul_i, i)]
-                    data_set.create_dataset('active_par_data', data=data[1][i])
-                self._active_par.append(data[0])
-                self._active_par_data.append(data[1])
-                self._ccheck[emul_i].remove('active_par')
+                # COV_MAT
+                elif(keyword == 'cov_mat'):
+                    for i in range(self._n_data[emul_i]):
+                        data_set = file['%s/data_point_%s' % (emul_i, i)]
+                        data_set.create_dataset('cov_mat', data=data[0][i])
+                        data_set.create_dataset('cov_mat_inv', data=data[1][i])
+                    self._cov_mat_inv.append(data[1])
+                    self._ccheck[emul_i].remove('cov_mat')
 
-            # COV_MAT
-            elif(keyword == 'cov_mat'):
-                for i in range(self._n_data[emul_i]):
-                    data_set = file['%s/data_point_%s' % (emul_i, i)]
-                    data_set.create_dataset('cov_mat', data=data[0][i])
-                    data_set.create_dataset('cov_mat_inv', data=data[1][i])
-                self._cov_mat_inv.append(data[1])
-                self._ccheck[emul_i].remove('cov_mat')
+                # MOD_REAL_SET
+                elif(keyword == 'mod_real_set'):
+                    file.create_dataset('%s/sam_set' % (emul_i), data=data[0])
+                    file['%s' % (emul_i)].attrs['n_sam'] = np.shape(data[0])[0]
+                    self._sam_set.append(data[0])
+                    self._n_sam.append(np.shape(data[0])[0])
 
-            # MOD_REAL_SET
-            elif(keyword == 'mod_real_set'):
-                file.create_dataset('%s/sam_set' % (emul_i), data=data[0])
-                file['%s' % (emul_i)].attrs['n_sam'] = np.shape(data[0])[0]
-                self._sam_set.append(data[0])
-                self._n_sam.append(np.shape(data[0])[0])
+                    for i in range(self._n_data[emul_i]):
+                        data_set = file['%s/data_point_%s' % (emul_i, i)]
+                        data_set.create_dataset('mod_set', data=data[1][i])
+                    self._mod_set.append(data[1])
 
-                for i in range(self._n_data[emul_i]):
-                    data_set = file['%s/data_point_%s' % (emul_i, i)]
-                    data_set.create_dataset('mod_set', data=data[1][i])
-                self._mod_set.append(data[1])
+                    file['%s' % (emul_i)].attrs['use_ext_real_set'] =\
+                        bool(data[2])
+                    self._ccheck[emul_i].remove('mod_real_set')
 
-                file['%s' % (emul_i)].attrs['use_ext_real_set'] = bool(data[2])
-                self._ccheck[emul_i].remove('mod_real_set')
+                # PRIOR_EXP_SAM_SET
+                elif(keyword == 'prior_exp_sam_set'):
+                    for i in range(self._n_data[emul_i]):
+                        data_set = file['%s/data_point_%s' % (emul_i, i)]
+                        data_set.create_dataset('prior_exp_sam_set',
+                                                data=data[i])
+                    self._prior_exp_sam_set.append(data)
+                    self._ccheck[emul_i].remove('prior_exp_sam_set')
 
-            # PRIOR_EXP_SAM_SET
-            elif(keyword == 'prior_exp_sam_set'):
-                for i in range(self._n_data[emul_i]):
-                    data_set = file['%s/data_point_%s' % (emul_i, i)]
-                    data_set.create_dataset('prior_exp_sam_set', data=data[i])
-                self._prior_exp_sam_set.append(data)
-                self._ccheck[emul_i].remove('prior_exp_sam_set')
-
-            # REGRESSION
-            elif(keyword == 'regression'):
-                for i in range(self._n_data[emul_i]):
-                    data_set = file['%s/data_point_%s' % (emul_i, i)]
-                    data_set.attrs['rsdl_var'] = data[0][i]
-                    data_set.attrs['regr_score'] = data[1][i]
-                    data_set.create_dataset('poly_coef', data=data[2][i])
-                    data_set.create_dataset('poly_powers', data=data[3][i])
-                    data_set.create_dataset('poly_idx', data=data[4][i])
+                # REGRESSION
+                elif(keyword == 'regression'):
+                    for i in range(self._n_data[emul_i]):
+                        data_set = file['%s/data_point_%s' % (emul_i, i)]
+                        data_set.attrs['rsdl_var'] = data[0][i]
+                        data_set.attrs['regr_score'] = data[1][i]
+                        data_set.create_dataset('poly_coef', data=data[2][i])
+                        data_set.create_dataset('poly_powers', data=data[3][i])
+                        data_set.create_dataset('poly_idx', data=data[4][i])
+                        if self._use_regr_cov:
+                            data_set.create_dataset('poly_coef_cov',
+                                                    data=data[5][i])
+                    self._rsdl_var.append(data[0])
+                    self._poly_coef.append(data[2])
+                    self._poly_powers.append(data[3])
+                    self._poly_idx.append(data[4])
                     if self._use_regr_cov:
-                        data_set.create_dataset('poly_coef_cov',
-                                                data=data[5][i])
-                self._rsdl_var.append(data[0])
-                self._poly_coef.append(data[2])
-                self._poly_powers.append(data[3])
-                self._poly_idx.append(data[4])
-                if self._use_regr_cov:
-                    self._poly_coef_cov.append(data[5])
-                self._ccheck[emul_i].remove('regression')
+                        self._poly_coef_cov.append(data[5])
+                    self._ccheck[emul_i].remove('regression')
 
-            # INVALID KEYWORD
-            else:
-                logger.error("Invalid keyword argument provided!")
-                raise ValueError("Invalid keyword argument provided!")
-
-        # Close hdf5-file
-        self._pipeline._close_hdf5(file)
+                # INVALID KEYWORD
+                else:
+                    logger.error("Invalid keyword argument provided!")
+                    raise ValueError("Invalid keyword argument provided!")
 
         # More logging
         logger.info("Finished saving data to HDF5.")
@@ -2004,40 +1996,36 @@ class Emulator(object):
         logger.info("Retrieving emulator parameters from provided HDF5-file.")
 
         # Open hdf5-file
-        file = self._pipeline._open_hdf5('r')
+        with PRISM_File('r') as file:
+            # Read in all the emulator parameters
+            self._sigma = file.attrs['sigma']
+            self._l_corr = file.attrs['l_corr']
+            self._method = file.attrs['method'].decode('utf-8')
+            self._use_regr_cov = int(file.attrs['use_regr_cov'])
+            self._poly_order = file.attrs['poly_order']
+            modellink_name = file.attrs['modellink_name'].decode('utf-8')
+            self._use_mock = int(file.attrs['use_mock'])
 
-        # Read in all the emulator parameters
-        self._sigma = file.attrs['sigma']
-        self._l_corr = file.attrs['l_corr']
-        self._method = file.attrs['method'].decode('utf-8')
-        self._use_regr_cov = int(file.attrs['use_regr_cov'])
-        self._poly_order = file.attrs['poly_order']
-        modellink_name = file.attrs['modellink_name'].decode('utf-8')
-        self._use_mock = int(file.attrs['use_mock'])
+            # TODO: This try-statement becomes obsolete when PRISM is released
+            try:
+                emul_version = file.attrs['prism_version'].decode('utf-8')
+            except KeyError:
+                emul_version = '0.3.0'
 
-        # TODO: This try-statement becomes obsolete when PRISM is released
-        try:
-            emul_version = file.attrs['prism_version'].decode('utf-8')
-        except KeyError:
-            emul_version = '0.3.0'
+            # TODO: Same for this try-statement
+            try:
+                emul_type = file.attrs['emul_type'].decode('utf-8')
+            except KeyError:
+                emul_type = 'default'
 
-        # TODO: Same for this try-statement
-        try:
-            emul_type = file.attrs['emul_type'].decode('utf-8')
-        except KeyError:
-            emul_type = 'default'
-
-        # Check if provided emulator is the same as requested
-        if(emul_type != self._emul_type):
-            logger.error("Provided emulator system type ('%s') does not match "
-                         "the requested type ('%s')!"
-                         % (emul_type, self._emul_type))
-            raise RequestError("Provided emulator system type ('%s') does not "
-                               "match the requested type ('%s')!"
-                               % (emul_type, self._emul_type))
-
-        # Close hdf5-file
-        self._pipeline._close_hdf5(file)
+            # Check if provided emulator is the same as requested
+            if(emul_type != self._emul_type):
+                logger.error("Provided emulator system type ('%s') does not "
+                             "match the requested type ('%s')!"
+                             % (emul_type, self._emul_type))
+                raise RequestError("Provided emulator system type ('%s') does "
+                                   "not match the requested type ('%s')!"
+                                   % (emul_type, self._emul_type))
 
         # Check if provided emul_version is compatible
         check_compatibility(emul_version)
@@ -2170,17 +2158,13 @@ class Emulator(object):
         logger.info("Loading previously used mock data into ModelLink object.")
 
         # Open hdf5-file
-        file = self._pipeline._open_hdf5('r')
-
-        # Overwrite ModelLink properties
-        self._modellink._par_est = file.attrs['mock_par'].tolist()
-        self._modellink._n_data = self._n_data[1]
-        self._modellink._data_val = self._data_val[1]
-        self._modellink._data_err = self._data_err[1]
-        self._modellink._data_idx = self._data_idx[1]
-
-        # Close hdf5-file
-        self._pipeline._close_hdf5(file)
+        with PRISM_File('r') as file:
+            # Overwrite ModelLink properties
+            self._modellink._par_est = file.attrs['mock_par'].tolist()
+            self._modellink._n_data = self._n_data[1]
+            self._modellink._data_val = self._data_val[1]
+            self._modellink._data_err = self._data_err[1]
+            self._modellink._data_idx = self._data_idx[1]
 
         # Log end
         logger.info("Loaded mock data.")
