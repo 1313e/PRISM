@@ -51,9 +51,14 @@ from __future__ import absolute_import, division, print_function
 
 # Import PRISM modules
 from .__version__ import prism_version as __version__
+from . import _internal
 from . import modellink
 from .modellink import ModelLink
 from .pipeline import Pipeline
 
 # All declaration
 __all__ = ['modellink', 'ModelLink', 'Pipeline']
+
+
+# %% EXECUTE INITIALIZING CODE
+_internal.import_cmaps()

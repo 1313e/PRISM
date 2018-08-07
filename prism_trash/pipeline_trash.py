@@ -1,4 +1,5 @@
 # %% REMOVED IN v0.4.12
+
 # This function extracts the set of active parameters
 # TODO: Perform exhaustive backward stepwise regression on order > 1
 @docstring_substitute(emul_i=std_emul_i_doc)
@@ -98,3 +99,80 @@ def _retrieve_parameters(self):
 
     # Log that reading is finished
     logger.info("Finished retrieving parameters.")
+
+
+# %% REMOVED IN v0.4.22
+
+# Open hdf5-file
+def _open_hdf5(self, mode, filename=None, **kwargs):
+    """
+    Opens the HDF5-file `filename` according to some set of default
+    parameters and returns the opened HDF5-object.
+
+    Parameters
+    ----------
+    mode : {'r', 'r+', 'w', 'w-'/'x', 'a'}
+        String indicating how the HDF5-file needs to be opened.
+
+    Optional
+    --------
+    filename : str. Default: None
+        The name/path of the HDF5-file that needs to be opened in
+        `working_dir`. Default is to open the HDF5-file that was provided
+        during class initialization.
+    **kwargs : dict. Default: {'driver': None, 'libver': 'earliest'}
+        Other keyword arguments that need to be given to the
+        :func:`~h5py.File` function.
+
+    Returns
+    -------
+    file : :obj:`~h5py._hl.files.File` object
+        Opened HDF5-file object.
+
+    """
+
+    # Log that an HDF5-file is being opened
+    logger = logging.getLogger('HDF5-FILE')
+
+    # Set default settings
+    hdf5_kwargs = {'driver': None,
+                   'libver': 'earliest'}
+
+    # Check filename
+    if filename is None:
+        filename = self._hdf5_file
+    else:
+        pass
+
+    # Update hdf5_kwargs with provided ones
+    hdf5_kwargs.update(kwargs)
+
+    # Open hdf5-file
+    logger.info("Opening HDF5-file '%s' (mode: '%s')." % (filename, mode))
+    file = h5py.File(filename, mode, **hdf5_kwargs)
+
+    # Return the opened hdf5-file
+    return(file)
+
+
+# Close hdf5-file
+def _close_hdf5(self, file):
+    """
+    Closes the opened HDF5-file object `file`. This method exists only
+    for logging purposes.
+
+    Parameters
+    ----------
+    file : :obj:`~h5py._hl.files.File` object
+        Opened HDF5-file object requiring closing.
+
+    """
+
+    # Log that an HDF5-file will be closed
+    logger = logging.getLogger('HDF5-FILE')
+
+    # Close hdf5-file
+    file.close()
+
+    # Log about closing the file
+    logger.info("Closed HDF5-file.")
