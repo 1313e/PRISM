@@ -23,11 +23,11 @@ Available classes
 from __future__ import absolute_import, division, print_function
 
 # Built-in imports
+import logging
 from os import path
 
 # Package imports
 from dragons import munge
-import logging
 from mhysa import Mhysa
 import numpy as np
 

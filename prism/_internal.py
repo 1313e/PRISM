@@ -14,6 +14,8 @@ from __future__ import (absolute_import, division, print_function,
                         with_statement)
 
 # Built-in imports
+import logging
+import logging.config
 import os
 from os import path
 import shutil
@@ -23,8 +25,6 @@ from tempfile import mkstemp
 # Package imports
 from e13tools.core import _compare_versions, InputError
 import h5py
-import logging
-import logging.config
 from matplotlib.colors import LinearSegmentedColormap as LSC
 from matplotlib.cm import register_cmap
 import numpy as np
@@ -458,8 +458,8 @@ def convert_str_seq(seq):
 def import_cmaps(cmap_dir=None):
     """
     Reads in custom colormaps from a provided directory `cmap_dir`, transforms
-    them  into :obj:`~matplotlib.colors.LinearSegmentedColormap` objects and
-    adds them into the :mod:`~matplotlib.cm` module.
+    them into :obj:`~matplotlib.colors.LinearSegmentedColormap` objects and
+    registers them in the :mod:`~matplotlib.cm` module.
 
     Optional
     --------
@@ -490,7 +490,7 @@ def import_cmaps(cmap_dir=None):
         if(filename[0:3] != 'cm_'):
             cm_files.remove(filename)
 
-    # Read in all the defined colormaps, transform and add them
+    # Read in all the defined colormaps, transform and register them
     for cm_file in cm_files:
         # Determine the index of the extension
         ext_idx = cm_file.find('.')

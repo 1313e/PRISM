@@ -21,6 +21,7 @@ from __future__ import (absolute_import, division, print_function,
                         with_statement)
 
 # Built-in imports
+import logging
 import os
 from os import path
 import sys
@@ -31,7 +32,6 @@ import warnings
 from e13tools import InputError, ShapeError
 from e13tools.math import nCr
 from e13tools.sampling import lhd
-import logging
 from mpi4py import MPI
 import numpy as np
 from numpy.random import normal, random

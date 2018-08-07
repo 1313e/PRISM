@@ -22,6 +22,7 @@ from __future__ import (absolute_import, division, print_function,
 
 # Built-in imports
 from itertools import chain, combinations
+import logging
 from os import path
 from time import time
 
@@ -29,7 +30,6 @@ from time import time
 from e13tools import InputError
 from e13tools.pyplot import draw_textline, suplabel
 from e13tools.sampling import lhd
-import logging
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
@@ -190,6 +190,10 @@ class Projection(object):
         # Loop over all requested projection hypercubes
         for hcube in tqdm(hcube_par, desc="Creating projections",
                           unit='hcube'):
+            # Initialize impl_min and impl_los
+            impl_min = None
+            impl_los = None
+
             # ANALYZE PROJECTION 2+D
             # Create projection hypercube containing all samples if required
             if(self._modellink._n_par == 2 and hcube in create_hcube_par):
@@ -200,8 +204,7 @@ class Projection(object):
                 proj_hcube = self._get_proj_hcube(hcube)
 
                 # Analyze this proj_hcube
-                impl_min_hcube, impl_los_hcube =\
-                    self._analyze_proj_hcube(proj_hcube)
+                impl_min, impl_los = self._analyze_proj_hcube(proj_hcube)
 
                 # Log that projection data has been created
                 logger.info("Finished calculating projection data '%s'."
@@ -209,7 +212,7 @@ class Projection(object):
 
                 # Save projection data to hdf5
                 self._save_data({
-                    '2D_proj_hcube': [hcube, impl_min_hcube, impl_los_hcube]})
+                    '2D_proj_hcube': [hcube, impl_min, impl_los]})
             elif(self._modellink._n_par > 2 and hcube in create_hcube_par):
                 # Log that projection data is being created
                 logger.info("Calculating projection data '%s-%s'."
@@ -219,8 +222,7 @@ class Projection(object):
                 proj_hcube = self._get_proj_hcube(hcube)
 
                 # Analyze this proj_hcube
-                impl_min_hcube, impl_los_hcube =\
-                    self._analyze_proj_hcube(proj_hcube)
+                impl_min, impl_los = self._analyze_proj_hcube(proj_hcube)
 
                 # Log that projection data has been created
                 logger.info("Finished calculating projection data '%s-%s'."
@@ -229,7 +231,7 @@ class Projection(object):
 
                 # Save projection data to hdf5
                 self._save_data({
-                    'nD_proj_hcube': [hcube, impl_min_hcube, impl_los_hcube]})
+                    'nD_proj_hcube': [hcube, impl_min, impl_los]})
 
             # PLOTTING
             # Plotting 2D
@@ -253,21 +255,23 @@ class Projection(object):
                 logger.info("Drawing projection figure '%s'."
                             % (par_name))
 
-                # Open hdf5-file
-                with PRISM_File('r') as file:
-                    # Log that projection data is being obtained
-                    logger.info("Obtaining projection data '%s'."
-                                % (par_name))
+                # If projection data is not already loaded, load it
+                if impl_min is None and impl_los is None:
+                    # Open hdf5-file
+                    with PRISM_File('r') as file:
+                        # Log that projection data is being obtained
+                        logger.info("Obtaining projection data '%s'."
+                                    % (par_name))
 
-                    # Obtain data
-                    impl_los = file['%s/proj_hcube/%s/impl_los'
-                                    % (self._emul_i, par_name)][()]
-                    impl_min = file['%s/proj_hcube/%s/impl_min'
-                                    % (self._emul_i, par_name)][()]
+                        # Obtain data
+                        impl_los = file['%s/proj_hcube/%s/impl_los'
+                                        % (self._emul_i, par_name)][()]
+                        impl_min = file['%s/proj_hcube/%s/impl_min'
+                                        % (self._emul_i, par_name)][()]
 
-                    # Log that projection data was obtained successfully
-                    logger.info("Finished obtaining projection data '%s'."
-                                % (par_name))
+                        # Log that projection data was obtained successfully
+                        logger.info("Finished obtaining projection data '%s'."
+                                    % (par_name))
 
                 # Recreate the parameter value array used to create the hcube
                 proj_sam_set = np.linspace(self._modellink._par_rng[par, 0],
@@ -353,21 +357,25 @@ class Projection(object):
                 logger.info("Drawing projection figure '%s-%s'."
                             % (par1_name, par2_name))
 
-                # Open hdf5-file
-                with PRISM_File('r') as file:
-                    # Log that projection data is being obtained
-                    logger.info("Obtaining projection data '%s-%s'."
-                                % (par1_name, par2_name))
+                # If projection data is not already loaded, load it
+                if impl_min is None and impl_los is None:
+                    # Open hdf5-file
+                    with PRISM_File('r') as file:
+                        # Log that projection data is being obtained
+                        logger.info("Obtaining projection data '%s-%s'."
+                                    % (par1_name, par2_name))
 
-                    # Obtain data
-                    impl_los = file['%s/proj_hcube/%s-%s/impl_los'
-                                    % (self._emul_i, par1_name, par2_name)][()]
-                    impl_min = file['%s/proj_hcube/%s-%s/impl_min'
-                                    % (self._emul_i, par1_name, par2_name)][()]
+                        # Obtain data
+                        impl_los = file['%s/proj_hcube/%s-%s/impl_los'
+                                        % (self._emul_i, par1_name,
+                                           par2_name)][()]
+                        impl_min = file['%s/proj_hcube/%s-%s/impl_min'
+                                        % (self._emul_i, par1_name,
+                                           par2_name)][()]
 
-                    # Log that projection data was obtained successfully
-                    logger.info("Finished obtaining projection data '%s-%s'."
-                                % (par1_name, par2_name))
+                        # Log that projection data was obtained successfully
+                        logger.info("Finished obtaining projection data "
+                                    "'%s-%s'." % (par1_name, par2_name))
 
                 # Recreate the parameter value arrays used to create the hcube
                 proj_sam_set1 = np.linspace(self._modellink._par_rng[par1, 0],
@@ -1087,13 +1095,13 @@ class Projection(object):
 
                 # ND_PROJ_HCUBE
                 elif(keyword == 'nD_proj_hcube'):
-                    par_name1 = self._modellink._par_name[data[0][0]]
-                    par_name2 = self._modellink._par_name[data[0][1]]
+                    par1_name = self._modellink._par_name[data[0][0]]
+                    par2_name = self._modellink._par_name[data[0][1]]
                     file.create_dataset('%s/proj_hcube/%s-%s/impl_min'
-                                        % (self._emul_i, par_name1, par_name2),
+                                        % (self._emul_i, par1_name, par2_name),
                                         data=data[1])
                     file.create_dataset('%s/proj_hcube/%s-%s/impl_los'
-                                        % (self._emul_i, par_name1, par_name2),
+                                        % (self._emul_i, par1_name, par2_name),
                                         data=data[2])
 
                 # INVALID KEYWORD

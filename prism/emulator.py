@@ -21,6 +21,7 @@ from __future__ import (absolute_import, division, print_function,
                         with_statement)
 
 # Built-in imports
+import logging
 from time import time
 import sys
 
@@ -28,7 +29,6 @@ import sys
 from e13tools import InputError
 from e13tools.math import diff, nearest_PD
 import h5py
-import logging
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 from mpi4py import MPI
 import numpy as np
