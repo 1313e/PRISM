@@ -2169,13 +2169,6 @@ class Pipeline(object):
                         except IndexError:
                             proj = 1
 
-            # Determine the number of (active) parameters
-            n_par = self._modellink._n_par
-            n_active_par = len(self._emulator._active_par[emul_i])
-
-            # Calculate the maximum number of projections
-            n_proj_max = nCr(n_active_par, 1 if(n_par == 2) else 2)
-
             # Log file being closed
             logger.info("Finished collecting details about current pipeline "
                         "instance.")
@@ -2223,6 +2216,13 @@ class Pipeline(object):
             # Availability flags
             # If this iteration is fully constructed, print flags and numbers
             if not len(self._emulator._ccheck[emul_i]):
+                # Determine the number of (active) parameters
+                n_par = self._modellink._n_par
+                n_active_par = len(self._emulator._active_par[emul_i])
+
+                # Calculate the maximum number of projections
+                n_proj_max = nCr(n_active_par, 1 if(n_par == 2) else 2)
+
                 print("{0: <{1}}\t{2}".format("Construction completed?", width,
                                               "Yes"))
                 if not self._n_eval_sam[emul_i]:
