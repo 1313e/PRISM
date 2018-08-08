@@ -1,0 +1,4 @@
+# name			lower_bndry		upper_bndry		estimate
+SnEjectionEff		0			1			0.5
+SnEjectionScaling	0			10			2.0
+SnEjectionNorm		0			100			70
