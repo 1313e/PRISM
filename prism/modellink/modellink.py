@@ -28,6 +28,7 @@ from six import with_metaclass
 import sys
 
 # Package imports
+from e13tools import InputError
 import numpy as np
 from sortedcontainers import SortedDict
 
@@ -98,28 +99,46 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             if only default data is used from :meth:`~_default_model_data`. For
             more information on the lay-out of this array, see ``Notes``.
 
-        Notes
-        -----
+        Notes (model_parameters)
+        ------------------------
         The model parameters dict requires to have the name of the parameters
         as the keyword, and a 1D list containing the lower bound, the upper
         bound and, if applicable, the estimate of this parameter. It is not
         required to provide an estimate for every parameter.
         An example of a model parameters file can be found in the 'data' folder
         of the PRISM package.
-        *Formatting*: {`par_name`: [`lower_bnd`, `upper_bnd`, `par_est`]}.
 
-        The model data array contains the data values in the first column, the
-        data errors in the second column and, if applicable, the data index in
-        the remaining columns. The data index is a supportive index that can be
-        used to determine which model data output needs to be given to the
-        PRISM pipeline. It can be provided as any sequence of any length for
-        any data point. The pipeline itself does not require this data index.
+        Formatting :
+            ``{par_name: [lower_bnd, upper_bnd, par_est]}``
+
+        Notes (model_data)
+        ------------------
+        The model data array contains the data values in the first column; the
+        data errors in the second (and third) column(s); the data spaces in the
+        third (or fourth) column and, if applicable, the data index in the
+        remaining columns. If the data errors are given with one column, then
+        the data points are assumed to have a centered one sigma confidence
+        interval. If the data errors are given with two columns, then the data
+        points are assumed to have a one sigma confidence interval defined by
+        the provided lower and upper errors. The data spaces are one of five
+        strings ({'lin', 'log' or 'log_10', 'ln' or 'log_e'}) indicating in
+        which of the three value spaces (linear, log, ln) the data values are.
+        The data index is a supportive index that can be used to determine
+        which model data output needs to be given to the PRISM pipeline. It can
+        be provided as any sequence of any length for any data point. The
+        pipeline itself does not require this data index.
         An example of a model data file can be found in the 'data' folder of
         the PRISM package.
-        *Formatting*: ([`data_val`, `data_err`, `data_idx_0`, `data_idx_1`,\
-                        ..., `data_idx_n`]).
+
+        Formatting :
+            ``([data_val, data_err, data_spc, data_idx_0, data_idx_1, ...,`` \
+            ``data_idx_n])`` \n
+            **or** \n
+            ``([data_val, lower_data_err, upper_data_err, data_spc,`` \
+            ``data_idx_0, data_idx_1, ..., data_idx_n])``
 
         """
+
         # Save name of this class if not saved already
         try:
             self._name
@@ -207,7 +226,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             try:
                 par_dict = SortedDict(add_model_parameters)
             except Exception:
-                raise TypeError("Input cannot be converted to type 'dict'!")
+                raise TypeError("Input model parameters cannot be converted to"
+                                " type 'dict'!")
             else:
                 model_parameters.update(par_dict)
 
@@ -261,7 +281,11 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         data_val : list
             List with values of provided data points.
         data_err : list
-            List with errors of provided data points.
+            List with lower and upper one sigma confidence levels of provided
+            data points.
+        data_spc : list
+            List with types of value space ({'lin', 'log', 'ln'}) of provided
+            data points.
         data_idx : list
             List with user-defined data point identifiers.
 
@@ -279,21 +303,47 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             # Obtain absolute path to given file
             data_file = path.abspath(add_model_data)
 
-            # Read the data file and obtain data points and data identifiers
-            data_points = np.genfromtxt(data_file, dtype=float, usecols=(0, 1))
+            # Read the data file and obtain data values and errors
+            data_points = np.genfromtxt(data_file, dtype=float,
+                                        usecols=(0, 1, 2))
+
+            # Check how many floats were provided in the last column
+            n_float = sum(np.isfinite(data_points[:, 2]))
+
+            # Check if the last column solely contains floats or strings
+            if(n_float == 0):
+                # If only strings were provided, then data_err has one element
+                spc_col = 2
+            elif(n_float == len(data_points)):
+                # If only floats were provided, then data_err has two elements
+                spc_col = 3
+            else:
+                # If a mix of floats and strings was provided, it is invalid
+                raise InputError("Input model comparison data has inconsistent"
+                                 " number of data error values!")
+
+            # Obtain data spaces
+            data_spc = np.genfromtxt(data_file, dtype=str, usecols=(spc_col))
+
+            # Obtain data identifiers
             data_str = np.genfromtxt(data_file, dtype=str, delimiter='\n')
 
-            # Make sure that both arrays are 2D and 1D, respectively (n_data=1)
+            # Make sure that arrays are 2D or 1D (n_data=1)
             data_points = np.array(data_points, ndmin=2)
+            data_spc = np.array(data_spc, ndmin=1)
             data_str = np.array(data_str, ndmin=1)
+
+            # If data_err is one column, add that column again
+            if(spc_col == 2):
+                data_points[:, 2] = data_points[:, 1]
 
             # Create empty list of data_idx
             data_idx = []
 
             # Convert all data_str sequences to data_idx
             for str_seq in data_str:
-                # Convert str_seq and remove first two elements (val and err)
-                tmp_idx = convert_str_seq(str_seq)[2:]
+                # Convert str_seq and remove val, err and scl
+                tmp_idx = convert_str_seq(str_seq)[spc_col+1:]
 
                 # Check if int, float or str was provided and save it
                 for i, idx in enumerate(tmp_idx):
@@ -305,16 +355,14 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                     except ValueError:
                         tmp_idx[i] = idx
 
-                # If only a single element is present, save it instead of list
-                if(len(tmp_idx) == 1):
-                    tmp_idx = tmp_idx[0]
-
                 # Add converted data_idx sequence to the data_idx list
                 data_idx.append(tmp_idx)
 
             # Update the model data list
-            for (val, err), idx in zip(data_points, data_idx):
-                model_data.append([val, err, idx])
+            for (val, lower_err, upper_err), spc, idx in zip(data_points,
+                                                             data_spc,
+                                                             data_idx):
+                model_data.append([val, lower_err, upper_err, spc, idx])
 
         # If anything else is given, it must be array_like
         else:
@@ -322,24 +370,56 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             try:
                 iter(add_model_data)
             except TypeError:
-                raise TypeError("Input is not iterable!")
+                raise TypeError("Input model comparison data is not iterable!")
             else:
                 # Update the model data list
-                for val, err, idx in add_model_data:
-                    model_data.append([val, err, idx])
+                for data in add_model_data:
+                    model_data.append(data)
 
         # Save number of model data points
         self._n_data = check_pos_int(len(model_data), 'n_data')
 
-        # Create empty data value, error and identifier lists
+        # Create empty data value, error, space and identifier lists
         self._data_val = []
         self._data_err = []
+        self._data_spc = []
         self._data_idx = []
 
         # Save model data as class properties
-        for i, (val, err, idx) in enumerate(model_data):
-            self._data_val.append(check_float(val, 'data_val[%s]' % (i)))
-            self._data_err.append(check_float(err, 'data_err[%s]' % (i)))
+        for i, data in enumerate(model_data):
+            # Save data value and error
+            self._data_val.append(check_float(data[0], 'data_val[%s]' % (i)))
+            self._data_err.append(
+                [check_float(data[1], 'lower_data_err[%s]' % (i)),
+                 check_float(data[2], 'upper_data_err[%s]' % (i))])
+
+            # Check if valid data space has been provided and save if so
+            spc = str(data[3]).replace("'", '').replace('"', '')
+            if spc.lower() in ('lin', 'linear'):
+                self._data_spc.append('lin')
+            elif spc.lower() in ('log', 'log10', 'log_10'):
+                self._data_spc.append('log10')
+            elif spc.lower() in ('ln', 'loge', 'log_e'):
+                self._data_spc.append('ln')
+            else:
+                raise ValueError("Input argument 'data_spc[%s]' is invalid! "
+                                 "('%s')" % (i, spc))
+
+            # Extract the data_idx from the model_data
+            if(len(data) == 5):
+                idx = data[4]
+            else:
+                idx = data[4:]
+
+            # If idx contains a single element, save element instead of list
+            # If it has no len(), then it is already a single element
+            try:
+                if(len(idx) == 1):
+                    idx = idx[0]
+            except TypeError:
+                pass
+
+            # Save data identifier
             self._data_idx.append(idx)
 
     @abc.abstractmethod
@@ -361,9 +441,9 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             Dict containing the values for all model parameters corresponding
             to the requested model realization(s). If
             :attr:`~ModelLink.multi_call` is *False*, dict is formatted as
-            {`par_name`: `par_val`}. If *True*, it is formatted as
-            {`par_name`: [`par_val_1`, `par_val_2`, ..., `par_val_n`]}.
-        data_idx : list
+            ``{par_name: par_val}``. If *True*, it is formatted as
+            ``{par_name: [par_val_1, par_val_2, ..., par_val_n]}``.
+        data_idx : list of lists
             List containing the user-defined data point identifiers
             corresponding to the requested data points.
 
@@ -373,7 +453,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             Array containing the data values corresponding to the requested
             data points generated by the requested model realization(s). If
             :attr:`~ModelLink.multi_call` is *True*, `data_val` is of shape
-            (`n_sam`, `n_data`).
+            ``(n_sam, n_data)``.
 
         """
 
@@ -384,9 +464,9 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @docstring_substitute(emul_i=std_emul_i_doc)
     def get_md_var(self, emul_i, data_idx):
         """
-        Calculates the model discrepancy variance at a given emulator iteration
-        `emul_i` for given data points `data_idx` for the model wrapped in this
-        :class:`~ModelLink` subclass.
+        Calculates the linear model discrepancy variance at a given emulator
+        iteration `emul_i` for given data points `data_idx` for the model
+        wrapped in this :class:`~ModelLink` subclass.
 
         This is an abstract method and must be overridden by the
         :class:`~ModelLink` subclass.
@@ -394,15 +474,25 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         Parameters
         ----------
         %(emul_i)s
-        data_idx : list of int
+        data_idx : list of lists
             List containing the user-defined data point identifiers
             corresponding to the requested data points.
 
         Returns
         -------
-        md_var : 1D array_like
-            Array containing the model discrepancy variance values
-            corresponding to the requested data points.
+        md_var : 1D or 2D array_like
+            Array containing the linear model discrepancy variance values
+            corresponding to the requested data points. If 1D array_like, data
+            is assumed to have a centered one sigma confidence interval. If 2D
+            array_like, the values determine the lower and upper variances and
+            the array is of shape ``(n_data, 2)``.
+
+        Notes
+        -----
+        The returned model discrepancy variance values must be of linear form,
+        even for those data values that are returned in logarithmic form by the
+        :meth:`~call_model` method. If not, the possibility exists that the
+        emulation process will not converge properly.
 
         """
 
@@ -518,11 +608,22 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def data_err(self):
         """
-        List with errors of provided data points.
+        List with lower and upper one sigma confidence levels of provided data
+        points.
 
         """
 
         return(self._data_err)
+
+    @property
+    def data_spc(self):
+        """
+        List with types of value space ({'lin', 'log', 'ln'}) of provided data
+        points.
+
+        """
+
+        return(self._data_spc)
 
     @property
     def data_idx(self):

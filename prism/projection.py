@@ -72,6 +72,9 @@ class Projection(object):
         self._emulator = self._pipeline._emulator
         self._modellink = self._pipeline._modellink
 
+        # Add hdf5_file attribute to PRISM_File
+        PRISM_File._hdf5_file = self._pipeline._hdf5_file
+
     # Function that creates all projection figures
     # TODO: Allow for impl, los and line kwargs to be provided
     @docstring_substitute(emul_i=user_emul_i_doc)
@@ -114,17 +117,17 @@ class Projection(object):
         ---------
         A series of projection figures detailing the behavior of the model.
         The lay-out and output of the projection figures depend on the number
-        of model parameters `n_par`:
-            *n_par = 2*: The output will feature two figures for the two
+        of model parameters :attr:`~ModelLink.n_par`:
+            `n_par` == 2: The output will feature two figures for the two
             model parameters with two subplots each. Every figure gives details
             about the behavior of the corresponding model parameter, by showing
             the minimum implausibility value (top) and the line-of-sight depth
             (bottom) obtained at the specified parameter value, independent of
             the value of the other parameter.
 
-            *n_par > 2*: The output will feature a figure with two subplots
+            `n_par` > 2: The output will feature a figure with two subplots
             for every combination of two active model parameters that can be
-            made (n_par*(n_par-1)/2). Every figure gives details about the
+            made (``n_par*(n_par-1)/2``). Every figure gives details about the
             behavior of the corresponding model parameters, as well as their
             dependency on each other. This is done by showing the minimum
             implausibility (top) and the line-of-sight depth (bottom) obtained
@@ -599,10 +602,10 @@ class Projection(object):
                         self._modellink._par_name[par_idx]
                         proj_par[i] = par_idx % self._modellink._n_par
                 except Exception as error:
-                    logger.error("Input argument 'proj_par' is invalid (%s)!"
+                    logger.error("Input argument 'proj_par' is invalid! (%s)"
                                  % (error))
-                    raise InputError("Input argument 'proj_par' is invalid "
-                                     "(%s)!" % (error))
+                    raise InputError("Input argument 'proj_par' is invalid! "
+                                     "(%s)" % (error))
 
             # If everything went without exceptions, remove duplicates and sort
             proj_par = list(SortedSet(proj_par))
@@ -946,13 +949,19 @@ class Projection(object):
         depth = self._proj_depth
 
         # CALCULATE AND ANALYZE IMPLAUSIBILITY
-        # Create empty lists for grid points
-        impl_check_line = []
-        impl_cut_line = []
-
         # Create empty lists for this hypercube
         impl_min_hcube = []
         impl_los_hcube = []
+
+        # Define the pre_code, loop_code and post_code snippets
+        pre_code = compile("impl_cut = []", '<string>', 'exec')
+        loop_code = compile("impl_cut.append(impl_cut_val)", '<string>',
+                            'exec')
+        post_code = compile("self.results = (impl_check, impl_cut)",
+                            '<string>', 'exec')
+
+        # Combine code snippets into a tuple
+        exec_code = (pre_code, loop_code, post_code)
 
         # Iterate over all samples in the hcube
         total = proj_hcube.shape[0]*depth
@@ -961,44 +970,18 @@ class Projection(object):
 
             # For all grid points in the hcube
             for i, grid_point in enumerate(proj_hcube):
-
-                # For all samples in the grid point
-                for j, par_set in enumerate(grid_point):
-
-                    # For all emulator iterations, check this sample
-                    for k in range(1, self._emul_i+1):
-                        # Obtain implausibility
-                        adj_val = self._emulator._evaluate(k, par_set)
-                        uni_impl_val =\
-                            self._pipeline._get_uni_impl(k, *adj_val)
-
-                        # Perform implausibility cut-off check
-                        impl_check, impl_cut_val =\
-                            self._pipeline._do_impl_check(self, k,
-                                                          uni_impl_val)
-
-                        # If check is unsuccessful, break inner for-loop
-                        if not impl_check:
-                            break
-
-                    # If check was successful, increment impl_check_line by 1
-                    else:
-                        impl_check_line.append(1)
-
-                    # Save the implausibility value at the first real cut-off
-                    impl_cut_line.append(impl_cut_val)
+                # Analyze grid_point
+                impl_check, impl_cut =\
+                    self._pipeline._analyze_sam_set(self, self._emul_i,
+                                                    grid_point, *exec_code)
 
                 # If a grid point has been checked, save lowest impl and impl
                 # line-of-sight
                 # Calculate lowest impl in this grid point
-                impl_min_hcube.append(min(impl_cut_line))
+                impl_min_hcube.append(min(impl_cut))
 
                 # Calculate impl line-of-sight in this grid point
-                impl_los_hcube.append(len(impl_check_line)/depth)
-
-                # Clear both lists
-                impl_check_line = []
-                impl_cut_line = []
+                impl_los_hcube.append(sum(impl_check)/depth)
 
                 # Advance progressbar
                 pbar.update()
@@ -1006,9 +989,6 @@ class Projection(object):
 
         # Log that analysis has been finished
         time_diff = time()-start_time
-#        print("Finished projection hypercube analysis in %.2f seconds, "
-#              "averaging %.2f emulator evaluations per second."
-#              % (time_diff, total/(time_diff)))
         logger.info("Finished projection hypercube analysis in %.2f seconds, "
                     "averaging %.2f emulator evaluations per second."
                     % (time_diff, total/(time_diff)))
@@ -1019,7 +999,7 @@ class Projection(object):
     # This function saves projection data to hdf5
     def _save_data(self, data_dict):
         """
-        Saves a given data dict {`keyword`: `data`} at the emulator iteration
+        Saves a given data dict ``{keyword: data}`` at the emulator iteration
         this class was initialized for, to the HDF5-file.
 
         Parameters

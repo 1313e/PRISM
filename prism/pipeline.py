@@ -518,7 +518,7 @@ class Pipeline(object):
             logger.info("Finished model multi-call.")
 
         # Return it
-        return(np.array(mod_set).T)
+        return(np.array(mod_set))
 
     # This function automatically loads default pipeline parameters
     def _get_default_parameters(self):
@@ -911,7 +911,7 @@ class Pipeline(object):
 
                 # Only controller receives output and can thus use indexing
                 if self._is_controller:
-                    self._modellink._data_val = mod_out[:, 0].tolist()
+                    self._modellink._data_val = mod_out[0].tolist()
 
             else:
                 # Controller only call model
@@ -921,21 +921,18 @@ class Pipeline(object):
         # Controller only
         if self._is_controller:
             # Use model discrepancy variance as model data errors
-            try:
-                md_var =\
-                    self._modellink.get_md_var(0, self._modellink._data_idx)
-            except NotImplementedError:
-                md_var = pow(np.array(self._modellink._data_val)/6, 2)
-            finally:
-                # Check if all values are non-negative floats
-                for value in md_var:
-                    check_nneg_float(value, 'md_var')
-                self._modellink._data_err = np.sqrt(md_var).tolist()
+            md_var = self._get_md_var(0)
+            self._modellink._data_err = np.sqrt(md_var).tolist()
 
             # Add model data errors as noise to model data values
+            noise = normal(size=self._modellink._n_data)
+            for i in range(self._modellink._n_data):
+                if(noise[i] < 0):
+                    noise[i] *= self._modellink._data_err[i][0]
+                else:
+                    noise[i] *= self._modellink._data_err[i][1]
             self._modellink._data_val =\
-                (self._modellink._data_val +
-                 normal(scale=self._modellink._data_err)).tolist()
+                (self._modellink._data_val+noise).tolist()
 
             # Logger
             logger.info("Generated mock data.")
@@ -999,7 +996,7 @@ class Pipeline(object):
     # This function saves pipeline data to hdf5
     def _save_data(self, data_dict):
         """
-        Saves a given data dict {`keyword`: `data`} at the last emulator
+        Saves a given data dict ``{keyword: data}`` at the last emulator
         iteration to the HDF5-file and as an data attribute to the current
         :obj:`~Pipeline` instance.
 
@@ -1091,7 +1088,7 @@ class Pipeline(object):
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _save_statistics(self, emul_i, stat_dict):
         """
-        Saves a given statistics dict {`keyword`: [`value`, `unit`]} at
+        Saves a given statistics dict ``{keyword: [value, unit]}`` at
         emulator iteration `emul_i` to the HDF5-file. The provided values are
         always saved as strings.
 
@@ -1171,7 +1168,7 @@ class Pipeline(object):
            (not self._modellink._MPI_call and self._is_controller)):
             # Request all evaluation samples at once
             if self._modellink._multi_call:
-                mod_set = self._multi_call_model(emul_i, sam_set)
+                mod_set = self._multi_call_model(emul_i, sam_set).T
 
             # Request evaluation samples one-by-one
             else:
@@ -1338,10 +1335,18 @@ class Pipeline(object):
 
         # Calculate the univariate implausibility values
         for i in range(self._emulator._n_data[emul_i]):
+            # Use the lower errors by default
+            err_idx = 0
+
+            # If adj_exp_val > data_val, use the upper error instead
+            if(adj_exp_val[i] > self._emulator._data_val[emul_i][i]):
+                err_idx = 1
+
+            # Calculate the univariate implausibility value
             uni_impl_val_sq[i] =\
                 pow(adj_exp_val[i]-self._emulator._data_val[emul_i][i], 2) /\
-                (adj_var_val[i]+md_var[i] +
-                 pow(self._emulator._data_err[emul_i][i], 2))
+                (adj_var_val[i]+md_var[i][err_idx] +
+                 pow(self._emulator._data_err[emul_i][i][err_idx], 2))
 
         # Take square root
         uni_impl_val = np.sqrt(uni_impl_val_sq)
@@ -1358,8 +1363,9 @@ class Pipeline(object):
         Retrieves the model discrepancy variance, which includes all variances
         that are created by the model provided by the :obj:`~ModelLink`
         instance. This method tries to call the :meth:`~ModelLink.get_md_var`
-        method, and assumes a default model discrepancy variance of 1/6th the
-        data value if it cannot be called.
+        method, and assumes a default model discrepancy variance of ``1/6th``
+        the data value if it cannot be called. If the data value space is not
+        linear, then this default value is calculated such to reflect that.
 
         Parameters
         ----------
@@ -1367,7 +1373,7 @@ class Pipeline(object):
 
         Returns
         -------
-        var_md : 1D :obj:`~numpy.ndarray` object
+        var_md : 2D :obj:`~numpy.ndarray` object
             Variance of the model discrepancy.
 
         """
@@ -1384,11 +1390,54 @@ class Pipeline(object):
             # Use factor 2 difference on 2 sigma as acceptable
             # Imagine that 2 sigma range is given if lower and upper are factor
             # 2 apart. This gives that sigma must be 1/6th of the data value
-            md_var = pow(np.array(self._emulator._data_val[emul_i])/6, 2)
 
-        # Check if all values are non-negative floats
-        for value in md_var:
-            check_nneg_float(value, 'md_var')
+            # Create empty md_var list
+            md_var = []
+
+            # Loop over all data points and check their values spaces
+            for data_val, data_spc in zip(self._emulator._data_val[emul_i],
+                                          self._emulator._data_spc[emul_i]):
+                # If value space is linear, take 1/6ths of the data value
+                if(data_spc == 'lin'):
+                    md_var.append([pow(data_val/6, 2)]*2)
+                # If value space is log10, take log10(5/6) and log10(7/6)
+                elif(data_spc == 'log10'):
+                    md_var.append([0.006269669725654501,
+                                   0.0044818726418455815])
+                # If value space is ln, take ln(5/6) and ln(7/6)
+                else:
+                    md_var.append([0.03324115007177121, 0.023762432091205918])
+
+            # Make sure that md_var is a NumPy array
+            md_var = np.array(md_var, ndmin=2)
+
+        # If it was user-defined, check if the values are compatible
+        else:
+            # Make sure that md_var is a NumPy array
+            md_var = np.array(md_var)
+
+            # Check if md_var contains n_data values
+            if not(md_var.shape[0] == self._emulator._n_data[emul_i]):
+                raise ShapeError("Received array of model discrepancy "
+                                 "variances 'md_var' has incorrect number of "
+                                 "data points (%s != %s)!"
+                                 % (md_var.shape[0],
+                                    self._emulator._n_data[emul_i]))
+
+            # Check if single or dual values were given
+            if(md_var.ndim == 1):
+                md_var = np.array([md_var]*2).T
+            elif(md_var.shape[1] == 2):
+                pass
+            else:
+                raise ShapeError("Received array of model discrepancy "
+                                 "variances 'md_var' has incorrect number of "
+                                 "values (%s != 2)!" % (md_var.shape[1]))
+
+            # Check if all values are non-negative floats
+            for i, value in enumerate(md_var):
+                check_nneg_float(value[0], 'lower_md_var[%s]' % (i))
+                check_nneg_float(value[1], 'upper_md_var[%s]' % (i))
 
         # Return it
         return(md_var)
@@ -1532,7 +1581,7 @@ class Pipeline(object):
         ext_real_set : list, dict or None
             List of arrays containing an externally calculated set of model
             evaluation samples and its data values, a dict with keys
-            [`sam_set`, `mod_set`] containing these arrays or *None* if no
+            ``[sam_set, mod_set]`` containing these arrays or *None* if no
             external set needs to be used.
 
         Returns
@@ -1567,10 +1616,10 @@ class Pipeline(object):
                 ext_sam_set = ext_real_set[0]
                 ext_mod_set = ext_real_set[1]
             except Exception as error:
-                logger.error("Input argument 'ext_real_set' is invalid (%s)!"
+                logger.error("Input argument 'ext_real_set' is invalid! (%s)"
                              % (error))
-                raise InputError("Input argument 'ext_real_set' is invalid "
-                                 "(%s)!" % (error))
+                raise InputError("Input argument 'ext_real_set' is invalid! "
+                                 "(%s)" % (error))
 
         # If a dict is given
         elif isinstance(ext_real_set, dict):
@@ -1591,10 +1640,10 @@ class Pipeline(object):
                 ext_sam_set = ext_real_set['sam_set']
                 ext_mod_set = ext_real_set['mod_set']
             except Exception as error:
-                logger.error("Input argument 'ext_real_set' is invalid (%s)!"
+                logger.error("Input argument 'ext_real_set' is invalid! (%s)"
                              % (error))
-                raise InputError("Input argument 'ext_real_set' is invalid "
-                                 "(%s)!" % (error))
+                raise InputError("Input argument 'ext_real_set' is invalid! "
+                                 "(%s)" % (error))
 
         # If anything else is given
         else:
@@ -1606,9 +1655,9 @@ class Pipeline(object):
             ext_sam_set = np.array(ext_sam_set, ndmin=2)
             ext_mod_set = np.array(ext_mod_set, ndmin=2)
         except Exception as error:
-            logger.error("Input argument 'ext_real_set' is invalid (%s)!"
+            logger.error("Input argument 'ext_real_set' is invalid! (%s)"
                          % (error))
-            raise InputError("Input argument 'ext_real_set' is invalid (%s)!"
+            raise InputError("Input argument 'ext_real_set' is invalid! (%s)"
                              % (error))
 
         # Check if ext_sam_set and ext_mod_set have correct shapes
@@ -1655,6 +1704,101 @@ class Pipeline(object):
         # If all checks are passed, return ext_sam_set and ext_mod_set
         return(ext_sam_set, ext_mod_set.T)
 
+    # This function analyzes the emulator for given sam_set using code snippets
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _analyze_sam_set(self, obj, emul_i, sam_set, pre_code, loop_code,
+                         post_code):
+        """
+        Analyzes a provided set of emulator evaluation samples `sam_set` at a
+        given emulator iteration `emul_i`, using the impl_cut values given in
+        `obj`. The provided code snippets `pre_code`, `loop_code` and
+        `post_code` are executed using Python's :func:`~exec` function before
+        starting the analysis, after evaluating each sample and after finishing
+        the analysis, respectively.
+
+        Parameters
+        ----------
+        obj : :obj:`~Pipeline` object or :obj:`~Projection` object
+            Instance of the :class:`~Pipeline` class or :class:`~Projection`
+            class.
+        %(emul_i)s
+        sam_set : 2D :obj:`~numpy.ndarray` object
+            Array containing model parameter value sets to be evaluated in the
+            emulator system.
+        pre_code : str or code object
+            Code snippet to be executed before the analysis of `sam_set`
+            starts.
+        loop_code : str or code object
+            Code snippet to be executed after the evaluation of each sample in
+            `sam_set`.
+        post_code : str or code object
+            Code snippet to be executed after the analysis of `sam_set` ends.
+
+        Returns
+        -------
+        results : object
+            The object that is assigned to :attr:`~Pipeline.results`, which is
+            defaulted to *None* if no code snippet changes it. Preferably, the
+            execution of `post_code` changes :attr:`~Pipeline.results`.
+
+        Notes
+        -----
+        If any of the code snippets is provided as a string, it will be
+        compiled before being executed every time the :func:`~exec` function is
+        called. Providing a code object instead will simply allow the code
+        snippet to be executed without any compilations.
+
+        """
+
+        # Make an empty bool list containing which samples are plausible
+        impl_check = []
+
+        # Set the results property to None
+        self.results = None
+
+        # Execute the pre_code snippet
+        exec(pre_code)
+
+        # If the default emulator type is used
+        if(self._emulator._emul_type == 'default'):
+            # Loop over all samples in sam_set
+            for par_set in sam_set:
+                # Analyze par_set in every emulator iteration
+                for i in range(1, emul_i+1):
+                    # Evaluate par_set
+                    adj_val = self._emulator._evaluate(i, par_set)
+
+                    # Calculate the univariate implausibility value
+                    uni_impl_val = self._get_uni_impl(i, *adj_val)
+
+                    # Check if par_set is plausible in this iteration
+                    impl_check_val, impl_cut_val =\
+                        self._do_impl_check(obj, i, uni_impl_val)
+
+                    # If not, save this and break the inner loop
+                    if not impl_check_val:
+                        impl_check.append(0)
+                        break
+                # If the inner loop ends successfully, par_set is plausible
+                else:
+                    impl_check.append(1)
+
+                # Execute the loop_code snippet
+                exec(loop_code)
+        # If any other emulator type is used
+        else:
+            raise NotImplementedError
+
+        # Execute the post_code snippet
+        exec(post_code)
+
+        # Retrieve the results and delete the attribute
+        results = self.results
+        del self.results
+
+        # Return the results
+        return(results)
+
 
 # %% VISIBLE CLASS METHODS
     # This function analyzes the emulator and determines the plausible regions
@@ -1700,34 +1844,21 @@ class Pipeline(object):
                 eval_sam_set = self._get_eval_sam_set(emul_i)
                 n_eval_sam = eval_sam_set.shape[0]
 
-                # Create empty list for indices of samples that pass impl_check
-                impl_idx = []
-
                 # Save current time again
                 start_time2 = time()
 
-                # Default emulator
-                if(self._emulator._emul_type == 'default'):
-                    # Calculate exp, var, impl for these samples
-                    for i, par_set in enumerate(eval_sam_set):
-                        for j in range(1, emul_i+1):
-                            # Obtain implausibility
-                            adj_val = self._emulator._evaluate(j, par_set)
-                            uni_impl_val = self._get_uni_impl(j, *adj_val)
+                # Define the pre_code, loop_code and post_code snippets
+                pre_code = compile("", '<string>', 'exec')
+                loop_code = compile("", '<string>', 'exec')
+                post_code = compile("self.results = impl_check",
+                                    '<string>', 'exec')
 
-                            # Do implausibility cut-off check
-                            # If check is unsuccessful, break inner for-loop
-                            # and skip save
-                            if not self._do_impl_check(self, j,
-                                                       uni_impl_val)[0]:
-                                break
+                # Combine code snippets into a tuple
+                exec_code = (pre_code, loop_code, post_code)
 
-                        # If check was successful, save corresponding index
-                        else:
-                            impl_idx.append(i)
-
-                else:
-                    raise NotImplementedError
+                # Analyze eval_sam_set
+                impl_check = self._analyze_sam_set(self, emul_i, eval_sam_set,
+                                                   *exec_code)
 
                 # Obtain some timers
                 end_time = time()
@@ -1736,7 +1867,7 @@ class Pipeline(object):
 
                 # Save the results
                 self._save_data({
-                    'impl_sam': eval_sam_set[impl_idx],
+                    'impl_sam': eval_sam_set[np.array(impl_check) == 1],
                     'n_eval_sam': n_eval_sam})
             except KeyboardInterrupt:
                 logger.info("Emulator system analysis has been interrupted by "
@@ -1745,7 +1876,7 @@ class Pipeline(object):
             else:
                 # Save statistics about anal time, evaluation speed, par_space
                 avg_eval_rate = n_eval_sam/time_diff_eval
-                par_space_rem = (len(impl_idx)/n_eval_sam)*100
+                par_space_rem = (sum(impl_check)/n_eval_sam)*100
                 self._save_statistics(emul_i, {
                     'tot_analyze_time': ['%.2f' % (time_diff_total), 's'],
                     'avg_emul_eval_rate': ['%.2f' % (avg_eval_rate), '1/s'],
@@ -1757,13 +1888,13 @@ class Pipeline(object):
                       "averaging %.2f emulator evaluations per second."
                       % (time_diff_total, n_eval_sam/time_diff_eval))
                 print("There is %.3g%% of parameter space remaining."
-                      % ((len(impl_idx)/n_eval_sam)*100))
+                      % ((sum(impl_check)/n_eval_sam)*100))
                 logger.info("Finished analysis of emulator system in %.2f "
                             "seconds, averaging %.2f emulator evaluations per "
                             "second."
                             % (time_diff_total, n_eval_sam/time_diff_eval))
                 logger.info("There is %.3g%% of parameter space remaining."
-                            % ((len(impl_idx)/n_eval_sam)*100))
+                            % ((sum(impl_check)/n_eval_sam)*100))
 
         # Display details about current state of pipeline
         self.details()
@@ -1789,7 +1920,7 @@ class Pipeline(object):
         ext_init_set : list, dict or None. Default: None
             List of arrays containing an externally calculated set of initial
             model evaluation samples and its data values, a dict with keys
-            [`sam_set`, `mod_set`] containing these arrays or *None* if no
+            ``[sam_set, mod_set]`` containing these arrays or *None* if no
             external realization set needs to be used.
             This parameter has no use for `emul_i` != 1.
         force : bool. Default: False
@@ -2173,6 +2304,9 @@ class Pipeline(object):
             logger.info("Finished collecting details about current pipeline "
                         "instance.")
 
+            # Obtain number of model parameters
+            n_par = self._modellink._n_par
+
             # Set width of detail names
             width = 31
 
@@ -2217,7 +2351,6 @@ class Pipeline(object):
             # If this iteration is fully constructed, print flags and numbers
             if not len(self._emulator._ccheck[emul_i]):
                 # Determine the number of (active) parameters
-                n_par = self._modellink._n_par
                 n_active_par = len(self._emulator._active_par[emul_i])
 
                 # Calculate the maximum number of projections
@@ -2437,33 +2570,27 @@ class Pipeline(object):
                     for j, par_val in enumerate(par_set):
                         check_float(par_val, 'sam_set[%s, %s]' % (i, j))
 
-            # Make empty lists
-            adj_exp_val = []
-            adj_var_val = []
-            uni_impl_val = []
-            emul_i_stop = []
-            impl_check = []
+            # Define the pre_code, loop_code and post_code snippets
+            pre_code = compile("adj_exp_val = []\n"
+                               "adj_var_val = []\n"
+                               "uni_impl_val_list = []\n"
+                               "emul_i_stop = []",
+                               '<string>', 'exec')
+            loop_code = compile("adj_exp_val.append(adj_val[0])\n"
+                                "adj_var_val.append(adj_val[1])\n"
+                                "uni_impl_val_list.append(uni_impl_val)\n"
+                                "emul_i_stop.append(i)",
+                                '<string>', 'exec')
+            post_code = compile("self.results = (adj_exp_val, adj_var_val, "
+                                "uni_impl_val_list, emul_i_stop, impl_check)",
+                                '<string>', 'exec')
 
-            # Iterate over all emulator iterations
-            for par_set in sam_set:
-                for j in range(1, emul_i+1):
-                    # Obtain implausibility
-                    adj_val = self._emulator._evaluate(j, par_set)
-                    uni_impl_val_par_set = self._get_uni_impl(j, *adj_val)
+            # Combine code snippets into a tuple
+            exec_code = (pre_code, loop_code, post_code)
 
-                    # Check if this sample is plausible
-                    if not self._do_impl_check(self, j,
-                                               uni_impl_val_par_set)[0]:
-                        impl_check.append(0)
-                        break
-                else:
-                    impl_check.append(1)
-
-                # Save expectation, variance and implausibility values
-                adj_exp_val.append(adj_val[0])
-                adj_var_val.append(adj_val[1])
-                uni_impl_val.append(uni_impl_val_par_set)
-                emul_i_stop.append(j)
+            # Analyze sam_set
+            adj_exp_val, adj_var_val, uni_impl_val, emul_i_stop, impl_check = \
+                self._analyze_sam_set(self, emul_i, sam_set, *exec_code)
 
             # Do more logging
             logger.info("Finished evaluating emulator system.")

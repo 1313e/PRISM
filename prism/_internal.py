@@ -55,6 +55,9 @@ logger = logging.getLogger('CHECK')
 # %% CLASS DEFINITIONS
 # Override h5py's File.__init__() and __exit__() methods
 class PRISM_File(h5py.File):
+    # Add hdf5_file attribute
+    _hdf5_file = None
+
     # Override __init__() to include default settings and logging
     def __init__(self, mode, filename=None, **kwargs):
         """
@@ -74,7 +77,7 @@ class PRISM_File(h5py.File):
             The name/path of the HDF5-file that needs to be opened in
             `working_dir`. Default is to open the HDF5-file that was provided
             during class initialization.
-        **kwargs : dict. Default: {'driver': None, 'libver': 'earliest'}
+        **kwargs : dict. Default: ``{'driver': None, 'libver': 'earliest'}``
             Other keyword arguments that need to be given to the
             :func:`~h5py.File` function.
 
@@ -518,7 +521,7 @@ def import_cmaps(cmap_dir=None):
             register_cmap(cmap=cmap)
             register_cmap(cmap=cmap_r)
         except Exception as error:
-            raise InputError("Provided colormap '%s' is invalid (%s)!"
+            raise InputError("Provided colormap '%s' is invalid! (%s)"
                              % (cm_name, error))
 
 

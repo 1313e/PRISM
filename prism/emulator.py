@@ -84,6 +84,9 @@ class Emulator(object):
         # Save the provided pipeline object
         self._pipeline = pipeline_obj
 
+        # Add hdf5_file attribute to PRISM_File
+        PRISM_File._hdf5_file = self._pipeline._hdf5_file
+
         # Load the emulator and data
         self._load_emulator(modellink_obj)
 
@@ -417,6 +420,14 @@ class Emulator(object):
             for rank in range(1, self._pipeline._size):
                 MPI.COMM_WORLD.send(1, dest=rank, tag=999+rank)
 
+            # Temporarily save ModelLink properties as Emulator properties
+            # This is to make sure that one version of get_md_var() is required
+            self._n_data[0] = self._modellink._n_data
+            self._data_val[0] = self._modellink._data_val
+            self._data_err[0] = self._modellink._data_err
+            self._data_spc[0] = self._modellink._data_spc
+            self._data_idx[0] = self._modellink._data_idx
+
             # Controller calling _get_mock_data()
             self._pipeline._get_mock_data()
 
@@ -515,6 +526,9 @@ class Emulator(object):
                     if not(self._data_err[emul_i][i] in
                            self._modellink._data_err):
                         break
+                    if not(self._data_spc[emul_i][i] in
+                           self._modellink._data_spc):
+                        break
                     if not(self._data_idx[emul_i][i] in
                            self._modellink._data_idx):
                         break
@@ -558,6 +572,7 @@ class Emulator(object):
             # Create empty lists for the four data arrays
             data_val = []
             data_err = []
+            data_spc = []
             data_idx = []
             data_prev = []
 
@@ -568,6 +583,10 @@ class Emulator(object):
                 data_val.append(self._modellink._data_val[i])
                 data_set.attrs['data_err'] = self._modellink._data_err[i]
                 data_err.append(self._modellink._data_err[i])
+                data_set.attrs['data_spc'] =\
+                    self._modellink._data_spc[i].encode('ascii', 'ignore')
+                data_spc.append(self._modellink._data_spc[i].encode('ascii',
+                                                                    'ignore'))
 
                 # Save the data_idx in portions to make it HDF5-compatible
                 if isinstance(self._modellink._data_idx[i], list):
@@ -601,6 +620,7 @@ class Emulator(object):
         # Save model data arrays to memory
         self._data_val.append(data_val)
         self._data_err.append(data_err)
+        self._data_spc.append(data_spc)
         self._data_idx.append(data_idx)
         self._data_prev.append(data_prev)
 
@@ -943,7 +963,7 @@ class Emulator(object):
         poly_idx : 2D list
             List containing the indices of the polynomial terms that are used
             in the regression function.
-        poly_coef_cov : 2D list (if use_regr_cov is True)
+        poly_coef_cov : 2D list (if :attr:`~Emulator.use_regr_cov` == *True*)
             List containing the covariance values of the polynomial
             coefficients for all data points.
 
@@ -1173,22 +1193,23 @@ class Emulator(object):
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_cov(self, emul_i, par_set1, par_set2):
         """
-        Calculates the covariance between given model parameter value sets
-        `par_set1` and `par_set2`. This covariance depends on the emulator
-        method used.
+        Calculates the full emulator covariances at emulator iteration `emul_i`
+        for given parameter sets `par_set1` and `par_set2`. The contributions
+        to these covariances depend on the emulator method used.
 
         Parameters
         ----------
         %(emul_i)s
         par_set1, par_set2 : 1D :obj:`~numpy.ndarray` object or None
-            If par_set1 and par_set2 are both not *None*, calculate covariance
-            between par_set1 and par_set2.
-            If par_set1 is not *None* and par_set2 is *None*, calculate
-            covariances between par_set1 and sam_set (covariance vector).
-            If par_set1 is *None*, calculate covariances between sam_set and
-            sam_set (covariance matrix).
-            When not *None*, par_set is the model parameter value set to
-            calculate the covariance for.
+            If `par_set1` and `par_set2` are both not *None*, calculate
+            covariances for `par_set1` with `par_set2`.
+            If `par_set1` is not *None* and `par_set2` is *None*, calculate
+            covariances for `par_set1` with :attr:`~Emulator.sam_set`
+            (covariance vector).
+            If `par_set1` and `par_set2` are both *None*, calculate covariances
+            for :attr:`~Emulator.sam_set` (covariance matrix).
+            When not *None*, `par_set` is the model parameter value set to
+            calculate the covariances for.
 
         Returns
         -------
@@ -1308,22 +1329,22 @@ class Emulator(object):
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_regr_cov(self, emul_i, par_set1, par_set2):
         """
-        Calculates the covariance of the regression function at emulator
+        Calculates the covariances of the regression function at emulator
         iteration `emul_i` for given parameter sets `par_set1` and `par_set2`.
 
         Parameters
         ----------
         %(emul_i)s
         par_set1, par_set2 : 1D :obj:`~numpy.ndarray` object or None
-            If par_set1 and par_set2 are both not *None*, calculate regression
-            covariance values for par_set1 with par_set2.
-            If par_set1 is not *None* and par_set2 is *None*, calculate
-            regression covariance values for par_set1 with sam_set
-            (covariance vector).
-            If par_set1 and par_set2 are both *None*, calculate regression
-            covariance values for sam_set (covariance matrix).
-            When not *None*, par_set is the model parameter value set to
-            calculate the regression covariance values for.
+            If `par_set1` and `par_set2` are both not *None*, calculate
+            regression covariances for `par_set1` with `par_set2`.
+            If `par_set1` is not *None* and `par_set2` is *None*, calculate
+            regression covariances for `par_set1` with
+            :attr:`~Emulator.sam_set` (covariance vector).
+            If `par_set1` and `par_set2` are both *None*, calculate regression
+            covariances for :attr:`~Emulator.sam_set`(covariance matrix).
+            When not *None*, `par_set` is the model parameter value set to
+            calculate the regression covariances for.
 
         Returns
         -------
@@ -1416,8 +1437,8 @@ class Emulator(object):
     def _get_cov_vector(self, emul_i, par_set):
         """
         Calculates the column vector of covariances between given (`par_set`)
-        and known ('sam_set') model parameter value sets for a given emulator
-        iteration `emul_i`.
+        and known (:attr:`~Emulator.sam_set`) model parameter value sets for a
+        given emulator iteration `emul_i`.
 
         Parameters
         ----------
@@ -1567,6 +1588,14 @@ class Emulator(object):
 
                 # Obtain the number of emulator iterations constructed
                 self._emul_i = len(file.keys())
+
+                # Check if the hdf5-file contains solely groups made by PRISM
+                req_keys = [str(i) for i in range(1, self._emul_i+1)]
+                if(req_keys != list(file.keys())):
+                    logger.error("Provided emulator HDF5-file contains invalid"
+                                 " data groups!")
+                    raise RequestError("Provided emulator HDF5-file contains "
+                                       "invalid data groups!")
         except (OSError, IOError):
             # No existing emulator was provided
             logger.info("Non-existing HDF5-file provided.")
@@ -1698,6 +1727,7 @@ class Emulator(object):
         self._n_data = [[]]
         self._data_val = [[]]
         self._data_err = [[]]
+        self._data_spc = [[]]
         self._data_idx = [[]]
         self._data_prev = [[]]
 
@@ -1751,6 +1781,7 @@ class Emulator(object):
                     self._n_data.append(file['%s' % (i)].attrs['n_data'])
                     data_val = []
                     data_err = []
+                    data_spc = []
                     data_idx = []
                     data_prev = []
                     for j in range(self._n_data[i]):
@@ -1784,15 +1815,22 @@ class Emulator(object):
                         except KeyError:
                             pass
 
+                        # Read in data values, errors and spaces
                         data_val.append(data_set.attrs['data_val'])
                         data_err.append(data_set.attrs['data_err'])
+                        data_spc.append(
+                            data_set.attrs['data_spc'].decode('utf-8'))
 
                         # Read in all data_idx parts and combine them
                         idx_keys = [key for key in data_set.attrs.keys()
                                     if key[:8] == 'data_idx']
                         idx_len = len(idx_keys)
                         if(idx_len == 1):
-                            data_idx.append(data_set.attrs['data_idx'])
+                            if isinstance(data_set.attrs['data_idx'], bytes):
+                                data_idx.append(
+                                    data_set.attrs['data_idx'].decode('utf-8'))
+                            else:
+                                data_idx.append(data_set.attrs['data_idx'])
                         else:
                             tmp_data_idx = []
                             for key in idx_keys:
@@ -1820,6 +1858,7 @@ class Emulator(object):
                         self._active_par_data.append(active_par_data)
                     self._data_val.append(data_val)
                     self._data_err.append(data_err)
+                    self._data_spc.append(data_spc)
                     self._data_idx.append(data_idx)
                     self._data_prev.append(data_prev)
 
@@ -1873,7 +1912,7 @@ class Emulator(object):
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _save_data(self, emul_i, data_dict):
         """
-        Saves a given data dict {`keyword`: `data`} at the given emulator
+        Saves a given data dict ``{keyword: data}`` at the given emulator
         iteration `emul_i` to the HDF5-file and as an data attribute to the
         current :obj:`~Emulator` instance.
 
@@ -2140,8 +2179,8 @@ class Emulator(object):
     def _set_mock_data(self):
         """
         Loads previously used mock data into the :class:`~ModelLink` object,
-        overwriting the parameter estimates, data values, data errors and data
-        identifiers with their mock equivalents.
+        overwriting the parameter estimates, data values, data errors, data
+        spaces and data identifiers with their mock equivalents.
 
         Generates
         ---------
@@ -2164,6 +2203,7 @@ class Emulator(object):
             self._modellink._n_data = self._n_data[1]
             self._modellink._data_val = self._data_val[1]
             self._modellink._data_err = self._data_err[1]
+            self._modellink._data_spc = self._data_spc[1]
             self._modellink._data_idx = self._data_idx[1]
 
         # Log end

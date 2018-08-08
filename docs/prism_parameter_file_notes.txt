@@ -78,6 +78,7 @@ PRISM Usage Notes:
   This can be either because they have non-changeable default values or are simply not used anywhere (given the current state of the pipeline).
   An example of this is when `method` != 'gaussian', which causes the `sigma`-parameter to have no use in the pipeline.
   An other example is switching the bool value for the `use_mock`-parameter while loading a constructed emulator system, since the mock data is generated (or not) when constructing a new emulator system and cannot be changed or swapped out afterward;
+- All docstrings in PRISM are written in RTF (Rich Text Format);
 
 
 Quote to remember:
