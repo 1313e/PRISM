@@ -1,5 +1,0 @@
-# data_val	data_err	data_spc	snap	gal_prop	operation	oper_info
-  1		0.05		'log10'		20	'StellarMass'	'smf'		6.0
-  1		0.05		'log10'		20	'StellarMass'	'smf'		8.0
-  1		0.05		'log10'		20	'StellarMass'	'smf'		10.0
-

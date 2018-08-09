@@ -184,7 +184,7 @@ class PrismMhysa(Mhysa):
 
         Parameters
         ----------
-        data_idx : list
+        data_idx : list of lists
             List containing the user-defined data point identifiers
             corresponding to the requested data points.
 
