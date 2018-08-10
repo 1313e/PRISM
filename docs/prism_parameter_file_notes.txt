@@ -1,4 +1,5 @@
 PRISM Parameters File Descriptions:
+-----------------------------------
 n_sam_init (500)		: Number of model evaluation samples that is used to construct the first iteration of the emulator system.
 				  This value must be a positive integer.
 
@@ -65,23 +66,3 @@ pot_active_par (None)		: A list of parameter names that indicate which parameter
 use_mock (False)		: Whether or not mock data must be used as comparison data when constructing a new emulator system.
 				  When using mock data for an emulator system, it is not possible to change the comparison data in later emulator iterations.
 				  This value must be a bool.
-
-
-PRISM Usage Notes:
-- Unless specified otherwise, all input arguments in the PRISM package that accept a bool (*True*/*False*) also accept 0/1 as a valid input;
-- Unless specified otherwise, all input arguments in the PRISM package that accept *None* indicate a default value or operation for obtaining this input argument.
-  In most of these cases, the default value depends on the current state of the PRISM pipeline, and therefore a small operation is required for obtaining this value.
-  An example is providing *None* to the `pot_active_par`-parameter, where it indicates that all model parameters should be potentially active;
-- Unless specified otherwise, all input arguments in the PRISM package that accept the names of model parameters also accept the internal indices of these model parameters.
-  The index is the order in which the parameter names appear in the `par_name` list of the ModelLink class or as they appear in the output of the details()-method of the Pipeline class.
-- Depending on the used emulator type, state of loaded emulator system and the PRISM parameter values, it is possible that providing values for certain PRISM parameters has no influence on the outcome of the pipeline.
-  This can be either because they have non-changeable default values or are simply not used anywhere (given the current state of the pipeline).
-  An example of this is when `method` != 'gaussian', which causes the `sigma`-parameter to have no use in the pipeline.
-  An other example is switching the bool value for the `use_mock`-parameter while loading a constructed emulator system, since the mock data is generated (or not) when constructing a new emulator system and cannot be changed or swapped out afterward;
-- All docstrings in PRISM are written in RTF (Rich Text Format);
-
-
-Quote to remember:
-"These self-contained enhancements to PRISM can offer a
-significant benefit to a range of science disciplines as all research utilises models, and few
-can afford the computational resources to truly map and explore theirs."

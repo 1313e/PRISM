@@ -1688,8 +1688,6 @@ class Emulator(object):
         logger.info("ModelLink object set to '%s'." % (self._modellink._name))
 
     # Function that loads in the emulator data
-    # TODO: Write code that allows part of the data to be loaded in (crashing)
-    # and forces the pipeline to continue where data starts missing
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _load_data(self, emul_i):
         """

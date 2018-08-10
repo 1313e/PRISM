@@ -462,7 +462,8 @@ def import_cmaps(cmap_dir=None):
     """
     Reads in custom colormaps from a provided directory `cmap_dir`, transforms
     them into :obj:`~matplotlib.colors.LinearSegmentedColormap` objects and
-    registers them in the :mod:`~matplotlib.cm` module.
+    registers them in the :mod:`~matplotlib.cm` module. Both the imported
+    colormap and its reversed version will be registered.
 
     Optional
     --------
