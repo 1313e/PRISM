@@ -30,7 +30,12 @@ from e13tools import InputError
 from e13tools.math import diff, nearest_PD
 import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
-from mpi4py import MPI
+try:
+    from mpi4py import MPI
+except ImportError:
+    use_MPI = 0
+else:
+    use_MPI = 1
 import numpy as np
 from numpy.linalg import inv, norm
 # TODO: Do some research on sklearn.linear_model.SGDRegressor
@@ -678,7 +683,8 @@ class Emulator(object):
         # Save time difference and communicator size
         self._pipeline._save_statistics(emul_i, {
             'emul_construct_time': ['%.2f' % (time()-start_time), 's'],
-            'MPI_comm_size_cons': ['%i' % (self._pipeline._size), '']})
+            'MPI_comm_size_cons': ['%s' % (self._pipeline._size if use_MPI
+                                           else '-'), '']})
 
     # This is function 'E_D(f(x'))'
     # This function gives the adjusted emulator expectation value back

@@ -32,7 +32,12 @@ import warnings
 from e13tools import InputError, ShapeError
 from e13tools.math import nCr
 from e13tools.sampling import lhd
-from mpi4py import MPI
+try:
+    from mpi4py import MPI
+except ImportError:
+    use_MPI = 0
+else:
+    use_MPI = 1
 import numpy as np
 from numpy.random import normal, random
 from sortedcontainers import SortedSet
@@ -114,11 +119,20 @@ class Pipeline(object):
 
         """
 
-        # Determine MPI ranks, size and statuses
-        self._rank = MPI.COMM_WORLD.Get_rank()
-        self._size = MPI.COMM_WORLD.Get_size()
+        # Initialize controller and worker statuses
         self._is_controller = 0
         self._is_worker = 0
+
+        # If MPI is used, obtain MPI ranks and sizes
+        if use_MPI:
+            self._rank = MPI.COMM_WORLD.Get_rank()
+            self._size = MPI.COMM_WORLD.Get_size()
+        # If MPI is not used, set rank and size to 0 and 1
+        else:
+            self._rank = 0
+            self._size = 1
+
+        # Set statuses
         if(self._rank == 0):
             self._is_controller = 1
         else:
@@ -198,7 +212,8 @@ class Pipeline(object):
     @property
     def rank(self):
         """
-        The rank of this MPI process in MPI.COMM_WORLD.
+        The rank of this MPI process in MPI.COMM_WORLD. If no MPI is used, this
+        is always 0.
 
         """
 
@@ -207,7 +222,8 @@ class Pipeline(object):
     @property
     def size(self):
         """
-        The number of MPI processes in MPI.COMM_WORLD.
+        The number of MPI processes in MPI.COMM_WORLD. If no MPI is used, this
+        is always 1.
 
         """
 
@@ -217,7 +233,7 @@ class Pipeline(object):
     def is_controller(self):
         """
         Bool indicating whether or not this MPI process is a controller
-        process.
+        process. Is no MPI is used, this is always *True*.
 
         """
 
@@ -226,7 +242,8 @@ class Pipeline(object):
     @property
     def is_worker(self):
         """
-        Bool indicating whether or not this MPI process is a worker process.
+        Bool indicating whether or not this MPI process is a worker process. If
+        no MPI is used, this is always *False*.
 
         """
 
@@ -899,8 +916,10 @@ class Pipeline(object):
                  (self._modellink._par_rng[:, 1] -
                   self._modellink._par_rng[:, 0])).tolist()
 
-        # MPI Barrier
-        MPI.COMM_WORLD.Barrier()
+        # If MPI is used
+        if use_MPI:
+            # MPI Barrier
+            MPI.COMM_WORLD.Barrier()
 
         # Set non-default model data values
         if(self._modellink._MPI_call or
@@ -957,9 +976,11 @@ class Pipeline(object):
             # Logger
             logger.info("Generated mock data.")
 
-        # Broadcast modellink object
-        # TODO: Should entire modellink be broadcasted or just the changes?
-        self._modellink = MPI.COMM_WORLD.bcast(self._modellink, 0)
+        # If MPI is used
+        if use_MPI:
+            # Broadcast modellink object
+            # TODO: Should entire modellink be broadcasted or just the changes?
+            self._modellink = MPI.COMM_WORLD.bcast(self._modellink, 0)
 
     # This function loads pipeline data
     def _load_data(self):
@@ -1223,7 +1244,8 @@ class Pipeline(object):
             self._save_statistics(emul_i, {
                 'tot_model_eval_time': ['%.2f' % (end_time), 's'],
                 'avg_model_eval_time': ['%.3g' % (end_time/n_sam), 's'],
-                'MPI_comm_size_model': ['%i' % (self._size), '']})
+                'MPI_comm_size_model': ['%s' % (self._size if use_MPI
+                                                else '-'), '']})
             print("Finished evaluating model samples in %.2f seconds, "
                   "averaging %.3g seconds per model evaluation."
                   % (end_time, end_time/n_sam))
@@ -1231,8 +1253,10 @@ class Pipeline(object):
                         "averaging %.3g seconds per model evaluation."
                         % (end_time, end_time/n_sam))
 
-        # MPI Barrier
-        MPI.COMM_WORLD.Barrier()
+        # If MPI is used
+        if use_MPI:
+            # MPI Barrier
+            MPI.COMM_WORLD.Barrier()
 
     # This function generates a large Latin Hypercube sample set to evaluate
     # the emulator at
@@ -1867,9 +1891,6 @@ class Pipeline(object):
             eval_sam_set = self._get_eval_sam_set(emul_i)
             n_eval_sam = eval_sam_set.shape[0]
 
-            # Save current time again
-            start_time2 = time()
-
             # Define the pre_code, loop_code and post_code snippets
             pre_code = compile("", '<string>', 'exec')
             loop_code = compile("", '<string>', 'exec')
@@ -1878,6 +1899,9 @@ class Pipeline(object):
 
             # Combine code snippets into a tuple
             exec_code = (pre_code, loop_code, post_code)
+
+            # Save current time again
+            start_time2 = time()
 
             # Analyze eval_sam_set
             impl_check = self._analyze_sam_set(self, emul_i, eval_sam_set,
@@ -1900,7 +1924,8 @@ class Pipeline(object):
                 'tot_analyze_time': ['%.2f' % (time_diff_total), 's'],
                 'avg_emul_eval_rate': ['%.2f' % (avg_eval_rate), '1/s'],
                 'par_space_remaining': ['%.3g' % (par_space_rem), '%'],
-                'MPI_comm_size_anal': ['%i' % (self._size), '']})
+                'MPI_comm_size_anal': ['%s' % (self._size if use_MPI
+                                               else '-'), '']})
 
             # Log that analysis has been finished and save their statistics
             print("Finished analysis of emulator system in %.2f seconds, "
@@ -2025,11 +2050,13 @@ class Pipeline(object):
         # Check if analyze-parameter received a bool
         analyze = check_bool(analyze, 'analyze')
 
-        # Broadcast emul_i to workers
-        emul_i = MPI.COMM_WORLD.bcast(emul_i, 0)
+        # If MPI is used
+        if use_MPI:
+            # Broadcast emul_i to workers
+            emul_i = MPI.COMM_WORLD.bcast(emul_i, 0)
 
-        # Broadcast construct_emul_i to workers
-        c_from_start = MPI.COMM_WORLD.bcast(c_from_start, 0)
+            # Broadcast construct_emul_i to workers
+            c_from_start = MPI.COMM_WORLD.bcast(c_from_start, 0)
 
         # If iteration needs to be constructed completely, create/prepare it
         if c_from_start:
@@ -2132,11 +2159,13 @@ class Pipeline(object):
                 ext_sam_set = []
                 ext_mod_set = []
 
-            # MPI Barrier to free up workers
-            MPI.COMM_WORLD.Barrier()
+            # If MPI is used
+            if use_MPI:
+                # MPI Barrier to free up workers
+                MPI.COMM_WORLD.Barrier()
 
-            # Broadcast add_sam_set to workers
-            add_sam_set = MPI.COMM_WORLD.bcast(add_sam_set, 0)
+                # Broadcast add_sam_set to workers
+                add_sam_set = MPI.COMM_WORLD.bcast(add_sam_set, 0)
 
             # Obtain corresponding set of model evaluations
             self._evaluate_model(emul_i, add_sam_set, ext_sam_set, ext_mod_set)
@@ -2270,8 +2299,10 @@ class Pipeline(object):
                 else:
                     emul_i = self._emulator._get_emul_i(emul_i)
             except RequestError:
-                # MPI Barrier for controller to sync with workers at the end
-                MPI.COMM_WORLD.Barrier()
+                # If MPI is used
+                if use_MPI:
+                    # MPI Barrier for controller to sync with workers at end
+                    MPI.COMM_WORLD.Barrier()
                 return
             else:
                 # Get max lengths of various strings for parameter section
@@ -2481,8 +2512,10 @@ class Pipeline(object):
             # FOOTER
             print("="*width)
 
-        # MPI Barrier
-        MPI.COMM_WORLD.Barrier()
+        # If MPI is used
+        if use_MPI:
+            # MPI Barrier
+            MPI.COMM_WORLD.Barrier()
 
     # This function allows the user to evaluate a given sam_set in the emulator
     # TODO: Plot emul_i_stop for large LHDs, giving a nice mental statistic
@@ -2630,15 +2663,19 @@ class Pipeline(object):
 
             # Else, return the lists
             else:
-                # MPI Barrier for controller
-                MPI.COMM_WORLD.Barrier()
+                # If MPI is used
+                if use_MPI:
+                    # MPI Barrier for controller
+                    MPI.COMM_WORLD.Barrier()
 
                 # Return results
                 return(impl_check, emul_i_stop, adj_exp_val, adj_var_val,
                        uni_impl_val)
 
-        # MPI Barrier
-        MPI.COMM_WORLD.Barrier()
+        # If MPI is used
+        if use_MPI:
+            # MPI Barrier
+            MPI.COMM_WORLD.Barrier()
 
     # TODO: Deprecated
     @docstring_copy(Projection.__call__)
@@ -2662,5 +2699,7 @@ class Pipeline(object):
             # Initialize the Projection class and make the figures
             Projection(self)(emul_i, proj_par, figure, show, force)
 
-        # MPI Barrier
-        MPI.COMM_WORLD.Barrier()
+        # If MPI is used
+        if use_MPI:
+            # MPI Barrier
+            MPI.COMM_WORLD.Barrier()

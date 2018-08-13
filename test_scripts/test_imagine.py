@@ -8,7 +8,6 @@ Created on Tue Jan  9 17:43:48 2018
 
 import matplotlib as mpl
 mpl.use('Agg')
-from mpi4py import MPI
 from prism import Pipeline
 from modellink.imagine_link import ImagineLink
 import sys
