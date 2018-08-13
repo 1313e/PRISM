@@ -922,15 +922,35 @@ class Pipeline(object):
         if self._is_controller:
             # Use model discrepancy variance as model data errors
             md_var = self._get_md_var(0)
-            self._modellink._data_err = np.sqrt(md_var).tolist()
+            err = np.sqrt(md_var).tolist()
+            self._modellink._data_err = err
 
             # Add model data errors as noise to model data values
             noise = normal(size=self._modellink._n_data)
             for i in range(self._modellink._n_data):
-                if(noise[i] < 0):
-                    noise[i] *= self._modellink._data_err[i][0]
+                # If value space is linear
+                if(self._modellink._data_spc[i] == 'lin'):
+                    if(noise[i] < 0):
+                        noise[i] *= err[i][0]
+                    else:
+                        noise[i] *= err[i][1]
+                # If value space is log10
+                elif(self._modellink._data_spc[i] == 'log10'):
+                    if(noise[i] < 0):
+                        noise[i] =\
+                            np.log10((pow(10, -1*err[i][0])-1)*-1*noise[i]+1)
+                    else:
+                        noise[i] = np.log10((pow(10, err[i][0])-1)*noise[i]+1)
+                # If value space is ln
+                elif(self._modellink._data_spc[i] == 'ln'):
+                    if(noise[i] < 0):
+                        noise[i] =\
+                            np.log((pow(np.e, -1*err[i][0])-1)*-1*noise[i]+1)
+                    else:
+                        noise[i] = np.log((pow(np.e, err[i][0])-1)*noise[i]+1)
+                # If value space is anything else
                 else:
-                    noise[i] *= self._modellink._data_err[i][1]
+                    raise NotImplementedError
             self._modellink._data_val =\
                 (self._modellink._data_val+noise).tolist()
 
@@ -1405,8 +1425,11 @@ class Pipeline(object):
                     md_var.append([0.006269669725654501,
                                    0.0044818726418455815])
                 # If value space is ln, take ln(5/6) and ln(7/6)
-                else:
+                elif(data_spc == 'ln'):
                     md_var.append([0.03324115007177121, 0.023762432091205918])
+                # If value space is anything else
+                else:
+                    raise NotImplementedError
 
             # Make sure that md_var is a NumPy array
             md_var = np.array(md_var, ndmin=2)
@@ -1785,6 +1808,7 @@ class Pipeline(object):
 
                 # Execute the loop_code snippet
                 exec(loop_code)
+
         # If any other emulator type is used
         else:
             raise NotImplementedError
@@ -1839,62 +1863,56 @@ class Pipeline(object):
             # Get the impl_cut list
             self._get_impl_par(False)
 
-            try:
-                # Create an emulator evaluation sample set
-                eval_sam_set = self._get_eval_sam_set(emul_i)
-                n_eval_sam = eval_sam_set.shape[0]
+            # Create an emulator evaluation sample set
+            eval_sam_set = self._get_eval_sam_set(emul_i)
+            n_eval_sam = eval_sam_set.shape[0]
 
-                # Save current time again
-                start_time2 = time()
+            # Save current time again
+            start_time2 = time()
 
-                # Define the pre_code, loop_code and post_code snippets
-                pre_code = compile("", '<string>', 'exec')
-                loop_code = compile("", '<string>', 'exec')
-                post_code = compile("self.results = impl_check",
-                                    '<string>', 'exec')
+            # Define the pre_code, loop_code and post_code snippets
+            pre_code = compile("", '<string>', 'exec')
+            loop_code = compile("", '<string>', 'exec')
+            post_code = compile("self.results = impl_check", '<string>',
+                                'exec')
 
-                # Combine code snippets into a tuple
-                exec_code = (pre_code, loop_code, post_code)
+            # Combine code snippets into a tuple
+            exec_code = (pre_code, loop_code, post_code)
 
-                # Analyze eval_sam_set
-                impl_check = self._analyze_sam_set(self, emul_i, eval_sam_set,
-                                                   *exec_code)
+            # Analyze eval_sam_set
+            impl_check = self._analyze_sam_set(self, emul_i, eval_sam_set,
+                                               *exec_code)
 
-                # Obtain some timers
-                end_time = time()
-                time_diff_total = end_time-start_time1
-                time_diff_eval = end_time-start_time2
+            # Obtain some timers
+            end_time = time()
+            time_diff_total = end_time-start_time1
+            time_diff_eval = end_time-start_time2
 
-                # Save the results
-                self._save_data({
-                    'impl_sam': eval_sam_set[np.array(impl_check) == 1],
-                    'n_eval_sam': n_eval_sam})
-            except KeyboardInterrupt:
-                logger.info("Emulator system analysis has been interrupted by "
-                            "user.")
-                print("Emulator system analysis has been interrupted by user.")
-            else:
-                # Save statistics about anal time, evaluation speed, par_space
-                avg_eval_rate = n_eval_sam/time_diff_eval
-                par_space_rem = (sum(impl_check)/n_eval_sam)*100
-                self._save_statistics(emul_i, {
-                    'tot_analyze_time': ['%.2f' % (time_diff_total), 's'],
-                    'avg_emul_eval_rate': ['%.2f' % (avg_eval_rate), '1/s'],
-                    'par_space_remaining': ['%.3g' % (par_space_rem), '%'],
-                    'MPI_comm_size_anal': ['%i' % (self._size), '']})
+            # Save the results
+            self._save_data({
+                'impl_sam': eval_sam_set[np.array(impl_check) == 1],
+                'n_eval_sam': n_eval_sam})
 
-                # Log that analysis has been finished and save their statistics
-                print("Finished analysis of emulator system in %.2f seconds, "
-                      "averaging %.2f emulator evaluations per second."
-                      % (time_diff_total, n_eval_sam/time_diff_eval))
-                print("There is %.3g%% of parameter space remaining."
-                      % ((sum(impl_check)/n_eval_sam)*100))
-                logger.info("Finished analysis of emulator system in %.2f "
-                            "seconds, averaging %.2f emulator evaluations per "
-                            "second."
-                            % (time_diff_total, n_eval_sam/time_diff_eval))
-                logger.info("There is %.3g%% of parameter space remaining."
-                            % ((sum(impl_check)/n_eval_sam)*100))
+            # Save statistics about anal time, evaluation speed, par_space
+            avg_eval_rate = n_eval_sam/time_diff_eval
+            par_space_rem = (sum(impl_check)/n_eval_sam)*100
+            self._save_statistics(emul_i, {
+                'tot_analyze_time': ['%.2f' % (time_diff_total), 's'],
+                'avg_emul_eval_rate': ['%.2f' % (avg_eval_rate), '1/s'],
+                'par_space_remaining': ['%.3g' % (par_space_rem), '%'],
+                'MPI_comm_size_anal': ['%i' % (self._size), '']})
+
+            # Log that analysis has been finished and save their statistics
+            print("Finished analysis of emulator system in %.2f seconds, "
+                  "averaging %.2f emulator evaluations per second."
+                  % (time_diff_total, n_eval_sam/time_diff_eval))
+            print("There is %.3g%% of parameter space remaining."
+                  % ((sum(impl_check)/n_eval_sam)*100))
+            logger.info("Finished analysis of emulator system in %.2f seconds,"
+                        "averaging %.2f emulator evaluations per second."
+                        % (time_diff_total, n_eval_sam/time_diff_eval))
+            logger.info("There is %.3g%% of parameter space remaining."
+                        % ((sum(impl_check)/n_eval_sam)*100))
 
         # Display details about current state of pipeline
         self.details()
