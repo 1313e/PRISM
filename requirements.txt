@@ -8,6 +8,7 @@ mlxtend>=0.9.1
 scikit-learn>=0.19.1
 sortedcontainers>=1.5.9
 tqdm>=4.7.6
+d2o>=1.1.2
 check-manifest
 readme_renderer
 
