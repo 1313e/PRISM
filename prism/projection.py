@@ -261,7 +261,7 @@ class Projection(object):
                 # If projection data is not already loaded, load it
                 if impl_min is None and impl_los is None:
                     # Open hdf5-file
-                    with PRISM_File('r') as file:
+                    with PRISM_File('r', None) as file:
                         # Log that projection data is being obtained
                         logger.info("Obtaining projection data '%s'."
                                     % (par_name))
@@ -363,7 +363,7 @@ class Projection(object):
                 # If projection data is not already loaded, load it
                 if impl_min is None and impl_los is None:
                     # Open hdf5-file
-                    with PRISM_File('r') as file:
+                    with PRISM_File('r', None) as file:
                         # Log that projection data is being obtained
                         logger.info("Obtaining projection data '%s-%s'."
                                     % (par1_name, par2_name))
@@ -640,7 +640,7 @@ class Projection(object):
 
         # Open hdf5-file
         logger.info("Checking if projection data already exists.")
-        with PRISM_File('r+') as file:
+        with PRISM_File('r+', None) as file:
             # Check if data is already there and act accordingly
             for hcube in hcube_par:
                 if(self._modellink._n_par == 2):
@@ -1025,7 +1025,7 @@ class Projection(object):
         logger = logging.getLogger('SAVE_DATA')
 
         # Open hdf5-file
-        with PRISM_File('r+') as file:
+        with PRISM_File('r+', None) as file:
             # Loop over entire provided data dict
             for keyword, data in data_dict.items():
                 # Log what data is being saved

@@ -23,10 +23,16 @@ model_link = MeraxesLink(input_file='input_meraxes.par',
                          model_parameters='data/parameters_meraxes.txt',
                          model_data='data/data_meraxes.txt')
 
+# For use on OzSTAR, allow for a working directory to be provided
+try:
+    work_dir = str(sys.argv[2])
+except IndexError:
+    work_dir = 'meraxes'
+
 # Initialize the Pipeline class by giving it the ModelLink object
 # The remaining optional arguments indicate several paths and non-default names
 pipe = Pipeline(model_link, root_dir='tests',
-                working_dir='meraxes',
+                working_dir=work_dir,
                 prism_file='data/prism_meraxes.txt',
                 emul_type=emul_type)
 
@@ -38,12 +44,18 @@ try:
 except IndexError:
     op = 'full'
 
+# For use on OzSTAR, allow for an iteration to be provided
+try:
+    emul_i = int(sys.argv[3])
+except IndexError:
+    emul_i = 1
+
 # Check which operation is requested and perform it
 if(op == 'construct'):
-    pipe.construct(analyze=False)
+    pipe.construct(emul_i, analyze=False)
 elif(op == 'analyze'):
     pipe.analyze()
 elif(op == 'projection'):
-    pipe.project()
+    pipe.project(emul_i)
 elif(op == 'full'):
-    pipe()
+    pipe(emul_i)

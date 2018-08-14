@@ -43,7 +43,8 @@ from numpy.random import normal, random
 from sortedcontainers import SortedSet
 
 # PRISM imports
-from ._docstrings import call_emul_i_doc, std_emul_i_doc, user_emul_i_doc
+from ._docstrings import (call_emul_i_doc, emul_s_seq_doc, std_emul_i_doc,
+                          user_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_bool, check_float,
                         check_nneg_float, check_pos_int, convert_str_seq,
                         docstring_copy, docstring_substitute, move_logger,
@@ -102,14 +103,14 @@ class Pipeline(object):
             String containing a prefix that is used for naming new working
             directories or scan for existing ones.
         hdf5_file : str. Default: 'prism.hdf5'
-            String containing the name of the HDF5-file in `working_dir` to be
-            used in this class instance. Different types of HDF5-files can be
-            provided:
-                *Non-existing HDF5-file*: This file will be created and used to
-                save the constructed emulator system in.
+            String containing the name of the master HDF5-file in `working_dir`
+            to be used in this class instance. Different types of master
+            HDF5-files can be provided:
+                *Non-existing master HDF5-file*: This file will be created and
+                used to save the constructed emulator system in.
 
-                *Existing HDF5-file*: This file will be used to regenerate a
-                previously constructed emulator system.
+                *Existing master HDF5-file*: This file will be used to
+                regenerate a previously constructed emulator system.
         prism_file : str or None. Default: 'prism.txt'
             String containing the absolute or relative path to the TXT-file
             containing the PRISM parameters that need to be changed from their
@@ -714,8 +715,8 @@ class Pipeline(object):
             String containing a prefix that is used for naming new working
             directories or scan for existing ones.
         hdf5_file : str
-            String containing the name of the HDF5-file in `working_dir` to be
-            used in this class instance.
+            String containing the name of the master HDF5-file in `working_dir`
+            to be used in this class instance.
         prism_file : str or None
             String containing the absolute or relative path to the TXT-file
             containing the PRISM parameters that need to be changed from their
@@ -854,9 +855,17 @@ class Pipeline(object):
 
         # Obtain hdf5-file path
         if isinstance(hdf5_file, (str, unicode)):
+            # Check if provided filename has correct extension
+            ext_idx = hdf5_file.find('.')
+            if hdf5_file[ext_idx:] not in ('.hdf5', '.h5'):
+                logger.error("Input argument 'hdf5_file' has invalid HDF5 "
+                             "extension!")
+                raise ValueError("Input argument 'hdf5_file' has invalid HDF5 "
+                                 "extension!")
+
             # Save hdf5-file path and name
             self._hdf5_file = path.join(self._working_dir, hdf5_file)
-            logger.info("HDF5-file set to '%s'." % (hdf5_file))
+            logger.info("Master HDF5-file set to '%s'." % (hdf5_file))
             self._hdf5_file_name = path.join(working_dir, hdf5_file)
 
             # Save hdf5-file path as a PRISM_File class attribute
@@ -1009,7 +1018,7 @@ class Pipeline(object):
         # If an emulator system currently exists, load in all data
         if self._emulator._emul_i:
             # Open hdf5-file
-            with PRISM_File('r') as file:
+            with PRISM_File('r', None) as file:
                 # Read in the data up to the last emulator iteration
                 for i in range(1, self._emulator._emul_i+1):
                     # Get this emulator
@@ -1066,7 +1075,7 @@ class Pipeline(object):
         emul_i = self._emulator._emul_i
 
         # Open hdf5-file
-        with PRISM_File('r+') as file:
+        with PRISM_File('r+', None) as file:
             # Loop over entire provided data dict
             for keyword, data in data_dict.items():
                 # Log what data is being saved
@@ -1154,7 +1163,7 @@ class Pipeline(object):
         logger.info("Saving statistics to HDF5.")
 
         # Open hdf5-file
-        with PRISM_File('r+') as file:
+        with PRISM_File('r+', None) as file:
             # Save statistics
             for keyword, (value, unit) in stat_dict.items():
                 file['%s/statistics' % (emul_i)].attrs[keyword] =\
@@ -1235,7 +1244,7 @@ class Pipeline(object):
 
             # Save data to hdf5
             if(emul_i == 1 or self._emulator._emul_type == 'default'):
-                self._emulator._save_data(emul_i, {
+                self._emulator._save_data(emul_i, None, {
                     'mod_real_set': [sam_set, mod_set, use_ext_real_set]})
             else:
                 raise NotImplementedError
@@ -1350,8 +1359,8 @@ class Pipeline(object):
     # TODO: Introduce check if emulator variance is much lower than other two
     # TODO: Alternatively, remove covariance calculations when this happens
     # TODO: Parameter uncertainty should be implemented at some point
-    @docstring_substitute(emul_i=std_emul_i_doc)
-    def _get_uni_impl(self, emul_i, adj_exp_val, adj_var_val):
+    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
+    def _get_uni_impl(self, emul_i, emul_s_seq, adj_exp_val, adj_var_val):
         """
         Calculates the univariate implausibility values at a given emulator
         iteration `emul_i` for specified expectation and variance values
@@ -1360,6 +1369,7 @@ class Pipeline(object):
         Parameters
         ----------
         %(emul_i)s
+        %(emul_s_seq)s
         adj_exp_val, adj_var_val : 1D array_like
             The adjusted expectation and variance values to calculate the
             univeriate implausibility for.
@@ -1375,10 +1385,10 @@ class Pipeline(object):
         md_var = self._get_md_var(emul_i)
 
         # Initialize empty univariate implausibility
-        uni_impl_val_sq = np.zeros(self._emulator._n_data[emul_i])
+        uni_impl_val_sq = np.zeros(len(emul_s_seq))
 
         # Calculate the univariate implausibility values
-        for i in range(self._emulator._n_data[emul_i]):
+        for i in emul_s_seq:
             # Use the lower errors by default
             err_idx = 0
 
@@ -1401,7 +1411,7 @@ class Pipeline(object):
     # This function calculates the model discrepancy variance
     # Basically takes all uncertainties of Sec. 3.1 of Vernon into account that
     # are not already in the emulator ([3] and [5])
-    @docstring_substitute(emul_i=std_emul_i_doc)
+    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
     def _get_md_var(self, emul_i):
         """
         Retrieves the model discrepancy variance, which includes all variances
@@ -1812,11 +1822,14 @@ class Pipeline(object):
             for par_set in sam_set:
                 # Analyze par_set in every emulator iteration
                 for i in range(1, emul_i+1):
+                    # Get the emul_s_seq
+                    emul_s_seq = list(range(self._emulator._n_data[i]))
+
                     # Evaluate par_set
-                    adj_val = self._emulator._evaluate(i, par_set)
+                    adj_val = self._emulator._evaluate(i, emul_s_seq, par_set)
 
                     # Calculate the univariate implausibility value
-                    uni_impl_val = self._get_uni_impl(i, *adj_val)
+                    uni_impl_val = self._get_uni_impl(i, emul_s_seq, *adj_val)
 
                     # Check if par_set is plausible in this iteration
                     impl_check_val, impl_cut_val =\
@@ -2020,7 +2033,7 @@ class Pipeline(object):
                 # If force is True, reconstruct full iteration
                 if force:
                     logger.info("Emulator iteration %s has been requested to "
-                                "be reconstructed." % (emul_i))
+                                "be (re)constructed." % (emul_i))
                     c_from_start = 1
 
                 # If interrupted at start, reconstruct full iteration
@@ -2112,7 +2125,7 @@ class Pipeline(object):
                             MPI.COMM_WORLD.send(0, dest=rank, tag=999+rank)
 
                     # Check if a new emulator iteration can be constructed
-                    if not self._prc:
+                    if(not self._prc and self._emulator._emul_i != emul_i):
                         logger.error("No plausible regions were found in the "
                                      "analysis of the previous emulator "
                                      "iteration. Construction is not "
@@ -2287,17 +2300,24 @@ class Pipeline(object):
             logger = logging.getLogger("DETAILS")
             logger.info("Collecting details about current pipeline instance.")
 
+            # Check if last emulator iteration is finished constructing
+            if(len(self._emulator._ccheck[-1]) == 0 or
+               self._emulator._ccheck[-1] == [[]]*self._emulator._n_data[-1]):
+                ccheck = 1
+            else:
+                ccheck = 0
+
             # Check what kind of hdf5-file was provided
             try:
-                if len(self._emulator._ccheck[-1]):
+                if ccheck:
+                    emul_i = self._emulator._get_emul_i(emul_i)
+                else:
                     if emul_i is None:
                         emul_i = self._emulator._emul_i+1
                     elif(emul_i == self._emulator._emul_i+1):
                         pass
                     else:
                         emul_i = self._emulator._get_emul_i(emul_i)
-                else:
-                    emul_i = self._emulator._get_emul_i(emul_i)
             except RequestError:
                 # If MPI is used
                 if use_MPI:
@@ -2318,7 +2338,7 @@ class Pipeline(object):
                          if i is not None])
 
                 # Open hdf5-file
-                with PRISM_File('r') as file:
+                with PRISM_File('r', None) as file:
                     # Check if projection data is available
                     try:
                         file['%s/proj_hcube' % (emul_i)]
@@ -2355,6 +2375,9 @@ class Pipeline(object):
 
             # Obtain number of model parameters
             n_par = self._modellink._n_par
+
+            # Obtain number of data points
+            n_data = self._emulator._n_data[emul_i]
 
             # Set width of detail names
             width = 31
@@ -2398,7 +2421,7 @@ class Pipeline(object):
 
             # Availability flags
             # If this iteration is fully constructed, print flags and numbers
-            if not len(self._emulator._ccheck[emul_i]):
+            if(self._emulator._ccheck[emul_i] == [[]]*n_data):
                 # Determine the number of (active) parameters
                 n_active_par = len(self._emulator._active_par[emul_i])
 
@@ -2449,8 +2472,7 @@ class Pipeline(object):
                     "# of active/total parameters", width,
                     n_active_par, n_par))
                 print("{0: <{1}}\t{2}".format("# of emulated data points",
-                                              width,
-                                              self._emulator._n_data[emul_i]))
+                                              width, n_data))
 
             # If not, then print which components are still missing
             else:
@@ -2460,19 +2482,34 @@ class Pipeline(object):
                 print("  - {0: <{1}}\t{2}".format(
                     "'mod_real_set'?", width-4,
                     "No" if 'mod_real_set' in ccheck else "Yes"))
+
+                # Check if all active parameters have been determined
+                ccheck_i = [i for i in range(n_data) if
+                            'active_par_data' in ccheck[i]]
                 print("  - {0: <{1}}\t{2}".format(
-                    "'active_par'?", width-4,
-                    "No" if 'active_par' in ccheck else "Yes"))
+                    "'active_par'?", width-4, "No (%s)" % (ccheck_i) if
+                    len(ccheck_i) else "Yes"))
+
+                # Check if all regression processes have been done
                 if self._emulator._method.lower() in ('regression', 'full'):
+                    ccheck_i = [i for i in range(n_data) if
+                                'regression' in ccheck[i]]
                     print("  - {0: <{1}}\t{2}".format(
-                        "'regression'?", width-4,
-                        "No" if 'regression' in ccheck else "Yes"))
+                        "'regression'?", width-4, "No (%s)" % (ccheck_i) if
+                        len(ccheck_i) else "Yes"))
+
+                # Check if all prior_exp_sam_sets have been determined
+                ccheck_i = [i for i in range(n_data) if
+                            'prior_exp_sam_set' in ccheck[i]]
                 print("  - {0: <{1}}\t{2}".format(
-                    "'prior_exp_sam_set'?", width-4,
-                    "No" if 'prior_exp_sam_set' in ccheck else "Yes"))
+                    "'prior_exp_sam_set'?", width-4, "No (%s)" % (ccheck_i) if
+                    len(ccheck_i) else "Yes"))
+
+                # Check if all covariance matrices have been determined
+                ccheck_i = [i for i in range(n_data) if 'cov_mat' in ccheck[i]]
                 print("  - {0: <{1}}\t{2}".format(
-                    "'cov_mat'?", width-4,
-                    "No" if 'cov_mat' in ccheck else "Yes"))
+                    "'cov_mat'?", width-4, "No (%s)" % (ccheck_i) if
+                    len(ccheck_i) else "Yes"))
             print("-"*width)
 
             # PARAMETER SPACE
@@ -2488,7 +2525,7 @@ class Pipeline(object):
             # Print details about every model parameter in parameter space
             for i in range(n_par):
                 # Determine what string to use for the active flag
-                if len(self._emulator._ccheck[emul_i]):
+                if(self._emulator._ccheck[emul_i] != [[]]*n_data):
                     active_str = "?"
                 elif i in self._emulator._active_par[emul_i]:
                     active_str = "*"

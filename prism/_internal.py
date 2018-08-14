@@ -59,10 +59,10 @@ class PRISM_File(h5py.File):
     _hdf5_file = None
 
     # Override __init__() to include default settings and logging
-    def __init__(self, mode, filename=None, **kwargs):
+    def __init__(self, mode, emul_s=None, filename=None, **kwargs):
         """
-        Opens the HDF5-file `filename` in `mode` according to some set of
-        default parameters. This method only works properly if the
+        Opens the master HDF5-file `filename` in `mode` according to some set
+        of default parameters. This method only works properly if the
         :class:`~PRISM_File` class is initialized within a :obj:`~Pipeline`
         object.
 
@@ -73,10 +73,13 @@ class PRISM_File(h5py.File):
 
         Optional
         --------
+        emul_s : int or None. Default: None
+            If int, number indicating the requested emulator system to open.
+            If *None*, the master emulator itself is opened.
         filename : str. Default: None
-            The name/path of the HDF5-file that needs to be opened in
-            `working_dir`. Default is to open the HDF5-file that was provided
-            during class initialization.
+            The name/path of the master HDF5-file that needs to be opened in
+            `working_dir`. Default is to open the master HDF5-file that was
+            provided during class initialization.
         **kwargs : dict. Default: ``{'driver': None, 'libver': 'earliest'}``
             Other keyword arguments that need to be given to the
             :func:`~h5py.File` function.
@@ -90,11 +93,20 @@ class PRISM_File(h5py.File):
         hdf5_kwargs = {'driver': None,
                        'libver': 'earliest'}
 
+        # Check emul_s
+        if emul_s is None:
+            sub_str = ''
+        else:
+            sub_str = '_%i' % (emul_s)
+
         # Check filename
         if filename is None:
             filename = self._hdf5_file
         else:
             pass
+
+        # Add sub_str to filename
+        filename = filename.replace('.', '%s.' % (sub_str))
 
         # Update hdf5_kwargs with provided ones
         hdf5_kwargs.update(kwargs)
@@ -111,7 +123,7 @@ class PRISM_File(h5py.File):
         logger = logging.getLogger('HDF5-FILE')
 
         # Log about closing the file
-        logger.info("Closed HDF5-file.")
+        logger.info("Closing HDF5-file '%s'." % (self.filename))
 
         # Inheriting File __exit__()
         super(PRISM_File, self).__exit__(*args, **kwargs)
@@ -497,7 +509,7 @@ def import_cmaps(cmap_dir=None):
     # Read in all the defined colormaps, transform and register them
     for cm_file in cm_files:
         # Determine the index of the extension
-        ext_idx = cm_file.find('.')
+        ext_idx = cm_file.rfind('.')
 
         # Extract name of colormap
         if(ext_idx == -1):

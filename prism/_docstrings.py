@@ -30,24 +30,36 @@ check_val_doc = \
 # %% EMUL_I DOCSTRINGS
 # Description of emul_i used in __call__/construct
 call_emul_i_doc = \
-     """emul_i : int or None. Default: None
-            If int, number indicating the requested emulator iteration.
-            If *None*, the next iteration of the loaded emulator system will be
-            constructed."""
+    """emul_i : int or None. Default: None
+           If int, number indicating the requested emulator iteration.
+           If *None*, the next iteration of the loaded emulator system will be
+           constructed."""
 
 # Description of emul_i used in the get_emul_i() method of the Emulator class
 get_emul_i_doc = \
-     """emul_i : int or None
-            Number indicating the requested emulator iteration."""
+    """emul_i : int or None
+           Number indicating the requested emulator iteration."""
 
 # Description of emul_i used in basically all standard hidden functions
 std_emul_i_doc = \
-     """emul_i : int
-            Number indicating the requested emulator iteration."""
+    """emul_i : int
+           Number indicating the requested emulator iteration."""
 
 # Description of emul_i used in all user functions except __call__/construct
 user_emul_i_doc = \
-     """emul_i : int or None. Default: None
-            If int, number indicating the requested emulator iteration.
-            If *None*, the last iteration of the loaded emulator system will be
-            used."""
+    """emul_i : int or None. Default: None
+           If int, number indicating the requested emulator iteration.
+           If *None*, the last iteration of the loaded emulator system will be
+           used."""
+
+# %% EMUL_S DOCSTRINGS
+# Description of emul_s used in basically all standard hidden functions
+emul_s_doc = \
+    """emul_s : int or None
+           Number indicating the requested emulator system.
+           If *None*, use the master emulator file instead."""
+
+# Description of sequence of emul_s used in all standard hidden functions
+emul_s_seq_doc = \
+    """emul_s_seq : list of int
+           List of numbers indicating the requested emulator systems."""
