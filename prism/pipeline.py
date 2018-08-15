@@ -44,7 +44,7 @@ from sortedcontainers import SortedSet
 
 # PRISM imports
 from ._docstrings import (call_emul_i_doc, emul_s_seq_doc, std_emul_i_doc,
-                          user_emul_i_doc)
+                          user_emul_i_doc, user_emul_s_doc)
 from ._internal import (PRISM_File, RequestError, check_bool, check_float,
                         check_nneg_float, check_pos_int, convert_str_seq,
                         docstring_copy, docstring_substitute, move_logger,
@@ -482,7 +482,7 @@ class Pipeline(object):
 
         # Obtain model output
         mod_out = self._modellink.call_model(emul_i, par_dict,
-                                             self._modellink._data_idx)
+                                             self._emulator._data_idx[emul_i])
 
         # Log that calling model has been finished
         if self._is_controller:
@@ -529,7 +529,7 @@ class Pipeline(object):
 
         # Obtain set of model outputs
         mod_set = self._modellink.call_model(emul_i, sam_dict,
-                                             self._modellink._data_idx)
+                                             self._emulator._data_idx[emul_i])
 
         # Log that multi-calling model has been finished
         if self._is_controller:
@@ -1382,25 +1382,26 @@ class Pipeline(object):
         """
 
         # Obtain model discrepancy variance
-        md_var = self._get_md_var(emul_i)
+        md_var = self._get_md_var(emul_i, emul_s_seq)
 
         # Initialize empty univariate implausibility
         uni_impl_val_sq = np.zeros(len(emul_s_seq))
 
         # Calculate the univariate implausibility values
-        for i in emul_s_seq:
+        for i, emul_s in enumerate(emul_s_seq):
             # Use the lower errors by default
             err_idx = 0
 
             # If adj_exp_val > data_val, use the upper error instead
-            if(adj_exp_val[i] > self._emulator._data_val[emul_i][i]):
+            if(adj_exp_val[i] > self._emulator._data_val[emul_i][emul_s]):
                 err_idx = 1
 
             # Calculate the univariate implausibility value
             uni_impl_val_sq[i] =\
-                pow(adj_exp_val[i]-self._emulator._data_val[emul_i][i], 2) /\
-                (adj_var_val[i]+md_var[i][err_idx] +
-                 pow(self._emulator._data_err[emul_i][i][err_idx], 2))
+                pow(adj_exp_val[i]-self._emulator._data_val[emul_i][emul_s],
+                    2)/(adj_var_val[i]+md_var[i][err_idx] +
+                        pow(self._emulator._data_err[emul_i][emul_s][err_idx],
+                            2))
 
         # Take square root
         uni_impl_val = np.sqrt(uni_impl_val_sq)
@@ -1412,7 +1413,7 @@ class Pipeline(object):
     # Basically takes all uncertainties of Sec. 3.1 of Vernon into account that
     # are not already in the emulator ([3] and [5])
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _get_md_var(self, emul_i):
+    def _get_md_var(self, emul_i, emul_s_seq):
         """
         Retrieves the model discrepancy variance, which includes all variances
         that are created by the model provided by the :obj:`~ModelLink`
@@ -1424,6 +1425,7 @@ class Pipeline(object):
         Parameters
         ----------
         %(emul_i)s
+        %(emul_s_seq)s
 
         Returns
         -------
@@ -1497,7 +1499,7 @@ class Pipeline(object):
                 check_nneg_float(value[1], 'upper_md_var[%s]' % (i))
 
         # Return it
-        return(md_var)
+        return(md_var[emul_s_seq])
 
     # This function completes the list of implausibility cut-offs
     @staticmethod
@@ -1762,9 +1764,9 @@ class Pipeline(object):
         return(ext_sam_set, ext_mod_set.T)
 
     # This function analyzes the emulator for given sam_set using code snippets
-    @docstring_substitute(emul_i=std_emul_i_doc)
-    def _analyze_sam_set(self, obj, emul_i, sam_set, pre_code, loop_code,
-                         post_code):
+    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
+    def _analyze_sam_set(self, obj, emul_i, emul_s_seq, sam_set, pre_code,
+                         loop_code, post_code):
         """
         Analyzes a provided set of emulator evaluation samples `sam_set` at a
         given emulator iteration `emul_i`, using the impl_cut values given in
@@ -1779,6 +1781,7 @@ class Pipeline(object):
             Instance of the :class:`~Pipeline` class or :class:`~Projection`
             class.
         %(emul_i)s
+        %(emul_s_seq)s
         sam_set : 2D :obj:`~numpy.ndarray` object
             Array containing model parameter value sets to be evaluated in the
             emulator system.
@@ -1822,9 +1825,6 @@ class Pipeline(object):
             for par_set in sam_set:
                 # Analyze par_set in every emulator iteration
                 for i in range(1, emul_i+1):
-                    # Get the emul_s_seq
-                    emul_s_seq = list(range(self._emulator._n_data[i]))
-
                     # Evaluate par_set
                     adj_val = self._emulator._evaluate(i, emul_s_seq, par_set)
 
@@ -1917,8 +1917,9 @@ class Pipeline(object):
             start_time2 = time()
 
             # Analyze eval_sam_set
-            impl_check = self._analyze_sam_set(self, emul_i, eval_sam_set,
-                                               *exec_code)
+            emul_s_seq = list(range(self._emulator._n_data[emul_i]))
+            impl_check = self._analyze_sam_set(self, emul_i, emul_s_seq,
+                                               eval_sam_set, *exec_code)
 
             # Obtain some timers
             end_time = time()
@@ -2556,8 +2557,8 @@ class Pipeline(object):
 
     # This function allows the user to evaluate a given sam_set in the emulator
     # TODO: Plot emul_i_stop for large LHDs, giving a nice mental statistic
-    @docstring_substitute(emul_i=user_emul_i_doc)
-    def evaluate(self, sam_set, emul_i=None):
+    @docstring_substitute(emul_i=user_emul_i_doc, emul_s_seq=user_emul_s_doc)
+    def evaluate(self, sam_set, emul_i=None, emul_s=None):
         """
         Evaluates the given model parameter sample set `sam_set` at given
         emulator iteration `emul_i`.
@@ -2573,6 +2574,7 @@ class Pipeline(object):
         Optional
         --------
         %(emul_i)s
+        %(emul_s)s
 
         Returns (if ndim(sam_set) > 1)
         ------------------------------
@@ -2628,6 +2630,12 @@ class Pipeline(object):
             # Get emulator iteration
             emul_i = self._emulator._get_emul_i(emul_i)
 
+            # Get emulator system sequence
+            if emul_s is None:
+                emul_s_seq = np.arange(self._emulator._n_data[emul_i])
+            else:
+                emul_s_seq = np.array(emul_s, ndmin=1)
+
             # Make sure that sam_set is a NumPy array
             sam_set = np.array(sam_set)
 
@@ -2678,7 +2686,8 @@ class Pipeline(object):
 
             # Analyze sam_set
             adj_exp_val, adj_var_val, uni_impl_val, emul_i_stop, impl_check = \
-                self._analyze_sam_set(self, emul_i, sam_set, *exec_code)
+                self._analyze_sam_set(self, emul_i, emul_s_seq, sam_set,
+                                      *exec_code)
 
             # Do more logging
             logger.info("Finished evaluating emulator system.")

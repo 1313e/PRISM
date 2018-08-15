@@ -112,7 +112,8 @@ class PRISM_File(h5py.File):
         hdf5_kwargs.update(kwargs)
 
         # Open hdf5-file
-        logger.info("Opening HDF5-file '%s' (mode: '%s')." % (filename, mode))
+        logger.info("Opening HDF5-file '%s' (mode: '%s')."
+                    % (path.basename(filename), mode))
 
         # Inheriting File __init__()
         super(PRISM_File, self).__init__(filename, mode, **hdf5_kwargs)
@@ -123,7 +124,7 @@ class PRISM_File(h5py.File):
         logger = logging.getLogger('HDF5-FILE')
 
         # Log about closing the file
-        logger.info("Closing HDF5-file '%s'." % (self.filename))
+        logger.info("Closing HDF5-file '%s'." % (path.basename(self.filename)))
 
         # Inheriting File __exit__()
         super(PRISM_File, self).__exit__(*args, **kwargs)

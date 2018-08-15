@@ -63,3 +63,10 @@ emul_s_doc = \
 emul_s_seq_doc = \
     """emul_s_seq : list of int
            List of numbers indicating the requested emulator systems."""
+
+# Description of sequence of emul_s used in all standard user functions
+user_emul_s_doc = \
+    """emul_s : int, list of int or None. Default: None
+           Number of list of numbers indicating the requested emulator systems.
+           If *None*, all emulator systems in the requested emulator iteration
+           are used."""

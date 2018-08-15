@@ -848,9 +848,8 @@ class Emulator(object):
         # Calculate the adjusted emulator variance value at given par_set
         for i, emul_s in enumerate(emul_s_seq):
             adj_var_val[i] = prior_var_par_set[i] -\
-                np.dot(cov_vec[emul_s].T,
-                       np.dot(self._cov_mat_inv[emul_i][emul_s],
-                              cov_vec[emul_s]))
+                np.dot(cov_vec[i].T,
+                       np.dot(self._cov_mat_inv[emul_i][emul_s], cov_vec[i]))
 
         # Return it
         return(adj_var_val)
