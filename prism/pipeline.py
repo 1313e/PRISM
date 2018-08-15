@@ -939,17 +939,17 @@ class Pipeline(object):
 
                 # Only controller receives output and can thus use indexing
                 if self._is_controller:
-                    self._modellink._data_val = mod_out[0].tolist()
+                    self._emulator._data_val[0] = mod_out[0].tolist()
 
             else:
                 # Controller only call model
-                self._modellink._data_val =\
+                self._emulator._data_val[0] =\
                     self._call_model(0, self._modellink._par_est).tolist()
 
         # Controller only
         if self._is_controller:
             # Use model discrepancy variance as model data errors
-            md_var = self._get_md_var(0)
+            md_var = self._get_md_var(0, np.arange(self._modellink._n_data))
             err = np.sqrt(md_var).tolist()
             self._modellink._data_err = err
 
@@ -980,7 +980,7 @@ class Pipeline(object):
                 else:
                     raise NotImplementedError
             self._modellink._data_val =\
-                (self._modellink._data_val+noise).tolist()
+                (self._emulator._data_val[0]+noise).tolist()
 
             # Logger
             logger.info("Generated mock data.")
@@ -1917,7 +1917,7 @@ class Pipeline(object):
             start_time2 = time()
 
             # Analyze eval_sam_set
-            emul_s_seq = list(range(self._emulator._n_data[emul_i]))
+            emul_s_seq = np.arange(self._emulator._n_data[emul_i])
             impl_check = self._analyze_sam_set(self, emul_i, emul_s_seq,
                                                eval_sam_set, *exec_code)
 
@@ -2044,6 +2044,16 @@ class Pipeline(object):
                                 "constructed from start." % (emul_i))
                     c_from_start = 1
 
+                # If already finished, skip everything
+                elif(emul_i <= self._emulator._emul_i):
+                    logger.info("Emulator iteration %s has already been fully "
+                                "constructed. Skipping construction process."
+                                % (emul_i))
+                    print("Emulator iteration %s has already been fully "
+                          "constructed. Skipping construction process."
+                          % (emul_i))
+                    c_from_start = None
+
                 # If interrupted midway, do not reconstruct full iteration
                 else:
                     logger.info("Construction of emulator iteration %s was "
@@ -2072,8 +2082,13 @@ class Pipeline(object):
             # Broadcast construct_emul_i to workers
             c_from_start = MPI.COMM_WORLD.bcast(c_from_start, 0)
 
+        # If iteration is already finished, show the details
+        if c_from_start is None:
+            self.details(emul_i)
+            return
+
         # If iteration needs to be constructed completely, create/prepare it
-        if c_from_start:
+        elif c_from_start:
             # Controller only
             if self._is_controller:
                 # Log that construction of emulator iteration is being started
@@ -2557,7 +2572,7 @@ class Pipeline(object):
 
     # This function allows the user to evaluate a given sam_set in the emulator
     # TODO: Plot emul_i_stop for large LHDs, giving a nice mental statistic
-    @docstring_substitute(emul_i=user_emul_i_doc, emul_s_seq=user_emul_s_doc)
+    @docstring_substitute(emul_i=user_emul_i_doc, emul_s=user_emul_s_doc)
     def evaluate(self, sam_set, emul_i=None, emul_s=None):
         """
         Evaluates the given model parameter sample set `sam_set` at given

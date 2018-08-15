@@ -644,8 +644,7 @@ class Emulator(object):
                     data_err.append(self._modellink._data_err[i])
                     data_set.attrs['data_spc'] =\
                         self._modellink._data_spc[i].encode('ascii', 'ignore')
-                    data_spc.append(
-                        self._modellink._data_spc[i].encode('ascii', 'ignore'))
+                    data_spc.append(self._modellink._data_spc[i])
 
                     # Save the data_idx in portions to make it HDF5-compatible
                     if isinstance(self._modellink._data_idx[i], list):
