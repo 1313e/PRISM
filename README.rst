@@ -46,11 +46,16 @@ Dependencies
 ------------
 PRISM requires ``python == 2.7`` or ``python >= 3.4`` and the following non-standard dependencies (installed automatically when using ``pip``):
 
-- ``d2o >= 1.1.2``;
 - ``e13tools >= 0.4.6a0``;
 - ``mlxtend >= 0.9.1``;
 - ``scikit-learn >= 0.19.1``;
 - ``sortedcontainers >= 1.5.9``.
+
+For running PRISM in MPI, the following packages are also required:
+
+- ``d2o >= 1.1.2`` (installed automatically);
+- ``mpi4py >= 3.0.0``.
+
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/prism_tool.svg
    :target: https://pypi.python.org/pypi/prism_tool
