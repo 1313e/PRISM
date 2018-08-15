@@ -1212,31 +1212,37 @@ class Pipeline(object):
         # Obtain number of samples
         n_sam = np.shape(sam_set)[0]
 
-        # Check who needs to call the model
-        if(self._modellink._MPI_call or
-           (not self._modellink._MPI_call and self._is_controller)):
-            # Request all evaluation samples at once
-            if self._modellink._multi_call:
-                mod_set = self._multi_call_model(emul_i, sam_set).T
+        # If there are any samples in sam_set, evaluate them in the model
+        if n_sam:
+            # Check who needs to call the model
+            if(self._modellink._MPI_call or
+               (not self._modellink._MPI_call and self._is_controller)):
+                # Request all evaluation samples at once
+                if self._modellink._multi_call:
+                    mod_set = self._multi_call_model(emul_i, sam_set).T
 
-            # Request evaluation samples one-by-one
-            else:
-                # Initialize mod_set
-                mod_set = np.zeros([self._modellink._n_data, n_sam])
+                # Request evaluation samples one-by-one
+                else:
+                    # Initialize mod_set
+                    mod_set = np.zeros([self._modellink._n_data, n_sam])
 
-                # Loop over all requested evaluation samples
-                for i in range(n_sam):
-                    mod_set[:, i] = self._call_model(emul_i, sam_set[i])
+                    # Loop over all requested evaluation samples
+                    for i in range(n_sam):
+                        mod_set[:, i] = self._call_model(emul_i, sam_set[i])
 
         # Controller finishing up
         if self._is_controller:
             # Get end time
             end_time = time()-start_time
 
-            # Check if ext_real_set was provided
-            if(np.shape(ext_sam_set)[0] != 0):
+            # Check if ext_real_set and/or sam_set were provided
+            if(ext_sam_set.shape[0] and sam_set.shape[0]):
                 sam_set = np.concatenate([sam_set, ext_sam_set], axis=0)
                 mod_set = np.concatenate([mod_set, ext_mod_set], axis=1)
+                use_ext_real_set = 1
+            elif(ext_sam_set.shape[0]):
+                sam_set = ext_sam_set
+                mod_set = ext_mod_set
                 use_ext_real_set = 1
             else:
                 use_ext_real_set = 0
@@ -2119,6 +2125,8 @@ class Pipeline(object):
                                           self._criterion,
                                           constraints=ext_sam_set)
                         logger.info("Finished creating initial sample set.")
+                    else:
+                        add_sam_set = np.array([])
 
                 else:
                     # Get dummy ext_real_set
