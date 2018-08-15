@@ -342,7 +342,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
             # Convert all data_str sequences to data_idx
             for str_seq in data_str:
-                # Convert str_seq and remove val, err and scl
+                # Convert str_seq and remove val, err and spc
                 tmp_idx = convert_str_seq(str_seq)[spc_col+1:]
 
                 # Check if int, float or str was provided and save it

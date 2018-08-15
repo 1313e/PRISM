@@ -26,7 +26,6 @@ import os
 from os import path
 import sys
 from time import strftime, strptime, time
-import warnings
 
 # Package imports
 from e13tools import InputError, ShapeError
@@ -2737,18 +2736,6 @@ class Pipeline(object):
         if use_MPI:
             # MPI Barrier
             MPI.COMM_WORLD.Barrier()
-
-    # TODO: Deprecated
-    @docstring_copy(Projection.__call__)
-    def create_projection(self, *args, **kwargs):
-        # Print warning that this name is deprecated
-        if self._is_controller:
-            warnings.warn("This method has been renamed to 'project()' in "
-                          "v0.4.22 and will be removed in v0.5.0!",
-                          FutureWarning, stacklevel=2)
-
-        # Call project()
-        self.project(*args, **kwargs)
 
     # This function creates the projection figures of a given emul_i
     @docstring_copy(Projection.__call__)
