@@ -399,15 +399,14 @@ class Emulator(object):
                     % (self._pipeline._hdf5_file))
 
         # If no constructed emulator was provided, it will be constructed now
-        # Therefore, set emul_load to 1 and emul_i to 0
+        # Therefore, set emul_load to 1
         self._emul_load = 1
-        self._emul_i = 0
-
-        # Read in parameters from provided parameter file
-        self._read_parameters()
 
         # Clean-up all emulator system files
         self._cleanup_emul_files(1)
+
+        # Read in parameters from provided parameter file
+        self._read_parameters()
 
         # Create hdf5-file
         with PRISM_File('w', None) as file:
@@ -459,11 +458,12 @@ class Emulator(object):
         # Logging again
         logger.info("Finished creating new emulator system.")
 
-    # This function cleans up all the emulator system files
+    # This function cleans up all the emulator files
+    # TODO: Also delete all projection figures?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _cleanup_emul_files(self, emul_i):
         """
-        Opens all emulator system HDF5-files and removes the provided emulator
+        Opens all emulator HDF5-files and removes the provided emulator
         iteration `emul_i` and subsequent iterations from the files.
 
         Parameters
@@ -474,8 +474,8 @@ class Emulator(object):
 
         # Do some logging
         logger = logging.getLogger('CLEAN-UP')
-        logger.info("Cleaning up emulator system HDF5-files, starting at "
-                    "emulator iteration %s." % (emul_i))
+        logger.info("Cleaning up emulator HDF5-files, starting at emulator "
+                    "iteration %s." % (emul_i))
 
         # Check what the maximum number of emulator systems is
         try:
@@ -495,8 +495,21 @@ class Emulator(object):
                     except KeyError:
                         pass
 
+        # Open emulator master HDF5-file
+        with PRISM_File('r+', None) as file:
+            # Loop over all requested iterations to be removed
+            for i in range(emul_i, self._emul_i+1):
+                # Try to remove it, skip if not possible
+                try:
+                    del file['%s' % (i)]
+                except KeyError:
+                    pass
+
+        # Set emul_i to the last iteration still present in files
+        self._emul_i = emul_i-1
+
         # Do more logging
-        logger.info("Finished cleaning up emulator system HDF5-files.")
+        logger.info("Finished cleaning up emulator HDF5-files.")
 
     # Prepares the emulator for a new iteration
     # HINT: Should _create_new_emulator be combined with this method?
@@ -555,19 +568,7 @@ class Emulator(object):
                 # Set reload flag to 0
                 reload = 0
             else:
-                # TODO: Also delete all projection figures?
-                logger.info("Emulator iteration %s already exists. Deleting "
-                            "requested and all subsequent iterations.")
-
-                # Delete requested and subsequent emulator iterations
-                for i in range(emul_i, self._emul_i+1):
-                    del file['%s' % (i)]
-
-                # Clean-up all emulator system files
-                self._cleanup_emul_files(emul_i)
-
-                # Set last emul_i to preceding requested iteration
-                self._emul_i = emul_i-1
+                logger.info("Emulator iteration %s already exists.")
 
                 # Check if repreparation was actually necessary
                 # TODO: Think about how to extend this check
@@ -599,19 +600,22 @@ class Emulator(object):
                           "reanalyzing the emulator with new pipeline "
                           "parameters.")
 
-                # Reload emulator data
-                self._load_data(self._emul_i)
-
                 # Set reload flag to 1
                 reload = 1
 
-            # Make group for emulator iteration, delete it first if it exists
-            try:
-                del file['%s' % (emul_i)]
-            except KeyError:
-                pass
-            finally:
-                file.create_group('%s' % (emul_i))
+        # Clean-up all emulator files if emul_i is not 1
+        if(emul_i != 1):
+            self._cleanup_emul_files(emul_i)
+
+        # If reload is True and emul_i is not 1, reload emulator systems
+        if(emul_i != 1 and reload):
+            # Reload emulator data
+            self._load_data(self._emul_i)
+
+        # Open hdf5-file
+        with PRISM_File('r+', None) as file:
+            # Make group for emulator iteration
+            file.create_group('%s' % (emul_i))
 
             # Save the number of data points
             file['%s' % (emul_i)].attrs['n_data'] = self._modellink._n_data
@@ -631,13 +635,8 @@ class Emulator(object):
             # Create groups for all data points
             for i in range(self._modellink._n_data):
                 with PRISM_File('a', i) as file_i:
-                    # Make group for this emulator system, delete if it exists
-                    try:
-                        del file_i['%s' % (emul_i)]
-                    except KeyError:
-                        pass
-                    finally:
-                        data_set = file_i.create_group('%s' % (emul_i))
+                    # Make group for this emulator system
+                    data_set = file_i.create_group('%s' % (emul_i))
                     data_set.attrs['data_val'] = self._modellink._data_val[i]
                     data_val.append(self._modellink._data_val[i])
                     data_set.attrs['data_err'] = self._modellink._data_err[i]
@@ -1911,7 +1910,7 @@ class Emulator(object):
 
                         # Read in data values, errors and spaces
                         data_val.append(data_set.attrs['data_val'])
-                        data_err.append(data_set.attrs['data_err'])
+                        data_err.append(data_set.attrs['data_err'].tolist())
                         data_spc.append(
                             data_set.attrs['data_spc'].decode('utf-8'))
 
