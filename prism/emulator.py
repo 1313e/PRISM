@@ -488,28 +488,122 @@ class Emulator(object):
             # Open emulator system HDF5-file
             with PRISM_File('r+', s) as file:
                 # Loop over all requested iterations to be removed
-                for i in range(emul_i, self._emul_i+1):
+                for i in range(emul_i, self._emul_i+2):
                     # Try to remove it, skip if not possible
                     try:
                         del file['%s' % (i)]
                     except KeyError:
                         pass
 
-        # Open emulator master HDF5-file
-        with PRISM_File('r+', None) as file:
-            # Loop over all requested iterations to be removed
-            for i in range(emul_i, self._emul_i+1):
-                # Try to remove it, skip if not possible
-                try:
-                    del file['%s' % (i)]
-                except KeyError:
-                    pass
+        # Open emulator master HDF5-file if it exists
+        if n_emuls:
+            with PRISM_File('r+', None) as file:
+                # Loop over all requested iterations to be removed
+                for i in range(emul_i, self._emul_i+2):
+                    # Try to remove it, skip if not possible
+                    try:
+                        del file['%s' % (i)]
+                    except KeyError:
+                        pass
 
         # Set emul_i to the last iteration still present in files
         self._emul_i = emul_i-1
 
         # Do more logging
         logger.info("Finished cleaning up emulator HDF5-files.")
+
+    # This function matches data points with those in a previous iteration
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _assign_data_idx(self, emul_i):
+        """
+        Determines the emulator system each data point in the provided emulator
+        iteration `emul_i` should be assigned to, in order to make sure that
+        recurring data points have the same emulator system number as in the
+        previous emulator iteration.
+
+        Parameters
+        ----------
+        %(emul_i)s
+
+        Returns
+        -------
+        data_to_emul_s : list of int
+            The number of the emulator system that each data point should be
+            assigned to.
+
+        Examples
+        --------
+        If the number of data points is less than the previous iteration:
+
+            >>> emul_i = 2
+            >>> self._data_idx[emul_i-1]
+            ['A', 'B', 'C', 'D', 'E']
+            >>> self._modellink._data_idx
+            ['B', 'F', 'G', 'E']
+            >>> self._get_emul_pos(emul_i)
+            [1, 0, 2, 4]
+
+
+        If the number of data points is more than the previous iteration:
+
+            >>> emul_i = 2
+            >>> self._data_idx[emul_i-1]
+            ['A', 'B', 'C', 'D', 'E']
+            >>> self._modellink._data_idx
+            ['B', 'F', 'G', 'E', 'A', 'C']
+            >>> self._get_emul_pos(emul_i)
+            [1, 3, 5, 4, 0, 2]
+
+
+        If there is no previous iteration:
+
+            >>> emul_i = 1
+            >>> self._data_idx[emul_i-1]
+            []
+            >>> self._modellink._data_idx
+            ['B', 'F', 'G', 'E', 'A', 'C']
+            >>> self._get_emul_pos(emul_i)
+            [0, 1, 2, 3, 4, 5]
+
+        """
+
+        # Do some logging
+        logger = logging.getLogger('INIT')
+        logger.info("Assigning model comparison data points to emulator "
+                    "systems for emulator iteration %s." % (emul_i))
+
+        # Create list with first n_data emulator systems
+        emul_s_list = list(range(self._modellink._n_data))
+
+        # Create empty data_to_emul_s list
+        data_to_emul_s = [[] for _ in emul_s_list]
+
+        # Assign all recurring data points to the correct emulator systems
+        for i, data_idx in enumerate(self._modellink._data_idx):
+            # Check for every data_idx if it existed in the previous iteration
+            try:
+                emul_s = self._data_idx[emul_i-1].index(data_idx)
+
+                # If it existed, assign data_idx to corresponding emul_s
+                data_to_emul_s[i] = emul_s
+
+                # Also try to remove emul_s from emul_s_list
+                emul_s_list.remove(emul_s)
+            except ValueError:
+                pass
+
+        # Assign all 'new' data points to the non-filled emulator systems
+        for i in range(self._modellink._n_data):
+            # Check if this data point has already been assigned
+            if(data_to_emul_s[i] == []):
+                # If not, assign it to the first available emulator system
+                data_to_emul_s[i] = emul_s_list.pop(0)
+
+        # More logging
+        logger.info("Finished assigning data points to emulator systems.")
+
+        # Return it
+        return(data_to_emul_s)
 
     # Prepares the emulator for a new iteration
     # HINT: Should _create_new_emulator be combined with this method?
@@ -568,7 +662,7 @@ class Emulator(object):
                 # Set reload flag to 0
                 reload = 0
             else:
-                logger.info("Emulator iteration %s already exists.")
+                logger.info("Emulator iteration %s already exists." % (emul_i))
 
                 # Check if repreparation was actually necessary
                 # TODO: Think about how to extend this check
@@ -625,25 +719,35 @@ class Emulator(object):
             file.create_dataset('%s/statistics' % (emul_i),
                                 data=h5py.Empty(float))
 
+            # Assign data points to emulator systems
+            data_to_emul_s = self._assign_data_idx(emul_i)
+
+            # Calculate total number of active and passive emulator systems
+            n_emul = max(max(data_to_emul_s)+1, len(self._data_idx[emul_i-1]))
+
+            # Create empty list of lists for storing emulator system data
+            lists = [[] for _ in range(n_emul)]
+
             # Create empty lists for the four data arrays
-            data_val = []
-            data_err = []
-            data_spc = []
-            data_idx = []
-            data_prev = []
+            data_val = list(lists)
+            data_err = list(lists)
+            data_spc = list(lists)
+            data_idx = list(lists)
 
             # Create groups for all data points
-            for i in range(self._modellink._n_data):
-                with PRISM_File('a', i) as file_i:
-                    # Make group for this emulator system
+            for i, emul_s in enumerate(data_to_emul_s):
+                with PRISM_File('a', emul_s) as file_i:
+                    # Make iteration group for this emulator system
                     data_set = file_i.create_group('%s' % (emul_i))
+
+                    # Save data value, errors and space to this emulator system
                     data_set.attrs['data_val'] = self._modellink._data_val[i]
-                    data_val.append(self._modellink._data_val[i])
                     data_set.attrs['data_err'] = self._modellink._data_err[i]
-                    data_err.append(self._modellink._data_err[i])
                     data_set.attrs['data_spc'] =\
                         self._modellink._data_spc[i].encode('ascii', 'ignore')
-                    data_spc.append(self._modellink._data_spc[i])
+                    data_val[emul_s] = self._modellink._data_val[i]
+                    data_err[emul_s] = self._modellink._data_err[i]
+                    data_spc[emul_s] = self._modellink._data_spc[i]
 
                     # Save the data_idx in portions to make it HDF5-compatible
                     if isinstance(self._modellink._data_idx[i], list):
@@ -662,20 +766,10 @@ class Emulator(object):
                         else:
                             data_set.attrs['data_idx'] =\
                                 self._modellink._data_idx[i]
-                    data_idx.append(self._modellink._data_idx[i])
-
-                    # Check if this data point was present in prev iteration
-                    try:
-                        data_prev.append(
-                            self._data_idx[emul_i-1].index(data_idx[-1]))
-                    except ValueError:
-                        data_prev.append(None)
-                        data_set.attrs['data_prev'] = -1
-                    else:
-                        data_set.attrs['data_prev'] = data_prev[-1]
+                    data_idx[emul_s] = self._modellink._data_idx[i]
 
                     # Create external link between file_i and master file
-                    file['%s/data_point_%s' % (emul_i, i)] =\
+                    file['%s/data_point_%s' % (emul_i, emul_s)] =\
                         h5py.ExternalLink(path.basename(file_i.filename),
                                           '%s' % (emul_i))
 
@@ -684,10 +778,8 @@ class Emulator(object):
         self._data_err.append(data_err)
         self._data_spc.append(data_spc)
         self._data_idx.append(data_idx)
-        self._data_prev.append(data_prev)
 
         # Append empty list of lists to all emulator data arrays
-        lists = [[] for _ in range(self._modellink._n_data)]
         self._active_par_data.append(list(lists))
         self._cov_mat_inv.append(list(lists))
         self._prior_exp_sam_set.append(list(lists))
@@ -737,8 +829,10 @@ class Emulator(object):
         start_time = time()
 
         # Determine active parameters
-        if 'active_par' in self._ccheck[emul_i]:
-            self._get_active_par(emul_i)
+        ccheck_active_par = [i for i in range(self._n_data[emul_i]) if
+                             'active_par_data' in self._ccheck[emul_i][i]]
+        if len(ccheck_active_par):
+            self._get_active_par(emul_i, ccheck_active_par)
 
         # Check if regression is required
         if(self._method.lower() in ('regression', 'full')):
@@ -759,6 +853,18 @@ class Emulator(object):
                           'cov_mat' in self._ccheck[emul_i][i]]
         if len(ccheck_cov_mat):
             self._get_cov_matrix(emul_i, ccheck_cov_mat)
+
+        # If MPI is used
+        if use_MPI:
+            # MPI Barrier
+            MPI.COMM_WORLD.Barrier()
+
+        # If everything is done, gather the total set of active parameters
+        if 'active_par' in self._ccheck[emul_i]:
+            active_par = SortedSet()
+            active_par.update(*self._active_par_data[emul_i])
+            self._save_data(emul_i, None, {
+                'active_par': active_par})
 
         # Set current emul_i to constructed emul_i
         self._emul_i = emul_i
@@ -893,9 +999,8 @@ class Emulator(object):
 
     # This function extracts the set of active parameters
     # TODO: Write code cleaner, if possible
-    # TODO: !Save active_par results for every data point individually?
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _get_active_par(self, emul_i):
+    def _get_active_par(self, emul_i, emul_s_seq):
         """
         Determines the active parameters to be used for every individual data
         point defined in `emul_s_seq` in the provided emulator iteration
@@ -909,9 +1014,6 @@ class Emulator(object):
 
         Generates
         ---------
-        active_par : 1D :obj:`~numpy.ndarray` object
-            Array containing the indices of all the parameters that are active
-            in the emulator iteration `emul_i`.
         active_par_data : List of 1D :obj:`~numpy.ndarray` objects
             List containing the indices of all the parameters that are active
             in the emulator iteration `emul_i` for every individual data point.
@@ -922,38 +1024,33 @@ class Emulator(object):
         logger = logging.getLogger('ACTIVE_PAR')
         logger.info("Determining active parameters.")
 
-        # Initialize active parameter data sets
-        active_par = SortedSet()
-        active_par_data = [SortedSet() for _ in range(self._n_data[emul_i])]
+        # Loop over all data points and determine active parameters
+        for emul_s in emul_s_seq:
+            # Initialize active parameters data set
+            active_par_data = SortedSet()
 
-        # Check if previously active parameters must be active again
-        if self._pipeline._freeze_active_par:
-            for i, j in enumerate(self._data_prev[emul_i]):
-                if j is not None:
-                    active_par_data[i].update(
-                        self._active_par_data[emul_i-1][j])
-                active_par.update(active_par_data[i])
+            # Check if previously active parameters must be active again
+            if(self._pipeline._freeze_active_par and emul_i != 1 and
+               self._data_idx[emul_i-1][emul_s] ==
+               self._data_idx[emul_i][emul_s]):
+                active_par_data.update(self._active_par_data[emul_i-1][emul_s])
 
-        # Check if active parameters analysis has been requested
-        if not self._pipeline._do_active_anal:
-            # If not requested, then save all potentially active parameters
-            active_par.update(self._pipeline._pot_active_par)
-            for i in range(self._n_data[emul_i]):
-                active_par_data[i].update(self._pipeline._pot_active_par)
+            # Check if active parameters analysis has been requested
+            if not self._pipeline._do_active_anal:
+                # If not requested, then save all potentially active parameters
+                active_par_data.update(self._pipeline._pot_active_par)
 
-        # If requested, perform a sequential backward stepwise regression
-        else:
-            # Determine active parameters for all data points
-            for i in range(self._n_data[emul_i]):
+            # If requested, perform a sequential backward stepwise regression
+            else:
                 # Obtain frozen+potentially active parameters
-                frz_pot_act_par = SortedSet(active_par_data[i])
+                frz_pot_act_par = SortedSet(active_par_data)
                 frz_pot_act_par.update(self._pipeline._pot_active_par)
                 frz_pot_act_par = list(frz_pot_act_par)
                 frz_pot_act_idx = list(range(len(frz_pot_act_par)))
 
                 # Obtain non-frozen potentially active parameters
                 non_frz_par = [j for j in self._pipeline._pot_active_par
-                               if j not in active_par_data[i]]
+                               if j not in active_par_data]
                 non_frz_idx = [frz_pot_act_par.index(j) for j in non_frz_par]
 
                 # Obtain sam_set of frz_pot_act_par
@@ -969,7 +1066,7 @@ class Emulator(object):
                               floating=False, scoring='r2')
 
                 # Perform linear regression with linear terms only
-                sfs_obj.fit(frz_pot_act_sam_set, self._mod_set[emul_i][i])
+                sfs_obj.fit(frz_pot_act_sam_set, self._mod_set[emul_i][emul_s])
 
                 # Extract active parameters due to linear significance
                 act_idx_lin = list(sfs_obj.k_feature_idx_)
@@ -991,7 +1088,7 @@ class Emulator(object):
                     poly_terms = frz_pot_act_poly_terms[:, poly_idx]
 
                     # Perform linear regression with addition of poly terms
-                    sfs_obj.fit(poly_terms, self._mod_set[emul_i][i])
+                    sfs_obj.fit(poly_terms, self._mod_set[emul_i][emul_s])
 
                     # Extract indices of active polynomial terms
                     act_idx_poly = poly_idx[list(sfs_obj.k_feature_idx_)]
@@ -1002,25 +1099,16 @@ class Emulator(object):
                         act_idx.append(j)
 
                 # Update the active parameters for this data set
-                active_par_data[i].update(np.array(frz_pot_act_par)[act_idx])
+                active_par_data.update(np.array(frz_pot_act_par)[act_idx])
 
-                # And update the unique active parameters for this iteration
-                active_par.update(active_par_data[i])
+            # Log the resulting active parameters
+            logger.info("Active parameters for data point %s: %s"
+                        % (emul_s, [self._modellink._par_name[par]
+                                    for par in active_par_data]))
 
-                # Log the resulting active parameters
-                logger.info("Active parameters for data point %s: %s"
-                            % (i, [self._modellink._par_name[par]
-                                   for par in active_par_data[i]]))
-
-                # Convert active_par_data to a NumPy array and save
-                self._save_data(emul_i, i, {
-                    'active_par_data': np.array(list(active_par_data[i]))})
-
-        # Convert active_par to a NumPy array
-        active_par = np.array(list(active_par))
-
-        # Save the active parameters
-        self._save_data(emul_i, None, {'active_par': active_par})
+            # Convert active_par_data to a NumPy array and save
+            self._save_data(emul_i, emul_s, {
+                'active_par_data': np.array(list(active_par_data))})
 
         # Log that active parameter determination is finished
         logger.info("Finished determining active parameters.")
@@ -1818,7 +1906,6 @@ class Emulator(object):
         self._data_err = [[]]
         self._data_spc = [[]]
         self._data_idx = [[]]
-        self._data_prev = [[]]
 
         self._ccheck = [[]]
 
@@ -1872,7 +1959,6 @@ class Emulator(object):
                     data_err = []
                     data_spc = []
                     data_idx = []
-                    data_prev = []
                     for j in range(self._n_data[i]):
                         # Create empty construct check list for this system
                         ccheck_s = []
@@ -1935,12 +2021,6 @@ class Emulator(object):
                                     tmp_data_idx.append(data_set.attrs[key])
                             data_idx.append(tmp_data_idx)
 
-                        # Obtain data_prev
-                        if(data_set.attrs['data_prev'] == -1):
-                            data_prev.append(None)
-                        else:
-                            data_prev.append(data_set.attrs['data_prev'])
-
                         # Add ccheck_s to ccheck
                         ccheck.insert(j, ccheck_s)
 
@@ -1953,7 +2033,6 @@ class Emulator(object):
                     self._data_err.append(data_err)
                     self._data_spc.append(data_spc)
                     self._data_idx.append(data_idx)
-                    self._data_prev.append(data_prev)
 
                     if self._method.lower() in ('regression', 'full'):
                         rsdl_var = []
@@ -2045,8 +2124,7 @@ class Emulator(object):
                 # Check what data keyword has been provided
                 # ACTIVE PARAMETERS
                 if(keyword == 'active_par'):
-                    file.create_dataset('%s/active_par' % (emul_i),
-                                        data=data)
+                    file.create_dataset('%s/active_par' % (emul_i), data=data)
                     self._active_par.append(data)
                     self._ccheck[emul_i].remove('active_par')
 
