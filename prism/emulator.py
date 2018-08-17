@@ -808,8 +808,8 @@ class Emulator(object):
         return(reload)
 
     # This function constructs the emulator iteration emul_i
-    @docstring_substitute(emul_i=std_emul_i_doc)
-    def _construct_iteration(self, emul_i):
+    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
+    def _construct_iteration(self, emul_i, emul_s_seq):
         """
         Constructs the emulator iteration corresponding to the provided
         `emul_i`, by performing the given emulator method and calculating the
@@ -818,6 +818,7 @@ class Emulator(object):
         Parameters
         ----------
         %(emul_i)s
+        %(emul_s_seq)s
 
         Generates
         ---------
@@ -829,28 +830,29 @@ class Emulator(object):
         start_time = time()
 
         # Determine active parameters
-        ccheck_active_par = [i for i in range(self._n_data[emul_i]) if
-                             'active_par_data' in self._ccheck[emul_i][i]]
+        ccheck_active_par = [emul_s for emul_s in emul_s_seq if
+                             'active_par_data' in self._ccheck[emul_i][emul_s]]
         if len(ccheck_active_par):
             self._get_active_par(emul_i, ccheck_active_par)
 
         # Check if regression is required
         if(self._method.lower() in ('regression', 'full')):
             # Perform regression
-            ccheck_regression = [i for i in range(self._n_data[emul_i]) if
-                                 'regression' in self._ccheck[emul_i][i]]
+            ccheck_regression = [emul_s for emul_s in emul_s_seq if
+                                 'regression' in self._ccheck[emul_i][emul_s]]
             if len(ccheck_regression):
                 self._do_regression(emul_i, ccheck_regression)
 
         # Calculate the prior expectation values of sam_set
-        ccheck_prior_exp = [i for i in range(self._n_data[emul_i]) if
-                            'prior_exp_sam_set' in self._ccheck[emul_i][i]]
+        ccheck_prior_exp = [emul_s for emul_s in emul_s_seq if
+                            'prior_exp_sam_set' in
+                            self._ccheck[emul_i][emul_s]]
         if len(ccheck_prior_exp):
             self._get_prior_exp_sam_set(emul_i, ccheck_prior_exp)
 
         # Calculate the covariance matrices of sam_set
-        ccheck_cov_mat = [i for i in range(self._n_data[emul_i]) if
-                          'cov_mat' in self._ccheck[emul_i][i]]
+        ccheck_cov_mat = [emul_s for emul_s in emul_s_seq if
+                          'cov_mat' in self._ccheck[emul_i][emul_s]]
         if len(ccheck_cov_mat):
             self._get_cov_matrix(emul_i, ccheck_cov_mat)
 
@@ -863,8 +865,7 @@ class Emulator(object):
         if 'active_par' in self._ccheck[emul_i]:
             active_par = SortedSet()
             active_par.update(*self._active_par_data[emul_i])
-            self._save_data(emul_i, None, {
-                'active_par': active_par})
+            self._save_data(emul_i, None, {'active_par': active_par})
 
         # Set current emul_i to constructed emul_i
         self._emul_i = emul_i
@@ -1471,7 +1472,7 @@ class Emulator(object):
         # If cov of par_set1 with par_set2 is requested (cov)
         else:
             # Calculate covariance between par_set1 and par_set2
-            cov = np.zeros([self._n_data[emul_i]])
+            cov = np.zeros([len(emul_s_seq)])
 
             # Check what 'method' is given
             if self._method.lower() in ('gaussian', 'full'):

@@ -2209,7 +2209,8 @@ class Pipeline(object):
         # Only controller
         if self._is_controller:
             # Construct emulator
-            self._emulator._construct_iteration(emul_i)
+            emul_s_seq = np.arange(self._emulator._n_data[emul_i])
+            self._emulator._construct_iteration(emul_i, emul_s_seq)
 
             # Save that emulator system has not been analyzed yet
             self._save_data({
