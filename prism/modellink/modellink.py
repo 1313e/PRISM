@@ -115,18 +115,21 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         ------------------
         The model data array contains the data values in the first column; the
         data errors in the second (and third) column(s); the data spaces in the
-        third (or fourth) column and, if applicable, the data index in the
-        remaining columns. If the data errors are given with one column, then
-        the data points are assumed to have a centered one sigma confidence
-        interval. If the data errors are given with two columns, then the data
-        points are assumed to have a one sigma confidence interval defined by
-        the provided lower and upper errors. The data spaces are one of five
-        strings ({'lin', 'log' or 'log_10', 'ln' or 'log_e'}) indicating in
-        which of the three value spaces (linear, log, ln) the data values are.
-        The data index is a supportive index that can be used to determine
-        which model data output needs to be given to the PRISM pipeline. It can
-        be provided as any sequence of any length for any data point. The
-        pipeline itself does not require this data index.
+        third (or fourth) column and the data index in the remaining columns.
+        If the data errors are given with one column, then the data points are
+        assumed to have a centered one sigma confidence interval. If the data
+        errors are given with two columns, then the data points are assumed to
+        have a one sigma confidence interval defined by the provided lower and
+        upper errors. The data spaces are one of five strings ({'lin', 'log' or
+        'log_10', 'ln' or 'log_e'}) indicating in which of the three value
+        spaces (linear, log, ln) the data values are.
+        The data index is a sequence of ints, floats and strings that is unique
+        for every data point. PRISM uses it to identify a data point with,
+        which is required in some cases (like MPI), while the model itself can
+        use it as a description of the operations required to extract the data
+        point from the model. It can be provided as any sequence of any length
+        for any data point. If any sequence contains a single element, it is
+        replaced by just that element.
         An example of a model data file can be found in the 'data' folder of
         the PRISM package.
 
@@ -419,8 +422,18 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             except TypeError:
                 pass
 
+            # Check if the data identifier is not an empty list
+            if(idx == []):
+                raise InputError("Data point %s has no identifier!" % (i))
+
             # Save data identifier
             self._data_idx.append(idx)
+
+        # Check if all provided data identifiers are unique
+        for i, idx in enumerate(self._data_idx):
+            if(self._data_idx.count(idx) != 1):
+                raise InputError("Data point %s does not have a unique "
+                                 "identifier!" % (i))
 
     @abc.abstractmethod
     @docstring_substitute(emul_i=std_emul_i_doc)
