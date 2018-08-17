@@ -40,7 +40,7 @@ __all__ = ['PRISM_File', 'RequestError', 'check_bool', 'check_compatibility',
            'check_neg_int', 'check_nneg_float', 'check_nneg_int',
            'check_npos_float', 'check_npos_int', 'check_nzero_float',
            'check_nzero_int', 'check_pos_float', 'check_pos_int', 'check_str',
-           'convert_str_seq', 'docstring_append', 'docstring_copy',
+           'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
            'docstring_substitute', 'import_cmaps', 'move_logger',
            'start_logger', 'aux_char_list']
 
@@ -468,6 +468,42 @@ def convert_str_seq(seq):
 
     # Return it
     return(seq)
+
+
+# Function that returns a copy of a list with all empty lists removed
+def delist(list_obj):
+    """
+    Returns a copy of `list_obj` with all empty lists removed.
+
+    Parameters
+    ----------
+    list_obj : list
+        A list object that requires its empty list elements to be removed.
+
+    Returns
+    -------
+    delisted_copy : list
+        Copy of `list_obj` with all empty lists removed.
+
+    """
+
+    # Make a copy of itself
+    try:
+        delisted_copy = list_obj.copy()
+    except AttributeError:
+        raise TypeError("Input argument 'list_obj' is not of type 'list'!")
+
+    # Remove all empty lists from this copy
+    try:
+        off_dex = len(delisted_copy)-1
+        for i, element in enumerate(reversed(delisted_copy)):
+            if(isinstance(element, list) and element == []):
+                delisted_copy.pop(off_dex-i)
+    except AttributeError:
+        raise TypeError("Input argument 'list_obj' is not of type 'list'!")
+
+    # Return the copy
+    return(delisted_copy)
 
 
 # Function to import all custom colormaps in a directory

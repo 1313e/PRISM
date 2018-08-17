@@ -46,8 +46,8 @@ from ._docstrings import (call_emul_i_doc, emul_s_seq_doc, std_emul_i_doc,
                           user_emul_i_doc, user_emul_s_doc)
 from ._internal import (PRISM_File, RequestError, check_bool, check_float,
                         check_nneg_float, check_pos_int, convert_str_seq,
-                        docstring_copy, docstring_substitute, move_logger,
-                        start_logger)
+                        delist, docstring_copy, docstring_substitute,
+                        move_logger, start_logger)
 from .emulator import Emulator
 from .projection import Projection
 
@@ -480,8 +480,8 @@ class Pipeline(object):
         par_dict = dict(zip(self._modellink._par_name, sam))
 
         # Obtain model output
-        mod_out = self._modellink.call_model(emul_i, par_dict,
-                                             self._emulator._data_idx[emul_i])
+        mod_out = self._modellink.call_model(
+            emul_i, par_dict, delist(self._emulator._data_idx[emul_i]))
 
         # Log that calling model has been finished
         if self._is_controller:
@@ -527,8 +527,8 @@ class Pipeline(object):
         sam_dict = dict(zip(self._modellink._par_name, sam_set.T))
 
         # Obtain set of model outputs
-        mod_set = self._modellink.call_model(emul_i, sam_dict,
-                                             self._emulator._data_idx[emul_i])
+        mod_set = self._modellink.call_model(
+            emul_i, sam_dict, delist(self._emulator._data_idx[emul_i]))
 
         # Log that multi-calling model has been finished
         if self._is_controller:
@@ -2002,7 +2002,7 @@ class Pipeline(object):
         -----
         Using an emulator iteration that has been (partly) constructed before,
         will finish that construction or skip construction if already finished
-        when `force` = *False; or it will delete that and all following
+        when `force` = *False*; or it will delete that and all following
         iterations, and reconstruct the specified iteration when `force` =
         *True*. Using `emul_i` = 1 and `force` = *True* is equivalent to
         reconstructing the entire emulator system.
@@ -2326,7 +2326,7 @@ class Pipeline(object):
 
             # Check if last emulator iteration is finished constructing
             if(len(self._emulator._ccheck[-1]) == 0 or
-               self._emulator._ccheck[-1] == [[]]*self._emulator._n_data[-1]):
+               delist(self._emulator._ccheck[-1]) == []):
                 ccheck = 1
             else:
                 ccheck = 0
@@ -2445,7 +2445,7 @@ class Pipeline(object):
 
             # Availability flags
             # If this iteration is fully constructed, print flags and numbers
-            if(self._emulator._ccheck[emul_i] == [[]]*n_data):
+            if(delist(self._emulator._ccheck[emul_i]) == []):
                 # Determine the number of (active) parameters
                 n_active_par = len(self._emulator._active_par[emul_i])
 
@@ -2549,7 +2549,7 @@ class Pipeline(object):
             # Print details about every model parameter in parameter space
             for i in range(n_par):
                 # Determine what string to use for the active flag
-                if(self._emulator._ccheck[emul_i] != [[]]*n_data):
+                if(delist(self._emulator._ccheck[emul_i]) != []):
                     active_str = "?"
                 elif i in self._emulator._active_par[emul_i]:
                     active_str = "*"
