@@ -884,10 +884,10 @@ class Emulator(object):
         if len(ccheck_cov_mat):
             self._get_cov_matrix(emul_i, ccheck_cov_mat)
 
-        # If MPI is used
-        if use_MPI:
-            # MPI Barrier
-            MPI.COMM_WORLD.Barrier()
+#        # If MPI is used
+#        if use_MPI:
+#            # MPI Barrier
+#            MPI.COMM_WORLD.Barrier()
 
         # If everything is done, gather the total set of active parameters
         if 'active_par' in self._ccheck[emul_i]:
@@ -1825,8 +1825,12 @@ class Emulator(object):
         self._load_data(self._emul_i)
 
         # If mock data has been used, set the ModelLink object to use it
-        if self._use_mock:
+        if self._emul_load and self._use_mock:
             self._set_mock_data()
+
+        # Send updated modellink object to workers
+        for rank in range(1, self._pipeline._size):
+            MPI.COMM_WORLD.send(self._modellink, dest=rank, tag=888+rank)
 
         # Logging
         logger.info("Finished loading emulator system.")
@@ -1889,10 +1893,6 @@ class Emulator(object):
                              "match the ModelLink subclass '%s' used for "
                              "emulator construction!"
                              % (modellink_obj._name, modellink_loaded))
-
-        # Send updated modellink object to workers
-        for rank in range(1, self._pipeline._size):
-            MPI.COMM_WORLD.send(self._modellink, dest=rank, tag=888+rank)
 
         # Logging
         logger.info("ModelLink object set to '%s'." % (self._modellink._name))
