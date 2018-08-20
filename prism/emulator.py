@@ -1824,6 +1824,10 @@ class Emulator(object):
         # Load emulator data
         self._load_data(self._emul_i)
 
+        # If mock data has been used, set the ModelLink object to use it
+        if self._use_mock:
+            self._set_mock_data()
+
         # Logging
         logger.info("Finished loading emulator system.")
 
@@ -1873,10 +1877,6 @@ class Emulator(object):
                         "subclass used for emulator construction.")
             # Set ModelLink object for Emulator
             self._modellink = modellink_obj
-
-            # If mock data has been used, set the ModelLink object to use it
-            if self._use_mock:
-                self._set_mock_data()
 
             # Set ModelLink object for Pipeline
             self._pipeline._modellink = self._modellink
@@ -1982,7 +1982,7 @@ class Emulator(object):
                     try:
                         par_i = [self._modellink._par_name.index(par.decode(
                                 'utf-8')) for par in group.attrs['active_par']]
-                        self._active_par.append(par_i)
+                        self._active_par.append(np.array(par_i))
                     except KeyError:
                         ccheck.append('active_par')
 
@@ -2050,7 +2050,7 @@ class Emulator(object):
                             par_i = [self._modellink._par_name.index(
                                 par.decode('utf-8')) for par in
                                 data_set.attrs['active_par_data']]
-                            active_par_data.append(par_i)
+                            active_par_data.append(np.array(par_i))
                         except KeyError:
                             active_par_data.append([])
                             ccheck_s.append('active_par_data')
