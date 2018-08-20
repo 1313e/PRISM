@@ -150,6 +150,16 @@ class Emulator(object):
         return(self._n_sam)
 
     @property
+    def n_emul_s(self):
+        """
+        Number of active and passive emulator systems in the specified emulator
+        iteration.
+
+        """
+
+        return(self._n_emul_s)
+
+    @property
     def method(self):
         """
         String indicating which emulator method to use.
@@ -193,6 +203,16 @@ class Emulator(object):
         """
 
         return(self._poly_order)
+
+    @property
+    def active_emul_s(self):
+        """
+        List containing the indices of the emulator systems that are active in
+        the specified emulator iteration.
+
+        """
+
+        return(self._active_emul_s)
 
     # Active Parameters
     @property
@@ -702,38 +722,45 @@ class Emulator(object):
         if(emul_i != 1):
             self._cleanup_emul_files(emul_i)
 
-        # If reload is True and emul_i is not 1, reload emulator systems
-        if(emul_i != 1 and reload):
+        # If iteration has ever been prepped before, reload emulator systems
+        if(len(self._ccheck) != emul_i):
             # Reload emulator data
             self._load_data(self._emul_i)
 
         # Open hdf5-file
         with PRISM_File('r+', None) as file:
             # Make group for emulator iteration
-            file.create_group('%s' % (emul_i))
+            group = file.create_group('%s' % (emul_i))
 
             # Save the number of data points
-            file['%s' % (emul_i)].attrs['n_data'] = self._modellink._n_data
+            group.attrs['n_data'] = self._modellink._n_data
             self._n_data.append(self._modellink._n_data)
 
             # Create an empty data set for statistics as attributes
-            file.create_dataset('%s/statistics' % (emul_i),
-                                data=h5py.Empty(float))
+            group.create_dataset('statistics', data=h5py.Empty(float))
 
             # Assign data points to emulator systems
             data_to_emul_s = self._assign_data_idx(emul_i)
 
             # Calculate total number of active and passive emulator systems
             n_emul = max(max(data_to_emul_s)+1, len(self._data_idx[emul_i-1]))
+            group.attrs['n_emul_s'] = n_emul
+            self._n_emul_s.append(n_emul)
 
             # Create empty list of lists for storing emulator system data
-            lists = [[] for _ in range(n_emul)]
+            lists = [[] for _ in range(self._n_emul_s[-1])]
 
             # Create empty lists for the four data arrays
             data_val = lists.copy()
             data_err = lists.copy()
             data_spc = lists.copy()
             data_idx = lists.copy()
+
+            # Create emulator system specific ccheck list
+            ccheck_s = ['active_par_data', 'cov_mat', 'prior_exp_sam_set']
+            if self._method.lower() in ('regression', 'full'):
+                ccheck_s.append('regression')
+            ccheck = lists.copy()
 
             # Create groups for all data points
             for i, emul_s in enumerate(data_to_emul_s):
@@ -770,9 +797,11 @@ class Emulator(object):
                     data_idx[emul_s] = self._modellink._data_idx[i]
 
                     # Create external link between file_i and master file
-                    file['%s/emul_%s' % (emul_i, emul_s)] =\
-                        h5py.ExternalLink(path.basename(file_i.filename),
-                                          '%s' % (emul_i))
+                    group['emul_%s' % (emul_s)] = h5py.ExternalLink(
+                        path.basename(file_i.filename), '%s' % (emul_i))
+
+                    # Update construct check list
+                    ccheck[emul_s] = ccheck_s.copy()
 
         # Save the sorted data_to_emul_s to file and memory
         self._active_emul_s.append(sorted(data_to_emul_s))
@@ -784,6 +813,7 @@ class Emulator(object):
         self._data_idx.append(data_idx)
 
         # Append empty list of lists to all emulator data arrays
+        self._mod_set.append(lists.copy())
         self._active_par_data.append(lists.copy())
         self._cov_mat_inv.append(lists.copy())
         self._prior_exp_sam_set.append(lists.copy())
@@ -794,13 +824,7 @@ class Emulator(object):
         if self._use_regr_cov:
             self._poly_coef_cov.append(lists.copy())
 
-        # Create emulator system specific ccheck list
-        ccheck_s = ['active_par_data', 'cov_mat', 'prior_exp_sam_set']
-        if self._method.lower() in ('regression', 'full'):
-            ccheck_s.append('regression')
-
         # Update construct check list
-        ccheck = [ccheck_s.copy() for _ in range(self._modellink._n_data)]
         ccheck.append('active_par')
         ccheck.append('mod_real_set')
         self._ccheck.append(ccheck)
@@ -869,7 +893,8 @@ class Emulator(object):
         if 'active_par' in self._ccheck[emul_i]:
             active_par = SortedSet()
             active_par.update(*self._active_par_data[emul_i])
-            self._save_data(emul_i, None, {'active_par': active_par})
+            self._save_data(emul_i, None, {
+                'active_par': np.array(list(active_par))})
 
         # Set current emul_i to constructed emul_i
         self._emul_i = emul_i
@@ -1035,7 +1060,8 @@ class Emulator(object):
             active_par_data = SortedSet()
 
             # Check if previously active parameters must be active again
-            if(self._pipeline._freeze_active_par and emul_i != 1 and
+            if(self._pipeline._freeze_active_par and
+               emul_s in self._active_emul_s[emul_i-1] and
                self._data_idx[emul_i-1][emul_s] ==
                self._data_idx[emul_i][emul_s]):
                 active_par_data.update(self._active_par_data[emul_i-1][emul_s])
@@ -1914,6 +1940,7 @@ class Emulator(object):
 
         self._ccheck = [[]]
         self._active_emul_s = [[]]
+        self._n_emul_s = [[]]
 
         # If no file has been provided
         if(emul_i == 0 or self._emul_load == 0):
@@ -1962,20 +1989,37 @@ class Emulator(object):
                     prior_exp_sam_set = []
                     active_par_data = []
                     self._n_data.append(group.attrs['n_data'])
+                    self._n_emul_s.append(group.attrs['n_emul_s'])
                     data_val = []
                     data_err = []
                     data_spc = []
                     data_idx = []
 
-                    # Check which emulator systems are present
-                    self._active_emul_s.append(
-                        sorted([int(key[5:]) for key in group.keys() if
-                                key[:5] == 'emul_']))
-                    for j in self._active_emul_s[-1]:
+                    # Check which emulator systems are active
+                    self._active_emul_s.append([])
+                    for j in range(self._n_emul_s[-1]):
                         # Create empty construct check list for this system
                         ccheck_s = []
 
-                        data_set = group['emul_%s' % (j)]
+                        # Try to access the emulator system
+                        try:
+                            data_set = group['emul_%s' % (j)]
+                        # If it does not exist, it was passive
+                        except KeyError:
+                            # Add empty lists for all emulator system data
+                            mod_set.append([])
+                            cov_mat_inv.append([])
+                            prior_exp_sam_set.append([])
+                            active_par_data.append([])
+                            data_val.append([])
+                            data_err.append([])
+                            data_spc.append([])
+                            data_idx.append([])
+                            ccheck.insert(j, ccheck_s)
+                            continue
+                        # If it does exist, add emul_s to list of active emul_s
+                        else:
+                            self._active_emul_s[-1].append(j)
 
                         # Check if mod_set is available
                         try:
@@ -2036,8 +2080,8 @@ class Emulator(object):
                         # Add ccheck_s to ccheck
                         ccheck.insert(j, ccheck_s)
 
-                    if 'mod_real_set' not in ccheck:
-                        self._mod_set.append(mod_set)
+                    # Add all read-in data to their respective places
+                    self._mod_set.append(mod_set)
                     self._cov_mat_inv.append(cov_mat_inv)
                     self._prior_exp_sam_set.append(prior_exp_sam_set)
                     self._active_par_data.append(active_par_data)
@@ -2046,6 +2090,7 @@ class Emulator(object):
                     self._data_spc.append(data_spc)
                     self._data_idx.append(data_idx)
 
+                    # If regression is used, also read in regression data
                     if self._method.lower() in ('regression', 'full'):
                         rsdl_var = []
                         poly_coef = []
@@ -2053,8 +2098,20 @@ class Emulator(object):
                             poly_coef_cov = []
                         poly_powers = []
                         poly_idx = []
-                        for j in self._active_emul_s[-1]:
-                            data_set = group['emul_%s' % (j)]
+                        for j in range(self._n_emul_s[-1]):
+                            # Try to access the emulator system
+                            try:
+                                data_set = group['emul_%s' % (j)]
+                            # If it does not exist, it was passive
+                            except KeyError:
+                                # Add empty lists for all regression data
+                                rsdl_var.append([])
+                                poly_coef.append([])
+                                if self._use_regr_cov:
+                                    poly_coef_cov.append([])
+                                poly_powers.append([])
+                                poly_idx.append([])
+                                continue
 
                             # Check if regression variables are available
                             try:
@@ -2166,13 +2223,13 @@ class Emulator(object):
                     self._sam_set.append(data[0])
                     self._n_sam.append(np.shape(data[0])[0])
 
-                    for i in self._active_emul_s[emul_i]:
-                        data_set = file['%s/emul_%s' % (emul_i, i)]
+                    for i, emul_s in enumerate(self._active_emul_s[emul_i]):
+                        data_set = file['%s/emul_%s' % (emul_i, emul_s)]
                         data_set['sam_set'] =\
                             h5py.ExternalLink(path.basename(file.filename),
                                               '%s/sam_set' % (emul_i))
                         data_set.create_dataset('mod_set', data=data[1][i])
-                    self._mod_set.append(data[1])
+                        self._mod_set[emul_i][emul_s] = data[1][i]
 
                     file['%s' % (emul_i)].attrs['use_ext_real_set'] =\
                         bool(data[2])

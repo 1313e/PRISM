@@ -901,7 +901,6 @@ class Projection(object):
 
         # Iterate over all samples in the hcube
         total = proj_hcube.shape[0]*self._depth
-        emul_s_seq = list(range(self._emulator._n_data[self._emul_i]))
         with tqdm(desc="Analyzing hypercube ", total=proj_hcube.shape[0],
                   unit='gp') as pbar:
 
@@ -910,8 +909,7 @@ class Projection(object):
                 # Analyze grid_point
                 impl_check, impl_cut =\
                     self._pipeline._analyze_sam_set(self, self._emul_i,
-                                                    emul_s_seq, grid_point,
-                                                    *exec_code)
+                                                    grid_point, *exec_code)
 
                 # If a grid point has been checked, save lowest impl and impl
                 # line-of-sight

@@ -9,16 +9,16 @@ The PRISM HDF5-file contains the following data:
 - Every emulator iteration has its own data group with the iteration number as its name. This data group stores all data/information specific to that iteration.
 
 - An iteration data group ('i') contains:
-  - Attributes (8): Describe the general properties and results of this iteration, including the implausibility cut-off parameters; the number of emulated data points, emulator evaluation samples, plausible samples and model realization samples; and bools stating whether this emulator iteration contains plausible regions and used an external model realization set;
+  - Attributes (8): Describe the general properties and results of this iteration, including the implausibility cut-off parameters; the number of emulated data points, emulator systems, emulator evaluation samples, plausible samples and model realization samples; and bools stating whether this emulator iteration contains plausible regions and used an external model realization set;
   - 'active_par': The internal indices of the model parameters that are active in this iteration;
-  - 'data_point_n': The data group that contains all data for a specific emulator system in this iteration. See below for its contents;
+  - 'emul_n': The data group that contains all data for a specific emulator system in this iteration. The value of 'n' indicates which emulator system it is, not the data point. See below for its contents;
   - 'impl_sam': The set of emulator evaluation samples that survived the implausibility checks and will be used to construct the next iteration;
   - 'proj_hcube': The data group that contains all data for the (created) projections for this iteration. See below for its contents;
   - 'sam_set': The set of model realization samples that were used to construct this iteration. In every iteration after the first, this is the 'impl_sam' of the previous iteration;
   - 'statistics': An empty data set that stores several different types of statistics as its attributes, including the size of the MPI communicator during various construction steps; the average evaluation rate/time of the emulator and model; the total time cost of most construction steps; and the percentage of parameter space that is still plausible within the iteration.
 
-- An emulator system data group ('i/data_point_n') contains:
-  - Attributes (variable): List the details about the model comparison data point used in this emulator system, including the provided data value; data errors; data value space; data identifiers; the index of the emulator system of this data point in the previous iteration (-1 if it did not exist); and the regression score and residual variance if regression was used;
+- An emulator system data group ('i/emul_n') contains:
+  - Attributes (variable): List the details about the model comparison data point used in this emulator system, including the provided data value; data errors; data value space; data identifiers; and the regression score and residual variance if regression was used;
   - 'active_par_data': The internal indices of the model parameters that are active in this emulator system;
   - 'cov_mat': The pre-calculated covariance matrix of all model evaluation samples in this emulator system. This data set is never used in PRISM and stored solely for user-convenience;
   - 'cov_mat_inv': The pre-calculated inverse of 'cov_mat';

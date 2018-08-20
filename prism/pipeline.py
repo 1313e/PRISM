@@ -43,7 +43,7 @@ from sortedcontainers import SortedSet
 
 # PRISM imports
 from ._docstrings import (call_emul_i_doc, emul_s_seq_doc, std_emul_i_doc,
-                          user_emul_i_doc, user_emul_s_doc)
+                          user_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_bool, check_float,
                         check_nneg_float, check_pos_int, convert_str_seq,
                         delist, docstring_copy, docstring_substitute,
@@ -1442,9 +1442,8 @@ class Pipeline(object):
         # Obtain md variances
         # Try to use the user-defined md variances
         try:
-            md_var =\
-                self._modellink.get_md_var(emul_i,
-                                           self._emulator._data_idx[emul_i])
+            md_var = self._modellink.get_md_var(
+                emul_i, delist(self._emulator._data_idx[emul_i]))
 
         # If it was not user-defined, use a default value
         except NotImplementedError:
@@ -1456,8 +1455,9 @@ class Pipeline(object):
             md_var = []
 
             # Loop over all data points and check their values spaces
-            for data_val, data_spc in zip(self._emulator._data_val[emul_i],
-                                          self._emulator._data_spc[emul_i]):
+            for data_val, data_spc in\
+                zip(delist(self._emulator._data_val[emul_i]),
+                    delist(self._emulator._data_spc[emul_i])):
                 # If value space is linear, take 1/6ths of the data value
                 if(data_spc == 'lin'):
                     md_var.append([pow(data_val/6, 2)]*2)
@@ -1504,7 +1504,7 @@ class Pipeline(object):
                 check_nneg_float(value[1], 'upper_md_var[%s]' % (i))
 
         # Return it
-        return(md_var[emul_s_seq])
+        return(md_var)
 
     # This function completes the list of implausibility cut-offs
     @staticmethod
@@ -1552,7 +1552,7 @@ class Pipeline(object):
                                                 impl_cut[i-1]))
 
         # Get the index identifying where the first real impl_cut is
-        for i, impl in enumerate(impl_cut):
+        for i, impl in enumerate(impl_cut[:obj._emulator._n_data[-1]]):
             if(impl != 0):
                 cut_idx = i
                 break
@@ -1769,9 +1769,9 @@ class Pipeline(object):
         return(ext_sam_set, ext_mod_set.T)
 
     # This function analyzes the emulator for given sam_set using code snippets
-    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _analyze_sam_set(self, obj, emul_i, emul_s_seq, sam_set, pre_code,
-                         loop_code, post_code):
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _analyze_sam_set(self, obj, emul_i, sam_set, pre_code, loop_code,
+                         post_code):
         """
         Analyzes a provided set of emulator evaluation samples `sam_set` at a
         given emulator iteration `emul_i`, using the impl_cut values given in
@@ -1786,7 +1786,6 @@ class Pipeline(object):
             Instance of the :class:`~Pipeline` class or :class:`~Projection`
             class.
         %(emul_i)s
-        %(emul_s_seq)s
         sam_set : 2D :obj:`~numpy.ndarray` object
             Array containing model parameter value sets to be evaluated in the
             emulator system.
@@ -1831,10 +1830,12 @@ class Pipeline(object):
                 # Analyze par_set in every emulator iteration
                 for i in range(1, emul_i+1):
                     # Evaluate par_set
-                    adj_val = self._emulator._evaluate(i, emul_s_seq, par_set)
+                    adj_val = self._emulator._evaluate(
+                        i, self._emulator._active_emul_s[i], par_set)
 
                     # Calculate the univariate implausibility value
-                    uni_impl_val = self._get_uni_impl(i, emul_s_seq, *adj_val)
+                    uni_impl_val = self._get_uni_impl(
+                        i, self._emulator._active_emul_s[i], *adj_val)
 
                     # Check if par_set is plausible in this iteration
                     impl_check_val, impl_cut_val =\
@@ -1922,9 +1923,8 @@ class Pipeline(object):
             start_time2 = time()
 
             # Analyze eval_sam_set
-            emul_s_seq = np.arange(self._emulator._n_data[emul_i])
-            impl_check = self._analyze_sam_set(self, emul_i, emul_s_seq,
-                                               eval_sam_set, *exec_code)
+            impl_check = self._analyze_sam_set(self, emul_i, eval_sam_set,
+                                               *exec_code)
 
             # Obtain some timers
             end_time = time()
@@ -2209,7 +2209,7 @@ class Pipeline(object):
         # Only controller
         if self._is_controller:
             # Construct emulator
-            emul_s_seq = np.arange(self._emulator._n_data[emul_i])
+            emul_s_seq = self._emulator._active_emul_s[emul_i]
             self._emulator._construct_iteration(emul_i, emul_s_seq)
 
             # Save that emulator system has not been analyzed yet
@@ -2403,6 +2403,9 @@ class Pipeline(object):
             # Obtain number of data points
             n_data = self._emulator._n_data[emul_i]
 
+            # Obtain number of emulator systems
+            n_emul_s = self._emulator._n_emul_s[emul_i]
+
             # Set width of detail names
             width = 31
 
@@ -2508,7 +2511,7 @@ class Pipeline(object):
                     "No" if 'mod_real_set' in ccheck else "Yes"))
 
                 # Check if all active parameters have been determined
-                ccheck_i = [i for i in range(n_data) if
+                ccheck_i = [i for i in range(n_emul_s) if
                             'active_par_data' in ccheck[i]]
                 print("  - {0: <{1}}\t{2}".format(
                     "'active_par'?", width-4, "No (%s)" % (ccheck_i) if
@@ -2516,21 +2519,22 @@ class Pipeline(object):
 
                 # Check if all regression processes have been done
                 if self._emulator._method.lower() in ('regression', 'full'):
-                    ccheck_i = [i for i in range(n_data) if
+                    ccheck_i = [i for i in range(n_emul_s) if
                                 'regression' in ccheck[i]]
                     print("  - {0: <{1}}\t{2}".format(
                         "'regression'?", width-4, "No (%s)" % (ccheck_i) if
                         len(ccheck_i) else "Yes"))
 
                 # Check if all prior_exp_sam_sets have been determined
-                ccheck_i = [i for i in range(n_data) if
+                ccheck_i = [i for i in range(n_emul_s) if
                             'prior_exp_sam_set' in ccheck[i]]
                 print("  - {0: <{1}}\t{2}".format(
                     "'prior_exp_sam_set'?", width-4, "No (%s)" % (ccheck_i) if
                     len(ccheck_i) else "Yes"))
 
                 # Check if all covariance matrices have been determined
-                ccheck_i = [i for i in range(n_data) if 'cov_mat' in ccheck[i]]
+                ccheck_i = [i for i in range(n_emul_s) if
+                            'cov_mat' in ccheck[i]]
                 print("  - {0: <{1}}\t{2}".format(
                     "'cov_mat'?", width-4, "No (%s)" % (ccheck_i) if
                     len(ccheck_i) else "Yes"))
@@ -2580,8 +2584,8 @@ class Pipeline(object):
 
     # This function allows the user to evaluate a given sam_set in the emulator
     # TODO: Plot emul_i_stop for large LHDs, giving a nice mental statistic
-    @docstring_substitute(emul_i=user_emul_i_doc, emul_s=user_emul_s_doc)
-    def evaluate(self, sam_set, emul_i=None, emul_s=None):
+    @docstring_substitute(emul_i=user_emul_i_doc)
+    def evaluate(self, sam_set, emul_i=None):
         """
         Evaluates the given model parameter sample set `sam_set` at given
         emulator iteration `emul_i`.
@@ -2597,7 +2601,6 @@ class Pipeline(object):
         Optional
         --------
         %(emul_i)s
-        %(emul_s)s
 
         Returns (if ndim(sam_set) > 1)
         ------------------------------
@@ -2653,12 +2656,6 @@ class Pipeline(object):
             # Get emulator iteration
             emul_i = self._emulator._get_emul_i(emul_i)
 
-            # Get emulator system sequence
-            if emul_s is None:
-                emul_s_seq = np.arange(self._emulator._n_data[emul_i])
-            else:
-                emul_s_seq = np.array(emul_s, ndmin=1)
-
             # Make sure that sam_set is a NumPy array
             sam_set = np.array(sam_set)
 
@@ -2709,8 +2706,7 @@ class Pipeline(object):
 
             # Analyze sam_set
             adj_exp_val, adj_var_val, uni_impl_val, emul_i_stop, impl_check = \
-                self._analyze_sam_set(self, emul_i, emul_s_seq, sam_set,
-                                      *exec_code)
+                self._analyze_sam_set(self, emul_i, sam_set, *exec_code)
 
             # Do more logging
             logger.info("Finished evaluating emulator system.")
