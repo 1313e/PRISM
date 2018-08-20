@@ -1041,6 +1041,7 @@ class Pipeline(object):
                 # Read in the samples that survived the implausibility check
                 self._prc = int(emul.attrs['prc'])
                 self._impl_sam = emul['impl_sam'][()]
+                self._impl_sam.dtype = float
 
     # This function saves pipeline data to hdf5
     def _save_data(self, data_dict):
@@ -1109,9 +1110,12 @@ class Pipeline(object):
                                             data=data)
                         self._n_impl_sam.append(n_impl_sam)
                     else:
+                        dtype = [(n, float) for n in self._modellink._par_name]
+                        data_c = data.copy()
+                        data_c.dtype = dtype
                         del file['%s/impl_sam' % (emul_i)]
                         file.create_dataset('%s/impl_sam' % (emul_i),
-                                            data=data)
+                                            data=data_c)
                     finally:
                         self._prc = prc
                         self._impl_sam = data

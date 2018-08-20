@@ -1818,11 +1818,11 @@ class Emulator(object):
             # Read all emulator parameters from the hdf5-file
             modellink_loaded = self._retrieve_parameters()
 
-        # Load emulator data
-        self._load_data(self._emul_i)
-
         # Link the provided ModelLink object to the pipeline
         self._set_modellink(modellink_obj, modellink_loaded)
+
+        # Load emulator data
+        self._load_data(self._emul_i)
 
         # Logging
         logger.info("Finished loading emulator system.")
@@ -1974,12 +1974,15 @@ class Emulator(object):
                     try:
                         self._n_sam.append(group.attrs['n_sam'])
                         self._sam_set.append(group['sam_set'][()])
+                        self._sam_set[-1].dtype = float
                     except KeyError:
                         ccheck.append('mod_real_set')
 
                     # Check if active_par is available
                     try:
-                        self._active_par.append(group['active_par'][()])
+                        par_i = [self._modellink._par_name.index(par.decode(
+                                'utf-8')) for par in group.attrs['active_par']]
+                        self._active_par.append(par_i)
                     except KeyError:
                         ccheck.append('active_par')
 
@@ -2044,8 +2047,10 @@ class Emulator(object):
 
                         # Check if active_par_data is available
                         try:
-                            active_par_data.append(
-                                data_set['active_par_data'][()])
+                            par_i = [self._modellink._par_name.index(
+                                par.decode('utf-8')) for par in
+                                data_set.attrs['active_par_data']]
+                            active_par_data.append(par_i)
                         except KeyError:
                             active_par_data.append([])
                             ccheck_s.append('active_par_data')
@@ -2121,6 +2126,7 @@ class Emulator(object):
                                     poly_coef_cov.append(
                                         data_set['poly_coef_cov'][()])
                                 poly_powers.append(data_set['poly_powers'][()])
+                                poly_powers[-1].dtype = 'int64'
                                 poly_idx.append(data_set['poly_idx'][()])
                             except KeyError:
                                 rsdl_var.append([])
@@ -2197,14 +2203,19 @@ class Emulator(object):
                 # Check what data keyword has been provided
                 # ACTIVE PARAMETERS
                 if(keyword == 'active_par'):
-                    file.create_dataset('%s/active_par' % (emul_i), data=data)
+                    par_names = [self._modellink._par_name[i].encode(
+                        'ascii', 'ignore') for i in data]
+                    data_set = file['%s' % (emul_i)]
+                    data_set.attrs['active_par'] = par_names
                     self._active_par.append(data)
                     self._ccheck[emul_i].remove('active_par')
 
                 # ACTIVE PARAMETERS DATA
                 elif(keyword == 'active_par_data'):
+                    par_names = [self._modellink._par_name[i].encode(
+                        'ascii', 'ignore') for i in data]
                     data_set = file['%s' % (emul_i)]
-                    data_set.create_dataset('active_par_data', data=data)
+                    data_set.attrs['active_par_data'] = par_names
                     self._active_par_data[emul_i][emul_s] = data
                     self._ccheck[emul_i][emul_s].remove('active_par_data')
 
@@ -2218,7 +2229,10 @@ class Emulator(object):
 
                 # MOD_REAL_SET
                 elif(keyword == 'mod_real_set'):
-                    file.create_dataset('%s/sam_set' % (emul_i), data=data[0])
+                    dtype = [(n, float) for n in self._modellink._par_name]
+                    data_c = data[0].copy()
+                    data_c.dtype = dtype
+                    file.create_dataset('%s/sam_set' % (emul_i), data=data_c)
                     file['%s' % (emul_i)].attrs['n_sam'] = np.shape(data[0])[0]
                     self._sam_set.append(data[0])
                     self._n_sam.append(np.shape(data[0])[0])
@@ -2245,10 +2259,15 @@ class Emulator(object):
                 # REGRESSION
                 elif(keyword == 'regression'):
                     data_set = file['%s' % (emul_i)]
+                    names = [self._modellink._par_name[par] for par in
+                             self._active_par_data[emul_i][emul_s]]
+                    dtype = [(n, 'int64') for n in names]
+                    data_c = data[3].copy()
+                    data_c.dtype = dtype
                     data_set.attrs['rsdl_var'] = data[0]
                     data_set.attrs['regr_score'] = data[1]
                     data_set.create_dataset('poly_coef', data=data[2])
-                    data_set.create_dataset('poly_powers', data=data[3])
+                    data_set.create_dataset('poly_powers', data=data_c)
                     data_set.create_dataset('poly_idx', data=data[4])
                     self._rsdl_var[emul_i][emul_s] = data[0]
                     self._poly_coef[emul_i][emul_s] = data[2]
