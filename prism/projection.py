@@ -73,6 +73,13 @@ class Projection(object):
         self._emulator = self._pipeline._emulator
         self._modellink = self._pipeline._modellink
 
+        # Copy MPI properties to this instance
+        self._comm = self._pipeline._comm
+        self._size = self._pipeline._size
+        self._rank = self._pipeline._rank
+        self._is_controller = self._pipeline._is_controller
+        self._is_worker = self._pipeline._is_worker
+
         # Add hdf5_file attribute to PRISM_File
         PRISM_File._hdf5_file = self._pipeline._hdf5_file
 

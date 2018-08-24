@@ -32,12 +32,6 @@ from e13tools import InputError
 from e13tools.math import diff, nearest_PD
 import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
-try:
-    from mpi4py import MPI
-except ImportError:
-    use_MPI = 0
-else:
-    use_MPI = 1
 import numpy as np
 from numpy.linalg import inv, norm
 # TODO: Do some research on sklearn.linear_model.SGDRegressor
@@ -92,6 +86,13 @@ class Emulator(object):
 
         # Save the provided pipeline object
         self._pipeline = pipeline_obj
+
+        # Copy MPI properties to this instance
+        self._comm = self._pipeline._comm
+        self._size = self._pipeline._size
+        self._rank = self._pipeline._rank
+        self._is_controller = self._pipeline._is_controller
+        self._is_worker = self._pipeline._is_worker
 
         # Add hdf5_file attribute to PRISM_File
         PRISM_File._hdf5_file = self._pipeline._hdf5_file
@@ -448,8 +449,8 @@ class Emulator(object):
         # Check if mock data is requested
         if self._use_mock:
             # If so, let workers know to call _get_mock_data() as well
-            for rank in range(1, self._pipeline._size):
-                MPI.COMM_WORLD.send(1, dest=rank, tag=999+rank)
+            for rank in range(1, self._size):
+                self._comm.send(1, dest=rank, tag=999+rank)
 
             # Temporarily save ModelLink properties as Emulator properties
             # This is to make sure that one version of get_md_var() is required
@@ -468,8 +469,8 @@ class Emulator(object):
                 file.attrs['mock_par'] = self._modellink._par_est
         else:
             # If not, let workers know
-            for rank in range(1, self._pipeline._size):
-                MPI.COMM_WORLD.send(0, dest=rank, tag=999+rank)
+            for rank in range(1, self._size):
+                self._comm.send(0, dest=rank, tag=999+rank)
 
         # Load relevant data
         self._load_data(0)
@@ -535,6 +536,7 @@ class Emulator(object):
         logger.info("Finished cleaning up emulator HDF5-files.")
 
     # This function matches data points with those in a previous iteration
+    # TODO: Give every unique data_idx its own emul_s?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _assign_data_idx(self, emul_i):
         """
@@ -649,6 +651,122 @@ class Emulator(object):
 
         # Return data_to_emul_s and n_emul_s
         return(data_to_emul_s, n_emul_s)
+
+    # This function assigns emulator systems to the available cores/processes
+    # TODO: Might want to include the size (n_sam) of every system as well
+    # TODO: May also want to include low-level MPI distribution
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _assign_emul_s(self, emul_i):
+        """
+        Determines which emulator systems (files) should be assigned to which
+        core in order to balance the number of active emulator systems on every
+        core for every iteration up to the provided emulator iteration
+        `emul_i`. If multiple choices can achieve this, the emulator systems
+        are automatically spread out such that the total number of active
+        emulator systems on a single core is also balanced as much as possible.
+
+        Parameters
+        ----------
+        %(emul_i)s
+
+        Returns
+        -------
+        emul_s_to_core : list of lists of int
+            A list containing the emulator systems that need to be assigned to
+            every core available in the current MPI communicator.
+
+        Notes
+        -----
+        Currently, this function only uses high-level MPI. Additional speed can
+        be obtained by also implementing low-level MPI, which will potentially
+        be done in the future.
+
+        """
+
+        # Determine number of active emulator systems in each iteration
+        n_active_emul_s = [[i, len(active_emul_s)] for i, active_emul_s in
+                           enumerate(self._active_emul_s[:emul_i+1])]
+        iter_size = sorted(n_active_emul_s, key=lambda x: x[1])
+
+        # Create empty emul_s_to_core list
+        emul_s_to_core = [[] for _ in range(self._size)]
+
+        # Create empty Counter for total number of assigned emulator systems
+        core_counter = Counter()
+
+        # Create empty Counter for total number of emulator system occurances
+        emul_s_counter = Counter()
+
+        # Determine how many times a specific emulator system is active
+        for active_emul_s in self._active_emul_s[:emul_i+1]:
+            emul_s_counter.update(active_emul_s)
+
+        # Set the number of assigned emulator systems for each core to zero
+        for rank in range(self._size):
+            core_counter[rank] = 0
+
+        # Create empty list holding all assigned emulator systems
+        emul_s_chosen = []
+
+        # Loop over all iterations, from smallest to largest
+        for i, size in iter_size:
+            # Set the number of assigned systems in this iteration to zero
+            iter_core_counter = [0 for _ in range(self._size)]
+
+            # Create empty Counter for number of system occurances that are
+            # also in this iteration
+            iter_emul_s_counter = Counter()
+
+            # Fill that counter with emulator systems that are not assigned yet
+            for emul_s in self._active_emul_s[i]:
+                # If this emulator system is not assigned yet, copy its size
+                if emul_s not in emul_s_chosen:
+                    iter_emul_s_counter[emul_s] = emul_s_counter[emul_s]
+
+                # Check if certain emulator systems have already been assigned
+                for j, emul_s_list in enumerate(emul_s_to_core):
+                    iter_core_counter[j] += emul_s_list.count(emul_s)
+
+            # Set the minimum number of assigned systems for a core to 0
+            min_count = 0
+
+            # While not all emulator systems in this iteration are assigned
+            while(sum(iter_core_counter) != size):
+                # Determine cores that have the minimum number of assignments
+                min_cores = [j for j, num in enumerate(iter_core_counter) if(
+                            num == min_count)]
+
+                # If no core has this minimum size, increase it by 1
+                if(len(min_cores) == 0):
+                    min_count += 1
+
+                # If one core has this number, assign system with lowest number
+                # of occurances to it and remove it from the list
+                elif(len(min_cores) == 1):
+                    core = min_cores[0]
+                    emul_s, emul_size = iter_emul_s_counter.most_common()[-1]
+                    core_counter[core] += emul_size
+                    emul_s_chosen.append(emul_s)
+                    emul_s_to_core[core].append(emul_s)
+                    iter_core_counter[core] += 1
+                    iter_emul_s_counter.pop(emul_s)
+                    min_count += 1
+
+                # If more than one core has this number, determine the core
+                # that has the lowest total number of assigned systems and
+                # assign the system with the highest number of occurances to it
+                else:
+                    emul_s, emul_size = iter_emul_s_counter.most_common()[0]
+                    core_sizes = [[j, core_counter[j]] for j in min_cores]
+                    core_lowest = min(core_sizes, key=lambda x: x[1])[0]
+                    core_counter[core_lowest] += emul_size
+                    emul_s_chosen.append(emul_s)
+                    emul_s_to_core[core_lowest].append(emul_s)
+                    iter_core_counter[core_lowest] += 1
+                    iter_emul_s_counter.pop(emul_s)
+
+        # Return emul_s_to_core
+        return(emul_s_to_core)
 
     # Prepares the emulator for a new iteration
     # HINT: Should _create_new_emulator be combined with this method?
@@ -907,10 +1025,8 @@ class Emulator(object):
         if len(ccheck_cov_mat):
             self._get_cov_matrix(emul_i, ccheck_cov_mat)
 
-#        # If MPI is used
-#        if use_MPI:
-#            # MPI Barrier
-#            MPI.COMM_WORLD.Barrier()
+#        # MPI Barrier
+#        self._comm.Barrier()
 
         # If everything is done, gather the total set of active parameters
         if 'active_par' in self._ccheck[emul_i]:
@@ -925,8 +1041,7 @@ class Emulator(object):
         # Save time difference and communicator size
         self._pipeline._save_statistics(emul_i, {
             'emul_construct_time': ['%.2f' % (time()-start_time), 's'],
-            'MPI_comm_size_cons': ['%s' % (self._pipeline._size if use_MPI
-                                           else '-'), '']})
+            'MPI_comm_size_cons': ['%s' % (self._size), '']})
 
     # This is function 'E_D(f(x'))'
     # This function gives the adjusted emulator expectation value back
@@ -1852,8 +1967,8 @@ class Emulator(object):
             self._set_mock_data()
 
         # Send updated modellink object to workers
-        for rank in range(1, self._pipeline._size):
-            MPI.COMM_WORLD.send(self._modellink, dest=rank, tag=888+rank)
+        for rank in range(1, self._size):
+            self._comm.send(self._modellink, dest=rank, tag=888+rank)
 
         # Logging
         logger.info("Finished loading emulator system.")
