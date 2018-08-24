@@ -27,6 +27,7 @@ from time import time
 import sys
 
 # Package imports
+from collections import Counter
 from e13tools import InputError
 from e13tools.math import diff, nearest_PD
 import h5py
@@ -540,7 +541,8 @@ class Emulator(object):
         Determines the emulator system each data point in the provided emulator
         iteration `emul_i` should be assigned to, in order to make sure that
         recurring data points have the same emulator system number as in the
-        previous emulator iteration.
+        previous emulator iteration. If multiple options are possible, data
+        points are assigned such to spread them as much as possible.
 
         Parameters
         ----------
@@ -551,6 +553,9 @@ class Emulator(object):
         data_to_emul_s : list of int
             The number of the emulator system that each data point should be
             assigned to.
+        n_emul_s : int
+            The total number of active and passive emulator systems there will
+            be in the provided emulator iteration.
 
         Examples
         --------
@@ -561,8 +566,8 @@ class Emulator(object):
             ['A', 'B', 'C', 'D', 'E']
             >>> self._modellink._data_idx
             ['B', 'F', 'G', 'E']
-            >>> self._get_emul_pos(emul_i)
-            [1, 0, 2, 4]
+            >>> self._assign_data_idx(emul_i)
+            ([1, 3, 2, 4], 5)
 
 
         If the number of data points is more than the previous iteration:
@@ -572,8 +577,8 @@ class Emulator(object):
             ['A', 'B', 'C', 'D', 'E']
             >>> self._modellink._data_idx
             ['B', 'F', 'G', 'E', 'A', 'C']
-            >>> self._get_emul_pos(emul_i)
-            [1, 3, 5, 4, 0, 2]
+            >>> self._assign_data_idx(emul_i)
+            ([1, 5, 3, 4, 0, 2], 6)
 
 
         If there is no previous iteration:
@@ -583,8 +588,8 @@ class Emulator(object):
             []
             >>> self._modellink._data_idx
             ['B', 'F', 'G', 'E', 'A', 'C']
-            >>> self._get_emul_pos(emul_i)
-            [0, 1, 2, 3, 4, 5]
+            >>> self._assign_data_idx(emul_i)
+            ([5, 4, 3, 2, 1, 0], 6)
 
         """
 
@@ -593,38 +598,57 @@ class Emulator(object):
         logger.info("Assigning model comparison data points to emulator "
                     "systems for emulator iteration %s." % (emul_i))
 
-        # Create list with first n_data emulator systems
-        emul_s_list = list(range(self._modellink._n_data))
+        # Create empty Counter for number of emulator system occurances
+        emul_s_counter = Counter()
+
+        # Calculate the total number of active and passive emulator systems
+        # NOTE: Written like this for compatibility with Python2
+        if len(self._n_emul_s[1:emul_i]):
+            n_emul_s = max(self._modellink._n_data, *self._n_emul_s[1:emul_i])
+        else:
+            n_emul_s = self._modellink._n_data
+
+        # Set number of occurances for all emulator systems to 0
+        for emul_s in range(n_emul_s):
+            emul_s_counter[emul_s] = 0
+
+        # Count how many times each emulator system has already been active
+        for active_emul_s in self._active_emul_s[:emul_i]:
+            emul_s_counter.update(active_emul_s)
 
         # Create empty data_to_emul_s list
-        data_to_emul_s = [[] for _ in emul_s_list]
+        data_to_emul_s = [[] for _ in range(self._modellink._n_data)]
 
         # Assign all recurring data points to the correct emulator systems
         for i, data_idx in enumerate(self._modellink._data_idx):
             # Check for every data_idx if it existed in the previous iteration
             try:
                 emul_s = self._data_idx[emul_i-1].index(data_idx)
-
+            except ValueError:
+                pass
+            else:
                 # If it existed, assign data_idx to corresponding emul_s
                 data_to_emul_s[i] = emul_s
 
-                # Also try to remove emul_s from emul_s_list
-                emul_s_list.remove(emul_s)
-            except ValueError:
-                pass
+                # Also remove emul_s from emul_s_counter
+                emul_s_counter.pop(emul_s)
 
         # Assign all 'new' data points to the non-filled emulator systems
         for i in range(self._modellink._n_data):
             # Check if this data point has already been assigned
             if(data_to_emul_s[i] == []):
-                # If not, assign it to the first available emulator system
-                data_to_emul_s[i] = emul_s_list.pop(0)
+                # If not, check which emulator system is the least common
+                emul_s = emul_s_counter.most_common()[-1][0]
+
+                # Assign data point to this emulator system and remove it
+                data_to_emul_s[i] = emul_s
+                emul_s_counter.pop(emul_s)
 
         # More logging
         logger.info("Finished assigning data points to emulator systems.")
 
-        # Return it
-        return(data_to_emul_s)
+        # Return data_to_emul_s and n_emul_s
+        return(data_to_emul_s, n_emul_s)
 
     # Prepares the emulator for a new iteration
     # HINT: Should _create_new_emulator be combined with this method?
@@ -740,12 +764,11 @@ class Emulator(object):
             group.create_dataset('statistics', data=h5py.Empty(float))
 
             # Assign data points to emulator systems
-            data_to_emul_s = self._assign_data_idx(emul_i)
+            data_to_emul_s, n_emul_s = self._assign_data_idx(emul_i)
 
-            # Calculate total number of active and passive emulator systems
-            n_emul = max(max(data_to_emul_s)+1, len(self._data_idx[emul_i-1]))
-            group.attrs['n_emul_s'] = n_emul
-            self._n_emul_s.append(n_emul)
+            # Save the total number of active and passive emulator systems
+            group.attrs['n_emul_s'] = n_emul_s
+            self._n_emul_s.append(n_emul_s)
 
             # Create empty list of lists for storing emulator system data
             lists = [[] for _ in range(self._n_emul_s[-1])]
