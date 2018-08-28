@@ -43,9 +43,10 @@ from sortedcontainers import SortedSet
 from ._docstrings import (call_emul_i_doc, emul_s_seq_doc, std_emul_i_doc,
                           user_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_bool, check_float,
-                        check_nneg_float, check_pos_int, convert_str_seq,
-                        delist, docstring_copy, docstring_substitute,
-                        getCLogger, move_logger, rprint, start_logger)
+                        check_nneg_float, check_nneg_int, check_pos_int,
+                        convert_str_seq, delist, docstring_copy,
+                        docstring_substitute, getCLogger, move_logger, rprint,
+                        start_logger)
 from .emulator import Emulator
 from .projection import Projection
 
@@ -74,7 +75,7 @@ class Pipeline(object):
     # TODO: Should prism_file be defaulted to None?
     def __init__(self, modellink, root_dir=None, working_dir=None,
                  prefix='prism_', hdf5_file='prism.hdf5',
-                 prism_file='prism.txt', emul_type='default'):
+                 prism_file='prism.txt', emul_type='default', crank=0):
         """
         Initialize an instance of the :class:`~Pipeline` class.
 
@@ -114,17 +115,23 @@ class Pipeline(object):
             default values. If a relative path is given, its path must be
             relative to `root_dir` or the current directory. If *None*, no
             changes will be made to the default parameters.
+        crank : int. Default: 0
+            Non-negative integer determining which rank in the MPI world
+            communicator should act as the controller rank. If a value higher
+            than the available ranks in the communicator is given, it defaults
+            to the highest rank available.
 
         """
 
-        # Obtain MPI communicator, ranks and sizes
+        # Obtain MPI world communicator, ranks and sizes
         self._comm = MPI.COMM_WORLD
         self._rank = self._comm.Get_rank()
         self._size = self._comm.Get_size()
+        self._crank = min(check_nneg_int(crank, 'crank'), self._size-1)
 
         # Set statuses
-        self._is_controller = 1 if not self._rank else 0
-        self._is_worker = 1 if self._rank else 0
+        self._is_controller = 1 if(self._rank == self._crank) else 0
+        self._is_worker = 1 if(self._rank != self._crank) else 0
 
         # Controller only
         if self._is_controller:
@@ -221,6 +228,16 @@ class Pipeline(object):
         """
 
         return(self._rank)
+
+    @property
+    def crank(self):
+        """
+        The rank of the MPI process in :attr:`~Pipeline.comm` that is a
+        controller process. If no MPI is used, this is always 0.
+
+        """
+
+        return(self._crank)
 
     @property
     def size(self):
@@ -2311,7 +2328,7 @@ class Pipeline(object):
 
         # Check if a prepared emulator is currently loaded
         if self._emulator._emul_load:
-
+            self._comm.gather()
 
         # Only controller
         if self._is_controller:

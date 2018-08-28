@@ -78,6 +78,7 @@ class Projection(object):
         self._comm = self._pipeline._comm
         self._size = self._pipeline._size
         self._rank = self._pipeline._rank
+        self._crank = self._pipeline._crank
         self._is_controller = self._pipeline._is_controller
         self._is_worker = self._pipeline._is_worker
 
