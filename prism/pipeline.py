@@ -43,10 +43,9 @@ from sortedcontainers import SortedSet
 from ._docstrings import (call_emul_i_doc, emul_s_seq_doc, std_emul_i_doc,
                           user_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_bool, check_float,
-                        check_nneg_float, check_nneg_int, check_pos_int,
-                        convert_str_seq, delist, docstring_copy,
-                        docstring_substitute, getCLogger, move_logger, rprint,
-                        start_logger)
+                        check_nneg_float, check_pos_int, convert_str_seq,
+                        delist, docstring_copy, docstring_substitute,
+                        getCLogger, move_logger, rprint, start_logger)
 from .emulator import Emulator
 from .projection import Projection
 
@@ -75,7 +74,7 @@ class Pipeline(object):
     # TODO: Should prism_file be defaulted to None?
     def __init__(self, modellink, root_dir=None, working_dir=None,
                  prefix='prism_', hdf5_file='prism.hdf5',
-                 prism_file='prism.txt', emul_type='default', crank=0):
+                 prism_file='prism.txt', emul_type='default'):
         """
         Initialize an instance of the :class:`~Pipeline` class.
 
@@ -115,23 +114,17 @@ class Pipeline(object):
             default values. If a relative path is given, its path must be
             relative to `root_dir` or the current directory. If *None*, no
             changes will be made to the default parameters.
-        crank : int. Default: 0
-            Non-negative integer determining which rank in the MPI world
-            communicator should act as the controller rank. If a value higher
-            than the available ranks in the communicator is given, it defaults
-            to the highest rank available.
 
         """
 
-        # Obtain MPI world communicator, ranks and sizes
+        # Obtain MPI communicator, ranks and sizes
         self._comm = MPI.COMM_WORLD
         self._rank = self._comm.Get_rank()
         self._size = self._comm.Get_size()
-        self._crank = min(check_nneg_int(crank, 'crank'), self._size-1)
 
         # Set statuses
-        self._is_controller = 1 if(self._rank == self._crank) else 0
-        self._is_worker = 1 if(self._rank != self._crank) else 0
+        self._is_controller = 1 if not self._rank else 0
+        self._is_worker = 1 if self._rank else 0
 
         # Controller only
         if self._is_controller:
@@ -173,8 +166,6 @@ class Pipeline(object):
             self._load_data()
 
         # Print out the details of the current state of the pipeline
-        print(self._emulator._data_idx)
-        return
         self.details()
 
     # Allows one to call one full loop of the PRISM pipeline
@@ -228,16 +219,6 @@ class Pipeline(object):
         """
 
         return(self._rank)
-
-    @property
-    def crank(self):
-        """
-        The rank of the MPI process in :attr:`~Pipeline.comm` that is a
-        controller process. If no MPI is used, this is always 0.
-
-        """
-
-        return(self._crank)
 
     @property
     def size(self):
@@ -1898,6 +1879,9 @@ class Pipeline(object):
 
         """
 
+        # Get emul_i
+        emul_i = self._emulator._get_emul_i(None, True)
+
         # Only controller
         if self._is_controller:
             # Begin logging
@@ -1905,9 +1889,6 @@ class Pipeline(object):
 
             # Save current time
             start_time1 = time()
-
-            # Get emul_i
-            emul_i = self._emulator._get_emul_i(None)
 
             # Begin analyzing
             logger.info("Analyzing emulator system at iteration %s."
@@ -2026,6 +2007,9 @@ class Pipeline(object):
         # Log that a new emulator iteration is being constructed
         logger = getLogger('CONSTRUCT')
 
+        # Set emul_i correctly
+        emul_i = self._emulator._get_emul_i(emul_i, False)
+
         # Only the controller should run this
         if self._is_controller:
             # Save current time
@@ -2033,14 +2017,6 @@ class Pipeline(object):
 
             # Check if force-parameter received a bool
             force = check_bool(force, 'force')
-
-            # Set emul_i correctly
-            if emul_i is None:
-                emul_i = self._emulator._emul_i+1
-            elif(emul_i == 1):
-                pass
-            else:
-                emul_i = self._emulator._get_emul_i(emul_i-1)+1
 
             # Check if iteration was interrupted or not, or if force is True
             logger.info("Checking state of emulator iteration %s." % (emul_i))
@@ -2087,9 +2063,6 @@ class Pipeline(object):
 
         # Check if analyze-parameter received a bool
         analyze = check_bool(analyze, 'analyze')
-
-        # Broadcast emul_i to workers
-        emul_i = self._comm.bcast(emul_i, 0)
 
         # Broadcast construct_emul_i to workers
         c_from_start = self._comm.bcast(c_from_start, 0)
@@ -2326,78 +2299,83 @@ class Pipeline(object):
         logger = getCLogger("DETAILS")
         logger.info("Collecting details about current pipeline instance.")
 
-        # Check if a prepared emulator is currently loaded
-        if self._emulator._emul_load:
-            self._comm.gather()
+        # Check if last emulator iteration is finished constructing
+        if(len(self._emulator._ccheck[-1]) == 0 or
+           delist(self._emulator._ccheck[-1]) == []):
+            ccheck_flag = 1
+        else:
+            ccheck_flag = 0
 
-        # Only controller
+        # Gather the ccheck_flags on all ranks to see if all are finished
+        ccheck_flag = np.all(self._comm.allgather(ccheck_flag))
+
+        # Check what kind of hdf5-file was provided
+        try:
+            if ccheck_flag:
+                emul_i = self._emulator._get_emul_i(emul_i, True)
+            else:
+                emul_i = self._emulator._get_emul_i(emul_i, False)
+        except RequestError:
+            # MPI Barrier
+            self._comm.Barrier()
+            return
+        else:
+            # Gather ccheck information from all MPI ranks on the controller
+            ccheck_list = self._comm.gather(self._emulator._ccheck[emul_i], 0)
+
+        # Controller only
         if self._is_controller:
-            # Check if last emulator iteration is finished constructing
-            if(len(self._emulator._ccheck[-1]) == 0 or
-               delist(self._emulator._ccheck[-1]) == []):
-                ccheck = 1
-            else:
-                ccheck = 0
+            # Flatten the received ccheck_list
+            ccheck_flat = [[] for _ in range(self._emulator._n_emul_s_tot)]
+            for ccheck_iter in ccheck_list[0][self._emulator._n_emul_s:]:
+                ccheck_flat.append(ccheck_iter)
+            for rank, ccheck_rank in enumerate(ccheck_list):
+                for emul_s, ccheck in zip(self._emulator._emul_s_to_core[rank],
+                                          ccheck_rank):
+                    ccheck_flat[emul_s] = ccheck
 
-            # Check what kind of hdf5-file was provided
-            try:
-                if ccheck:
-                    emul_i = self._emulator._get_emul_i(emul_i)
+            # Get max lengths of various strings for parameter section
+            name_len =\
+                max([len(par_name) for par_name in self._modellink._par_name])
+            lower_len =\
+                max([len(str(i)) for i in self._modellink._par_rng[:, 0]])
+            upper_len =\
+                max([len(str(i)) for i in self._modellink._par_rng[:, 1]])
+            est_len =\
+                max([len('%.5f' % (i)) for i in self._modellink._par_est
+                     if i is not None])
+
+            # Open hdf5-file
+            with PRISM_File('r', None) as file:
+                # Check if projection data is available
+                try:
+                    file['%s/proj_hcube' % (emul_i)]
+                except KeyError:
+                    proj = 0
+                    n_proj = 0
+
+                # If projection data is available
                 else:
-                    if emul_i is None:
-                        emul_i = self._emulator._emul_i+1
-                    elif(emul_i == self._emulator._emul_i+1):
-                        pass
-                    else:
-                        emul_i = self._emulator._get_emul_i(emul_i)
-            except RequestError:
-                # MPI Barrier for controller to sync with workers at end
-                self._comm.Barrier()
-                return
-            else:
-                # Get max lengths of various strings for parameter section
-                name_len =\
-                    max([len(par_name) for par_name in
-                         self._modellink._par_name])
-                lower_len =\
-                    max([len(str(i)) for i in self._modellink._par_rng[:, 0]])
-                upper_len =\
-                    max([len(str(i)) for i in self._modellink._par_rng[:, 1]])
-                est_len =\
-                    max([len('%.5f' % (i)) for i in self._modellink._par_est
-                         if i is not None])
+                    n_proj = len(file['%s/proj_hcube' % (emul_i)].keys())
+                    proj_impl_cut =\
+                        file['%s/proj_hcube' % (emul_i)].attrs['impl_cut']
+                    proj_cut_idx =\
+                        file['%s/proj_hcube' % (emul_i)].attrs['cut_idx']
 
-                # Open hdf5-file
-                with PRISM_File('r', None) as file:
-                    # Check if projection data is available
+                    # Check if projections were made with the same impl_cut
                     try:
-                        file['%s/proj_hcube' % (emul_i)]
-                    except KeyError:
-                        proj = 0
-                        n_proj = 0
-
-                    # If projection data is available
-                    else:
-                        n_proj = len(file['%s/proj_hcube' % (emul_i)].keys())
-                        proj_impl_cut =\
-                            file['%s/proj_hcube' % (emul_i)].attrs['impl_cut']
-                        proj_cut_idx =\
-                            file['%s/proj_hcube' % (emul_i)].attrs['cut_idx']
-
-                        # Check if projections were made with the same impl_cut
-                        try:
-                            # If it was, projections are synced
-                            if((proj_impl_cut == self._impl_cut[emul_i]).all()
-                               and proj_cut_idx == self._cut_idx[emul_i]):
-                                proj = 1
-
-                            # If not, projections are desynced
-                            else:
-                                proj = 2
-
-                        # If analysis was never done, projections are synced
-                        except IndexError:
+                        # If it was, projections are synced
+                        if((proj_impl_cut == self._impl_cut[emul_i]).all()
+                           and proj_cut_idx == self._cut_idx[emul_i]):
                             proj = 1
+
+                        # If not, projections are desynced
+                        else:
+                            proj = 2
+
+                    # If analysis was never done, projections are synced
+                    except IndexError:
+                        proj = 1
 
             # Log file being closed
             logger.info("Finished collecting details about current pipeline "
@@ -2407,11 +2385,10 @@ class Pipeline(object):
             n_par = self._modellink._n_par
 
             # Obtain number of data points
-            n_data = self._emulator._n_data[emul_i]
+            n_data = self._emulator._n_data_tot[emul_i]
 
-            # TODO: Remove n_emul_s usage
             # Obtain number of emulator systems
-            n_emul_s = self._emulator._n_emul_s[emul_i]
+            n_emul_s = self._emulator._n_emul_s_tot
 
             # Determine the relative path to the master HDF5-file
             hdf5_rel_path = path.relpath(self._hdf5_file, self._root_dir)
@@ -2421,8 +2398,7 @@ class Pipeline(object):
 
             # PRINT DETAILS
             # HEADER
-            print("\n")
-            print("PIPELINE DETAILS")
+            print("\nPIPELINE DETAILS")
             print("="*width)
 
             # GENERAL
@@ -2458,7 +2434,7 @@ class Pipeline(object):
 
             # Availability flags
             # If this iteration is fully constructed, print flags and numbers
-            if(delist(self._emulator._ccheck[emul_i]) == []):
+            if(delist(ccheck_flat) == []):
                 # Determine the number of (active) parameters
                 n_active_par = len(self._emulator._active_par[emul_i])
 
@@ -2513,16 +2489,15 @@ class Pipeline(object):
 
             # If not, then print which components are still missing
             else:
-                ccheck = self._emulator._ccheck[emul_i]
                 print("{0: <{1}}\t{2}".format("Construction completed?", width,
                                               "No"))
                 print("  - {0: <{1}}\t{2}".format(
                     "'mod_real_set'?", width-4,
-                    "No" if 'mod_real_set' in ccheck else "Yes"))
+                    "No" if 'mod_real_set' in ccheck_flat else "Yes"))
 
                 # Check if all active parameters have been determined
                 ccheck_i = [i for i in range(n_emul_s) if
-                            'active_par_data' in ccheck[i]]
+                            'active_par_data' in ccheck_flat[i]]
                 print("  - {0: <{1}}\t{2}".format(
                     "'active_par'?", width-4, "No (%s)" % (ccheck_i) if
                     len(ccheck_i) else "Yes"))
@@ -2530,21 +2505,21 @@ class Pipeline(object):
                 # Check if all regression processes have been done
                 if self._emulator._method.lower() in ('regression', 'full'):
                     ccheck_i = [i for i in range(n_emul_s) if
-                                'regression' in ccheck[i]]
+                                'regression' in ccheck_flat[i]]
                     print("  - {0: <{1}}\t{2}".format(
                         "'regression'?", width-4, "No (%s)" % (ccheck_i) if
                         len(ccheck_i) else "Yes"))
 
                 # Check if all prior_exp_sam_sets have been determined
                 ccheck_i = [i for i in range(n_emul_s) if
-                            'prior_exp_sam_set' in ccheck[i]]
+                            'prior_exp_sam_set' in ccheck_flat[i]]
                 print("  - {0: <{1}}\t{2}".format(
                     "'prior_exp_sam_set'?", width-4, "No (%s)" % (ccheck_i) if
                     len(ccheck_i) else "Yes"))
 
                 # Check if all covariance matrices have been determined
                 ccheck_i = [i for i in range(n_emul_s) if
-                            'cov_mat' in ccheck[i]]
+                            'cov_mat' in ccheck_flat[i]]
                 print("  - {0: <{1}}\t{2}".format(
                     "'cov_mat'?", width-4, "No (%s)" % (ccheck_i) if
                     len(ccheck_i) else "Yes"))
@@ -2563,7 +2538,7 @@ class Pipeline(object):
             # Print details about every model parameter in parameter space
             for i in range(n_par):
                 # Determine what string to use for the active flag
-                if(delist(self._emulator._ccheck[emul_i]) != []):
+                if(delist(ccheck_flat) != []):
                     active_str = "?"
                 elif i in self._emulator._active_par[emul_i]:
                     active_str = "*"
@@ -2654,15 +2629,15 @@ class Pipeline(object):
 
         """
 
+        # Get emulator iteration
+        emul_i = self._emulator._get_emul_i(emul_i, True)
+
         # Only controller
         if self._is_controller:
             # Do some logging
             logger = getLogger('EVALUATE')
             logger.info("Evaluating emulator system for provided set of model "
                         "parameter samples.")
-
-            # Get emulator iteration
-            emul_i = self._emulator._get_emul_i(emul_i)
 
             # Make sure that sam_set is a NumPy array
             sam_set = np.array(sam_set)

@@ -91,7 +91,6 @@ class Emulator(object):
         self._comm = self._pipeline._comm
         self._size = self._pipeline._size
         self._rank = self._pipeline._rank
-        self._crank = self._pipeline._crank
         self._is_controller = self._pipeline._is_controller
         self._is_worker = self._pipeline._is_worker
 
@@ -135,9 +134,10 @@ class Emulator(object):
     @property
     def ccheck(self):
         """
-        List of strings indicating which parts of the emulator are still
-        required to complete the construction of the specified emulator
-        iteration.
+        List of strings indicating which emulator system specific parts are
+        still required to complete the construction of the specified emulator
+        iteration. The controller rank additionally lists the required parts
+        that are emulator iteration specific ('mod_real_set' and 'active_par').
 
         """
 
@@ -155,12 +155,21 @@ class Emulator(object):
     @property
     def n_emul_s(self):
         """
-        Number of active and passive emulator systems in the specified emulator
-        iteration.
+        Number of emulator systems assigned to this MPI rank.
 
         """
 
         return(self._n_emul_s)
+
+    @property
+    def n_emul_s_tot(self):
+        """
+        Total number of emulator systems assigned to all MPI ranks combined.
+        Only available on the controller rank.
+
+        """
+
+        return(self._n_emul_s_tot)
 
     @property
     def method(self):
@@ -235,17 +244,15 @@ class Emulator(object):
 
         """
 
-        if self._is_controller:
-            return(self._emul_s_to_core)
-        else:
-            return(None)
+        return(self._emul_s_to_core)
 
     # Active Parameters
     @property
     def active_par(self):
         """
         List containing the model parameter identifiers that are considered
-        active in the specified emulator iteration.
+        active in the specified emulator iteration. Only available on the
+        controller rank.
 
         """
 
@@ -382,7 +389,7 @@ class Emulator(object):
 # %% GENERAL CLASS METHODS
     # Get correct emulator iteration
     @docstring_substitute(emul_i=get_emul_i_doc)
-    def _get_emul_i(self, emul_i):
+    def _get_emul_i(self, emul_i, cur_iter):
         """
         Checks if the provided emulator iteration `emul_i` can be requested or
         replaces it if *None* was provided.
@@ -390,6 +397,9 @@ class Emulator(object):
         Parameters
         ----------
         %(emul_i)s
+        cur_iter : bool
+            Bool determining whether the current or the next emulator iteration
+            is requested.
 
         Returns
         -------
@@ -398,22 +408,36 @@ class Emulator(object):
 
         """
 
-        # Log that emul_i is being switched
+        # Log that emul_i is being selected
         logger = getCLogger('INIT')
         logger.info("Selecting emulator iteration for user-method.")
 
+        # Determine the emul_i that is constructed on all ranks
+        global_emul_i = min(self._comm.allgather(self._emul_i))
+
         # Check if provided emul_i is correct/allowed
-        if(emul_i == 0 or self._emul_load == 0 or self._emul_i == 0):
-            raise RequestError("Emulator HDF5-file is not built yet!")
-        elif emul_i is None:
-            emul_i = self._emul_i
-        elif not(1 <= emul_i <= self._emul_i):
-            logger.error("Requested emulator iteration %s does not exist!"
-                         % (emul_i))
-            raise RequestError("Requested emulator iteration %s does not "
-                               "exist!" % (emul_i))
+        if cur_iter:
+            if(emul_i == 0 or self._emul_load == 0 or global_emul_i == 0):
+                raise RequestError("Emulator HDF5-file is not built yet!")
+            elif emul_i is None:
+                emul_i = global_emul_i
+            elif not(1 <= emul_i <= global_emul_i):
+                logger.error("Requested emulator iteration %s does not exist!"
+                             % (emul_i))
+                raise RequestError("Requested emulator iteration %s does not "
+                                   "exist!" % (emul_i))
+            else:
+                emul_i = check_pos_int(emul_i, 'emul_i')
         else:
-            emul_i = check_pos_int(emul_i, 'emul_i')
+            if emul_i is None:
+                emul_i = global_emul_i+1
+            elif not(1 <= emul_i <= global_emul_i+1):
+                logger.error("Requested emulator iteration %s cannot be "
+                             "requested!" % (emul_i))
+                raise RequestError("Requested emulator iteration %s cannot be "
+                                   "requested!" % (emul_i))
+            else:
+                emul_i = check_pos_int(emul_i, 'emul_i')
 
         # Do some logging
         logger.info("Selected emulator iteration %s." % (emul_i))
@@ -814,11 +838,17 @@ class Emulator(object):
             # Controller saving which systems have been assigned to which rank
             self._emul_s_to_core = emul_s_to_core
 
+            # Initialize total number of emulator systems
+            self._n_emul_s_tot = 0
+
             # Assign the emulator systems to the various MPI ranks
             for rank, emul_s_seq in enumerate(emul_s_to_core):
                 # Log which systems are assigned to which rank
                 logger.info("Assigning emulator systems %s to MPI rank %s."
                             % (emul_s_seq, rank))
+
+                # Update total number of emulator systems
+                self._n_emul_s_tot += len(emul_s_seq)
 
                 # Assign the first list of emul_s to the controller
                 if not rank:
@@ -1034,8 +1064,9 @@ class Emulator(object):
             self._poly_coef_cov.append(lists.copy())
 
         # Update construct check list
-        ccheck.append('active_par')
-        ccheck.append('mod_real_set')
+        if self._is_controller:
+            ccheck.append('active_par')
+            ccheck.append('mod_real_set')
         self._ccheck.append(ccheck)
 
         # Logging
@@ -1063,8 +1094,9 @@ class Emulator(object):
 
         """
 
-        # Save current time
-        start_time = time()
+        # Save current time on controller
+        if self._is_controller:
+            start_time = time()
 
         # Determine active parameters
         ccheck_active_par = [emul_s for emul_s in emul_s_seq if
@@ -1093,23 +1125,34 @@ class Emulator(object):
         if len(ccheck_cov_mat):
             self._get_cov_matrix(emul_i, ccheck_cov_mat)
 
-#        # MPI Barrier
-#        self._comm.Barrier()
+        # If a worker is finished, set current emul_i to constructed emul_i
+        if self._is_worker:
+            self._emul_i = emul_i
+
+        # MPI Barrier
+        self._comm.Barrier()
 
         # If everything is done, gather the total set of active parameters
-        if 'active_par' in self._ccheck[emul_i]:
+        active_par_data = self._comm.gather(self._active_par_data[emul_i], 0)
+
+        # Allow the controller to save them
+        if self._is_controller and 'active_par' in self._ccheck[emul_i]:
             active_par = SortedSet()
-            active_par.update(*self._active_par_data[emul_i])
+            for active_par_rank in active_par_data:
+                active_par.update(*active_par_rank)
             self._save_data(emul_i, None, {
                 'active_par': np.array(list(active_par))})
 
-        # Set current emul_i to constructed emul_i
-        self._emul_i = emul_i
+            # Set current emul_i to constructed emul_i
+            self._emul_i = emul_i
 
-        # Save time difference and communicator size
-        self._pipeline._save_statistics(emul_i, {
-            'emul_construct_time': ['%.2f' % (time()-start_time), 's'],
-            'MPI_comm_size_cons': ['%s' % (self._size), '']})
+            # Save time difference and communicator size
+            self._pipeline._save_statistics(emul_i, {
+                'emul_construct_time': ['%.2f' % (time()-start_time), 's'],
+                'MPI_comm_size_cons': ['%s' % (self._size), '']})
+
+        # MPI Barrier
+        self._comm.Barrier()
 
     # This is function 'E_D(f(x'))'
     # This function gives the adjusted emulator expectation value back
@@ -2126,7 +2169,6 @@ class Emulator(object):
         logger.info("Initializing emulator data sets.")
         self._n_sam = [[]]
         self._sam_set = [[]]
-        self._active_par = [[]]
         self._mod_set = [[]]
         self._cov_mat_inv = [[]]
         self._prior_exp_sam_set = [[]]
@@ -2145,6 +2187,18 @@ class Emulator(object):
         self._ccheck = [[]]
         self._active_emul_s = [[]]
         self._n_emul_s = 0
+
+        # Initialize rank specific properties
+        if self._is_controller:
+            self._n_data_tot = [[]]
+            self._n_emul_s_tot = 0
+            self._emul_s_to_core = [[] for _ in range(self._size)]
+            self._active_par = [[]]
+        else:
+            self._n_data_tot = None
+            self._n_emul_s_tot = None
+            self._emul_s_to_core = None
+            self._active_par = None
 
         # If no file has been provided
         if(emul_i == 0 or self._emul_load == 0):
@@ -2182,15 +2236,21 @@ class Emulator(object):
                     self._sam_set.append(group['sam_set'][()])
                     self._sam_set[-1].dtype = float
                 except KeyError:
-                    ccheck.append('mod_real_set')
+                    if self._is_controller:
+                        ccheck.append('mod_real_set')
 
-                # Check if active_par is available
-                try:
-                    par_i = [self._modellink._par_name.index(par.decode(
-                            'utf-8')) for par in group.attrs['active_par']]
-                    self._active_par.append(np.array(par_i))
-                except KeyError:
-                    ccheck.append('active_par')
+                # Check if active_par is available for the controller
+                if self._is_controller:
+                    try:
+                        par_i = [self._modellink._par_name.index(par.decode(
+                                'utf-8')) for par in group.attrs['active_par']]
+                        self._active_par.append(np.array(par_i))
+                    except KeyError:
+                        ccheck.append('active_par')
+
+                # Read in the total number of data points for the controller
+                if self._is_controller:
+                    self._n_data_tot.append(group.attrs['n_data'])
 
                 # Initialize empty data sets
                 mod_set = []

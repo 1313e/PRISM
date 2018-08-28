@@ -78,7 +78,6 @@ class Projection(object):
         self._comm = self._pipeline._comm
         self._size = self._pipeline._size
         self._rank = self._pipeline._rank
-        self._crank = self._pipeline._crank
         self._is_controller = self._pipeline._is_controller
         self._is_worker = self._pipeline._is_worker
 
@@ -154,7 +153,7 @@ class Projection(object):
         start_time1 = time()
 
         # Check what kind of hdf5-file has been provided
-        self._emul_i = self._emulator._get_emul_i(emul_i)
+        self._emul_i = self._emulator._get_emul_i(emul_i, True)
 
         # Obtain figure name prefix
         self._fig_prefix = path.join(self._pipeline._working_dir,
