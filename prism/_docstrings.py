@@ -54,9 +54,9 @@ user_emul_i_doc = \
 
 # %% EMUL_S DOCSTRINGS
 # Description of emul_s used in basically all standard hidden functions
-emul_s_doc = \
-    """emul_s : int or None
-           Number indicating the requested emulator system.
+lemul_s_doc = \
+    """lemul_s : int or None
+           Number indicating the requested local emulator system.
            If *None*, use the master emulator file instead."""
 
 # Description of sequence of emul_s used in all standard hidden functions
