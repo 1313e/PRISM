@@ -204,7 +204,7 @@ class Pipeline(object):
     @property
     def comm(self):
         """
-        The global MPI communicator. Currently always MPI.COMM_WORLD.
+        The global MPI world communicator. Currently always MPI.COMM_WORLD.
 
         """
 
@@ -983,7 +983,8 @@ class Pipeline(object):
     # This function loads pipeline data
     def _load_data(self):
         """
-        Loads in all the important pipeline data into memory.
+        Loads in all the important pipeline data into memory for the controller
+        rank.
         If it is detected that the last emulator iteration has not been
         analyzed yet, the implausibility analysis parameters are read in from
         the PRISM parameters file and temporarily stored in memory.
@@ -2185,8 +2186,7 @@ class Pipeline(object):
         # Only controller
         if self._is_controller:
             # Construct emulator
-            emul_s_seq = self._emulator._active_emul_s[emul_i]
-            self._emulator._construct_iteration(emul_i, emul_s_seq)
+            self._emulator._construct_iteration(emul_i)
 
             # Save that emulator system has not been analyzed yet
             self._save_data({

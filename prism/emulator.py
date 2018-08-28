@@ -219,8 +219,8 @@ class Emulator(object):
     @property
     def active_emul_s(self):
         """
-        List containing the indices of the emulator systems that are active in
-        the specified emulator iteration.
+        List containing the indices of the emulator systems on this MPI rank
+        that are active in the specified emulator iteration.
 
         """
 
@@ -1076,8 +1076,8 @@ class Emulator(object):
         return(reload)
 
     # This function constructs the emulator iteration emul_i
-    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _construct_iteration(self, emul_i, emul_s_seq):
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _construct_iteration(self, emul_i):
         """
         Constructs the emulator iteration corresponding to the provided
         `emul_i`, by performing the given emulator method and calculating the
@@ -1086,7 +1086,6 @@ class Emulator(object):
         Parameters
         ----------
         %(emul_i)s
-        %(emul_s_seq)s
 
         Generates
         ---------
@@ -1097,6 +1096,9 @@ class Emulator(object):
         # Save current time on controller
         if self._is_controller:
             start_time = time()
+
+        # Get the emul_s_seq
+        emul_s_seq = self._active_emul_s[emul_i]
 
         # Determine active parameters
         ccheck_active_par = [emul_s for emul_s in emul_s_seq if
@@ -2194,11 +2196,6 @@ class Emulator(object):
             self._n_emul_s_tot = 0
             self._emul_s_to_core = [[] for _ in range(self._size)]
             self._active_par = [[]]
-        else:
-            self._n_data_tot = None
-            self._n_emul_s_tot = None
-            self._emul_s_to_core = None
-            self._active_par = None
 
         # If no file has been provided
         if(emul_i == 0 or self._emul_load == 0):
@@ -2286,7 +2283,7 @@ class Emulator(object):
                         continue
                     # If it does exist, add emul_s to list of active emul_s
                     else:
-                        self._active_emul_s[-1].append(emul_s)
+                        self._active_emul_s[-1].append(j)
 
                     # Check if mod_set is available
                     try:
