@@ -216,6 +216,29 @@ class Emulator(object):
 
         return(self._active_emul_s)
 
+    @property
+    def emul_s(self):
+        """
+        List containing the indices of the emulator systems that are assigned
+        to this MPI rank.
+
+        """
+
+        return(self._emul_s)
+
+    @property
+    def emul_s_to_core(self):
+        """
+        List of lists containing the indices of the emulator systems that are
+        assigned to every MPI rank. Only available on the controller rank.
+
+        """
+
+        if self._is_controller:
+            return(self._emul_s_to_core)
+        else:
+            return(None)
+
     # Active Parameters
     @property
     def active_par(self):
@@ -786,6 +809,9 @@ class Emulator(object):
                         emul_s_to_core[core_lowest].append(emul_s)
                         iter_core_cntr[core_lowest] += 1
                         iter_emul_s_cntr.pop(emul_s)
+
+            # Controller saving which systems have been assigned to which rank
+            self._emul_s_to_core = emul_s_to_core
 
             # Assign the emulator systems to the various MPI ranks
             for rank, emul_s_seq in enumerate(emul_s_to_core):
@@ -2117,7 +2143,7 @@ class Emulator(object):
 
         self._ccheck = [[]]
         self._active_emul_s = [[]]
-        self._n_emul_s = [[]]
+        self._n_emul_s = 0
 
         # If no file has been provided
         if(emul_i == 0 or self._emul_load == 0):

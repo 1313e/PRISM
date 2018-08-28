@@ -2305,12 +2305,16 @@ class Pipeline(object):
 
         """
 
+        # Define details logger
+        logger = getCLogger("DETAILS")
+        logger.info("Collecting details about current pipeline instance.")
+
+        # Check if a prepared emulator is currently loaded
+        if self._emulator._emul_load:
+
+
         # Only controller
         if self._is_controller:
-            # Define details logger
-            logger = getLogger("DETAILS")
-            logger.info("Collecting details about current pipeline instance.")
-
             # Check if last emulator iteration is finished constructing
             if(len(self._emulator._ccheck[-1]) == 0 or
                delist(self._emulator._ccheck[-1]) == []):
