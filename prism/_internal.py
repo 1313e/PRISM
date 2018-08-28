@@ -27,6 +27,10 @@ from e13tools.core import _compare_versions, InputError
 import h5py
 from matplotlib.colors import LinearSegmentedColormap as LSC
 from matplotlib.cm import register_cmap
+try:
+    from mpi4py import MPI
+except ImportError:
+    import mpi_dummy as MPI
 import numpy as np
 
 # PRISM imports
@@ -35,24 +39,65 @@ from ._docstrings import (check_bool_doc, check_fin_doc, check_type_doc,
                           check_val_doc)
 
 # All declaration
-__all__ = ['PRISM_File', 'RequestError', 'check_bool', 'check_compatibility',
-           'check_finite', 'check_float', 'check_int', 'check_neg_float',
-           'check_neg_int', 'check_nneg_float', 'check_nneg_int',
-           'check_npos_float', 'check_npos_int', 'check_nzero_float',
-           'check_nzero_int', 'check_pos_float', 'check_pos_int', 'check_str',
-           'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
-           'docstring_substitute', 'import_cmaps', 'move_logger',
+__all__ = ['CLogger', 'PRISM_File', 'RequestError', 'check_bool',
+           'check_compatibility', 'check_finite', 'check_float', 'check_int',
+           'check_neg_float', 'check_neg_int', 'check_nneg_float',
+           'check_nneg_int', 'check_npos_float', 'check_npos_int',
+           'check_nzero_float', 'check_nzero_int', 'check_pos_float',
+           'check_pos_int', 'check_str', 'convert_str_seq', 'delist',
+           'docstring_append', 'docstring_copy', 'docstring_substitute',
+           'getCLogger', 'import_cmaps', 'move_logger', 'rprint',
            'start_logger', 'aux_char_list']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
     unicode = str
 
+# Determine MPI ranks
+rank = MPI.COMM_WORLD.Get_rank()
+
 # Setup logger
 logger = logging.getLogger('CHECK')
 
 
 # %% CLASS DEFINITIONS
+# Define custom Logger class that only logs if the controller calls it
+class CLogger(logging.Logger):
+    manager = logging.Logger.manager
+
+    def __init__(self, *args, **kwargs):
+        self.is_controller = 1 if not rank else 0
+        super(CLogger, self).__init__(*args, **kwargs)
+
+    def debug(self, *args, **kwargs):
+        if self.is_controller:
+            super(CLogger, self).debug(*args, **kwargs)
+
+    def info(self, *args, **kwargs):
+        if self.is_controller:
+            super(CLogger, self).info(*args, **kwargs)
+
+    def warning(self, *args, **kwargs):
+        if self.is_controller:
+            super(CLogger, self).warning(*args, **kwargs)
+
+    def error(self, *args, **kwargs):
+        if self.is_controller:
+            super(CLogger, self).error(*args, **kwargs)
+
+    def exception(self, *args, **kwargs):
+        if self.is_controller:
+            super(CLogger, self).exception(*args, **kwargs)
+
+    def critical(self, *args, **kwargs):
+        if self.is_controller:
+            super(CLogger, self).critical(*args, **kwargs)
+
+    def log(self, *args, **kwargs):
+        if self.is_controller:
+            super(CLogger, self).log(*args, **kwargs)
+
+
 # Override h5py's File.__init__() and __exit__() methods
 class PRISM_File(h5py.File):
     # Add hdf5_file attribute
@@ -506,6 +551,17 @@ def delist(list_obj):
     return(delisted_copy)
 
 
+# Define custom getLogger function that calls the custom CLogger instead
+def getCLogger(name=None):
+    if name:
+        CLogger.manager.loggerClass = CLogger
+        logger = CLogger.manager.getLogger(name)
+        CLogger.manager.loggerClass = None
+        return(logger)
+    else:
+        return CLogger.root
+
+
 # Function to import all custom colormaps in a directory
 def import_cmaps(cmap_dir=None):
     """
@@ -608,6 +664,14 @@ def move_logger(working_dir, filename):
 
     # Restart the logger
     start_logger(filename=destination, mode='a')
+
+
+# Redefine the print function to include the MPI rank if MPI is used
+def rprint(string):
+    if(MPI.__package__ == 'mpi4py'):
+        print("Rank %s: %s" % (rank, string))
+    else:
+        print(string)
 
 
 # Define function that can start the logging process of PRISM

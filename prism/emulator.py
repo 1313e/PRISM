@@ -21,7 +21,7 @@ from __future__ import (absolute_import, division, print_function,
                         with_statement)
 
 # Built-in imports
-import logging
+from logging import getLogger
 from os import path
 from time import time
 import sys
@@ -48,7 +48,7 @@ from ._docstrings import (emul_s_doc, emul_s_seq_doc, get_emul_i_doc,
 from ._internal import (PRISM_File, RequestError, check_bool,
                         check_compatibility, check_nzero_float,
                         check_pos_float, check_pos_int, delist,
-                        docstring_substitute)
+                        docstring_substitute, getCLogger, rprint)
 from .modellink import ModelLink
 
 # All declaration
@@ -375,7 +375,7 @@ class Emulator(object):
         """
 
         # Log that emul_i is being switched
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Selecting emulator iteration for user-method.")
 
         # Check if provided emul_i is correct/allowed
@@ -417,7 +417,7 @@ class Emulator(object):
         """
 
         # Start logger
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Creating a new emulator system in HDF5-file '%s'."
                     % (self._pipeline._hdf5_file))
 
@@ -496,7 +496,7 @@ class Emulator(object):
         """
 
         # Do some logging
-        logger = logging.getLogger('CLEAN-UP')
+        logger = getLogger('CLEAN-UP')
         logger.info("Cleaning up emulator HDF5-files, starting at emulator "
                     "iteration %s." % (emul_i))
 
@@ -596,7 +596,7 @@ class Emulator(object):
         """
 
         # Do some logging
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Assigning model comparison data points to emulator "
                     "systems for emulator iteration %s." % (emul_i))
 
@@ -669,11 +669,11 @@ class Emulator(object):
         ----------
         %(emul_i)s
 
-        Returns
-        -------
-        emul_s_to_core : list of lists of int
-            A list containing the emulator systems that need to be assigned to
-            every core available in the current MPI communicator.
+        Generates
+        ---------
+        emul_s : list of int
+            A list containing the emulator systems that have been assigned to
+            the corresponding MPI rank by the controller.
 
         Notes
         -----
@@ -683,90 +683,131 @@ class Emulator(object):
 
         """
 
-        # Determine number of active emulator systems in each iteration
-        n_active_emul_s = [[i, len(active_emul_s)] for i, active_emul_s in
-                           enumerate(self._active_emul_s[:emul_i+1])]
-        iter_size = sorted(n_active_emul_s, key=lambda x: x[1])
+        # Start logging
+        logger = getCLogger('INIT')
+        logger.info("Assigning emulator systems up to emulator iteration %s to"
+                    " available MPI ranks." % (emul_i))
 
-        # Create empty emul_s_to_core list
-        emul_s_to_core = [[] for _ in range(self._size)]
+        # Controller only
+        if self._is_controller:
+            # Create empty list of active emulator systems
+            active_emul_s_list = [[]]
 
-        # Create empty Counter for total number of assigned emulator systems
-        core_counter = Counter()
+            # Open hdf5-file
+            with PRISM_File('r', None) as file:
+                logger.info("Determining active emulator systems in every "
+                            "emulator iteration.")
 
-        # Create empty Counter for total number of emulator system occurances
-        emul_s_counter = Counter()
+                # Determine the active emulator systems in every iteration
+                for i in range(1, emul_i+1):
+                    active_emul_s_list.append(
+                        [int(key[5:]) for key in file['%s' % (i)].keys() if
+                         key[:5] == 'emul_'])
 
-        # Determine how many times a specific emulator system is active
-        for active_emul_s in self._active_emul_s[:emul_i+1]:
-            emul_s_counter.update(active_emul_s)
+            # Determine number of active emulator systems in each iteration
+            n_active_emul_s = [[i, len(active_emul_s)] for i, active_emul_s in
+                               enumerate(active_emul_s_list[:emul_i+1])]
+            iter_size = sorted(n_active_emul_s, key=lambda x: x[1])
 
-        # Set the number of assigned emulator systems for each core to zero
-        for rank in range(self._size):
-            core_counter[rank] = 0
+            # Create empty emul_s_to_core list
+            emul_s_to_core = [[] for _ in range(self._size)]
 
-        # Create empty list holding all assigned emulator systems
-        emul_s_chosen = []
+            # Create empty Counter for total number of assigned systems
+            core_cntr = Counter()
 
-        # Loop over all iterations, from smallest to largest
-        for i, size in iter_size:
-            # Set the number of assigned systems in this iteration to zero
-            iter_core_counter = [0 for _ in range(self._size)]
+            # Create empty Counter for total number of system occurances
+            emul_s_cntr = Counter()
 
-            # Create empty Counter for number of system occurances that are
-            # also in this iteration
-            iter_emul_s_counter = Counter()
+            # Determine how many times a specific emulator system is active
+            for active_emul_s in active_emul_s_list:
+                emul_s_cntr.update(active_emul_s)
 
-            # Fill that counter with emulator systems that are not assigned yet
-            for emul_s in self._active_emul_s[i]:
-                # If this emulator system is not assigned yet, copy its size
-                if emul_s not in emul_s_chosen:
-                    iter_emul_s_counter[emul_s] = emul_s_counter[emul_s]
+            # Set the number of assigned emulator systems for each core to zero
+            for rank in range(self._size):
+                core_cntr[rank] = 0
 
-                # Check if certain emulator systems have already been assigned
-                for j, emul_s_list in enumerate(emul_s_to_core):
-                    iter_core_counter[j] += emul_s_list.count(emul_s)
+            # Create empty list holding all assigned emulator systems
+            emul_s_chosen = []
 
-            # Set the minimum number of assigned systems for a core to 0
-            min_count = 0
+            # Loop over all iterations, from smallest to largest
+            for i, size in iter_size:
+                # Set the number of assigned systems in this iteration to zero
+                iter_core_cntr = [0 for _ in range(self._size)]
 
-            # While not all emulator systems in this iteration are assigned
-            while(sum(iter_core_counter) != size):
-                # Determine cores that have the minimum number of assignments
-                min_cores = [j for j, num in enumerate(iter_core_counter) if(
-                            num == min_count)]
+                # Create empty Counter for number of system occurances that are
+                # also in this iteration
+                iter_emul_s_cntr = Counter()
 
-                # If no core has this minimum size, increase it by 1
-                if(len(min_cores) == 0):
-                    min_count += 1
+                # Fill that counter with systems that are not assigned yet
+                for emul_s in active_emul_s_list[i]:
+                    # If this system is not assigned yet, copy its size
+                    if emul_s not in emul_s_chosen:
+                        iter_emul_s_cntr[emul_s] = emul_s_cntr[emul_s]
 
-                # If one core has this number, assign system with lowest number
-                # of occurances to it and remove it from the list
-                elif(len(min_cores) == 1):
-                    core = min_cores[0]
-                    emul_s, emul_size = iter_emul_s_counter.most_common()[-1]
-                    core_counter[core] += emul_size
-                    emul_s_chosen.append(emul_s)
-                    emul_s_to_core[core].append(emul_s)
-                    iter_core_counter[core] += 1
-                    iter_emul_s_counter.pop(emul_s)
-                    min_count += 1
+                    # Check if certain systems have already been assigned
+                    for j, emul_s_list in enumerate(emul_s_to_core):
+                        iter_core_cntr[j] += emul_s_list.count(emul_s)
 
-                # If more than one core has this number, determine the core
-                # that has the lowest total number of assigned systems and
-                # assign the system with the highest number of occurances to it
+                # Set the minimum number of assigned systems for a core to 0
+                min_count = 0
+
+                # While not all emulator systems in this iteration are assigned
+                while(sum(iter_core_cntr) != size):
+                    # Determine cores that have minimum number of assignments
+                    min_cores = [j for j, num in enumerate(iter_core_cntr) if(
+                                num == min_count)]
+
+                    # If no core has this minimum size, increase it by 1
+                    if(len(min_cores) == 0):
+                        min_count += 1
+
+                    # If one core has this number, assign system with lowest
+                    # number of occurances to it and remove it from the list
+                    elif(len(min_cores) == 1):
+                        core = min_cores[0]
+                        emul_s, emul_size = iter_emul_s_cntr.most_common()[-1]
+                        core_cntr[core] += emul_size
+                        emul_s_chosen.append(emul_s)
+                        emul_s_to_core[core].append(emul_s)
+                        iter_core_cntr[core] += 1
+                        iter_emul_s_cntr.pop(emul_s)
+                        min_count += 1
+
+                    # If more than one core has this number, determine the core
+                    # that has the lowest total number of assigned systems and
+                    # assign the system with the highest number of occurances
+                    # to it
+                    else:
+                        emul_s, emul_size = iter_emul_s_cntr.most_common()[0]
+                        core_sizes = [[j, core_cntr[j]] for j in min_cores]
+                        core_lowest = min(core_sizes, key=lambda x: x[1])[0]
+                        core_cntr[core_lowest] += emul_size
+                        emul_s_chosen.append(emul_s)
+                        emul_s_to_core[core_lowest].append(emul_s)
+                        iter_core_cntr[core_lowest] += 1
+                        iter_emul_s_cntr.pop(emul_s)
+
+            # Assign the emulator systems to the various MPI ranks
+            for rank, emul_s_seq in enumerate(emul_s_to_core):
+                # Log which systems are assigned to which rank
+                logger.info("Assigning emulator systems %s to MPI rank %s."
+                            % (emul_s_seq, rank))
+
+                # Assign the first list of emul_s to the controller
+                if not rank:
+                    self._emul_s = emul_s_seq
+
+                # Assign the remaining ones to the workers
                 else:
-                    emul_s, emul_size = iter_emul_s_counter.most_common()[0]
-                    core_sizes = [[j, core_counter[j]] for j in min_cores]
-                    core_lowest = min(core_sizes, key=lambda x: x[1])[0]
-                    core_counter[core_lowest] += emul_size
-                    emul_s_chosen.append(emul_s)
-                    emul_s_to_core[core_lowest].append(emul_s)
-                    iter_core_counter[core_lowest] += 1
-                    iter_emul_s_counter.pop(emul_s)
+                    self._comm.send(emul_s_seq, dest=rank, tag=888+rank)
 
-        # Return emul_s_to_core
-        return(emul_s_to_core)
+        # The workers wait for the controller to assign them their systems
+        else:
+            self._emul_s = self._comm.recv(source=0, tag=888+self._rank)
+
+        # Log that assignment is completed
+        logger.info("Completed assigning emulator systems to available MPI "
+                    "ranks.")
 
     # Prepares the emulator for a new iteration
     # HINT: Should _create_new_emulator be combined with this method?
@@ -803,7 +844,7 @@ class Emulator(object):
         """
 
         # Logger
-        logger = logging.getLogger('EMUL_PREP')
+        logger = getLogger('EMUL_PREP')
         logger.info("Preparing emulator iteration %s for construction."
                     % (emul_i))
 
@@ -1189,7 +1230,7 @@ class Emulator(object):
         """
 
         # Log that active parameters are being determined
-        logger = logging.getLogger('ACTIVE_PAR')
+        logger = getLogger('ACTIVE_PAR')
         logger.info("Determining active parameters.")
 
         # Loop over all data points and determine active parameters
@@ -1320,7 +1361,7 @@ class Emulator(object):
         """
 
         # Create logger
-        logger = logging.getLogger('REGRESSION')
+        logger = getLogger('REGRESSION')
         logger.info("Performing regression.")
 
         # Create SequentialFeatureSelector object
@@ -1493,7 +1534,7 @@ class Emulator(object):
         """
 
         # Create logger
-        logger = logging.getLogger('PRIOR_EXP')
+        logger = getLogger('PRIOR_EXP')
         logger.info("Calculating prior expectation values for "
                     "known samples at emulator iteration %s." % (emul_i))
 
@@ -1837,7 +1878,7 @@ class Emulator(object):
         """
 
         # Log the creation of the covariance matrix
-        logger = logging.getLogger('COV_MAT')
+        logger = getLogger('COV_MAT')
         logger.info("Calculating covariance matrix for emulator iteration %s."
                     % (emul_i))
 
@@ -1921,7 +1962,7 @@ class Emulator(object):
         """
 
         # Make logger
-        logger = logging.getLogger('EMUL_LOAD')
+        logger = getCLogger('EMUL_LOAD')
         logger.info("Loading emulator system.")
 
         # Check if an existing hdf5-file is provided
@@ -1962,14 +2003,6 @@ class Emulator(object):
         # Load emulator data
         self._load_data(self._emul_i)
 
-        # If mock data has been used, set the ModelLink object to use it
-        if self._emul_load and self._use_mock:
-            self._set_mock_data()
-
-        # Send updated modellink object to workers
-        for rank in range(1, self._size):
-            self._comm.send(self._modellink, dest=rank, tag=888+rank)
-
         # Logging
         logger.info("Finished loading emulator system.")
 
@@ -1996,7 +2029,7 @@ class Emulator(object):
         """
 
         # Logging
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Setting ModelLink object.")
 
         # Check if a subclass of the ModelLink class has been provided
@@ -2009,8 +2042,10 @@ class Emulator(object):
         # If no existing emulator system is loaded, pass
         if modellink_loaded is None:
             logger.info("No constructed emulator system is loaded.")
-            # Set ModelLink object
+            # Set ModelLink object for Emulator
             self._modellink = modellink_obj
+
+            # Set ModelLink object for Pipeline
             self._pipeline._modellink = self._modellink
 
         # If an existing emulator system is loaded, check if classes are equal
@@ -2019,6 +2054,10 @@ class Emulator(object):
                         "subclass used for emulator construction.")
             # Set ModelLink object for Emulator
             self._modellink = modellink_obj
+
+            # If mock data has been used, set the ModelLink object to use it
+            if self._use_mock:
+                self._set_mock_data()
 
             # Set ModelLink object for Pipeline
             self._pipeline._modellink = self._modellink
@@ -2054,7 +2093,7 @@ class Emulator(object):
         """
 
         # Set the logger
-        logger = logging.getLogger('LOAD_DATA')
+        logger = getLogger('LOAD_DATA')
 
         # Initialize all data sets with empty lists
         logger.info("Initializing emulator data sets.")
@@ -2093,206 +2132,207 @@ class Emulator(object):
             raise RequestError("Requested emulator iteration %s does not "
                                "exist!" % (emul_i))
 
-        # Load emulator data from construction file
-        elif(self._emul_load == 1):
-            # Load the corresponding sam_set, mod_set and cov_mat_inv
-            logger.info("Loading relevant emulator data up to iteration %s."
-                        % (emul_i))
+        # If both checks succeed, assign emulator systems to the MPI ranks
+        self._assign_emul_s(emul_i)
+        self._n_emul_s = len(self._emul_s)
 
-            # Open hdf5-file
-            with PRISM_File('r', None) as file:
-                # Read in the data
-                for i in range(1, emul_i+1):
-                    group = file['%s' % (i)]
+        # Load the corresponding sam_set, mod_set and cov_mat_inv
+        logger.info("Loading relevant emulator data up to iteration %s."
+                    % (emul_i))
 
-                    # Create empty construct check list
-                    ccheck = []
+        # Open hdf5-file
+        with PRISM_File('r', None) as file:
+            # Read in the data
+            for i in range(1, emul_i+1):
+                group = file['%s' % (i)]
 
-                    # Check if sam_set is available
+                # Create empty construct check list
+                ccheck = []
+
+                # Check if sam_set is available
+                try:
+                    self._n_sam.append(group.attrs['n_sam'])
+                    self._sam_set.append(group['sam_set'][()])
+                    self._sam_set[-1].dtype = float
+                except KeyError:
+                    ccheck.append('mod_real_set')
+
+                # Check if active_par is available
+                try:
+                    par_i = [self._modellink._par_name.index(par.decode(
+                            'utf-8')) for par in group.attrs['active_par']]
+                    self._active_par.append(np.array(par_i))
+                except KeyError:
+                    ccheck.append('active_par')
+
+                # Initialize empty data sets
+                mod_set = []
+                cov_mat_inv = []
+                prior_exp_sam_set = []
+                active_par_data = []
+                data_val = []
+                data_err = []
+                data_spc = []
+                data_idx = []
+
+                # Check which emulator systems are active
+                self._active_emul_s.append([])
+                for j, emul_s in enumerate(self._emul_s):
+                    # Create empty construct check list for this system
+                    ccheck_s = []
+
+                    # Try to access the emulator system
                     try:
-                        self._n_sam.append(group.attrs['n_sam'])
-                        self._sam_set.append(group['sam_set'][()])
-                        self._sam_set[-1].dtype = float
+                        data_set = group['emul_%s' % (emul_s)]
+                    # If it does not exist, it was passive
                     except KeyError:
-                        ccheck.append('mod_real_set')
+                        # Add empty lists for all emulator system data
+                        mod_set.append([])
+                        cov_mat_inv.append([])
+                        prior_exp_sam_set.append([])
+                        active_par_data.append([])
+                        data_val.append([])
+                        data_err.append([])
+                        data_spc.append([])
+                        data_idx.append([])
+                        ccheck.insert(j, ccheck_s)
+                        continue
+                    # If it does exist, add emul_s to list of active emul_s
+                    else:
+                        self._active_emul_s[-1].append(emul_s)
 
-                    # Check if active_par is available
+                    # Check if mod_set is available
                     try:
-                        par_i = [self._modellink._par_name.index(par.decode(
-                                'utf-8')) for par in group.attrs['active_par']]
-                        self._active_par.append(np.array(par_i))
+                        mod_set.append(data_set['mod_set'][()])
                     except KeyError:
-                        ccheck.append('active_par')
+                        mod_set.append([])
 
-                    # Initialize empty data sets
-                    mod_set = []
-                    cov_mat_inv = []
-                    prior_exp_sam_set = []
-                    active_par_data = []
-                    self._n_data.append(group.attrs['n_data'])
-                    self._n_emul_s.append(group.attrs['n_emul_s'])
-                    data_val = []
-                    data_err = []
-                    data_spc = []
-                    data_idx = []
+                    # Check if cov_mat is available
+                    try:
+                        cov_mat_inv.append(data_set['cov_mat_inv'][()])
+                    except KeyError:
+                        cov_mat_inv.append([])
+                        ccheck_s.append('cov_mat')
 
-                    # Check which emulator systems are active
-                    self._active_emul_s.append([])
-                    for j in range(self._n_emul_s[-1]):
-                        # Create empty construct check list for this system
-                        ccheck_s = []
+                    # Check if prior_exp_sam_set is available
+                    try:
+                        prior_exp_sam_set.append(
+                            data_set['prior_exp_sam_set'][()])
+                    except KeyError:
+                        prior_exp_sam_set.append([])
+                        ccheck_s.append('prior_exp_sam_set')
 
+                    # Check if active_par_data is available
+                    try:
+                        par_i = [self._modellink._par_name.index(
+                            par.decode('utf-8')) for par in
+                            data_set.attrs['active_par_data']]
+                        active_par_data.append(np.array(par_i))
+                    except KeyError:
+                        active_par_data.append([])
+                        ccheck_s.append('active_par_data')
+
+                    # Read in data values, errors and spaces
+                    data_val.append(data_set.attrs['data_val'])
+                    data_err.append(data_set.attrs['data_err'].tolist())
+                    data_spc.append(
+                        data_set.attrs['data_spc'].decode('utf-8'))
+
+                    # Read in all data_idx parts and combine them
+                    idx_keys = [key for key in data_set.attrs.keys()
+                                if key[:8] == 'data_idx']
+                    idx_len = len(idx_keys)
+                    if(idx_len == 1):
+                        if isinstance(data_set.attrs['data_idx'], bytes):
+                            data_idx.append(
+                                data_set.attrs['data_idx'].decode('utf-8'))
+                        else:
+                            data_idx.append(data_set.attrs['data_idx'])
+                    else:
+                        tmp_data_idx = []
+                        for key in idx_keys:
+                            if isinstance(data_set.attrs[key], bytes):
+                                idx_str =\
+                                    data_set.attrs[key].decode('utf-8')
+                                tmp_data_idx.append(idx_str)
+                            else:
+                                tmp_data_idx.append(data_set.attrs[key])
+                        data_idx.append(tmp_data_idx)
+
+                    # Add ccheck_s to ccheck
+                    ccheck.insert(j, ccheck_s)
+
+                # Determine the number of data points on this MPI rank
+                self._n_data.append(len(self._active_emul_s[-1]))
+
+                # Add all read-in data to their respective places
+                self._mod_set.append(mod_set)
+                self._cov_mat_inv.append(cov_mat_inv)
+                self._prior_exp_sam_set.append(prior_exp_sam_set)
+                self._active_par_data.append(active_par_data)
+                self._data_val.append(data_val)
+                self._data_err.append(data_err)
+                self._data_spc.append(data_spc)
+                self._data_idx.append(data_idx)
+
+                # If regression is used, also read in regression data
+                if self._method.lower() in ('regression', 'full'):
+                    rsdl_var = []
+                    poly_coef = []
+                    if self._use_regr_cov:
+                        poly_coef_cov = []
+                    poly_powers = []
+                    poly_idx = []
+                    for j, emul_s in enumerate(self._emul_s):
                         # Try to access the emulator system
                         try:
-                            data_set = group['emul_%s' % (j)]
+                            data_set = group['emul_%s' % (emul_s)]
                         # If it does not exist, it was passive
                         except KeyError:
-                            # Add empty lists for all emulator system data
-                            mod_set.append([])
-                            cov_mat_inv.append([])
-                            prior_exp_sam_set.append([])
-                            active_par_data.append([])
-                            data_val.append([])
-                            data_err.append([])
-                            data_spc.append([])
-                            data_idx.append([])
-                            ccheck.insert(j, ccheck_s)
+                            # Add empty lists for all regression data
+                            rsdl_var.append([])
+                            poly_coef.append([])
+                            if self._use_regr_cov:
+                                poly_coef_cov.append([])
+                            poly_powers.append([])
+                            poly_idx.append([])
                             continue
-                        # If it does exist, add emul_s to list of active emul_s
-                        else:
-                            self._active_emul_s[-1].append(j)
 
-                        # Check if mod_set is available
+                        # Check if regression variables are available
                         try:
-                            mod_set.append(data_set['mod_set'][()])
+                            rsdl_var.append(data_set.attrs['rsdl_var'])
+                            poly_coef.append(data_set['poly_coef'][()])
+                            if self._use_regr_cov:
+                                poly_coef_cov.append(
+                                    data_set['poly_coef_cov'][()])
+                            poly_powers.append(data_set['poly_powers'][()])
+                            poly_powers[-1].dtype = 'int64'
+                            poly_idx.append(data_set['poly_idx'][()])
                         except KeyError:
-                            mod_set.append([])
+                            rsdl_var.append([])
+                            poly_coef.append([])
+                            if self._use_regr_cov:
+                                poly_coef_cov.append([])
+                            poly_powers.append([])
+                            poly_idx.append([])
+                            ccheck[j].append('regression')
 
-                        # Check if cov_mat is available
-                        try:
-                            cov_mat_inv.append(data_set['cov_mat_inv'][()])
-                        except KeyError:
-                            cov_mat_inv.append([])
-                            ccheck_s.append('cov_mat')
+                    self._rsdl_var.append(rsdl_var)
+                    self._poly_coef.append(poly_coef)
+                    if self._use_regr_cov:
+                        self._poly_coef_cov.append(poly_coef_cov)
+                    self._poly_powers.append(poly_powers)
+                    self._poly_idx.append(poly_idx)
 
-                        # Check if prior_exp_sam_set is available
-                        try:
-                            prior_exp_sam_set.append(
-                                data_set['prior_exp_sam_set'][()])
-                        except KeyError:
-                            prior_exp_sam_set.append([])
-                            ccheck_s.append('prior_exp_sam_set')
+                # Add ccheck for this iteration to global ccheck
+                self._ccheck.append(ccheck)
 
-                        # Check if active_par_data is available
-                        try:
-                            par_i = [self._modellink._par_name.index(
-                                par.decode('utf-8')) for par in
-                                data_set.attrs['active_par_data']]
-                            active_par_data.append(np.array(par_i))
-                        except KeyError:
-                            active_par_data.append([])
-                            ccheck_s.append('active_par_data')
+                # If ccheck has no empty lists, decrease emul_i by 1
+                if(delist(ccheck) != []):
+                    self._emul_i -= 1
 
-                        # Read in data values, errors and spaces
-                        data_val.append(data_set.attrs['data_val'])
-                        data_err.append(data_set.attrs['data_err'].tolist())
-                        data_spc.append(
-                            data_set.attrs['data_spc'].decode('utf-8'))
-
-                        # Read in all data_idx parts and combine them
-                        idx_keys = [key for key in data_set.attrs.keys()
-                                    if key[:8] == 'data_idx']
-                        idx_len = len(idx_keys)
-                        if(idx_len == 1):
-                            if isinstance(data_set.attrs['data_idx'], bytes):
-                                data_idx.append(
-                                    data_set.attrs['data_idx'].decode('utf-8'))
-                            else:
-                                data_idx.append(data_set.attrs['data_idx'])
-                        else:
-                            tmp_data_idx = []
-                            for key in idx_keys:
-                                if isinstance(data_set.attrs[key], bytes):
-                                    idx_str =\
-                                        data_set.attrs[key].decode('utf-8')
-                                    tmp_data_idx.append(idx_str)
-                                else:
-                                    tmp_data_idx.append(data_set.attrs[key])
-                            data_idx.append(tmp_data_idx)
-
-                        # Add ccheck_s to ccheck
-                        ccheck.insert(j, ccheck_s)
-
-                    # Add all read-in data to their respective places
-                    self._mod_set.append(mod_set)
-                    self._cov_mat_inv.append(cov_mat_inv)
-                    self._prior_exp_sam_set.append(prior_exp_sam_set)
-                    self._active_par_data.append(active_par_data)
-                    self._data_val.append(data_val)
-                    self._data_err.append(data_err)
-                    self._data_spc.append(data_spc)
-                    self._data_idx.append(data_idx)
-
-                    # If regression is used, also read in regression data
-                    if self._method.lower() in ('regression', 'full'):
-                        rsdl_var = []
-                        poly_coef = []
-                        if self._use_regr_cov:
-                            poly_coef_cov = []
-                        poly_powers = []
-                        poly_idx = []
-                        for j in range(self._n_emul_s[-1]):
-                            # Try to access the emulator system
-                            try:
-                                data_set = group['emul_%s' % (j)]
-                            # If it does not exist, it was passive
-                            except KeyError:
-                                # Add empty lists for all regression data
-                                rsdl_var.append([])
-                                poly_coef.append([])
-                                if self._use_regr_cov:
-                                    poly_coef_cov.append([])
-                                poly_powers.append([])
-                                poly_idx.append([])
-                                continue
-
-                            # Check if regression variables are available
-                            try:
-                                rsdl_var.append(data_set.attrs['rsdl_var'])
-                                poly_coef.append(data_set['poly_coef'][()])
-                                if self._use_regr_cov:
-                                    poly_coef_cov.append(
-                                        data_set['poly_coef_cov'][()])
-                                poly_powers.append(data_set['poly_powers'][()])
-                                poly_powers[-1].dtype = 'int64'
-                                poly_idx.append(data_set['poly_idx'][()])
-                            except KeyError:
-                                rsdl_var.append([])
-                                poly_coef.append([])
-                                if self._use_regr_cov:
-                                    poly_coef_cov.append([])
-                                poly_powers.append([])
-                                poly_idx.append([])
-                                ccheck[j].append('regression')
-
-                        self._rsdl_var.append(rsdl_var)
-                        self._poly_coef.append(poly_coef)
-                        if self._use_regr_cov:
-                            self._poly_coef_cov.append(poly_coef_cov)
-                        self._poly_powers.append(poly_powers)
-                        self._poly_idx.append(poly_idx)
-
-                    # Add ccheck for this iteration to global ccheck
-                    self._ccheck.append(ccheck)
-
-                    # If ccheck has no empty lists, decrease emul_i by 1
-                    if(delist(ccheck) != []):
-                        self._emul_i -= 1
-
-            # Log that loading is finished
-            logger.info("Finished loading relevant emulator data.")
-        else:
-            raise RequestError("Invalid operation requested!")
+        # Log that loading is finished
+        logger.info("Finished loading relevant emulator data.")
 
     # This function saves emulator data to hdf5
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s=emul_s_doc)
@@ -2324,7 +2364,7 @@ class Emulator(object):
         """
 
         # Do some logging
-        logger = logging.getLogger('SAVE_DATA')
+        logger = getLogger('SAVE_DATA')
 
         # If keyword is 'mod_real_set', emul_s is None
         if 'mod_real_set' in data_dict.keys():
@@ -2433,7 +2473,7 @@ class Emulator(object):
         """
 
         # Log that parameters are being read
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Retrieving emulator parameters from provided HDF5-file.")
 
         # Open hdf5-file
@@ -2447,26 +2487,18 @@ class Emulator(object):
             modellink_name = file.attrs['modellink_name'].decode('utf-8')
             self._use_mock = int(file.attrs['use_mock'])
 
-            # TODO: This try-statement becomes obsolete when PRISM is released
-            try:
-                emul_version = file.attrs['prism_version'].decode('utf-8')
-            except KeyError:
-                emul_version = '0.3.0'
+            # Obtain used PRISM version and emulator type
+            emul_version = file.attrs['prism_version'].decode('utf-8')
+            emul_type = file.attrs['emul_type'].decode('utf-8')
 
-            # TODO: Same for this try-statement
-            try:
-                emul_type = file.attrs['emul_type'].decode('utf-8')
-            except KeyError:
-                emul_type = 'default'
-
-            # Check if provided emulator is the same as requested
-            if(emul_type != self._emul_type):
-                logger.error("Provided emulator system type ('%s') does not "
-                             "match the requested type ('%s')!"
-                             % (emul_type, self._emul_type))
-                raise RequestError("Provided emulator system type ('%s') does "
-                                   "not match the requested type ('%s')!"
-                                   % (emul_type, self._emul_type))
+        # Check if provided emulator is the same as requested
+        if(emul_type != self._emul_type):
+            logger.error("Provided emulator system type ('%s') does not "
+                         "match the requested type ('%s')!"
+                         % (emul_type, self._emul_type))
+            raise RequestError("Provided emulator system type ('%s') does "
+                               "not match the requested type ('%s')!"
+                               % (emul_type, self._emul_type))
 
         # Check if provided emul_version is compatible
         check_compatibility(emul_version)
@@ -2491,7 +2523,7 @@ class Emulator(object):
         """
 
         # Log this
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Generating default emulator parameter dict.")
 
         # Create parameter dict with default parameters
@@ -2517,7 +2549,7 @@ class Emulator(object):
         """
 
         # Log that the PRISM parameter file is being read
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Reading emulator parameters.")
 
         # Obtaining default emulator parameter dict
@@ -2587,26 +2619,69 @@ class Emulator(object):
         Generates
         ---------
         Overwrites the corresponding :class:`~ModelLink` class properties with
-        the previously used values.
+        the previously used values (taken from the first emulator iteration).
 
         """
 
         # Start logger
-        logger = logging.getLogger('MOCK_DATA')
+        logger = getCLogger('MOCK_DATA')
 
         # Overwrite ModelLink properties with previously generated values
         # Log that mock_data is being loaded in
         logger.info("Loading previously used mock data into ModelLink object.")
 
-        # Open hdf5-file
-        with PRISM_File('r', None) as file:
-            # Overwrite ModelLink properties
-            self._modellink._par_est = file.attrs['mock_par'].tolist()
-            self._modellink._n_data = self._n_data[1]
-            self._modellink._data_val = self._data_val[1]
-            self._modellink._data_err = self._data_err[1]
-            self._modellink._data_spc = self._data_spc[1]
-            self._modellink._data_idx = self._data_idx[1]
+        # Controller only
+        if self._is_controller:
+            # Open hdf5-file
+            with PRISM_File('r', None) as file:
+                # Get the number of emulator systems in the first iteration
+                group = file['1']
+                n_emul_s = group.attrs['n_emul_s']
+
+                # Make empty lists for all model properties
+                data_val = []
+                data_err = []
+                data_spc = []
+                data_idx = []
+
+                # Loop over all data points in the first iteration
+                for i in range(n_emul_s):
+                    # Read in data values, errors and spaces
+                    data_set = group['emul_%s' % (i)]
+                    data_val.append(data_set.attrs['data_val'])
+                    data_err.append(data_set.attrs['data_err'].tolist())
+                    data_spc.append(data_set.attrs['data_spc'].decode('utf-8'))
+
+                    # Read in all data_idx parts and combine them
+                    idx_keys = [key for key in data_set.attrs.keys()
+                                if key[:8] == 'data_idx']
+                    idx_len = len(idx_keys)
+                    if(idx_len == 1):
+                        if isinstance(data_set.attrs['data_idx'], bytes):
+                            data_idx.append(
+                                data_set.attrs['data_idx'].decode('utf-8'))
+                        else:
+                            data_idx.append(data_set.attrs['data_idx'])
+                    else:
+                        tmp_data_idx = []
+                        for key in idx_keys:
+                            if isinstance(data_set.attrs[key], bytes):
+                                idx_str = data_set.attrs[key].decode('utf-8')
+                                tmp_data_idx.append(idx_str)
+                            else:
+                                tmp_data_idx.append(data_set.attrs[key])
+                        data_idx.append(tmp_data_idx)
+
+                # Overwrite ModelLink properties
+                self._modellink._par_est = file.attrs['mock_par'].tolist()
+                self._modellink._n_data = group.attrs['n_data']
+                self._modellink._data_val = data_val
+                self._modellink._data_err = data_err
+                self._modellink._data_spc = data_spc
+                self._modellink._data_idx = data_idx
+
+        # Broadcast updated ModelLink object to workers
+        self._modellink = self._comm.bcast(self._modellink, 0)
 
         # Log end
         logger.info("Loaded mock data.")

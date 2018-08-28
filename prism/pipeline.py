@@ -21,7 +21,7 @@ from __future__ import (absolute_import, division, print_function,
                         with_statement)
 
 # Built-in imports
-import logging
+from logging import getLogger
 import os
 from os import path
 import sys
@@ -45,7 +45,7 @@ from ._docstrings import (call_emul_i_doc, emul_s_seq_doc, std_emul_i_doc,
 from ._internal import (PRISM_File, RequestError, check_bool, check_float,
                         check_nneg_float, check_pos_int, convert_str_seq,
                         delist, docstring_copy, docstring_substitute,
-                        move_logger, start_logger)
+                        getCLogger, move_logger, rprint, start_logger)
 from .emulator import Emulator
 from .projection import Projection
 
@@ -130,11 +130,11 @@ class Pipeline(object):
         if self._is_controller:
             # Start logging
             logging_file = start_logger()
-            logger = logging.getLogger('PIPELINE')
+            logger = getCLogger('PIPELINE')
             logger.info("")
 
             # Initialize class
-            logger = logging.getLogger('INIT')
+            logger = getCLogger('INIT')
             logger.info("Initializing Pipeline class.")
 
             # Obtain paths
@@ -144,16 +144,20 @@ class Pipeline(object):
             # Move logger to working directory
             move_logger(self._working_dir, logging_file)
 
-            # Initialize Emulator class
-            if(emul_type == 'default'):
-                self._emulator = Emulator(self, modellink)
-            else:
-                raise RequestError("Input argument 'emul_type' is invalid!")
-
         # Remaining workers
         else:
-            # Listen for controller sending updated modellink object
-            self._modellink = self._comm.recv(source=0, tag=888+self._rank)
+            # Obtain paths
+            self._get_paths(root_dir, working_dir, prefix, hdf5_file,
+                            prism_file)
+
+            # Start logger for workers as well
+            start_logger(path.join(self._working_dir, 'prism_log.log'), 'a')
+
+        # Initialize Emulator class
+        if(emul_type == 'default'):
+            self._emulator = Emulator(self, modellink)
+        else:
+            raise RequestError("Input argument 'emul_type' is invalid!")
 
         # Let controller read in the data
         if self._is_controller:
@@ -162,6 +166,8 @@ class Pipeline(object):
             self._load_data()
 
         # Print out the details of the current state of the pipeline
+        print(self._emulator._data_idx)
+        return
         self.details()
 
     # Allows one to call one full loop of the PRISM pipeline
@@ -266,15 +272,6 @@ class Pipeline(object):
         return(self._working_dir)
 
     @property
-    def prefix(self):
-        """
-        String used as a prefix when naming new working directories.
-
-        """
-
-        return(self._prefix)
-
-    @property
     def hdf5_file(self):
         """
         Absolute path to the loaded HDF5-file.
@@ -282,15 +279,6 @@ class Pipeline(object):
         """
 
         return(self._hdf5_file)
-
-    @property
-    def hdf5_file_name(self):
-        """
-        Name of loaded HDF5-file.
-
-        """
-
-        return(self._hdf5_file_name)
 
     @property
     def prism_file(self):
@@ -470,7 +458,7 @@ class Pipeline(object):
 
         # Log that model is being called
         if self._is_controller:
-            logger = logging.getLogger('CALL_MODEL')
+            logger = getLogger('CALL_MODEL')
             logger.info("Calling model at parameters %s." % (sam))
 
         # Create par_dict
@@ -516,7 +504,7 @@ class Pipeline(object):
 
         # Log that model is being multi-called
         if self._is_controller:
-            logger = logging.getLogger('CALL_MODEL')
+            logger = getLogger('CALL_MODEL')
             logger.info("Multi-calling model for sample set of size %s."
                         % (np.shape(sam_set)[0]))
 
@@ -547,7 +535,7 @@ class Pipeline(object):
         """
 
         # Log this
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Generating default pipeline parameter dict.")
 
         # Create parameter dict with default parameters
@@ -574,7 +562,7 @@ class Pipeline(object):
         """
 
         # Log that the PRISM parameter file is being read
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Reading pipeline parameters.")
 
         # Obtaining default pipeline parameter dict
@@ -727,169 +715,180 @@ class Pipeline(object):
 
         """
 
-        # Set logging system
-        logger = logging.getLogger('INIT')
-        logger.info("Obtaining related directory and file paths.")
+        # Controller obtaining the paths
+        if self._is_controller:
+            # Set logging system
+            logger = getCLogger('INIT')
+            logger.info("Obtaining related directory and file paths.")
 
-        # Obtain root directory path
-        # If one did not specify a root directory, set it to default
-        if root_dir is None:
-            logger.info("No root directory specified, setting it to default.")
-            self._root_dir = path.abspath('.')
-            logger.info("Root directory set to '%s'." % (self._root_dir))
+            # Obtain root directory path
+            # If one did not specify a root directory, set it to default
+            if root_dir is None:
+                self._root_dir = path.abspath('.')
+                logger.info("No root directory specified, set to '%s'."
+                            % (self._root_dir))
 
-        # If one specified a root directory, use it
-        elif isinstance(root_dir, (str, unicode)):
-            logger.info("Root directory specified.")
-            self._root_dir = path.abspath(root_dir)
-            logger.info("Root directory set to '%s'." % (self._root_dir))
+            # If one specified a root directory, use it
+            elif isinstance(root_dir, (str, unicode)):
+                self._root_dir = path.abspath(root_dir)
+                logger.info("Root directory set to '%s'." % (self._root_dir))
 
-            # Check if this directory already exists
-            try:
-                logger.info("Checking if root directory already exists.")
-                os.mkdir(self._root_dir)
-            except OSError:
-                logger.info("Root directory already exists.")
-                pass
-            else:
-                logger.info("Root directory did not exist, created it.")
-                pass
-        else:
-            logger.error("Input argument 'root_dir' is invalid!")
-            raise InputError("Input argument 'root_dir' is invalid!")
-
-        # Check if a valid working directory prefix string is given
-        if isinstance(prefix, (str, unicode)):
-            self._prefix = prefix
-            prefix_len = len(prefix)
-        else:
-            logger.error("Input argument 'prefix' is not of type 'str'!")
-            raise TypeError("Input argument 'prefix' is not of type 'str'!")
-
-        # Obtain working directory path
-        # If one did not specify a working directory, obtain it
-        if working_dir is None:
-            logger.info("No working directory specified, trying to load last "
-                        "one created.")
-            dirnames = next(os.walk(self._root_dir))[1]
-            emul_dirs = list(dirnames)
-
-            # Check which directories in the root_dir satisfy the default
-            # naming scheme of the emulator directories
-            for dirname in dirnames:
-                if(dirname[0:prefix_len] != self._prefix):
-                    emul_dirs.remove(dirname)
+                # Check if this directory already exists
+                try:
+                    os.mkdir(self._root_dir)
+                except OSError:
+                    pass
                 else:
-                    try:
-                        strptime(dirname[prefix_len:prefix_len+10], '%Y-%m-%d')
-                    except ValueError:
+                    logger.info("Root directory did not exist, created it.")
+            else:
+                logger.error("Input argument 'root_dir' is invalid!")
+                raise InputError("Input argument 'root_dir' is invalid!")
+
+            # Check if a valid working directory prefix string is given
+            if isinstance(prefix, (str, unicode)):
+                prefix = prefix
+                prefix_len = len(prefix)
+            else:
+                logger.error("Input argument 'prefix' is not of type 'str'!")
+                raise TypeError("Input argument 'prefix' is not of type "
+                                "'str'!")
+
+            # Obtain working directory path
+            # If one did not specify a working directory, obtain it
+            if working_dir is None:
+                logger.info("No working directory specified, trying to load "
+                            "last one created.")
+                dirnames = next(os.walk(self._root_dir))[1]
+                emul_dirs = list(dirnames)
+
+                # Check which directories in the root_dir satisfy the default
+                # naming scheme of the emulator directories
+                for dirname in dirnames:
+                    if(dirname[0:prefix_len] != prefix):
+                        emul_dirs.remove(dirname)
+                    else:
+                        try:
+                            strptime(dirname[prefix_len:prefix_len+10],
+                                     '%Y-%m-%d')
+                        except ValueError:
+                            emul_dirs.remove(dirname)
+
+                # If no working directory exists, make a new one
+                if(len(emul_dirs) == 0):
+                    working_dir = ''.join([prefix, strftime('%Y-%m-%d')])
+                    self._working_dir = path.join(self._root_dir, working_dir)
+                    os.mkdir(self._working_dir)
+                    logger.info("No working directories found, created '%s'."
+                                % (working_dir))
+
+                # If working directories exist, load last one created
+                else:
+                    emul_dirs.sort(reverse=True)
+                    working_dir = emul_dirs[0]
+                    self._working_dir = path.join(self._root_dir, working_dir)
+                    logger.info("Working directories found, set to '%s'."
+                                % (working_dir))
+
+            # If one requested a new working directory
+            elif isinstance(working_dir, int):
+                working_dir = ''.join([prefix, strftime('%Y-%m-%d')])
+                dirnames = next(os.walk(self._root_dir))[1]
+                emul_dirs = list(dirnames)
+
+                for dirname in dirnames:
+                    if(dirname[0:prefix_len+10] != working_dir):
                         emul_dirs.remove(dirname)
 
-            # If no working directory exists, make a new one
-            if(len(emul_dirs) == 0):
-                logger.info("No working directories found, creating it.")
-                working_dir = ''.join([self._prefix, strftime('%Y-%m-%d')])
-                self._working_dir = path.join(self._root_dir, working_dir)
-                os.mkdir(self._working_dir)
-                logger.info("Working directory set to '%s'." % (working_dir))
-
-            # If working directories exist, load last one created
-            else:
-                logger.info("Working directories found, loading last one.")
+                # Check if working directories already exist with the same
+                # prefix and append a number to the name if this is the case
                 emul_dirs.sort(reverse=True)
-                working_dir = emul_dirs[0]
+                if(len(emul_dirs) == 0):
+                    pass
+                elif(len(emul_dirs) == 1):
+                    working_dir = ''.join([working_dir, '_1'])
+                else:
+                    working_dir =\
+                        ''.join([working_dir, '_%s'
+                                 % (int(emul_dirs[0][prefix_len+11:])+1)])
+
                 self._working_dir = path.join(self._root_dir, working_dir)
+                os.mkdir(self._working_dir)
+                logger.info("New working directory requested, created '%s'."
+                            % (working_dir))
+
+            # If one specified a working directory, use it
+            elif isinstance(working_dir, (str, unicode)):
+                self._working_dir =\
+                    path.join(self._root_dir, working_dir)
                 logger.info("Working directory set to '%s'." % (working_dir))
 
-        # If one requested a new working directory
-        elif isinstance(working_dir, int):
-            logger.info("New working directory requested, creating it.")
-            working_dir = ''.join([self._prefix, strftime('%Y-%m-%d')])
-            dirnames = next(os.walk(self._root_dir))[1]
-            emul_dirs = list(dirnames)
-
-            for dirname in dirnames:
-                if(dirname[0:prefix_len+10] != working_dir):
-                    emul_dirs.remove(dirname)
-
-            # Check if other working directories already exist with the same
-            # prefix and append a number to the name if this is the case
-            emul_dirs.sort(reverse=True)
-            if(len(emul_dirs) == 0):
-                pass
-            elif(len(emul_dirs) == 1):
-                working_dir = ''.join([working_dir, '_1'])
+                # Check if this directory already exists
+                try:
+                    os.mkdir(self._working_dir)
+                except OSError:
+                    pass
+                else:
+                    logger.info("Working directory did not exist, created it.")
             else:
-                working_dir =\
-                    ''.join([working_dir, '_%s'
-                             % (int(emul_dirs[0][prefix_len+11:])+1)])
+                logger.error("Input argument 'working_dir' is invalid!")
+                raise InputError("Input argument 'working_dir' is invalid!")
 
-            self._working_dir = path.join(self._root_dir, working_dir)
-            os.mkdir(self._working_dir)
-            logger.info("Working directory set to '%s'." % (working_dir))
-
-        # If one specified a working directory, use it
-        elif isinstance(working_dir, (str, unicode)):
-            logger.info("Working directory specified.")
-            self._working_dir =\
-                path.join(self._root_dir, working_dir)
-            logger.info("Working directory set to '%s'." % (working_dir))
-
-            # Check if this directory already exists
-            try:
-                logger.info("Checking if working directory already exists.")
-                os.mkdir(self._working_dir)
-            except OSError:
-                logger.info("Working directory already exists.")
-                pass
-            else:
-                logger.info("Working directory did not exist, created it.")
-                pass
-        else:
-            logger.error("Input argument 'working_dir' is invalid!")
-            raise InputError("Input argument 'working_dir' is invalid!")
-
-        # Obtain hdf5-file path
-        if isinstance(hdf5_file, (str, unicode)):
-            # Check if provided filename has correct extension
-            ext_idx = hdf5_file.find('.')
-            if hdf5_file[ext_idx:] not in ('.hdf5', '.h5'):
-                logger.error("Input argument 'hdf5_file' has invalid HDF5 "
-                             "extension!")
-                raise ValueError("Input argument 'hdf5_file' has invalid HDF5 "
+            # Obtain hdf5-file path
+            if isinstance(hdf5_file, (str, unicode)):
+                # Check if provided filename has correct extension
+                ext_idx = hdf5_file.find('.')
+                if hdf5_file[ext_idx:] not in ('.hdf5', '.h5'):
+                    logger.error("Input argument 'hdf5_file' has invalid HDF5 "
                                  "extension!")
+                    raise ValueError("Input argument 'hdf5_file' has invalid "
+                                     "HDF5 extension!")
 
-            # Save hdf5-file path and name
-            self._hdf5_file = path.join(self._working_dir, hdf5_file)
-            logger.info("Master HDF5-file set to '%s'." % (hdf5_file))
-            self._hdf5_file_name = path.join(working_dir, hdf5_file)
+                # Save hdf5-file path and name
+                self._hdf5_file = path.join(self._working_dir, hdf5_file)
+                logger.info("Master HDF5-file set to '%s'." % (hdf5_file))
 
-            # Save hdf5-file path as a PRISM_File class attribute
-            PRISM_File._hdf5_file = self._hdf5_file
+                # Save hdf5-file path as a PRISM_File class attribute
+                PRISM_File._hdf5_file = self._hdf5_file
+            else:
+                logger.error("Input argument 'hdf5_file' is not of type "
+                             "'str'!")
+                raise TypeError("Input argument 'hdf5_file' is not of type "
+                                "'str'!")
+
+            # Obtain PRISM parameter file path
+            # If no PRISM parameter file was provided
+            if prism_file is None:
+                self._prism_file = None
+
+            # If a PRISM parameter file was provided
+            elif isinstance(prism_file, (str, unicode)):
+                if path.exists(prism_file):
+                    self._prism_file = path.abspath(prism_file)
+                elif path.exists(path.join(self._root_dir, prism_file)):
+                    self._prism_file = path.join(self._root_dir, prism_file)
+                else:
+                    logger.error("Input argument 'prism_file' is a "
+                                 "non-existing path (%s)!" % (prism_file))
+                    raise OSError("Input argument 'prism_file' is a "
+                                  "non-existing path (%s)!" % (prism_file))
+                logger.info("PRISM parameters file set to '%s'."
+                            % (self._prism_file))
+            else:
+                logger.error("Input argument 'prism_file' is invalid!")
+                raise InputError("Input argument 'prism_file' is invalid!")
+
+        # Workers get dummy paths
         else:
-            logger.error("Input argument 'hdf5_file' is not of type 'str'!")
-            raise TypeError("Input argument 'hdf5_file' is not of type 'str'!")
-
-        # Obtain PRISM parameter file path
-        # If no PRISM parameter file was provided
-        if prism_file is None:
+            self._root_dir = None
+            self._working_dir = None
+            self._hdf5_file = None
             self._prism_file = None
 
-        # If a PRISM parameter file was provided
-        elif isinstance(prism_file, (str, unicode)):
-            if path.exists(prism_file):
-                self._prism_file = path.abspath(prism_file)
-            elif path.exists(path.join(self._root_dir, prism_file)):
-                self._prism_file = path.join(self._root_dir, prism_file)
-            else:
-                logger.error("Input argument 'prism_file' is a non-existing "
-                             "path (%s)!" % (prism_file))
-                raise OSError("Input argument 'prism_file' is a non-existing "
-                              "path (%s)!" % (prism_file))
-            logger.info("PRISM parameters file set to '%s'." % (prism_file))
-        else:
-            logger.error("Input argument 'prism_file' is invalid!")
-            raise InputError("Input argument 'prism_file' is invalid!")
+        # Broadcast paths to workers
+        self._root_dir = self._comm.bcast(self._root_dir, 0)
+        self._working_dir = self._comm.bcast(self._working_dir, 0)
+        self._hdf5_file = self._comm.bcast(self._hdf5_file, 0)
+        self._prism_file = self._comm.bcast(self._prism_file, 0)
 
     # This function generates mock data and loads it into ModelLink
     def _get_mock_data(self):
@@ -909,7 +908,7 @@ class Pipeline(object):
         # Controller only
         if self._is_controller:
             # Start logger
-            logger = logging.getLogger('MOCK_DATA')
+            logger = getLogger('MOCK_DATA')
 
             # Log new mock_data being created
             logger.info("Generating mock data for new emulator system.")
@@ -998,7 +997,7 @@ class Pipeline(object):
         """
 
         # Set the logger
-        logger = logging.getLogger('LOAD_DATA')
+        logger = getLogger('LOAD_DATA')
 
         # Initialize all data sets with empty lists
         logger.info("Initializing pipeline data sets.")
@@ -1062,7 +1061,7 @@ class Pipeline(object):
         """
 
         # Do some logging
-        logger = logging.getLogger('SAVE_DATA')
+        logger = getLogger('SAVE_DATA')
 
         # Obtain last emul_i
         emul_i = self._emulator._emul_i
@@ -1155,7 +1154,7 @@ class Pipeline(object):
         """
 
         # Do logging
-        logger = logging.getLogger('STATISTICS')
+        logger = getLogger('STATISTICS')
         logger.info("Saving statistics to HDF5.")
 
         # Open hdf5-file
@@ -1200,7 +1199,7 @@ class Pipeline(object):
         # Controller does logging
         if self._is_controller:
             # Log that evaluation of model samples is started
-            logger = logging.getLogger('MODEL')
+            logger = getLogger('MODEL')
             logger.info("Evaluating model samples.")
 
             # Do model evaluations
@@ -1291,7 +1290,7 @@ class Pipeline(object):
         """
 
         # Log about this
-        logger = logging.getLogger('EVAL_SAMS')
+        logger = getLogger('EVAL_SAMS')
 
         # Obtain number of samples
         n_eval_sam = self._get_n_eval_sam(emul_i)
@@ -1531,7 +1530,7 @@ class Pipeline(object):
         """
 
         # Log that impl_cut-off list is being acquired
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Generating full implausibility cut-off list.")
 
         # Complete the impl_cut list
@@ -1594,7 +1593,7 @@ class Pipeline(object):
         # Controller only
         if self._is_controller:
             # Do some logging
-            logger = logging.getLogger('INIT')
+            logger = getCLogger('INIT')
             logger.info("Obtaining implausibility analysis parameters.")
 
             # Obtaining default pipeline parameter dict
@@ -1657,7 +1656,7 @@ class Pipeline(object):
             return(np.array([]), np.array([]))
 
         # Do some logging
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Processing externally provided model realization set.")
 
         # If a list is given
@@ -1885,7 +1884,7 @@ class Pipeline(object):
         # Only controller
         if self._is_controller:
             # Begin logging
-            logger = logging.getLogger('ANALYZE')
+            logger = getLogger('ANALYZE')
 
             # Save current time
             start_time1 = time()
@@ -2008,7 +2007,7 @@ class Pipeline(object):
         """
 
         # Log that a new emulator iteration is being constructed
-        logger = logging.getLogger('CONSTRUCT')
+        logger = getLogger('CONSTRUCT')
 
         # Only the controller should run this
         if self._is_controller:
@@ -2222,6 +2221,7 @@ class Pipeline(object):
 
     # This function allows one to obtain the pipeline details/properties
     # TODO: Allow the viewing of the entire polynomial function in SymPy
+    # TODO: Rewrite to add MPI compatibility
     @docstring_substitute(emul_i=user_emul_i_doc)
     def details(self, emul_i=None):
         """
@@ -2308,7 +2308,7 @@ class Pipeline(object):
         # Only controller
         if self._is_controller:
             # Define details logger
-            logger = logging.getLogger("DETAILS")
+            logger = getLogger("DETAILS")
             logger.info("Collecting details about current pipeline instance.")
 
             # Check if last emulator iteration is finished constructing
@@ -2388,8 +2388,12 @@ class Pipeline(object):
             # Obtain number of data points
             n_data = self._emulator._n_data[emul_i]
 
+            # TODO: Remove n_emul_s usage
             # Obtain number of emulator systems
             n_emul_s = self._emulator._n_emul_s[emul_i]
+
+            # Determine the relative path to the master HDF5-file
+            hdf5_rel_path = path.relpath(self._hdf5_file, self._root_dir)
 
             # Set width of detail names
             width = 31
@@ -2406,7 +2410,7 @@ class Pipeline(object):
 
             # General details about loaded emulator system
             print("{0: <{1}}\t'{2}'".format("HDF5-file name", width,
-                                            self._hdf5_file_name))
+                                            hdf5_rel_path))
             print("{0: <{1}}\t'{2}'".format("Emulator type", width,
                                             self._emulator._emul_type))
             print("{0: <{1}}\t{2}".format("ModelLink subclass", width,
@@ -2632,7 +2636,7 @@ class Pipeline(object):
         # Only controller
         if self._is_controller:
             # Do some logging
-            logger = logging.getLogger('EVALUATE')
+            logger = getLogger('EVALUATE')
             logger.info("Evaluating emulator system for provided set of model "
                         "parameter samples.")
 

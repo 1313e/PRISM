@@ -22,7 +22,7 @@ from __future__ import (absolute_import, division, print_function,
 
 # Built-in imports
 from itertools import chain, combinations
-import logging
+from logging import getLogger
 import os
 from os import path
 from time import time
@@ -42,7 +42,8 @@ from tqdm import tqdm
 # PRISM imports
 from ._docstrings import user_emul_i_doc
 from ._internal import (PRISM_File, RequestError, check_bool, check_pos_int,
-                        convert_str_seq, docstring_substitute)
+                        convert_str_seq, docstring_substitute, getCLogger,
+                        rprint)
 
 # All declaration
 __all__ = ['Projection']
@@ -145,7 +146,7 @@ class Projection(object):
         """
 
         # Log the start of the creation of the projection
-        logger = logging.getLogger('PROJECTION')
+        logger = getLogger('PROJECTION')
         logger.info("Starting the projection process.")
 
         # Save current time
@@ -343,7 +344,7 @@ class Projection(object):
         """
 
         # Start logger
-        logger = logging.getLogger('PROJECTION')
+        logger = getLogger('PROJECTION')
         logger.info("Drawing projection figure '%s'." % (self._hcube_name))
 
         # Determine the path of this figure
@@ -427,7 +428,7 @@ class Projection(object):
         """
 
         # Start logger
-        logger = logging.getLogger('PROJECTION')
+        logger = getLogger('PROJECTION')
         logger.info("Drawing projection figure '%s'." % (self._hcube_name))
 
         # Determine the path of this figure
@@ -560,7 +561,7 @@ class Projection(object):
         """
 
         # Start logger
-        logger = logging.getLogger('PROJECTION')
+        logger = getLogger('PROJECTION')
 
         # Check the proj_par that were provided
         # If none was provided, make figures for all model parameters
@@ -697,7 +698,7 @@ class Projection(object):
         """
 
         # Do some logging
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Obtaining implausibility analysis parameters.")
 
         # Obtain the impl_cut and cut_idx up to this iteration from pipeline
@@ -754,7 +755,7 @@ class Projection(object):
         """
 
         # Log this
-        logger = logging.getLogger('INIT')
+        logger = getCLogger('INIT')
         logger.info("Generating default projection parameter dict.")
 
         # Create parameter dict with default parameters
@@ -790,7 +791,7 @@ class Projection(object):
         """
 
         # Log that projection hypercube is being created
-        logger = logging.getLogger('PROJ_HCUBE')
+        logger = getLogger('PROJ_HCUBE')
         logger.info("Creating projection hypercube '%s'." % (self._hcube_name))
 
         # If n_par is 2, make 2D projection hypercube
@@ -885,7 +886,7 @@ class Projection(object):
         """
 
         # Log that a projection hypercube is being analyzed
-        logger = logging.getLogger('ANALYSIS')
+        logger = getLogger('ANALYSIS')
         logger.info("Analyzing projection hypercube.")
 
         # Save current time
@@ -965,7 +966,7 @@ class Projection(object):
         """
 
         # Do some logging
-        logger = logging.getLogger('SAVE_DATA')
+        logger = getLogger('SAVE_DATA')
 
         # Open hdf5-file
         with PRISM_File('r+', None) as file:
