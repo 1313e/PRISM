@@ -926,7 +926,8 @@ class Pipeline(object):
         if self._modellink._MPI_call or self._is_controller:
             if self._modellink._multi_call:
                 # Multi-call model
-                mod_out = self._multi_call_model(0, self._modellink._par_est)
+                mod_out = self._multi_call_model(0, self._modellink._par_est,
+                                                 self._modellink._data_idx)
 
                 # Only controller receives output and can thus use indexing
                 if self._is_controller:
@@ -935,7 +936,8 @@ class Pipeline(object):
             else:
                 # Controller only call model
                 self._emulator._data_val[0] =\
-                    self._call_model(0, self._modellink._par_est).tolist()
+                    self._call_model(0, self._modellink._par_est,
+                                     self._modellink._data_idx).tolist()
 
         # Controller only
         if self._is_controller:
@@ -1585,7 +1587,7 @@ class Pipeline(object):
                                                 impl_cut[i-1]))
 
         # Get the index identifying where the first real impl_cut is
-        for i, impl in enumerate(impl_cut[:obj._emulator._n_data[-1]]):
+        for i, impl in enumerate(impl_cut[:obj._emulator._n_data_tot[-1]]):
             if(impl != 0):
                 cut_idx = i
                 break
@@ -1802,16 +1804,16 @@ class Pipeline(object):
         return(ext_sam_set, ext_mod_set.T)
 
     # This function analyzes the emulator for given sam_set using code snippets
+    # TODO: Determine whether using arrays or lists is faster
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def _analyze_sam_set(self, obj, emul_i, sam_set, pre_code, loop_code,
-                         post_code):
+    def _analyze_sam_set(self, obj, emul_i, sam_set, pre_code, eval_code,
+                         anal_code, post_code, exit_code):
         """
         Analyzes a provided set of emulator evaluation samples `sam_set` at a
         given emulator iteration `emul_i`, using the impl_cut values given in
-        `obj`. The provided code snippets `pre_code`, `loop_code` and
-        `post_code` are executed using Python's :func:`~exec` function before
-        starting the analysis, after evaluating each sample and after finishing
-        the analysis, respectively.
+        `obj`. The provided code snippets `pre_code`; `eval_code`; `anal_code`;
+        `post_code` and `exit_code` are executed using Python's :func:`~exec`
+        function at specific points during the analysis.
 
         Parameters
         ----------
@@ -1820,23 +1822,30 @@ class Pipeline(object):
             class.
         %(emul_i)s
         sam_set : 2D :obj:`~numpy.ndarray` object
-            Array containing model parameter value sets to be evaluated in the
-            emulator system.
+            Array containing model parameter value sets to be evaluated in all
+            emulator systems in emulator iteration `emul_i`.
         pre_code : str or code object
             Code snippet to be executed before the analysis of `sam_set`
             starts.
-        loop_code : str or code object
+        eval_code : str or code object
             Code snippet to be executed after the evaluation of each sample in
+            `sam_set`.
+        anal_code : str or code object
+            Code snippet to be executed after the analysis of each sample in
             `sam_set`.
         post_code : str or code object
             Code snippet to be executed after the analysis of `sam_set` ends.
+        exit_code : str or code object
+            Code snippet to be executed before returning the results of the
+            analysis of `sam_set`.
 
         Returns
         -------
         results : object
             The object that is assigned to :attr:`~Pipeline.results`, which is
             defaulted to *None* if no code snippet changes it. Preferably, the
-            execution of `post_code` changes :attr:`~Pipeline.results`.
+            execution of `post_code` and/or `exit_code` modifies
+            :attr:`~Pipeline.results`.
 
         Notes
         -----
@@ -1847,8 +1856,20 @@ class Pipeline(object):
 
         """
 
-        # Make an empty bool list containing which samples are plausible
-        impl_check = []
+        # Determine number of samples
+        n_sam = sam_set.shape[0]
+
+        # Start logging
+        logger = getCLogger('ANALYZE_SS')
+        logger.info("Starting analysis of evaluation sample set of size %s."
+                    % (n_sam))
+
+        # Make a filled bool list containing which samples are plausible
+        impl_check = np.ones(n_sam, dtype=int)
+
+        # Make a list of plausible sample indices
+        sam_idx_full = np.array(list(range(n_sam)))
+        sam_idx = sam_idx_full[impl_check == 1]
 
         # Set the results property to None
         self.results = None
@@ -1858,32 +1879,75 @@ class Pipeline(object):
 
         # If the default emulator type is used
         if(self._emulator._emul_type == 'default'):
-            # Loop over all samples in sam_set
-            for par_set in sam_set:
-                # Analyze par_set in every emulator iteration
-                for i in range(1, emul_i+1):
+            # Analyze sam_set in every emulator iteration
+            for i in range(1, emul_i+1):
+                # Determine the number of samples
+                n_sam = len(sam_idx)
+
+                # Log that this iteration is being evaluated
+                logger.info("Analyzing evaluation sample set of size %s in "
+                            "emulator iteration %s." % (n_sam, i))
+
+                # Determine which samples should be used in this iteration
+                eval_sam_set = sam_set[sam_idx]
+
+                # Determine the active emulator systems on every rank
+                active_emul_s = self._emulator._active_emul_s[i]
+
+                # Make empty uni_impl_vals list
+#                uni_impl_vals = np.zeros([n_sam, self._emulator._n_data[i]])
+                uni_impl_vals = []
+
+                # Loop over all samples in sam_set
+                for j, par_set in enumerate(eval_sam_set):
                     # Evaluate par_set
-                    adj_val = self._emulator._evaluate(
-                        i, self._emulator._active_emul_s[i], par_set)
+                    adj_val = self._emulator._evaluate(i, active_emul_s,
+                                                       par_set)
 
-                    # Calculate the univariate implausibility value
-                    uni_impl_val = self._get_uni_impl(
-                        i, self._emulator._active_emul_s[i], *adj_val)
+                    # Calculate univariate implausibility value
+#                    uni_impl_val[j] = self._get_uni_impl(i, active_emul_s,
+#                                                         *adj_val)
+                    uni_impl_val = self._get_uni_impl(i, active_emul_s,
+                                                      *adj_val)
+                    uni_impl_vals.append(uni_impl_val)
 
-                    # Check if par_set is plausible in this iteration
-                    impl_check_val, impl_cut_val =\
-                        self._do_impl_check(obj, i, uni_impl_val)
+                    # Execute the eval_code snippet
+                    exec(eval_code)
 
-                    # If not, save this and break the inner loop
-                    if not impl_check_val:
-                        impl_check.append(0)
-                        break
-                # If the inner loop ends successfully, par_set is plausible
-                else:
-                    impl_check.append(1)
+                # Gather the results on the controller after evaluating
+#                uni_impl_vals_list = self._comm.gather(uni_impl_vals, 0)
+                uni_impl_vals_list = self._comm.gather(np.array(uni_impl_vals), 0)
 
-                # Execute the loop_code snippet
-                exec(loop_code)
+                # Controller performs implausibility analysis
+                if self._is_controller:
+                    # Convert uni_impl_vals_list to an array
+                    uni_impl_vals_array =\
+                        np.concatenate(*[uni_impl_vals_list], axis=1)
+
+                    # Perform implausibility cutoff check on all elements
+                    for j, uni_impl_val in enumerate(uni_impl_vals_array):
+                        impl_check_val, impl_cut_val =\
+                            self._do_impl_check(obj, i, uni_impl_val)
+
+                        # Add impl_check_val to the impl_check list
+                        impl_check[sam_idx[j]] = impl_check_val
+
+                        # Execute the anal_code snippet
+                        exec(anal_code)
+
+                    # Modify sam_idx with those that are still plausible
+                    sam_idx = sam_idx_full[impl_check == 1]
+
+                # MPI Barrier
+                self._comm.Barrier()
+
+                # Broadcast the updated sam_idx to the workers if not last i
+                if(i != emul_i):
+                    sam_idx = self._comm.bcast(sam_idx, 0)
+
+                # Check that sam_idx is still holding plausible samples
+                if not len(sam_idx):
+                    break
 
         # If any other emulator type is used
         else:
@@ -1892,12 +1956,20 @@ class Pipeline(object):
         # Execute the post_code snippet
         exec(post_code)
 
-        # Retrieve the results and delete the attribute
-        results = self.results
-        del self.results
+        # Log that analysis is finished
+        logger.info("Finished analyzing evaluation sample set.")
 
-        # Return the results
-        return(results)
+        # Controller sending the results back
+        if self._is_controller:
+            # Execute the exit_code snippet
+            exec(exit_code)
+
+            # Retrieve the results and delete the attribute
+            results = self.results
+            del self.results
+
+            # Return the results
+            return(results)
 
 
 # %% VISIBLE CLASS METHODS
@@ -1924,17 +1996,16 @@ class Pipeline(object):
         # Get emul_i
         emul_i = self._emulator._get_emul_i(None, True)
 
-        # Only controller
-        if self._is_controller:
-            # Begin logging
-            logger = getLogger('ANALYZE')
+        # Begin logging
+        logger = getCLogger('ANALYZE')
 
+        # Begin analyzing
+        logger.info("Analyzing emulator system at iteration %s." % (emul_i))
+
+        # Controller only
+        if self._is_controller:
             # Save current time
             start_time1 = time()
-
-            # Begin analyzing
-            logger.info("Analyzing emulator system at iteration %s."
-                        % (emul_i))
 
             # Get the impl_cut list
             self._get_impl_par(False)
@@ -1943,22 +2014,32 @@ class Pipeline(object):
             eval_sam_set = self._get_eval_sam_set(emul_i)
             n_eval_sam = eval_sam_set.shape[0]
 
-            # Define the pre_code, loop_code and post_code snippets
-            pre_code = compile("", '<string>', 'exec')
-            loop_code = compile("", '<string>', 'exec')
-            post_code = compile("self.results = impl_check", '<string>',
-                                'exec')
+        # Remaining workers get dummy eval_sam_set
+        else:
+            eval_sam_set = []
 
-            # Combine code snippets into a tuple
-            exec_code = (pre_code, loop_code, post_code)
+        # Broadcast eval_sam_set to workers
+        eval_sam_set = self._comm.bcast(eval_sam_set, 0)
 
-            # Save current time again
-            start_time2 = time()
+        # Define the various code snippets
+        pre_code = compile("", '<string>', 'exec')
+        eval_code = compile("", '<string>', 'exec')
+        anal_code = compile("", '<string>', 'exec')
+        post_code = compile("", '<string>', 'exec')
+        exit_code = compile("self.results = impl_check", '<string>', 'exec')
 
-            # Analyze eval_sam_set
-            impl_check = self._analyze_sam_set(self, emul_i, eval_sam_set,
-                                               *exec_code)
+        # Combine code snippets into a tuple
+        exec_code = (pre_code, eval_code, anal_code, post_code, exit_code)
 
+        # Save current time again
+        start_time2 = time()
+
+        # Analyze eval_sam_set
+        impl_check = self._analyze_sam_set(self, emul_i, eval_sam_set,
+                                           *exec_code)
+
+        # Controller finishing up
+        if self._is_controller:
             # Obtain some timers
             end_time = time()
             time_diff_total = end_time-start_time1
@@ -1966,7 +2047,7 @@ class Pipeline(object):
 
             # Save the results
             self._save_data({
-                'impl_sam': eval_sam_set[np.array(impl_check) == 1],
+                'impl_sam': eval_sam_set[impl_check == 1],
                 'n_eval_sam': n_eval_sam})
 
             # Save statistics about anal time, evaluation speed, par_space
@@ -2615,7 +2696,7 @@ class Pipeline(object):
         Evaluates the given model parameter sample set `sam_set` at given
         emulator iteration `emul_i`.
         The output of this function depends on the number of dimensions in
-        `sam_set`.
+        `sam_set`. The output is always provided on the controller rank.
 
         Parameters
         ----------
@@ -2674,20 +2755,20 @@ class Pipeline(object):
         # Get emulator iteration
         emul_i = self._emulator._get_emul_i(emul_i, True)
 
-        # Only controller
+        # Do some logging
+        logger = getCLogger('EVALUATE')
+        logger.info("Evaluating emulator system for provided set of model "
+                    "parameter samples.")
+
+        # Make sure that sam_set is a NumPy array
+        sam_set = np.array(sam_set)
+
+        # Controller checking the contents of sam_set
         if self._is_controller:
-            # Do some logging
-            logger = getLogger('EVALUATE')
-            logger.info("Evaluating emulator system for provided set of model "
-                        "parameter samples.")
-
-            # Make sure that sam_set is a NumPy array
-            sam_set = np.array(sam_set)
-
             # Check the number of dimensions in sam_set
             if(sam_set.ndim == 1):
-                print_output = 1
                 sam_set = np.array(sam_set, ndmin=2)
+                print_output = 1
             elif(sam_set.ndim == 2):
                 print_output = 0
             else:
@@ -2711,30 +2792,55 @@ class Pipeline(object):
                     for j, par_val in enumerate(par_set):
                         check_float(par_val, 'sam_set[%s, %s]' % (i, j))
 
-            # Define the pre_code, loop_code and post_code snippets
-            pre_code = compile("adj_exp_val = []\n"
-                               "adj_var_val = []\n"
-                               "uni_impl_val_list = []\n"
-                               "emul_i_stop = []",
-                               '<string>', 'exec')
-            loop_code = compile("adj_exp_val.append(adj_val[0])\n"
-                                "adj_var_val.append(adj_val[1])\n"
-                                "uni_impl_val_list.append(uni_impl_val)\n"
-                                "emul_i_stop.append(i)",
-                                '<string>', 'exec')
-            post_code = compile("self.results = (adj_exp_val, adj_var_val, "
-                                "uni_impl_val_list, emul_i_stop, impl_check)",
-                                '<string>', 'exec')
+        # The workers make sure that sam_set is also two-dimensional
+        else:
+            sam_set = np.array(sam_set, ndmin=2)
 
-            # Combine code snippets into a tuple
-            exec_code = (pre_code, loop_code, post_code)
+        # MPI Barrier
+        self._comm.Barrier()
 
-            # Analyze sam_set
-            adj_exp_val, adj_var_val, uni_impl_val, emul_i_stop, impl_check = \
-                self._analyze_sam_set(self, emul_i, sam_set, *exec_code)
+        # Define the various code snippets
+        pre_code = compile("adj_exp_val = [[] for _ in range(n_sam)]\n"
+                           "adj_var_val = [[] for _ in range(n_sam)]\n"
+                           "uni_impl_val_list = [[] for _ in range(n_sam)]\n"
+                           "emul_i_stop = [[] for _ in range(n_sam)]",
+                           '<string>', 'exec')
+        eval_code = compile("adj_exp_val[sam_idx[j]] = adj_val[0]\n"
+                            "adj_var_val[sam_idx[j]] = adj_val[1]\n"
+                            "uni_impl_val_list[sam_idx[j]] = uni_impl_val",
+                            '<string>', 'exec')
+        anal_code = compile("emul_i_stop[sam_idx[j]] = i", '<string>', 'exec')
+        post_code = compile("adj_exp_val_list = self._comm.gather(np.array("
+                            "adj_exp_val), 0)\n"
+                            "adj_var_val_list = self._comm.gather(np.array("
+                            "adj_var_val), 0)\n"
+                            "uni_impl_val_list = self._comm.gather(np.array("
+                            "uni_impl_val_list), 0)",
+                            '<string>', 'exec')
+        exit_code = compile("adj_exp_val = np.concatenate("
+                            "*[adj_exp_val_list], axis=1)\n"
+                            "adj_var_val = np.concatenate("
+                            "*[adj_var_val_list], axis=1)\n"
+                            "uni_impl_val = np.concatenate("
+                            "*[uni_impl_val_list], axis=1)\n"
+                            "self.results = (adj_exp_val, adj_var_val, "
+                            "uni_impl_val, emul_i_stop, impl_check)",
+                            '<string>', 'exec')
 
-            # Do more logging
-            logger.info("Finished evaluating emulator system.")
+        # Combine code snippets into a tuple
+        exec_code = (pre_code, eval_code, anal_code, post_code, exit_code)
+
+        # Analyze sam_set
+        results = self._analyze_sam_set(self, emul_i, sam_set, *exec_code)
+
+        # Do more logging
+        logger.info("Finished evaluating emulator system.")
+
+        # Controller finishing up
+        if self._is_controller:
+            # Extract data arrays from results
+            adj_exp_val, adj_var_val, uni_impl_val, emul_i_stop, impl_check =\
+                results
 
             # If ndim(sam_set) == 1, print the results
             if print_output:
@@ -2757,8 +2863,8 @@ class Pipeline(object):
                 self._comm.Barrier()
 
                 # Return results
-                return(impl_check, emul_i_stop, adj_exp_val, adj_var_val,
-                       uni_impl_val)
+                return(impl_check.tolist(), emul_i_stop, adj_exp_val,
+                       adj_var_val, uni_impl_val)
 
         # MPI Barrier
         self._comm.Barrier()

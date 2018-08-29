@@ -897,15 +897,18 @@ class Projection(object):
         impl_min_hcube = []
         impl_los_hcube = []
 
-        # Define the pre_code, loop_code and post_code snippets
+        # Define the various code snippets
         pre_code = compile("impl_cut = []", '<string>', 'exec')
-        loop_code = compile("impl_cut.append(impl_cut_val)", '<string>',
+        eval_code = compile("", '<string>', 'exec')
+        anal_code = compile("impl_cut.append(impl_cut_val)", '<string>',
                             'exec')
         post_code = compile("self.results = (impl_check, impl_cut)",
                             '<string>', 'exec')
+        exit_code = compile("self.results = (impl_check, impl_cut)",
+                            '<string>', 'exec')
 
         # Combine code snippets into a tuple
-        exec_code = (pre_code, loop_code, post_code)
+        exec_code = (pre_code, eval_code, anal_code, post_code, exit_code)
 
         # Iterate over all samples in the hcube
         total = proj_hcube.shape[0]*self._depth
