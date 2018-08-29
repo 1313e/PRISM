@@ -923,8 +923,7 @@ class Pipeline(object):
         self._comm.Barrier()
 
         # Set non-default model data values
-        if(self._modellink._MPI_call or
-           (not self._modellink._MPI_call and self._is_controller)):
+        if self._modellink._MPI_call or self._is_controller:
             if self._modellink._multi_call:
                 # Multi-call model
                 mod_out = self._multi_call_model(0, self._modellink._par_est)
@@ -1196,14 +1195,12 @@ class Pipeline(object):
 
         """
 
-        # Controller does logging
-        if self._is_controller:
-            # Log that evaluation of model samples is started
-            logger = getLogger('MODEL')
-            logger.info("Evaluating model samples.")
+        # Log that evaluation of model samples is started
+        logger = getCLogger('MODEL')
+        logger.info("Evaluating model samples.")
 
-            # Do model evaluations
-            start_time = time()
+        # Do model evaluations
+        start_time = time()
 
         # Obtain number of samples
         n_sam = np.shape(sam_set)[0]
@@ -1231,7 +1228,7 @@ class Pipeline(object):
             data_idx_flat = self._comm.bcast(data_idx_flat, 0)
 
             # Check who needs to call the model
-            if(self._modellink._MPI_call or self._is_controller):
+            if self._modellink._MPI_call or self._is_controller:
                 # Request all evaluation samples at once
                 if self._modellink._multi_call:
                     mod_set = self._multi_call_model(emul_i, sam_set,
@@ -1267,14 +1264,20 @@ class Pipeline(object):
             # Sent the specific mod_set parts to the corresponding workers
             s_idx = 0
             for rank, n_data in enumerate(data_idx_len):
+                # Controller data must be saved last
                 if not rank:
-                    self._emulator._save_data(emul_i, None, {
-                        'mod_real_set': [sam_set, mod_set[s_idx:s_idx+n_data],
-                                         use_ext_real_set]})
+                    pass
+
+                # Send the remaining parts to the workers
                 else:
                     self._comm.send([sam_set, mod_set[s_idx:s_idx+n_data]],
                                     dest=rank, tag=777+rank)
                 s_idx += n_data
+            else:
+                # If workers received their data, save controller data
+                self._emulator._save_data(emul_i, None, {
+                    'mod_real_set': [sam_set, mod_set[0:data_idx_len[0]],
+                                     use_ext_real_set]})
 
         # Workers waiting for controller to send them their data values
         else:

@@ -2455,7 +2455,7 @@ class Emulator(object):
            lemul_s is None):
             emul_s = None
         # Else, determine what the global emul_s is
-        elif lemul_s is not None:
+        else:
             emul_s = self._emul_s[lemul_s]
 
         # Open hdf5-file
