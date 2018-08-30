@@ -2504,7 +2504,7 @@ class Emulator(object):
                 # MOD_REAL_SET (CONTROLLER)
                 elif(self._is_controller and keyword == 'mod_real_set'):
                     dtype = [(n, float) for n in self._modellink._par_name]
-                    data_c = data[0].copy()
+                    data_c = list(data[0])
                     data_c.dtype = dtype
                     file.create_dataset('%s/sam_set' % (emul_i), data=data_c)
                     file['%s' % (emul_i)].attrs['n_sam'] = np.shape(data[0])[0]
@@ -2543,7 +2543,7 @@ class Emulator(object):
                     names = [self._modellink._par_name[par] for par in
                              self._active_par_data[emul_i][lemul_s]]
                     dtype = [(n, 'int64') for n in names]
-                    data_c = data[3].copy()
+                    data_c = list(data[3])
                     data_c.dtype = dtype
                     data_set.attrs['rsdl_var'] = data[0]
                     data_set.attrs['regr_score'] = data[1]

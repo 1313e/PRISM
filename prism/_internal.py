@@ -532,11 +532,12 @@ def delist(list_obj):
 
     """
 
-    # Make a copy of itself
-    try:
-        delisted_copy = list_obj.copy()
-    except AttributeError:
+    # Check if list_obj is a list
+    if(type(list_obj) != list):
         raise TypeError("Input argument 'list_obj' is not of type 'list'!")
+
+    # Make a copy of itself
+    delisted_copy = list(list_obj)
 
     # Remove all empty lists from this copy
     try:
