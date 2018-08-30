@@ -660,7 +660,7 @@ class Emulator(object):
             n_emul_s = self._modellink._n_data
 
         active_emul_s_list = [[]]
-        data_idx_list = [[]]
+        data_idx_list = []
 
         # Open hdf5-file
         with PRISM_File('r', None) as file:

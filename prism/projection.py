@@ -57,7 +57,8 @@ class Projection(object):
 
     """
 
-    def __init__(self, pipeline_obj):
+    def __init__(self, pipeline_obj, emul_i=None, proj_par=None, figure=True,
+                 show=False, force=False):
         """
         Initialize an instance of the :class:`~Projection` class.
 
@@ -83,6 +84,9 @@ class Projection(object):
 
         # Add hdf5_file attribute to PRISM_File
         PRISM_File._hdf5_file = self._pipeline._hdf5_file
+
+        # Perform projection
+        self(emul_i, proj_par, figure, show, force)
 
     # Function that creates all projection figures
     # TODO: Allow for impl, los and line kwargs to be provided
@@ -146,7 +150,7 @@ class Projection(object):
         """
 
         # Log the start of the creation of the projection
-        logger = getLogger('PROJECTION')
+        logger = getCLogger('PROJECTION')
         logger.info("Starting the projection process.")
 
         # Save current time
@@ -155,49 +159,78 @@ class Projection(object):
         # Check what kind of hdf5-file has been provided
         self._emul_i = self._emulator._get_emul_i(emul_i, True)
 
-        # Obtain figure name prefix
-        self._fig_prefix = path.join(self._pipeline._working_dir,
-                                     '%s_proj_' % (self._emul_i))
+        # Controller doing some preparations
+        if self._is_controller:
+            # Obtain figure name prefix
+            self._fig_prefix = path.join(self._pipeline._working_dir,
+                                         '%s_proj_' % (self._emul_i))
 
-        # Check if it makes sense to create a projection
-        if(self._emul_i == self._emulator._emul_i):
-            if not self._pipeline._n_eval_sam[self._emul_i]:
-                logger.info("Requested emulator iteration %s has not been "
-                            "analyzed yet. Creating projections may not be "
-                            "useful." % (self._emul_i))
-                print("Requested emulator iteration %s has not been analyzed "
-                      "yet. Creating projections may not be useful."
-                      % (self._emul_i))
-            elif self._pipeline._prc:
-                pass
-            else:
-                logger.info("Requested emulator iteration %s has no plausible "
-                            "regions. Creating projections has no use."
-                            % (self._emul_i))
-                print("Requested emulator iteration %s has no plausible "
-                      "regions. Creating projections has no use."
-                      % (self._emul_i))
-                return
+            # Check if it makes sense to create a projection
+            return_flag = 0
+            if(self._emul_i == self._emulator._emul_i):
+                if not self._pipeline._n_eval_sam[self._emul_i]:
+                    logger.info("Requested emulator iteration %s has not been "
+                                "analyzed yet. Creating projections may not be"
+                                " useful." % (self._emul_i))
+                    print("Requested emulator iteration %s has not been "
+                          "analyzed yet. Creating projections may not be "
+                          "useful." % (self._emul_i))
+                elif self._pipeline._prc:
+                    pass
+                else:
+                    logger.info("Requested emulator iteration %s has no "
+                                "plausible regions. Creating projections has "
+                                "no use." % (self._emul_i))
+                    print("Requested emulator iteration %s has no plausible "
+                          "regions. Creating projections has no use."
+                          % (self._emul_i))
+                    return_flag = 1
 
-        # Check if figure, show and force-parameters are bools
-        self._figure = check_bool(figure, 'figure')
-        self._show = check_bool(show, 'show')
-        self._force = check_bool(force, 'force')
+        # Workers assume that return_flag is 0
+        else:
+            return_flag = 0
 
-        # Get the impl_cut list and proj_res/proj_depth
-        # TODO: Make sure that the same impl_cut is used for all figures
-        # TODO: If desync is True, maybe not require force parameter?
-        self._get_impl_par()
+        # Broadcast the actual return_flag to the workers
+        return_flag = self._comm.bcast(return_flag, 0)
 
-        # Obtain requested projection hypercubes
-        hcube_par, create_hcube_par = self._get_req_hcubes(proj_par)
+        # If return_flag is 1, return
+        if return_flag:
+            return
+
+        # Controller doing more preparation
+        if self._is_controller:
+            # Check if figure, show and force-parameters are bools
+            self._figure = check_bool(figure, 'figure')
+            self._show = check_bool(show, 'show')
+            self._force = check_bool(force, 'force')
+
+            # Get the impl_cut list and proj_res/proj_depth
+            # TODO: Make sure that the same impl_cut is used for all figures
+            # TODO: If desync is True, maybe not require force parameter?
+            self._get_impl_par()
+
+            # Obtain requested projection hypercubes
+            hcube_par, create_hcube_par = self._get_req_hcubes(proj_par)
+
+        # Workers get dummy requested hypercubes
+        else:
+            hcube_par = []
+            create_hcube_par = []
+
+        # Broadcast hcube_par and create_hcube_par to workers
+        hcube_par = self._comm.bcast(hcube_par, 0)
+        create_hcube_par = self._comm.bcast(create_hcube_par, 0)
 
         # Save current time again
         start_time2 = time()
 
         # Loop over all requested projection hypercubes
-        for hcube in tqdm(hcube_par, desc="Creating projections",
-                          unit='hcube'):
+        if self._is_controller:
+            hcube_par_bar = tqdm(hcube_par, desc="Creating projections",
+                                 unit='hcube')
+        else:
+            hcube_par_bar = hcube_par
+        for hcube in hcube_par_bar:
             # Initialize impl_min and impl_los
             impl_min = None
             impl_los = None
@@ -218,22 +251,32 @@ class Projection(object):
                 logger.info("Calculating projection data '%s'."
                             % (self._hcube_name))
 
-                # Obtain the corresponding hypercube
-                proj_hcube = self._get_proj_hcube(hcube)
+                # Obtain the corresponding hypercube on the controller
+                if self._is_controller:
+                    proj_hcube = self._get_proj_hcube(hcube)
+
+                # Workers get dummy hypercube
+                else:
+                    proj_hcube = []
+
+                # Broadcast proj_hcube to workers
+                proj_hcube = self._comm.bcast(proj_hcube, 0)
 
                 # Analyze this proj_hcube
-                impl_min, impl_los = self._analyze_proj_hcube(proj_hcube)
+                results = self._analyze_proj_hcube(proj_hcube)
 
                 # Log that projection data has been created
                 logger.info("Finished calculating projection data '%s'."
                             % (self._hcube_name))
 
-                # Save projection data to hdf5
-                self._save_data({
-                    'nD_proj_hcube': [self._hcube_name, impl_min, impl_los]})
+                # Controller saving projection data to hdf5
+                if self._is_controller:
+                    self._save_data({
+                        'nD_proj_hcube': [self._hcube_name, results[0],
+                                          results[1]]})
 
-            # PLOTTING
-            if self._figure:
+            # PLOTTING (CONTROLLER ONLY)
+            if self._is_controller and self._figure:
                 # Determine the path of this figure
                 fig_path = '%s(%s).png' % (self._fig_prefix, self._hcube_name)
 
@@ -242,6 +285,7 @@ class Projection(object):
                     logger.info("Projection figure '%s' already exists. "
                                 "Skipping figure creation."
                                 % (self._hcube_name))
+                    self._comm.Barrier()
                     continue
 
                 # If projection data is not already loaded, load it
@@ -268,6 +312,9 @@ class Projection(object):
                 else:
                     self._draw_3D_proj_fig(hcube, impl_min, impl_los)
 
+            # MPI Barrier
+            self._comm.Barrier()
+
         # Log the end of the projection
         end_time = time()
         time_diff_total = end_time-start_time1
@@ -277,7 +324,9 @@ class Projection(object):
                     "seconds per projection %s."
                     % (time_diff_total, time_diff_figs/len(hcube_par),
                        'figure' if figure else 'hypercube'))
-        print("")
+
+        if self._is_controller:
+            print("")
 
 
 # %% CLASS PROPERTIES
@@ -886,11 +935,8 @@ class Projection(object):
         """
 
         # Log that a projection hypercube is being analyzed
-        logger = getLogger('ANALYSIS')
+        logger = getCLogger('ANALYSIS')
         logger.info("Analyzing projection hypercube.")
-
-        # Save current time
-        start_time = time()
 
         # CALCULATE AND ANALYZE IMPLAUSIBILITY
         # Create empty lists for this hypercube
@@ -898,51 +944,55 @@ class Projection(object):
         impl_los_hcube = []
 
         # Define the various code snippets
-        pre_code = compile("impl_cut = []", '<string>', 'exec')
+        pre_code = compile("impl_cut = np.zeros([n_sam])", '<string>', 'exec')
         eval_code = compile("", '<string>', 'exec')
-        anal_code = compile("impl_cut.append(impl_cut_val)", '<string>',
+        anal_code = compile("impl_cut[sam_idx[j]] = impl_cut_val", '<string>',
                             'exec')
-        post_code = compile("self.results = (impl_check, impl_cut)",
-                            '<string>', 'exec')
+        post_code = compile("", '<string>', 'exec')
         exit_code = compile("self.results = (impl_check, impl_cut)",
                             '<string>', 'exec')
 
         # Combine code snippets into a tuple
         exec_code = (pre_code, eval_code, anal_code, post_code, exit_code)
 
-        # Iterate over all samples in the hcube
-        total = proj_hcube.shape[0]*self._depth
-        with tqdm(desc="Analyzing hypercube ", total=proj_hcube.shape[0],
-                  unit='gp') as pbar:
+        # For now, manually flatten the first two dimensions of proj_hcube
+        gridsize = proj_hcube.shape[0]
+        depth = proj_hcube.shape[1]
+        proj_hcube = proj_hcube.reshape(gridsize*depth, self._modellink._n_par)
 
-            # For all grid points in the hcube
-            for i, grid_point in enumerate(proj_hcube):
-                # Analyze grid_point
-                impl_check, impl_cut =\
-                    self._pipeline._analyze_sam_set(self, self._emul_i,
-                                                    grid_point, *exec_code)
+        # Save current time
+        start_time = time()
 
-                # If a grid point has been checked, save lowest impl and impl
-                # line-of-sight
+        # Analyze all samples in proj_hcube
+        results = self._pipeline._analyze_sam_set(
+            self, self._emul_i, proj_hcube, *exec_code)
+
+        # Controller only
+        if self._is_controller:
+            # Retrieve results
+            impl_check, impl_cut = results
+
+            # Unflatten the received results
+            impl_check = impl_check.reshape(gridsize, self._depth)
+            impl_cut = impl_cut.reshape(gridsize, self._depth)
+
+            # Loop over all grid point results and save lowest impl and los
+            for check_grid, cut_grid in zip(impl_check, impl_cut):
                 # Calculate lowest impl in this grid point
-                impl_min_hcube.append(min(impl_cut))
+                impl_min_hcube.append(min(cut_grid))
 
                 # Calculate impl line-of-sight in this grid point
-                impl_los_hcube.append(sum(impl_check)/self._depth)
+                impl_los_hcube.append(sum(check_grid)/self._depth)
 
-                # Advance progressbar
-                pbar.update()
-                pbar.set_postfix_str('%.2feval/s'
-                                     % (self._depth/pbar.avg_time))
+            # Log that analysis has been finished
+            time_diff = time()-start_time
+            total = np.size(impl_check)
+            logger.info("Finished projection hypercube analysis in %.2f "
+                        "seconds, averaging %.2f emulator evaluations per "
+                        "second." % (time_diff, total/(time_diff)))
 
-        # Log that analysis has been finished
-        time_diff = time()-start_time
-        logger.info("Finished projection hypercube analysis in %.2f seconds, "
-                    "averaging %.2f emulator evaluations per second."
-                    % (time_diff, total/(time_diff)))
-
-        # Return impl_min and impl_los
-        return(impl_min_hcube, impl_los_hcube)
+            # Return the results for this proj_hcube
+            return(impl_min_hcube, impl_los_hcube)
 
     # This function saves projection data to hdf5
     def _save_data(self, data_dict):

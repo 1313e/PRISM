@@ -923,7 +923,7 @@ class Pipeline(object):
         self._comm.Barrier()
 
         # Set non-default model data values
-        if self._modellink._MPI_call or self._is_controller:
+        if self._is_controller or self._modellink._MPI_call:
             if self._modellink._multi_call:
                 # Multi-call model
                 mod_out = self._multi_call_model(0, self._modellink._par_est,
@@ -1230,7 +1230,7 @@ class Pipeline(object):
             data_idx_flat = self._comm.bcast(data_idx_flat, 0)
 
             # Check who needs to call the model
-            if self._modellink._MPI_call or self._is_controller:
+            if self._is_controller or self._modellink._MPI_call:
                 # Request all evaluation samples at once
                 if self._modellink._multi_call:
                     mod_set = self._multi_call_model(emul_i, sam_set,
@@ -2874,10 +2874,8 @@ class Pipeline(object):
     def project(self, emul_i=None, proj_par=None, figure=True, show=False,
                 force=False):
 
-        # Only controller
-        if self._is_controller:
-            # Initialize the Projection class and make the figures
-            Projection(self)(emul_i, proj_par, figure, show, force)
+        # Initialize the Projection class and make the figures
+        Projection(self, emul_i, proj_par, figure, show, force)
 
         # MPI Barrier
         self._comm.Barrier()
