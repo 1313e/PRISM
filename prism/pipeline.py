@@ -1104,7 +1104,7 @@ class Pipeline(object):
                         self._n_impl_sam.append(n_impl_sam)
                     else:
                         dtype = [(n, float) for n in self._modellink._par_name]
-                        data_c = list(data)
+                        data_c = data.copy()
                         data_c.dtype = dtype
                         del file['%s/impl_sam' % (emul_i)]
                         file.create_dataset('%s/impl_sam' % (emul_i),
