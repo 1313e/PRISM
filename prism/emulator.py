@@ -733,25 +733,25 @@ class Emulator(object):
         # Return data_to_emul_s and n_emul_s
         return(data_to_emul_s, n_emul_s)
 
-    # This function assigns emulator systems to the available cores/processes
+    # This function determines how to assign emulator systems to MPI ranks
     # TODO: Might want to include the size (n_sam) of every system as well
     # TODO: May also want to include low-level MPI distribution
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _assign_emul_s(self, emul_i):
         """
         Determines which emulator systems (files) should be assigned to which
-        core in order to balance the number of active emulator systems on every
-        core for every iteration up to the provided emulator iteration
+        rank in order to balance the number of active emulator systems on every
+        rank for every iteration up to the provided emulator iteration
         `emul_i`. If multiple choices can achieve this, the emulator systems
         are automatically spread out such that the total number of active
-        emulator systems on a single core is also balanced as much as possible.
+        emulator systems on a single rank is also balanced as much as possible.
 
         Parameters
         ----------
         %(emul_i)s
 
-        Generates
-        ---------
+        Returns
+        -------
         emul_s : list of int
             A list containing the emulator systems that have been assigned to
             the corresponding MPI rank by the controller.
@@ -766,138 +766,111 @@ class Emulator(object):
 
         # Start logging
         logger = getCLogger('INIT')
-        logger.info("Assigning emulator systems up to emulator iteration %s to"
-                    " available MPI ranks." % (emul_i))
+        logger.info("Determining emulator system assignments up to emulator "
+                    "iteration %s for available MPI ranks." % (emul_i))
 
-        # Controller only
-        if self._is_controller:
-            # Create empty list of active emulator systems
-            active_emul_s_list = [[]]
+        # Create empty list of active emulator systems
+        active_emul_s_list = [[]]
 
-            # Open hdf5-file
-            with PRISM_File('r', None) as file:
-                logger.info("Determining active emulator systems in every "
-                            "emulator iteration.")
+        # Open hdf5-file
+        with PRISM_File('r', None) as file:
+            logger.info("Determining active emulator systems in every "
+                        "emulator iteration.")
 
-                # Determine the active emulator systems in every iteration
-                for i in range(1, emul_i+1):
-                    active_emul_s_list.append(
-                        [int(key[5:]) for key in file['%s' % (i)].keys() if
-                         key[:5] == 'emul_'])
+            # Determine the active emulator systems in every iteration
+            for i in range(1, emul_i+1):
+                active_emul_s_list.append(
+                    [int(key[5:]) for key in file['%s' % (i)].keys() if
+                     key[:5] == 'emul_'])
 
-            # Determine number of active emulator systems in each iteration
-            n_active_emul_s = [[i, len(active_emul_s)] for i, active_emul_s in
-                               enumerate(active_emul_s_list[:emul_i+1])]
-            iter_size = sorted(n_active_emul_s, key=lambda x: x[1])
+        # Determine number of active emulator systems in each iteration
+        n_active_emul_s = [[i, len(active_emul_s)] for i, active_emul_s in
+                           enumerate(active_emul_s_list[:emul_i+1])]
+        iter_size = sorted(n_active_emul_s, key=lambda x: x[1])
 
-            # Create empty emul_s_to_core list
-            emul_s_to_core = [[] for _ in range(self._size)]
+        # Create empty emul_s_to_core list
+        emul_s_to_core = [[] for _ in range(self._size)]
 
-            # Create empty Counter for total number of assigned systems
-            core_cntr = Counter()
+        # Create empty Counter for total number of assigned systems
+        core_cntr = Counter()
 
-            # Create empty Counter for total number of system occurances
-            emul_s_cntr = Counter()
+        # Create empty Counter for total number of system occurances
+        emul_s_cntr = Counter()
 
-            # Determine how many times a specific emulator system is active
-            for active_emul_s in active_emul_s_list:
-                emul_s_cntr.update(active_emul_s)
+        # Determine how many times a specific emulator system is active
+        for active_emul_s in active_emul_s_list:
+            emul_s_cntr.update(active_emul_s)
 
-            # Set the number of assigned emulator systems for each core to zero
-            for rank in range(self._size):
-                core_cntr[rank] = 0
+        # Set the number of assigned emulator systems for each core to zero
+        for rank in range(self._size):
+            core_cntr[rank] = 0
 
-            # Create empty list holding all assigned emulator systems
-            emul_s_chosen = []
+        # Create empty list holding all assigned emulator systems
+        emul_s_chosen = []
 
-            # Loop over all iterations, from smallest to largest
-            for i, size in iter_size:
-                # Set the number of assigned systems in this iteration to zero
-                iter_core_cntr = [0 for _ in range(self._size)]
+        # Loop over all iterations, from smallest to largest
+        for i, size in iter_size:
+            # Set the number of assigned systems in this iteration to zero
+            iter_core_cntr = [0 for _ in range(self._size)]
 
-                # Create empty Counter for number of system occurances that are
-                # also in this iteration
-                iter_emul_s_cntr = Counter()
+            # Create empty Counter for number of system occurances that are
+            # also in this iteration
+            iter_emul_s_cntr = Counter()
 
-                # Fill that counter with systems that are not assigned yet
-                for emul_s in active_emul_s_list[i]:
-                    # If this system is not assigned yet, copy its size
-                    if emul_s not in emul_s_chosen:
-                        iter_emul_s_cntr[emul_s] = emul_s_cntr[emul_s]
+            # Fill that counter with systems that are not assigned yet
+            for emul_s in active_emul_s_list[i]:
+                # If this system is not assigned yet, copy its size
+                if emul_s not in emul_s_chosen:
+                    iter_emul_s_cntr[emul_s] = emul_s_cntr[emul_s]
 
-                    # Check if certain systems have already been assigned
-                    for j, emul_s_list in enumerate(emul_s_to_core):
-                        iter_core_cntr[j] += emul_s_list.count(emul_s)
+                # Check if certain systems have already been assigned
+                for j, emul_s_list in enumerate(emul_s_to_core):
+                    iter_core_cntr[j] += emul_s_list.count(emul_s)
 
-                # Set the minimum number of assigned systems for a core to 0
-                min_count = 0
+            # Set the minimum number of assigned systems for a core to 0
+            min_count = 0
 
-                # While not all emulator systems in this iteration are assigned
-                while(sum(iter_core_cntr) != size):
-                    # Determine cores that have minimum number of assignments
-                    min_cores = [j for j, num in enumerate(iter_core_cntr) if(
-                                num == min_count)]
+            # While not all emulator systems in this iteration are assigned
+            while(sum(iter_core_cntr) != size):
+                # Determine cores that have minimum number of assignments
+                min_cores = [j for j, num in enumerate(iter_core_cntr) if(
+                            num == min_count)]
 
-                    # If no core has this minimum size, increase it by 1
-                    if(len(min_cores) == 0):
-                        min_count += 1
+                # If no core has this minimum size, increase it by 1
+                if(len(min_cores) == 0):
+                    min_count += 1
 
-                    # If one core has this number, assign system with lowest
-                    # number of occurances to it and remove it from the list
-                    elif(len(min_cores) == 1):
-                        core = min_cores[0]
-                        emul_s, emul_size = iter_emul_s_cntr.most_common()[-1]
-                        core_cntr[core] += emul_size
-                        emul_s_chosen.append(emul_s)
-                        emul_s_to_core[core].append(emul_s)
-                        iter_core_cntr[core] += 1
-                        iter_emul_s_cntr.pop(emul_s)
-                        min_count += 1
+                # If one core has this number, assign system with lowest
+                # number of occurances to it and remove it from the list
+                elif(len(min_cores) == 1):
+                    core = min_cores[0]
+                    emul_s, emul_size = iter_emul_s_cntr.most_common()[-1]
+                    core_cntr[core] += emul_size
+                    emul_s_chosen.append(emul_s)
+                    emul_s_to_core[core].append(emul_s)
+                    iter_core_cntr[core] += 1
+                    iter_emul_s_cntr.pop(emul_s)
+                    min_count += 1
 
-                    # If more than one core has this number, determine the core
-                    # that has the lowest total number of assigned systems and
-                    # assign the system with the highest number of occurances
-                    # to it
-                    else:
-                        emul_s, emul_size = iter_emul_s_cntr.most_common()[0]
-                        core_sizes = [[j, core_cntr[j]] for j in min_cores]
-                        core_lowest = min(core_sizes, key=lambda x: x[1])[0]
-                        core_cntr[core_lowest] += emul_size
-                        emul_s_chosen.append(emul_s)
-                        emul_s_to_core[core_lowest].append(emul_s)
-                        iter_core_cntr[core_lowest] += 1
-                        iter_emul_s_cntr.pop(emul_s)
-
-            # Controller saving which systems have been assigned to which rank
-            self._emul_s_to_core = emul_s_to_core
-
-            # Initialize total number of emulator systems
-            self._n_emul_s_tot = 0
-
-            # Assign the emulator systems to the various MPI ranks
-            for rank, emul_s_seq in enumerate(emul_s_to_core):
-                # Log which systems are assigned to which rank
-                logger.info("Assigning emulator systems %s to MPI rank %s."
-                            % (emul_s_seq, rank))
-
-                # Update total number of emulator systems
-                self._n_emul_s_tot += len(emul_s_seq)
-
-                # Assign the first list of emul_s to the controller
-                if not rank:
-                    self._emul_s = emul_s_seq
-
-                # Assign the remaining ones to the workers
+                # If more than one core has this number, determine the core
+                # that has the lowest total number of assigned systems and
+                # assign the system with the highest number of occurances
+                # to it
                 else:
-                    self._comm.send(emul_s_seq, dest=rank, tag=888+rank)
+                    emul_s, emul_size = iter_emul_s_cntr.most_common()[0]
+                    core_sizes = [[j, core_cntr[j]] for j in min_cores]
+                    core_lowest = min(core_sizes, key=lambda x: x[1])[0]
+                    core_cntr[core_lowest] += emul_size
+                    emul_s_chosen.append(emul_s)
+                    emul_s_to_core[core_lowest].append(emul_s)
+                    iter_core_cntr[core_lowest] += 1
+                    iter_emul_s_cntr.pop(emul_s)
 
-        # The workers wait for the controller to assign them their systems
-        else:
-            self._emul_s = self._comm.recv(source=0, tag=888+self._rank)
+        # Log that assignments have been determined
+        logger.info("Finished determining emulator system assignments.")
 
-        # Log that assignment is completed
-        logger.info("Completed assigning emulator systems to available MPI "
-                    "ranks.")
+        # Return emul_s_to_core
+        return(emul_s_to_core)
 
     # Prepares the emulator for a new iteration
     # HINT: Should _create_new_emulator be combined with this method?
@@ -2208,7 +2181,42 @@ class Emulator(object):
                                "exist!" % (emul_i))
 
         # If both checks succeed, assign emulator systems to the MPI ranks
-        self._assign_emul_s(emul_i)
+        if self._is_controller:
+            # Determine which emulator systems each MPI rank should get
+            emul_s_to_core = self._assign_emul_s(emul_i)
+
+            # Controller saving which systems have been assigned to which rank
+            self._emul_s_to_core = emul_s_to_core
+
+            # Initialize total number of emulator systems
+            self._n_emul_s_tot = 0
+
+            # Assign the emulator systems to the various MPI ranks
+            for rank, emul_s_seq in enumerate(emul_s_to_core):
+                # Log which systems are assigned to which rank
+                logger.info("Assigning emulator systems %s to MPI rank %s."
+                            % (emul_s_seq, rank))
+
+                # Update total number of emulator systems
+                self._n_emul_s_tot += len(emul_s_seq)
+
+                # Assign the first list of emul_s to the controller
+                if not rank:
+                    self._emul_s = emul_s_seq
+
+                # Assign the remaining ones to the workers
+                else:
+                    self._comm.send(emul_s_seq, dest=rank, tag=888+rank)
+
+                # Log that assignments are finished
+                logger.info("Finished assigning emulator systems to available "
+                            "MPI ranks.")
+
+        # The workers wait for the controller to assign them their systems
+        else:
+            self._emul_s = self._comm.recv(source=0, tag=888+self._rank)
+
+        # Determine the number of assigned emulator systems
         self._n_emul_s = len(self._emul_s)
 
         # Load the corresponding sam_set, mod_set and cov_mat_inv
