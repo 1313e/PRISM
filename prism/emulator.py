@@ -1314,7 +1314,8 @@ class Emulator(object):
 
                 # Create SequentialFeatureSelector object
                 sfs_obj = SFS(LR(), k_features='parsimonious', forward=False,
-                              floating=False, scoring='r2')
+                              floating=False, scoring='r2',
+                              cv=min(5, self._n_sam[emul_i]))
 
                 # Perform linear regression with linear terms only
                 sfs_obj.fit(frz_pot_act_sam_set, self._mod_set[emul_i][emul_s])
@@ -1408,7 +1409,8 @@ class Emulator(object):
 
         # Create SequentialFeatureSelector object
         sfs_obj = SFS(LR(), k_features='best', forward=True, floating=True,
-                      scoring='neg_mean_squared_error')
+                      scoring='neg_mean_squared_error',
+                      cv=min(5, self._n_sam[emul_i]))
 
         # Create Pipeline object
         # The bias/intercept/constant-term is not included in the SFS object to
