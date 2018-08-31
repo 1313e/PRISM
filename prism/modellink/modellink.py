@@ -34,8 +34,7 @@ from sortedcontainers import SortedDict
 
 # PRISM imports
 from .._docstrings import std_emul_i_doc
-from .._internal import (check_bool, check_float, check_pos_int, check_str,
-                         convert_str_seq, docstring_substitute)
+from .._internal import check_val, convert_str_seq, docstring_substitute
 
 # All declaration
 __all__ = ['ModelLink']
@@ -235,7 +234,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                 model_parameters.update(par_dict)
 
         # Save number of model parameters
-        self._n_par = check_pos_int(len(model_parameters.keys()), 'n_par')
+        self._n_par = check_val(len(model_parameters.keys()), 'n_par', 'pos')
 
         # Create empty parameter name, ranges and estimate lists/arrays
         self._par_name = []
@@ -245,9 +244,10 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         # Save model parameters as class properties
         for i, (name, values) in enumerate(model_parameters.items()):
-            self._par_name.append(check_str(name, 'par_name[%s]' % (i)))
-            self._par_rng[i] = (check_float(values[0], 'lower_bnd[%s]' % (i)),
-                                check_float(values[1], 'upper_bnd[%s]' % (i)))
+            self._par_name.append(check_val(name, 'par_name[%s]' % (i), 'str'))
+            self._par_rng[i] = (
+                check_val(values[0], 'lower_bnd[%s]' % (i), 'float'),
+                check_val(values[1], 'upper_bnd[%s]' % (i), 'float'))
 
             # Check if a parameter estimate was provided
             try:
@@ -259,7 +259,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                     self._par_est.append(None)
                 else:
                     self._par_est.append(
-                        check_float(values[2], 'par_est[%s]' % (i)))
+                        check_val(values[2], 'par_est[%s]' % (i), 'float'))
 
     @property
     def _default_model_data(self):
@@ -380,7 +380,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                     model_data.append(data)
 
         # Save number of model data points
-        self._n_data = check_pos_int(len(model_data), 'n_data')
+        self._n_data = check_val(len(model_data), 'n_data', 'pos')
 
         # Create empty data value, error, space and identifier lists
         self._data_val = []
@@ -391,10 +391,11 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         # Save model data as class properties
         for i, data in enumerate(model_data):
             # Save data value and error
-            self._data_val.append(check_float(data[0], 'data_val[%s]' % (i)))
+            self._data_val.append(check_val(data[0], 'data_val[%s]' % (i),
+                                            'float'))
             self._data_err.append(
-                [check_float(data[1], 'lower_data_err[%s]' % (i)),
-                 check_float(data[2], 'upper_data_err[%s]' % (i))])
+                [check_val(data[1], 'lower_data_err[%s]' % (i), 'float'),
+                 check_val(data[2], 'upper_data_err[%s]' % (i), 'float')])
 
             # Check if valid data space has been provided and save if so
             spc = str(data[3]).replace("'", '').replace('"', '')
@@ -528,7 +529,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     @name.setter
     def name(self, name):
-        self._name = check_str(name, 'name')
+        self._name = check_val(name, 'name', 'str')
 
     @property
     def multi_call(self):
@@ -543,7 +544,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     @multi_call.setter
     def multi_call(self, multi_call):
-        self._multi_call = check_bool(multi_call, 'multi_call')
+        self._multi_call = check_val(multi_call, 'multi_call', 'bool')
 
     @property
     def MPI_call(self):
@@ -559,7 +560,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     @MPI_call.setter
     def MPI_call(self, MPI_call):
-        self._MPI_call = check_bool(MPI_call, 'MPI_call')
+        self._MPI_call = check_val(MPI_call, 'MPI_call', 'bool')
 
     # Model Parameters
     @property

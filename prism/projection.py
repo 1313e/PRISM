@@ -41,9 +41,8 @@ from tqdm import tqdm
 
 # PRISM imports
 from ._docstrings import user_emul_i_doc
-from ._internal import (PRISM_File, RequestError, check_bool, check_pos_int,
-                        convert_str_seq, docstring_substitute, getCLogger,
-                        rprint)
+from ._internal import (PRISM_File, RequestError, check_val, convert_str_seq,
+                        docstring_substitute, getCLogger, rprint)
 
 # All declaration
 __all__ = ['Projection']
@@ -81,9 +80,6 @@ class Projection(object):
         self._rank = self._pipeline._rank
         self._is_controller = self._pipeline._is_controller
         self._is_worker = self._pipeline._is_worker
-
-        # Add hdf5_file attribute to PRISM_File
-        PRISM_File._hdf5_file = self._pipeline._hdf5_file
 
         # Perform projection
         self(emul_i, proj_par, figure, show, force)
@@ -200,9 +196,9 @@ class Projection(object):
         # Controller doing more preparation
         if self._is_controller:
             # Check if figure, show and force-parameters are bools
-            self._figure = check_bool(figure, 'figure')
-            self._show = check_bool(show, 'show')
-            self._force = check_bool(force, 'force')
+            self._figure = check_val(figure, 'figure', 'bool')
+            self._show = check_val(show, 'show', 'bool')
+            self._force = check_val(force, 'force', 'bool')
 
             # Get the impl_cut list and proj_res/proj_depth
             # TODO: Make sure that the same impl_cut is used for all figures
@@ -784,8 +780,8 @@ class Projection(object):
         proj_res = int(par_dict['proj_res'])
         proj_depth = int(par_dict['proj_depth'])
         self._save_data({
-            'proj_grid': [check_pos_int(proj_res, 'proj_res'),
-                          check_pos_int(proj_depth, 'proj_depth')]})
+            'proj_grid': [check_val(proj_res, 'proj_res', 'pos'),
+                          check_val(proj_depth, 'proj_depth', 'pos')]})
 
         # Finish logging
         logger.info("Finished obtaining implausibility analysis parameters.")

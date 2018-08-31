@@ -45,10 +45,9 @@ from sortedcontainers import SortedSet
 from .__version__ import prism_version as _prism_version
 from ._docstrings import (emul_s_seq_doc, get_emul_i_doc, lemul_s_doc,
                           std_emul_i_doc)
-from ._internal import (PRISM_File, RequestError, check_bool,
-                        check_compatibility, check_nzero_float,
-                        check_pos_float, check_pos_int, delist,
-                        docstring_substitute, getCLogger, rprint)
+from ._internal import (PRISM_File, RequestError, check_compatibility,
+                        check_val, delist, docstring_substitute, getCLogger,
+                        rprint)
 from .modellink import ModelLink
 
 # All declaration
@@ -93,9 +92,6 @@ class Emulator(object):
         self._rank = self._pipeline._rank
         self._is_controller = self._pipeline._is_controller
         self._is_worker = self._pipeline._is_worker
-
-        # Add hdf5_file attribute to PRISM_File
-        PRISM_File._hdf5_file = self._pipeline._hdf5_file
 
         # Load the emulator and data
         self._load_emulator(modellink_obj)
@@ -427,7 +423,7 @@ class Emulator(object):
                 raise RequestError("Requested emulator iteration %s does not "
                                    "exist!" % (emul_i))
             else:
-                emul_i = check_pos_int(emul_i, 'emul_i')
+                emul_i = check_val(emul_i, 'emul_i', 'pos', 'int')
         else:
             if emul_i is None:
                 emul_i = global_emul_i+1
@@ -437,7 +433,7 @@ class Emulator(object):
                 raise RequestError("Requested emulator iteration %s cannot be "
                                    "requested!" % (emul_i))
             else:
-                emul_i = check_pos_int(emul_i, 'emul_i')
+                emul_i = check_val(emul_i, 'emul_i', 'pos', 'int')
 
         # Do some logging
         logger.info("Selected emulator iteration %s." % (emul_i))
@@ -2676,10 +2672,10 @@ class Emulator(object):
 
         # GENERAL
         # Gaussian sigma
-        self._sigma = check_nzero_float(float(par_dict['sigma']), 'sigma')
+        self._sigma = check_val(float(par_dict['sigma']), 'sigma', 'nzero')
 
         # Gaussian correlation length
-        self._l_corr = check_pos_float(float(par_dict['l_corr']), 'l_corr') *\
+        self._l_corr = check_val(float(par_dict['l_corr']), 'l_corr', 'pos') *\
             abs(self._modellink._par_rng[:, 1]-self._modellink._par_rng[:, 0])
 
         # Method used to calculate emulator functions
@@ -2696,19 +2692,19 @@ class Emulator(object):
                              % (self._method.lower()))
 
         # Obtain the bool determining whether or not to use regr_cov
-        self._use_regr_cov = check_bool(par_dict['use_regr_cov'],
-                                        'use_regr_cov')
+        self._use_regr_cov = check_val(par_dict['use_regr_cov'],
+                                       'use_regr_cov', 'bool')
 
         # Check if method == 'regression' and set use_regr_cov to True if so
         if self._method.lower() == 'regression':
             self._use_regr_cov = 1
 
         # Obtain the polynomial order for the regression selection process
-        self._poly_order = check_pos_int(int(par_dict['poly_order']),
-                                         'poly_order')
+        self._poly_order = check_val(int(par_dict['poly_order']), 'poly_order',
+                                     'pos')
 
         # Obtain the bool determining whether or not to use mock data
-        self._use_mock = check_bool(par_dict['use_mock'], 'use_mock')
+        self._use_mock = check_val(par_dict['use_mock'], 'use_mock', 'bool')
 
         # Log that reading has been finished
         logger.info("Finished reading emulator parameters.")

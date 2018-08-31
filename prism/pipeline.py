@@ -25,6 +25,7 @@ from logging import getLogger
 import os
 from os import path
 import sys
+from textwrap import dedent
 from time import strftime, strptime, time
 
 # Package imports
@@ -42,8 +43,7 @@ from sortedcontainers import SortedSet
 # PRISM imports
 from ._docstrings import (call_emul_i_doc, emul_s_seq_doc, std_emul_i_doc,
                           user_emul_i_doc)
-from ._internal import (PRISM_File, RequestError, check_bool, check_float,
-                        check_nneg_float, check_pos_int, convert_str_seq,
+from ._internal import (PRISM_File, RequestError, check_val, convert_str_seq,
                         delist, docstring_copy, docstring_substitute,
                         getCLogger, move_logger, rprint, start_logger)
 from .emulator import Emulator
@@ -583,12 +583,12 @@ class Pipeline(object):
 
         # GENERAL
         # Number of starting samples
-        self._n_sam_init = check_pos_int(int(par_dict['n_sam_init']),
-                                         'n_sam_init')
+        self._n_sam_init = check_val(int(par_dict['n_sam_init']), 'n_sam_init',
+                                     'pos')
 
         # Base number of emulator evaluation samples
-        self._base_eval_sam = check_pos_int(int(par_dict['base_eval_sam']),
-                                            'base_eval_sam')
+        self._base_eval_sam = check_val(int(par_dict['base_eval_sam']),
+                                        'base_eval_sam', 'pos')
 
         # Criterion parameter used for Latin Hypercube Sampling
         if(par_dict['criterion'].lower() == 'none'):
@@ -606,12 +606,12 @@ class Pipeline(object):
 
         # Obtain the bool determining whether to do an active parameters
         # analysis
-        self._do_active_anal = check_bool(par_dict['do_active_anal'],
-                                          'do_active_anal')
+        self._do_active_anal = check_val(par_dict['do_active_anal'],
+                                         'do_active_anal', 'bool')
 
         # Obtain the bool determining whether active parameters stay active
-        self._freeze_active_par = check_bool(par_dict['freeze_active_par'],
-                                             'freeze_active_par')
+        self._freeze_active_par = check_val(par_dict['freeze_active_par'],
+                                            'freeze_active_par', 'bool')
 
         # Check which parameters can potentially be active
         if(par_dict['pot_active_par'].lower() == 'none'):
@@ -845,9 +845,6 @@ class Pipeline(object):
                 # Save hdf5-file path and name
                 self._hdf5_file = path.join(self._working_dir, hdf5_file)
                 logger.info("Master HDF5-file set to '%s'." % (hdf5_file))
-
-                # Save hdf5-file path as a PRISM_File class attribute
-                PRISM_File._hdf5_file = self._hdf5_file
             else:
                 logger.error("Input argument 'hdf5_file' is not of type "
                              "'str'!")
@@ -888,6 +885,9 @@ class Pipeline(object):
         self._working_dir = self._comm.bcast(self._working_dir, 0)
         self._hdf5_file = self._comm.bcast(self._hdf5_file, 0)
         self._prism_file = self._comm.bcast(self._prism_file, 0)
+
+        # Save hdf5-file path as a PRISM_File class attribute
+        PRISM_File._hdf5_file = self._hdf5_file
 
     # This function generates mock data and loads it into ModelLink
     def _get_mock_data(self):
@@ -1535,8 +1535,8 @@ class Pipeline(object):
 
             # Check if all values are non-negative floats
             for i, value in enumerate(md_var):
-                check_nneg_float(value[0], 'lower_md_var[%s]' % (i))
-                check_nneg_float(value[1], 'upper_md_var[%s]' % (i))
+                check_val(value[0], 'lower_md_var[%s]' % (i), 'nneg', 'float')
+                check_val(value[1], 'upper_md_var[%s]' % (i), 'nneg', 'float')
 
         # Return it
         return(md_var)
@@ -1576,9 +1576,9 @@ class Pipeline(object):
         logger.info("Generating full implausibility cut-off list.")
 
         # Complete the impl_cut list
-        impl_cut[0] = check_nneg_float(impl_cut[0], 'impl_cut[0]')
+        impl_cut[0] = check_val(impl_cut[0], 'impl_cut[0]', 'nneg')
         for i in range(1, len(impl_cut)):
-            impl_cut[i] = check_nneg_float(impl_cut[i], 'impl_cut[%s]' % (i))
+            impl_cut[i] = check_val(impl_cut[i], 'impl_cut[%s]' % (i), 'nneg')
             if(impl_cut[i] == 0):
                 impl_cut[i] = impl_cut[i-1]
             elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
@@ -1782,8 +1782,8 @@ class Pipeline(object):
         # Check if ext_sam_set and ext_mod_set solely contain floats
         for i, (par_set, mod_out) in enumerate(zip(ext_sam_set, ext_mod_set)):
             for j, (par, out) in enumerate(zip(par_set, mod_out)):
-                check_float(par, 'ext_sam_set[%s, %s]' % (i, j))
-                check_float(out, 'ext_mod_set[%s, %s]' % (i, j))
+                check_val(par, 'ext_sam_set[%s, %s]' % (i, j), 'float')
+                check_val(out, 'ext_mod_set[%s, %s]' % (i, j), 'float')
 
         # Check if all samples are within parameter space
         lower_bnd = self._modellink._par_rng[:, 0]
@@ -1916,7 +1916,8 @@ class Pipeline(object):
 
                 # Gather the results on the controller after evaluating
 #                uni_impl_vals_list = self._comm.gather(uni_impl_vals, 0)
-                uni_impl_vals_list = self._comm.gather(np.array(uni_impl_vals), 0)
+                uni_impl_vals_list = self._comm.gather(np.array(uni_impl_vals),
+                                                       0)
 
                 # Controller performs implausibility analysis
                 if self._is_controller:
@@ -2139,7 +2140,7 @@ class Pipeline(object):
             start_time = time()
 
             # Check if force-parameter received a bool
-            force = check_bool(force, 'force')
+            force = check_val(force, 'force', 'bool')
 
             # Check if iteration was interrupted or not, or if force is True
             logger.info("Checking state of emulator iteration %s." % (emul_i))
@@ -2185,7 +2186,7 @@ class Pipeline(object):
             c_from_start = None
 
         # Check if analyze-parameter received a bool
-        analyze = check_bool(analyze, 'analyze')
+        analyze = check_val(analyze, 'analyze', 'bool')
 
         # Broadcast construct_emul_i to workers
         c_from_start = self._comm.bcast(c_from_start, 0)
@@ -2790,7 +2791,7 @@ class Pipeline(object):
             else:
                 for i, par_set in enumerate(sam_set):
                     for j, par_val in enumerate(par_set):
-                        check_float(par_val, 'sam_set[%s, %s]' % (i, j))
+                        check_val(par_val, 'sam_set[%s, %s]' % (i, j), 'float')
 
         # The workers make sure that sam_set is also two-dimensional
         else:
@@ -2800,32 +2801,31 @@ class Pipeline(object):
         self._comm.Barrier()
 
         # Define the various code snippets
-        pre_code = compile("adj_exp_val = [[] for _ in range(n_sam)]\n"
-                           "adj_var_val = [[] for _ in range(n_sam)]\n"
-                           "uni_impl_val_list = [[] for _ in range(n_sam)]\n"
-                           "emul_i_stop = [[] for _ in range(n_sam)]",
-                           '<string>', 'exec')
-        eval_code = compile("adj_exp_val[sam_idx[j]] = adj_val[0]\n"
-                            "adj_var_val[sam_idx[j]] = adj_val[1]\n"
-                            "uni_impl_val_list[sam_idx[j]] = uni_impl_val",
-                            '<string>', 'exec')
+        pre_code = compile(dedent("""
+            adj_exp_val = [[] for _ in range(n_sam)]
+            adj_var_val = [[] for _ in range(n_sam)]
+            uni_impl_val_list = [[] for _ in range(n_sam)]
+            emul_i_stop = [[] for _ in range(n_sam)]
+            """), '<string>', 'exec')
+        eval_code = compile(dedent("""
+            adj_exp_val[sam_idx[j]] = adj_val[0]
+            adj_var_val[sam_idx[j]] = adj_val[1]
+            uni_impl_val_list[sam_idx[j]] = uni_impl_val
+            """), '<string>', 'exec')
         anal_code = compile("emul_i_stop[sam_idx[j]] = i", '<string>', 'exec')
-        post_code = compile("adj_exp_val_list = self._comm.gather(np.array("
-                            "adj_exp_val), 0)\n"
-                            "adj_var_val_list = self._comm.gather(np.array("
-                            "adj_var_val), 0)\n"
-                            "uni_impl_val_list = self._comm.gather(np.array("
-                            "uni_impl_val_list), 0)",
-                            '<string>', 'exec')
-        exit_code = compile("adj_exp_val = np.concatenate("
-                            "*[adj_exp_val_list], axis=1)\n"
-                            "adj_var_val = np.concatenate("
-                            "*[adj_var_val_list], axis=1)\n"
-                            "uni_impl_val = np.concatenate("
-                            "*[uni_impl_val_list], axis=1)\n"
-                            "self.results = (adj_exp_val, adj_var_val, "
-                            "uni_impl_val, emul_i_stop, impl_check)",
-                            '<string>', 'exec')
+        post_code = compile(dedent("""
+            adj_exp_val_list = self._comm.gather(np.array(adj_exp_val), 0)
+            adj_var_val_list = self._comm.gather(np.array(adj_var_val), 0)
+            uni_impl_val_list = self._comm.gather(np.array(uni_impl_val_list),
+                                                  0)
+            """), '<string>', 'exec')
+        exit_code = compile(dedent("""
+            adj_exp_val = np.concatenate(*[adj_exp_val_list], axis=1)
+            adj_var_val = np.concatenate(*[adj_var_val_list], axis=1)
+            uni_impl_val = np.concatenate(*[uni_impl_val_list], axis=1)
+            self.results = (adj_exp_val, adj_var_val, uni_impl_val,
+                            emul_i_stop, impl_check)
+            """), '<string>', 'exec')
 
         # Combine code snippets into a tuple
         exec_code = (pre_code, eval_code, anal_code, post_code, exit_code)

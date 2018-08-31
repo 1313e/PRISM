@@ -4,28 +4,9 @@
 PRISM Docstrings
 ================
 Contains a collection of docstrings that are reused throughout the
-documentation of the various functions in the PRISM package.
+documentation of the various functions in the *PRISM* package.
 
 """
-
-# %% CHECK DOCSTRINGS
-check_bool_doc = \
-    """Checks if provided argument `name` of `value` is a bool.
-    Returns 0 or 1 if *True* and raises a :class:`~TypeError` if *False*."""
-
-check_fin_doc = \
-    """Checks if provided argument `name` of `value` is finite.
-    Returns `value` if *True* and raises a :class:`~ValueError` if *False*."""
-
-check_type_doc = \
-    """Checks if provided argument `name` of `value` is %s.
-    Returns `value` if *True* and raises a :class:`~TypeError` if *False*."""
-
-check_val_doc = \
-    """Checks if provided argument `name` of `value` is %s.
-    Returns `value` if *True* and raises a :class:`~TypeError` or
-    :class:`~ValueError` if *False*."""
-
 
 # %% EMUL_I DOCSTRINGS
 # Description of emul_i used in __call__/construct
@@ -53,16 +34,16 @@ user_emul_i_doc = \
            used."""
 
 # %% EMUL_S DOCSTRINGS
+# Description of sequence of emul_s used in all standard hidden functions
+emul_s_seq_doc = \
+    """emul_s_seq : list of int
+           List of numbers indicating the requested emulator systems."""
+
 # Description of emul_s used in basically all standard hidden functions
 lemul_s_doc = \
     """lemul_s : int or None
            Number indicating the requested local emulator system.
            If *None*, use the master emulator file instead."""
-
-# Description of sequence of emul_s used in all standard hidden functions
-emul_s_seq_doc = \
-    """emul_s_seq : list of int
-           List of numbers indicating the requested emulator systems."""
 
 # Description of sequence of emul_s used in all standard user functions
 user_emul_s_doc = \

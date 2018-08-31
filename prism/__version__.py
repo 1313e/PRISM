@@ -3,7 +3,7 @@
 """
 PRISM Version
 =============
-Stores the different versions of the PRISM package.
+Stores the different versions of the *PRISM* package.
 
 """
 
