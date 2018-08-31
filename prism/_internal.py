@@ -297,6 +297,35 @@ def check_val(value, name, *args):
             raise TypeError("Input argument '%s' is not of type 'str'!"
                             % (name))
 
+    # Check for floats
+    elif 'float' in args:
+        # Remove 'float' from args and check it again
+        args.remove('float')
+        value = check_val(value, name, *args)
+
+        # Check if float is provided and return if so
+        if isinstance(value, (int, float, np.integer, np.floating)):
+            return(value)
+        else:
+            logger.error("Input argument '%s' is not of type 'float'!"
+                         % (name))
+            raise TypeError("Input argument '%s' is not of type 'float'!"
+                            % (name))
+
+    # Check for integers
+    elif 'int' in args:
+        # Remove 'int' from args and check it again
+        args.remove('int')
+        value = check_val(value, name, *args)
+
+        # Check if int is provided and return if so
+        if isinstance(value, (int, np.integer)):
+            return(value)
+        else:
+            logger.error("Input argument '%s' is not of type 'int'!" % (name))
+            raise TypeError("Input argument '%s' is not of type 'int'!"
+                            % (name))
+
     # Check for negative values
     elif 'neg' in args:
         # Remove 'neg' from args and check it again
@@ -363,35 +392,6 @@ def check_val(value, name, *args):
         else:
             logger.error("Input argument '%s' is not positive!" % (name))
             raise ValueError("Input argument '%s' is not positive!" % (name))
-
-    # Check for floats
-    elif 'float' in args:
-        # Remove 'float' from args and check it again
-        args.remove('float')
-        value = check_val(value, name, *args)
-
-        # Check if float is provided and return if so
-        if isinstance(value, (int, float, np.integer, np.floating)):
-            return(value)
-        else:
-            logger.error("Input argument '%s' is not of type 'float'!"
-                         % (name))
-            raise TypeError("Input argument '%s' is not of type 'float'!"
-                            % (name))
-
-    # Check for integers
-    elif 'int' in args:
-        # Remove 'int' from args and check it again
-        args.remove('int')
-        value = check_val(value, name, *args)
-
-        # Check if int is provided and return if so
-        if isinstance(value, (int, np.integer)):
-            return(value)
-        else:
-            logger.error("Input argument '%s' is not of type 'int'!" % (name))
-            raise TypeError("Input argument '%s' is not of type 'int'!"
-                            % (name))
 
     # If no criteria are given, it must be a finite value
     elif not len(args):
@@ -530,7 +530,7 @@ def import_cmaps(cmap_dir=None):
     --------
     cmap_dir : str or None. Default: None
         If str, relative or absolute path to the directory that contains custom
-        colormap files. If *None*, read in colormap files from PRISM's 'data'
+        colormap files. If *None*, read in colormap files from *PRISM*'s 'data'
         directory.
 
     Notes
