@@ -150,7 +150,11 @@ class Pipeline(object):
             self._get_paths(root_dir, working_dir, prefix, hdf5_file,
                             prism_file)
 
-            # Start logger for workers as well
+        # MPI Barrier
+        self._comm.Barrier()
+
+        # Start logger for workers as well
+        if self._is_worker:
             start_logger(path.join(self._working_dir, 'prism_log.log'), 'a')
 
         # Initialize Emulator class
@@ -1999,9 +2003,45 @@ class Pipeline(object):
 
         # Begin logging
         logger = getCLogger('ANALYZE')
-
-        # Begin analyzing
         logger.info("Analyzing emulator system at iteration %s." % (emul_i))
+
+        # Controller checking whether this iteration can still be (re)analyzed
+        if self._is_controller:
+            # Try to access the ccheck of the next iteration
+            try:
+                self._emulator._ccheck[emul_i+1]
+            # If it does not exist, current iteration can be analyzed
+            except IndexError:
+                return_flag = 0
+            # If it does exist, check if mod_real_set has been evaluated
+            else:
+                # If it has been evaluated, reanalysis is not possible
+                if('mod_real_set' not in self._emulator._ccheck[emul_i+1] and
+                   'active_par' in self._emulator._ccheck[emul_i+1]):
+                        return_flag = 1
+                        logger.info("Construction of next emulator iteration "
+                                    "(%s) has already been started. Reanalysis"
+                                    " of the current iteration is not "
+                                    "possible." % (emul_i+1))
+                        print("Construction of next emulator iteration (%s) "
+                              "has already been started. Reanalysis of the "
+                              "current iteration is not possible."
+                              % (emul_i+1))
+                # If it has not been evaluated, reanalysis is possible
+                else:
+                    return_flag = 0
+
+        # Workers get dummy flag
+        else:
+            return_flag = None
+
+        # Broadcast return_flag to workers
+        return_flag = self._comm.bcast(return_flag, 0)
+
+        # If return_flag is True, return
+        if return_flag:
+            self.details()
+            return
 
         # Controller only
         if self._is_controller:
@@ -2634,18 +2674,18 @@ class Pipeline(object):
                         "'regression'?", width-4, "No (%s)" % (ccheck_i) if
                         len(ccheck_i) else "Yes"))
 
-                # Check if all prior_exp_sam_sets have been determined
-                ccheck_i = [i for i in range(n_emul_s) if
-                            'prior_exp_sam_set' in ccheck_flat[i]]
-                print("  - {0: <{1}}\t{2}".format(
-                    "'prior_exp_sam_set'?", width-4, "No (%s)" % (ccheck_i) if
-                    len(ccheck_i) else "Yes"))
-
                 # Check if all covariance matrices have been determined
                 ccheck_i = [i for i in range(n_emul_s) if
                             'cov_mat' in ccheck_flat[i]]
                 print("  - {0: <{1}}\t{2}".format(
                     "'cov_mat'?", width-4, "No (%s)" % (ccheck_i) if
+                    len(ccheck_i) else "Yes"))
+
+                # Check if all exp_dot_terms have been determined
+                ccheck_i = [i for i in range(n_emul_s) if
+                            'exp_dot_term' in ccheck_flat[i]]
+                print("  - {0: <{1}}\t{2}".format(
+                    "'exp_dot_term'?", width-4, "No (%s)" % (ccheck_i) if
                     len(ccheck_i) else "Yes"))
             print("-"*width)
 

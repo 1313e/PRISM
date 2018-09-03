@@ -59,7 +59,6 @@ PRISM requires ``python == 2.7`` or ``python >= 3.4`` and the following non-stan
 
 For running PRISM in MPI, the following packages are also required (not installed automatically):
 
-- ``d2o >= 1.1.2``;
 - ``mpi4py >= 3.0.0``.
 
 

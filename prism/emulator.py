@@ -351,14 +351,14 @@ class Emulator(object):
         return(self._cov_mat_inv)
 
     @property
-    def prior_exp_sam_set(self):
+    def exp_dot_term(self):
         """
-        Array containing the prior emulator expectation values of all model
-        evaluation samples in the specified emulator iteration.
+        Array containing the second expectation adjustment dot-term values of
+        all model evaluation samples in the specified emulator iteration.
 
         """
 
-        return(self._prior_exp_sam_set)
+        return(self._exp_dot_term)
 
     # Covariances
     @property
@@ -1079,18 +1079,18 @@ class Emulator(object):
             if len(ccheck_regression):
                 self._do_regression(emul_i, ccheck_regression)
 
-        # Calculate the prior expectation values of sam_set
-        ccheck_prior_exp = [emul_s for emul_s in emul_s_seq if
-                            'prior_exp_sam_set' in
-                            self._ccheck[emul_i][emul_s]]
-        if len(ccheck_prior_exp):
-            self._get_prior_exp_sam_set(emul_i, ccheck_prior_exp)
-
         # Calculate the covariance matrices of sam_set
         ccheck_cov_mat = [emul_s for emul_s in emul_s_seq if
                           'cov_mat' in self._ccheck[emul_i][emul_s]]
         if len(ccheck_cov_mat):
             self._get_cov_matrix(emul_i, ccheck_cov_mat)
+
+        # Calculate the prior expectation values of sam_set
+        ccheck_pre_calc_term = [emul_s for emul_s in emul_s_seq if
+                                'exp_dot_term' in
+                                self._ccheck[emul_i][emul_s]]
+        if len(ccheck_pre_calc_term):
+            self._get_exp_dot_term(emul_i, ccheck_pre_calc_term)
 
         # If a worker is finished, set current emul_i to constructed emul_i
         if self._is_worker:
@@ -1156,9 +1156,7 @@ class Emulator(object):
         # Calculate the adjusted emulator expectation value at given par_set
         for i, emul_s in enumerate(emul_s_seq):
             adj_exp_val[i] = prior_exp_par_set[i] +\
-                np.dot(cov_vec[i].T, np.dot(self._cov_mat_inv[emul_i][emul_s],
-                       (self._mod_set[emul_i][emul_s] -
-                        self._prior_exp_sam_set[emul_i][emul_s])))
+                np.dot(cov_vec[i].T, self._exp_dot_term[emul_i][emul_s])
 
         # Return it
         return(adj_exp_val)
@@ -1404,7 +1402,7 @@ class Emulator(object):
         logger.info("Performing regression.")
 
         # Create SequentialFeatureSelector object
-        sfs_obj = SFS(LR(), k_features='best', forward=True, floating=True,
+        sfs_obj = SFS(LR(), k_features='best', forward=True, floating=False,
                       scoring='neg_mean_squared_error',
                       cv=min(5, self._n_sam[emul_i]))
 
@@ -1509,7 +1507,7 @@ class Emulator(object):
 
         """
 
-        # If prior_exp of sam_set is requested (prior_exp_sam_set)
+        # If prior_exp of sam_set is requested (exp_dot_term)
         if par_set is None:
             # Initialize empty prior expectation
             prior_exp = np.zeros([len(emul_s_seq), self._n_sam[emul_i]])
@@ -1551,13 +1549,14 @@ class Emulator(object):
         # Return it
         return(prior_exp)
 
-    # This function calculates the prior expectation and variances values
-    # This is function 'E(D)'
+    # This function pre-calculates the second adjustment dot-term
+    # This is function 'Var(D)^-1*(D-E(D))'
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _get_prior_exp_sam_set(self, emul_i, emul_s_seq):
+    def _get_exp_dot_term(self, emul_i, emul_s_seq):
         """
-        Calculates the prior expectation values at a given emulator iteration
-        `emul_i` for all model evaluation samples and saves it for later use.
+        Pre-calculates the second expectation adjustment dot-term at a given
+        emulator iteration `emul_i` for all model evaluation samples and saves
+        it for later use.
 
         Parameters
         ----------
@@ -1566,28 +1565,33 @@ class Emulator(object):
 
         Generates
         ---------
-        prior_exp_sam_set : 2D :obj:`~numpy.ndarray` object
-            2D array containing the prior expectation values for all model
+        exp_dot_term : 2D :obj:`~numpy.ndarray` object
+            2D array containing the pre-calculated values for the second
+            adjustment dot-term of the adjusted expectation for all model
             evaluation samples for all data points. Has the same shape as the
             array with model outputs.
 
         """
 
         # Create logger
-        logger = getLogger('PRIOR_EXP')
-        logger.info("Calculating prior expectation values for "
-                    "known samples at emulator iteration %s." % (emul_i))
+        logger = getLogger('DOT_TERM')
+        logger.info("Pre-calculating second expectation adjustment dot-term "
+                    "for known samples at emulator iteration %s." % (emul_i))
 
         # Obtain prior expectation value of sam_set
         prior_exp_sam_set = self._get_prior_exp(emul_i, emul_s_seq, None)
 
-        # Save the prior expectation values to hdf5
+        # Calculate the exp_dot_term values and save it to hdf5
         for i, emul_s in enumerate(emul_s_seq):
+            exp_dot_term = np.dot(self._cov_mat_inv[emul_i][emul_s],
+                                  (self._mod_set[emul_i][emul_s] -
+                                   prior_exp_sam_set[i]))
             self._save_data(emul_i, emul_s, {
-                'prior_exp_sam_set': prior_exp_sam_set[i]})
+                'exp_dot_term': [prior_exp_sam_set[i], exp_dot_term]})
 
         # Log again
-        logger.info("Finished calculating prior expectation values.")
+        logger.info("Finished pre-calculating second adjustment dot-term "
+                    "values.")
 
     # This function gives the prior variance value
     # This is function 'Var(f(x'))'
@@ -1655,7 +1659,7 @@ class Emulator(object):
             rsdl_var = self._rsdl_var[emul_i]
 #            rsdl_var = pow(self._sigma, 2)
         elif(self.method.lower() == 'gaussian'):
-            rsdl_var = pow(self._sigma, 2)
+            rsdl_var = [pow(self._sigma, 2) for _ in emul_s_seq]
 
         # If cov of sam_set with sam_set is requested (cov_mat)
         if par_set1 is None:
@@ -2141,7 +2145,7 @@ class Emulator(object):
         self._sam_set = [[]]
         self._mod_set = [[]]
         self._cov_mat_inv = [[]]
-        self._prior_exp_sam_set = [[]]
+        self._exp_dot_term = [[]]
         self._active_par_data = [[]]
         self._rsdl_var = [[]]
         self._poly_coef = [[]]
@@ -2258,7 +2262,7 @@ class Emulator(object):
                 # Initialize empty data sets
                 mod_set = []
                 cov_mat_inv = []
-                prior_exp_sam_set = []
+                exp_dot_term = []
                 active_par_data = []
                 data_val = []
                 data_err = []
@@ -2279,7 +2283,7 @@ class Emulator(object):
                         # Add empty lists for all emulator system data
                         mod_set.append([])
                         cov_mat_inv.append([])
-                        prior_exp_sam_set.append([])
+                        exp_dot_term.append([])
                         active_par_data.append([])
                         data_val.append([])
                         data_err.append([])
@@ -2304,13 +2308,13 @@ class Emulator(object):
                         cov_mat_inv.append([])
                         ccheck_s.append('cov_mat')
 
-                    # Check if prior_exp_sam_set is available
+                    # Check if exp_dot_term is available
                     try:
-                        prior_exp_sam_set.append(
-                            data_set['prior_exp_sam_set'][()])
+                        exp_dot_term.append(
+                            data_set['exp_dot_term'][()])
                     except KeyError:
-                        prior_exp_sam_set.append([])
-                        ccheck_s.append('prior_exp_sam_set')
+                        exp_dot_term.append([])
+                        ccheck_s.append('exp_dot_term')
 
                     # Check if active_par_data is available
                     try:
@@ -2358,7 +2362,7 @@ class Emulator(object):
                 # Add all read-in data to their respective places
                 self._mod_set.append(mod_set)
                 self._cov_mat_inv.append(cov_mat_inv)
-                self._prior_exp_sam_set.append(prior_exp_sam_set)
+                self._exp_dot_term.append(exp_dot_term)
                 self._active_par_data.append(active_par_data)
                 self._data_val.append(data_val)
                 self._data_err.append(data_err)
@@ -2442,7 +2446,7 @@ class Emulator(object):
         Dict Variables
         --------------
         keyword : {'active_par', 'active_par_data', 'cov_mat', 'mod_real_set',\
-                   'prior_exp_sam_set', 'regression'}
+                   'exp_dot_term', 'regression'}
             String specifying the type of data that needs to be saved.
         data : int, float, list
             The actual data that needs to be saved at data keyword `keyword`.
@@ -2528,12 +2532,13 @@ class Emulator(object):
                     data_set.create_dataset('mod_set', data=data[1])
                     self._mod_set[emul_i][lemul_s] = data[1]
 
-                # PRIOR_EXP_SAM_SET
-                elif(keyword == 'prior_exp_sam_set'):
+                # EXP_DOT_TERM
+                elif(keyword == 'exp_dot_term'):
                     data_set = file['%s' % (emul_i)]
-                    data_set.create_dataset('prior_exp_sam_set', data=data)
-                    self._prior_exp_sam_set[emul_i][lemul_s] = data
-                    self._ccheck[emul_i][lemul_s].remove('prior_exp_sam_set')
+                    data_set.create_dataset('prior_exp_sam_set', data=data[0])
+                    data_set.create_dataset('exp_dot_term', data=data[1])
+                    self._exp_dot_term[emul_i][lemul_s] = data[1]
+                    self._ccheck[emul_i][lemul_s].remove('exp_dot_term')
 
                 # REGRESSION
                 elif(keyword == 'regression'):
