@@ -105,7 +105,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         bound and, if applicable, the estimate of this parameter. It is not
         required to provide an estimate for every parameter.
         An example of a model parameters file can be found in the 'data' folder
-        of the PRISM package.
+        of the *PRISM* package.
 
         Formatting :
             ``{par_name: [lower_bnd, upper_bnd, par_est]}``
@@ -123,14 +123,14 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         'log_10', 'ln' or 'log_e'}) indicating in which of the three value
         spaces (linear, log, ln) the data values are.
         The data index is a sequence of ints, floats and strings that is unique
-        for every data point. PRISM uses it to identify a data point with,
+        for every data point. *PRISM* uses it to identify a data point with,
         which is required in some cases (like MPI), while the model itself can
         use it as a description of the operations required to extract the data
         point from the model. It can be provided as any sequence of any length
         for any data point. If any sequence contains a single element, it is
         replaced by just that element.
         An example of a model data file can be found in the 'data' folder of
-        the PRISM package.
+        the *PRISM* package.
 
         Formatting :
             ``([data_val, data_err, data_spc, data_idx_0, data_idx_1, ...,`` \
@@ -513,8 +513,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         # Raise NotImplementedError if only super() was called
         raise NotImplementedError
 
-
-# %% CLASS PROPERTIES
+    # %% CLASS PROPERTIES
     # General
     @property
     def name(self):

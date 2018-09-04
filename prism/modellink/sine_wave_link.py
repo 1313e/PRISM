@@ -13,7 +13,7 @@ Available classes
 -----------------
 :class:`~SineWaveLink`
     :class:`~ModelLink` class wrapper for a simple sine wave model, used for
-    testing the functionality of the PRISM pipeline in unittests.
+    testing the functionality of the *PRISM* pipeline in unittests.
 
 """
 
@@ -36,7 +36,7 @@ __all__ = ['SineWaveLink']
 class SineWaveLink(ModelLink):
     """
     :class:`~ModelLink` class wrapper for a simple sine wave model, used for
-    testing the functionality of the PRISM pipeline in unittests.
+    testing the functionality of the *PRISM* pipeline in unittests.
 
     Formatting data_idx
     -------------------

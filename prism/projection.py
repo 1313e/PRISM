@@ -3,14 +3,14 @@
 """
 Projection
 ==========
-Provides the definition of PRISM's :class:`~Projection` class, that allows for
-projection figures detailing a model's behavior to be created.
+Provides the definition of *PRISM*'s :class:`~Projection` class, that allows
+for projection figures detailing a model's behavior to be created.
 
 
 Available classes
 -----------------
 :class:`~Projection`
-    Defines the :class:`~Projection` class of the PRISM package.
+    Defines the :class:`~Projection` class of the *PRISM* package.
 
 """
 
@@ -28,7 +28,6 @@ from os import path
 from time import time
 
 # Package imports
-from e13tools import InputError
 from e13tools.pyplot import draw_textline, suplabel
 from e13tools.sampling import lhd
 import matplotlib.cm as cm
@@ -36,13 +35,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 # TODO: Do some research on scipy.interpolate.Rbf later
 from scipy.interpolate import interp1d, interp2d
-from sortedcontainers import SortedSet
 from tqdm import tqdm
 
 # PRISM imports
-from ._docstrings import user_emul_i_doc
+from ._docstrings import (def_par_doc, impl_cut_doc, save_data_doc_pr,
+                          user_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_val, convert_str_seq,
-                        docstring_substitute, getCLogger, rprint)
+                        docstring_append, docstring_substitute, getCLogger,
+                        rprint)
 
 # All declaration
 __all__ = ['Projection']
@@ -52,7 +52,7 @@ __all__ = ['Projection']
 # TODO: Make something like Figure 4 in Bower et al
 class Projection(object):
     """
-    Defines the :class:`~Projection` class of the PRISM package.
+    Defines the :class:`~Projection` class of the *PRISM* package.
 
     """
 
@@ -324,8 +324,7 @@ class Projection(object):
         if self._is_controller:
             print("")
 
-
-# %% CLASS PROPERTIES
+    # %% CLASS PROPERTIES
     @property
     def proj_res(self):
         """
@@ -365,8 +364,7 @@ class Projection(object):
 
         return(self._cut_idx)
 
-
-# %% HIDDEN CLASS METHODS
+    # %% HIDDEN CLASS METHODS
     # This function draws the 2D projection figure
     def _draw_2D_proj_fig(self, hcube, impl_min, impl_los):
         """
@@ -613,29 +611,9 @@ class Projection(object):
         if proj_par is None:
             proj_par = self._emulator._active_par[self._emul_i]
 
-        # Else, an array of str/int must be provided
+        # Else, a sequence of str/int must be provided
         else:
-            # Convert to string, remove unwanted characters and split it up
-            proj_par = convert_str_seq(proj_par)
-
-            # Check elements if they are ints or strings, and if they are valid
-            for i, val in enumerate(proj_par):
-                try:
-                    try:
-                        par_idx = int(val)
-                    except ValueError:
-                        proj_par[i] = self._modellink._par_name.index(val)
-                    else:
-                        self._modellink._par_name[par_idx]
-                        proj_par[i] = par_idx % self._modellink._n_par
-                except Exception as error:
-                    logger.error("Input argument 'proj_par' is invalid! (%s)"
-                                 % (error))
-                    raise InputError("Input argument 'proj_par' is invalid! "
-                                     "(%s)" % (error))
-
-            # If everything went without exceptions, remove duplicates and sort
-            proj_par = list(SortedSet(proj_par))
+            proj_par = self._pipeline._get_model_par_seq(proj_par, 'proj_par')
 
             # Check which values in proj_par are also in active_par
             proj_par = np.array(
@@ -719,20 +697,16 @@ class Projection(object):
         return(hcube_par, create_hcube_par)
 
     # This function reads in the impl_cut list from the PRISM parameters file
+    @docstring_substitute(impl_cut=impl_cut_doc)
     def _get_impl_par(self):
         """
         Reads in the impl_cut list and other parameters for implausibility
-        evaluations from the PRISM parameters file and saves them in the
+        evaluations from the *PRISM* parameters file and saves them in the
         emulator iteration this class was initialized for.
 
         Generates
         ---------
-        impl_cut : 1D :obj:`~numpy.ndarray` object
-            Full list containing the impl_cut-offs for all data points provided
-            to the emulator.
-        cut_idx : int
-            Index of the first impl_cut-off in the impl_cut list that is not
-            0.
+        %(impl_cut)s
         proj_res : int
             Number of emulator evaluations used to generate the grid for the
             projection figures.
@@ -787,18 +761,8 @@ class Projection(object):
         logger.info("Finished obtaining implausibility analysis parameters.")
 
     # This function automatically loads default pipeline parameters
+    @docstring_append(def_par_doc.format('projection'))
     def _get_default_parameters(self):
-        """
-        Generates a dict containing default values for all projection
-        parameters.
-
-        Returns
-        -------
-        par_dict : dict
-            Dict containing all default projection parameter values.
-
-        """
-
         # Log this
         logger = getCLogger('INIT')
         logger.info("Generating default projection parameter dict.")
@@ -991,26 +955,13 @@ class Projection(object):
             return(impl_min_hcube, impl_los_hcube)
 
     # This function saves projection data to hdf5
+    @docstring_substitute(save_data=save_data_doc_pr)
     def _save_data(self, data_dict):
         """
         Saves a given data dict ``{keyword: data}`` at the emulator iteration
         this class was initialized for, to the HDF5-file.
 
-        Parameters
-        ----------
-        data_dict : dict
-            Dict containing the data that needs to be saved to the HDF5-file.
-
-        Dict Variables
-        --------------
-        keyword : {'impl_cut', 'proj_grid', 'nD_proj_hcube'}
-            String specifying the type of data that needs to be saved.
-        data : list
-            The actual data that needs to be saved at data keyword `keyword`.
-
-        Generates
-        ---------
-        The specified data is saved to the HDF5-file.
+        %(save_data)s
 
         """
 

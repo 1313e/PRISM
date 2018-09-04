@@ -15,10 +15,10 @@ Short description
 -----------------
 This package contains the *PRISM* pipeline, an efficient and rapid alternative
 to MCMC methods for optimizing and analyzing scientific models.
-The *PRISM* package provides two main classes: The :class:`~Pipeline` class and
+The *PRISM* package provides two user classes: The :class:`~Pipeline` class and
 the :class:`~ModelLink` class.
 
-The :class:`~Pipeline` class provides the user with an 'interface' with all the
+The :class:`~Pipeline` class provides the user with an environment with all the
 tools one needs to utilize the full capabilities of *PRISM*, while the
 :class:`~ModelLink` abstract base class allows for any model to be connected to
 the *PRISM* pipeline and holds all information about this model.
@@ -27,8 +27,8 @@ the *PRISM* pipeline and holds all information about this model.
 Available modules
 -----------------
 :mod:`~emulator`
-    Provides the definition of the class holding the emulator system of the
-    *PRISM* package, the :class:`~Emulator` class.
+    Provides the definition of the class holding the emulator of the *PRISM*
+    package, the :class:`~Emulator` class.
 
 :mod:`~modellink`
     Contains the definition of *PRISM*'s :class:`~ModelLink` abstract base

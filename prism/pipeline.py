@@ -3,14 +3,14 @@
 """
 Pipeline
 ========
-Provides the definition of the main class of the PRISM package, the
+Provides the definition of the main class of the *PRISM* package, the
 :class:`~Pipeline` class.
 
 
 Available classes
 -----------------
 :class:`~Pipeline`
-    Defines the :class:`~Pipeline` class of the PRISM package.
+    Defines the :class:`~Pipeline` class of the *PRISM* package.
 
 """
 
@@ -41,11 +41,16 @@ from numpy.random import normal, random
 from sortedcontainers import SortedSet
 
 # PRISM imports
-from ._docstrings import (call_emul_i_doc, emul_s_seq_doc, std_emul_i_doc,
+from ._docstrings import (call_emul_i_doc, call_model_doc_s, call_model_doc_m,
+                          def_par_doc, emul_s_seq_doc, ext_mod_set_doc,
+                          ext_real_set_doc, ext_sam_set_doc, impl_cut_doc,
+                          impl_temp_doc, obj_doc, paths_doc_d, paths_doc_s,
+                          read_par_doc, save_data_doc_p, std_emul_i_doc,
                           user_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_val, convert_str_seq,
-                        delist, docstring_copy, docstring_substitute,
-                        getCLogger, move_logger, rprint, start_logger)
+                        delist, docstring_append, docstring_copy,
+                        docstring_substitute, getCLogger, move_logger,
+                        raise_error, start_logger)
 from .emulator import Emulator
 from .projection import Projection
 
@@ -58,20 +63,47 @@ if(sys.version_info.major >= 3):
 
 
 # %% PIPELINE CLASS DEFINITION
-# OPTIMIZE: Rewrite PRISM into MPI?
 # TODO: Allow user to switch between emulation and modelling
 # TODO: Implement multivariate implausibilities
 # OPTIMIZE: Overlap plausible regions to remove boundary artifacts?
-# TODO: Allow ModelLink to provide full data set, Pipeline selects data itself?
 # TODO: Think of a way to allow no ModelLink instance to be provided.
 # This could be done with a DummyLink, but md_var is then uncallable.
 class Pipeline(object):
     """
-    Defines the :class:`~Pipeline` class of the PRISM package.
+    Defines the :class:`~Pipeline` class of the *PRISM* package.
+
+    Description
+    -----------
+    The :class:`~Pipeline` class is the main user class of the *PRISM* package
+    and provides a user-friendly environment that gives access to all
+    operations within the package.
+
+    Defined user methods
+    --------------------
+    :meth:`~analyze`
+        Analyzes the last emulator iteration and determines which samples will
+        be used to construct the next emulator iteration.
+    :meth:`~construct`
+        Constructs the provided emulator iteration by determining all required
+        components of all emulator systems.
+    :meth:`~details`
+        Gives an overview of the provided emulator iteration, printing many
+        details about the used emulator, the current iteration and the used
+        :class:`~ModelLink` subclass.
+    :meth:`~evaluate`
+        Evaluates a provided set of model parameter samples in the emulator up
+        to the provided emulator iteration and prints/returns the results.
+    :meth:`~project`
+        Analyzes the behaviour of the emulator at the provided emulator
+        iteration and constructs a series of projection figures.
+    :meth:`~run`
+        Constructs, analyzes and projects the emulator at the provided emulator
+        iteration. Can also be executed with :meth:`~__call__`.
 
     """
 
     # TODO: Should prism_file be defaulted to None?
+    @docstring_substitute(paths=paths_doc_d)
     def __init__(self, modellink, root_dir=None, working_dir=None,
                  prefix='prism_', hdf5_file='prism.hdf5',
                  prism_file='prism.txt', emul_type='default'):
@@ -82,38 +114,14 @@ class Pipeline(object):
         ----------
         modellink : :obj:`~ModelLink` object
             Instance of the :class:`~ModelLink` class that links the emulated
-            model to this :obj:`~Pipeline` object.
+            model to this :obj:`~Pipeline` instance.
 
         Optional
         --------
-        root_dir : str or None. Default: None
-            String containing the absolute path of the root directory where all
-            working directories are stored. If *None*, root directory will be
-            set to the directory this class was initialized at.
-        working_dir : str, int or None. Default: None
-            String containing the name of the working directory of the emulator
-            in `root_dir`. If int, a new working directory will be created in
-            `root_dir`. If *None*, working directory is set to the last one
-            that was created in `root_dir` that starts with the given `prefix`.
-            If no directories are found, one will be created.
-        prefix : str. Default: 'prism_'
-            String containing a prefix that is used for naming new working
-            directories or scan for existing ones.
-        hdf5_file : str. Default: 'prism.hdf5'
-            String containing the name of the master HDF5-file in `working_dir`
-            to be used in this class instance. Different types of master
-            HDF5-files can be provided:
-                *Non-existing master HDF5-file*: This file will be created and
-                used to save the constructed emulator system in.
-
-                *Existing master HDF5-file*: This file will be used to
-                regenerate a previously constructed emulator system.
-        prism_file : str or None. Default: 'prism.txt'
-            String containing the absolute or relative path to the TXT-file
-            containing the PRISM parameters that need to be changed from their
-            default values. If a relative path is given, its path must be
-            relative to `root_dir` or the current directory. If *None*, no
-            changes will be made to the default parameters.
+        %(paths)s
+        emul_type : {'default'}. Default: 'default'
+            String indicating which emulator type to use. In the
+            :class:`~Pipeline` base class, only 'default' is supported.
 
         """
 
@@ -126,7 +134,7 @@ class Pipeline(object):
         self._is_controller = 1 if not self._rank else 0
         self._is_worker = 1 if self._rank else 0
 
-        # Controller only
+        # Controller obtaining paths and preparing logging system
         if self._is_controller:
             # Start logging
             logging_file = start_logger()
@@ -141,10 +149,10 @@ class Pipeline(object):
             self._get_paths(root_dir, working_dir, prefix, hdf5_file,
                             prism_file)
 
-            # Move logger to working directory
+            # Move logger to working directory and restart it
             move_logger(self._working_dir, logging_file)
 
-        # Remaining workers
+        # Remaining workers obtain paths from controller
         else:
             # Obtain paths
             self._get_paths(root_dir, working_dir, prefix, hdf5_file,
@@ -161,7 +169,8 @@ class Pipeline(object):
         if(emul_type == 'default'):
             self._emulator = Emulator(self, modellink)
         else:
-            raise RequestError("Input argument 'emul_type' is invalid!")
+            err_msg = "Input argument 'emul_type' is invalid!"
+            raise_error(RequestError, err_msg, logger)
 
         # Let everybody read in the pipeline parameters
         self._read_parameters()
@@ -202,9 +211,7 @@ class Pipeline(object):
             except Exception:
                 raise
 
-
-# %% CLASS PROPERTIES
-    # TODO: Hide class attributes that do not exist yet
+    # %% CLASS PROPERTIES
     # MPI properties
     @property
     def comm(self):
@@ -238,8 +245,8 @@ class Pipeline(object):
     @property
     def is_controller(self):
         """
-        Bool indicating whether or not this MPI process is a controller
-        process. Is no MPI is used, this is always *True*.
+        Bool indicating whether or not this MPI process is a controller rank.
+        If no MPI is used, this is always *True*.
 
         """
 
@@ -248,8 +255,8 @@ class Pipeline(object):
     @property
     def is_worker(self):
         """
-        Bool indicating whether or not this MPI process is a worker process. If
-        no MPI is used, this is always *False*.
+        Bool indicating whether or not this MPI process is a worker rank. If no
+        MPI is used, this is always *False*.
 
         """
 
@@ -277,7 +284,7 @@ class Pipeline(object):
     @property
     def hdf5_file(self):
         """
-        Absolute path to the loaded HDF5-file.
+        Absolute path to the loaded master HDF5-file.
 
         """
 
@@ -286,7 +293,8 @@ class Pipeline(object):
     @property
     def prism_file(self):
         """
-        Absolute path to PRISM parameters file.
+        Absolute path to the *PRISM* parameters file or *None* if no file was
+        provided.
 
         """
 
@@ -295,7 +303,8 @@ class Pipeline(object):
     @property
     def modellink(self):
         """
-        The :obj:`~ModelLink` instance provided during Pipeline initialization.
+        The :obj:`~ModelLink` instance provided during :class:`~Pipeline`
+        initialization.
 
         """
 
@@ -304,7 +313,8 @@ class Pipeline(object):
     @property
     def emulator(self):
         """
-        The :obj:`~Emulator` instance created during Pipeline initialization.
+        The :obj:`~Emulator` instance created during :class:`~Pipeline`
+        initialization.
 
         """
 
@@ -313,7 +323,7 @@ class Pipeline(object):
     @property
     def criterion(self):
         """
-        String or float indicating which criterion to use in the
+        String, float or *None* indicating which criterion to use in the
         :func:`e13tools.sampling.lhd` function.
 
         """
@@ -323,7 +333,8 @@ class Pipeline(object):
     @property
     def do_active_anal(self):
         """
-        Bool indicating whether or not to do an active parameters analysis.
+        Bool indicating whether or not to do an active parameters analysis
+        during the construction of the emulator systems.
 
         """
 
@@ -343,7 +354,9 @@ class Pipeline(object):
     def pot_active_par(self):
         """
         List of potentially active parameters. Only parameters from this list
-        can become active.
+        can become active during the active parameters analysis. If
+        :attr:`~Pipeline.do_active_anal` is *False*, all parameters in this
+        list will be active.
 
         """
 
@@ -353,7 +366,7 @@ class Pipeline(object):
     def n_sam_init(self):
         """
         Number of evaluation samples used to construct the first iteration of
-        the emulator system.
+        the emulator systems.
 
         """
 
@@ -363,7 +376,7 @@ class Pipeline(object):
     def n_eval_sam(self):
         """
         List containing the number of evaluation samples used to analyze the
-        corresponding emulator iteration of the emulator system. The number of
+        corresponding emulator iteration of the emulator systems. The number of
         plausible evaluation samples is stored in :attr:`~Pipeline.n_impl_sam`.
 
         """
@@ -374,7 +387,7 @@ class Pipeline(object):
     def base_eval_sam(self):
         """
         Base number of emulator evaluations used to analyze the emulator
-        system. This number is scaled up by the number of model parameters and
+        systems. This number is scaled up by the number of model parameters and
         the current emulator iteration to generate the true number of emulator
         evaluations (:attr:`~Pipeline.n_eval_sam`).
 
@@ -385,8 +398,8 @@ class Pipeline(object):
     @property
     def impl_cut(self):
         """
-        List of lists containing all univariate implausibility cut-offs. A zero
-        indicates a wildcard.
+        List of lists containing all univariate implausibility cut-off values
+        for the corresponding emulator iteration. A zero indicates a wildcard.
 
         """
 
@@ -395,7 +408,8 @@ class Pipeline(object):
     @property
     def cut_idx(self):
         """
-        List of list indices of the first non-wildcard cut-off in impl_cut.
+        List of list indices of the first non-wildcard cut-off in
+        :attr:`~Pipeline.impl_cut`.
 
         """
 
@@ -405,7 +419,8 @@ class Pipeline(object):
     def prc(self):
         """
         Bool indicating whether or not plausible regions have been found in the
-        last emulator iteration.
+        last constructed emulator iteration. If *False*, the next iteration
+        cannot be constructed.
 
         """
 
@@ -414,8 +429,9 @@ class Pipeline(object):
     @property
     def n_impl_sam(self):
         """
-        List of number of model evaluation samples that have been added to the
-        corresponding emulator iteration.
+        List of number of model evaluation samples that passed the
+        implausibility checks during the analysis of the corresponding emulator
+        iteration.
 
         """
 
@@ -431,35 +447,11 @@ class Pipeline(object):
 
         return(self._impl_sam)
 
-
-# %% GENERAL CLASS METHODS
-    # Function containing the model output for a given set of parameter values
-    # TODO: May want to save all model output immediately to prevent data loss
-    @docstring_substitute(emul_i=std_emul_i_doc)
+    # %% GENERAL CLASS METHODS
+    # Function obtaining the model output for a given set of parameter values
+    @docstring_append(call_model_doc_s)
     def _call_model(self, emul_i, par_set, data_idx):
-        """
-        Obtain the output that is generated by the model for a given model
-        parameter value set `par_set`. The current emulator iteration `emul_i`
-        is also provided in case it is required by the :class:`~ModelLink`
-        subclass.
-
-        Parameters
-        ----------
-        %(emul_i)s
-        par_set : 1D array_like
-            Model parameter value set to calculate the model output for.
-        data_idx : list of lists
-            The list of data identifiers for which the model is requested to
-            return the corresponding data values.
-
-        Returns
-        -------
-        mod_out : 1D :obj:`~numpy.ndarray` object
-            Model output corresponding to given `par_set`.
-
-        """
-
-        # Make sure par_set is at least 1D and a numpy array
+        # Make sure par_set is at least 1D and a NumPy array
         sam = np.array(par_set, ndmin=1)
 
         # Log that model is being called
@@ -479,33 +471,9 @@ class Pipeline(object):
         return(np.array(mod_out))
 
     # Function containing the model output for a given set of parameter samples
-    @docstring_substitute(emul_i=std_emul_i_doc)
+    @docstring_append(call_model_doc_m)
     def _multi_call_model(self, emul_i, sam_set, data_idx):
-        """
-        Obtain the output set that is generated by the model for a given set of
-        model parameter samples `sam_set`. The current emulator iteration
-        `emul_i` is also provided in case it is required by the
-        :class:`~ModelLink` subclass.
-
-        This is a multi-version of the :meth:`~Pipeline._call_model` method.
-
-        Parameters
-        ----------
-        %(emul_i)s
-        sam_set : 2D array_like
-            Model parameter sample set to calculate the model output for.
-        data_idx : list of lists
-            The list of data identifiers for which the model is requested to
-            return the corresponding data values.
-
-        Returns
-        -------
-        mod_set : 2D :obj:`~numpy.ndarray` object
-            Model output set corresponding to given `sam_set`.
-
-        """
-
-        # Make sure that sam_set is at least 2D and a numpy array
+        # Make sure sam_set is at least 2D and a NumPy array
         sam_set = np.array(sam_set, ndmin=2)
 
         # Log that model is being multi-called
@@ -526,17 +494,8 @@ class Pipeline(object):
         return(np.array(mod_set))
 
     # This function automatically loads default pipeline parameters
+    @docstring_append(def_par_doc.format("pipeline"))
     def _get_default_parameters(self):
-        """
-        Generates a dict containing default values for all pipeline parameters.
-
-        Returns
-        -------
-        par_dict : dict
-            Dict containing all default pipeline parameter values.
-
-        """
-
         # Log this
         logger = getCLogger('INIT')
         logger.info("Generating default pipeline parameter dict.")
@@ -557,13 +516,8 @@ class Pipeline(object):
         return(par_dict)
 
     # Read in the parameters from the provided parameter file
+    @docstring_append(read_par_doc.format("Pipeline"))
     def _read_parameters(self):
-        """
-        Reads in the pipeline parameters from the provided PRISM parameter file
-        saves them in the current :obj:`~Pipeline` instance.
-
-        """
-
         # Log that the PRISM parameter file is being read
         logger = getCLogger('INIT')
         logger.info("Reading pipeline parameters.")
@@ -595,18 +549,24 @@ class Pipeline(object):
                                         'base_eval_sam', 'pos')
 
         # Criterion parameter used for Latin Hypercube Sampling
+        # If criterion is None, save it as such
         if(par_dict['criterion'].lower() == 'none'):
             self._criterion = None
+
+        # If criterion is a bool, raise error
         elif par_dict['criterion'].lower() in ('false', 'true'):
-            logger.error("Input argument 'criterion' does not accept values "
-                         "of type 'bool'!")
-            raise TypeError("Input argument 'criterion' does not accept "
-                            "values of type 'bool'!")
+            err_msg = ("Input argument 'criterion' does not accept values of "
+                       "type 'bool'!")
+            raise_error(TypeError, err_msg, logger)
+
+        # If anything else is given, it must be a float or string
         else:
+            # Try to convert value to float
             try:
                 self._criterion = float(par_dict['criterion'])
+            # If it fails, it must be a string
             except ValueError:
-                self._criterion = str(par_dict['criterion']).replace("'", '')
+                self._criterion = par_dict['criterion'].replace("'", '')
 
         # Obtain the bool determining whether to do an active parameters
         # analysis
@@ -618,52 +578,98 @@ class Pipeline(object):
                                             'freeze_active_par', 'bool')
 
         # Check which parameters can potentially be active
+        # If pot_active_par is None, save all model parameters
         if(par_dict['pot_active_par'].lower() == 'none'):
             self._pot_active_par = np.array(range(self._modellink._n_par))
+
+        # If pot_active_par is a bool, raise error
         elif par_dict['pot_active_par'].lower() in ('false', 'true'):
-            logger.error("Input argument 'pot_active_par' does not accept "
-                         "values of type 'bool'!")
-            raise TypeError("Input argument 'pot_active_par' does not accept "
-                            "values of type 'bool'!")
+            err_msg = ("Input argument 'pot_active_par' does not accept values"
+                       "of type 'bool'!")
+            raise_error(TypeError, err_msg, logger)
+
+        # If anything else is given, it must be a sequence of model parameters
         else:
-            # Remove all unwanted characters from the string and split it up
-            pot_active_par = convert_str_seq(par_dict['pot_active_par'])
-
-            # Check elements if they are ints or strings, and if they are valid
-            for i, string in enumerate(pot_active_par):
-                try:
-                    try:
-                        par_idx = int(string)
-                    except ValueError:
-                        pot_active_par[i] =\
-                            self._modellink._par_name.index(string)
-                    else:
-                        self._modellink._par_name[par_idx]
-                        pot_active_par[i] = par_idx % self._modellink._n_par
-                except Exception as error:
-                    logger.error("Input argument 'pot_active_par' is invalid! "
-                                 "(%s)" % (error))
-                    raise InputError("Input argument 'pot_active_par' is "
-                                     "invalid! (%s)" % (error))
-
-            # If everything went without exceptions, check if list is not empty
-            if(len(pot_active_par) != 0):
-                self._pot_active_par =\
-                    np.array(list(SortedSet(pot_active_par)))
-            else:
-                logger.error("Input argument 'pot_active_par' is empty!")
-                raise ValueError("Input argument 'pot_active_par' is empty!")
+            # Convert the given sequence to an array of indices
+            self._pot_active_par = np.array(self._get_model_par_seq(
+                par_dict['pot_active_par'], 'pot_active_par'))
 
         # Log that reading has been finished
         logger.info("Finished reading pipeline parameters.")
+
+    # This function converts a sequence of model parameter names/indices
+    def _get_model_par_seq(self, par_seq, name):
+        """
+        Converts a provided sequence `par_seq` of model parameter names and
+        indices to a list of indices, removes duplicates and checks if every
+        provided name/index is valid.
+
+        Parameters
+        ----------
+        par_seq : 1D array_like of {int, str}
+            A sequence of integers and strings determining which model
+            parameters need to be used for a certain operation.
+        name : str
+            A string stating the name of the variable the result of this method
+            will be stored in. Used for error messages.
+
+        Returns
+        -------
+        par_seq_conv : list of int
+            The provided sequence `par_seq` converted to a sorted list of
+            model parameter indices.
+
+        """
+
+        # Do some logging
+        logger = getCLogger('INIT')
+        logger.info("Converting sequence of model parameter names/indices.")
+
+        # Remove all unwanted characters from the string and split it up
+        par_seq = convert_str_seq(par_seq)
+
+        # Check elements if they are ints or strings, and if they are valid
+        for i, string in enumerate(par_seq):
+            try:
+                # Try to convert string to an integer
+                try:
+                    par_idx = int(string)
+                # If that fails, it must be a parameter name
+                # Check if it exists
+                except ValueError:
+                    par_seq[i] = self._modellink._par_name.index(string)
+                # If it succeeds, try to access this parameter and save it
+                else:
+                    self._modellink._par_name[par_idx]
+                    par_seq[i] = par_idx % self._modellink._n_par
+            # If any operation above fails, raise error
+            except Exception as error:
+                err_msg = "Input argument '%s' is invalid! (%s)" % (name,
+                                                                    error)
+                raise_error(InputError, err_msg, logger)
+
+        # If everything went without exceptions, check if list is not empty and
+        # remove duplicates
+        if len(par_seq):
+            par_seq = list(SortedSet(par_seq))
+        else:
+            err_msg = "Input argument '%s' is empty!" % (name)
+            raise_error(ValueError, err_msg, logger)
+
+        # Log end
+        logger.info("Finished converting sequence of model parameter "
+                    "names/indices.")
+
+        # Return it
+        return(par_seq)
 
     # This function controls how n_eval_samples is calculated
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_n_eval_sam(self, emul_i):
         """
-        This function calculates the total amount of emulator evaluation
-        samples at a given emulator iteration `emul_i` from the
-        `base_eval_sam` provided during class initialization.
+        This function calculates the total number of emulator evaluation
+        samples at a given emulator iteration `emul_i` from the `base_eval_sam`
+        provided during class initialization.
 
         Parameters
         ----------
@@ -672,58 +678,38 @@ class Pipeline(object):
         Returns
         -------
         n_eval_sam : int
-            Number of emulator evaluation samples.
+            Total number of emulator evaluation samples.
 
         """
 
-        # Calculate n_eval_sam
+        # Calculate n_eval_sam and return it
         return(emul_i*self._base_eval_sam*self._modellink._n_par)
 
     # Obtains the paths for the root directory, working directory, pipeline
     # hdf5-file and prism parameters file
+    @docstring_substitute(paths=paths_doc_s)
     def _get_paths(self, root_dir, working_dir, prefix, hdf5_file, prism_file):
         """
         Obtains the path for the root directory, working directory, HDF5-file
-        and parameters file for PRISM.
+        and parameters file for *PRISM*.
 
         Parameters
         ----------
-        root_dir : str or None
-            String containing the absolute path to the root directory where all
-            working directories are stored. If *None*, root directory will be
-            set to the directory where this class was initialized at.
-        working_dir : str or None
-            String containing the name of the working directory of the emulator
-            in `root_dir`. If int, a new working directory will be created in
-            `root_dir`. If *None*, working directory is set to the last one
-            that was created in `root_dir` that starts with the given `prefix`.
-            If no directories are found, one will be created.
-        prefix : str
-            String containing a prefix that is used for naming new working
-            directories or scan for existing ones.
-        hdf5_file : str
-            String containing the name of the master HDF5-file in `working_dir`
-            to be used in this class instance.
-        prism_file : str or None
-            String containing the absolute or relative path to the TXT-file
-            containing the PRISM parameters that need to be changed from their
-            default values. If a relative path is given, its path must be
-            relative to `root_dir` or the current directory. If *None*, no
-            changes will be made to the default parameters.
+        %(paths)s
 
         Generates
         ---------
         The absolute paths to the root directory, working directory, pipeline
-        HDF5-file and PRISM parameters file.
+        HDF5-file and *PRISM* parameters file.
 
         """
 
+        # Set logging system
+        logger = getCLogger('INIT')
+        logger.info("Obtaining related directory and file paths.")
+
         # Controller obtaining the paths
         if self._is_controller:
-            # Set logging system
-            logger = getCLogger('INIT')
-            logger.info("Obtaining related directory and file paths.")
-
             # Obtain root directory path
             # If one did not specify a root directory, set it to default
             if root_dir is None:
@@ -736,25 +722,26 @@ class Pipeline(object):
                 self._root_dir = path.abspath(root_dir)
                 logger.info("Root directory set to '%s'." % (self._root_dir))
 
-                # Check if this directory already exists
+                # Check if this directory already exists and create it if not
                 try:
                     os.mkdir(self._root_dir)
                 except OSError:
                     pass
                 else:
                     logger.info("Root directory did not exist, created it.")
+
+            # If anything else is given, it is invalid
             else:
-                logger.error("Input argument 'root_dir' is invalid!")
-                raise InputError("Input argument 'root_dir' is invalid!")
+                err_msg = "Input argument 'root_dir' is invalid!"
+                raise_error(InputError, err_msg, logger)
 
             # Check if a valid working directory prefix string is given
             if isinstance(prefix, (str, unicode)):
                 prefix = prefix
                 prefix_len = len(prefix)
             else:
-                logger.error("Input argument 'prefix' is not of type 'str'!")
-                raise TypeError("Input argument 'prefix' is not of type "
-                                "'str'!")
+                err_msg = "Input argument 'prefix' is not of type 'str'!"
+                raise_error(TypeError, err_msg, logger)
 
             # Obtain working directory path
             # If one did not specify a working directory, obtain it
@@ -776,7 +763,7 @@ class Pipeline(object):
                         except ValueError:
                             emul_dirs.remove(dirname)
 
-                # If no working directory exists, make a new one
+                # If no working directory exists, create a new one
                 if(len(emul_dirs) == 0):
                     working_dir = ''.join([prefix, strftime('%Y-%m-%d')])
                     self._working_dir = path.join(self._root_dir, working_dir)
@@ -794,6 +781,7 @@ class Pipeline(object):
 
             # If one requested a new working directory
             elif isinstance(working_dir, int):
+                # Obtain list of working directories that satisfy naming scheme
                 working_dir = ''.join([prefix, strftime('%Y-%m-%d')])
                 dirnames = next(os.walk(self._root_dir))[1]
                 emul_dirs = list(dirnames)
@@ -814,6 +802,7 @@ class Pipeline(object):
                         ''.join([working_dir, '_%s'
                                  % (int(emul_dirs[0][prefix_len+11:])+1)])
 
+                # Save path to new working directory and create it
                 self._working_dir = path.join(self._root_dir, working_dir)
                 os.mkdir(self._working_dir)
                 logger.info("New working directory requested, created '%s'."
@@ -825,35 +814,36 @@ class Pipeline(object):
                     path.join(self._root_dir, working_dir)
                 logger.info("Working directory set to '%s'." % (working_dir))
 
-                # Check if this directory already exists
+                # Check if this directory already exists and create it if not
                 try:
                     os.mkdir(self._working_dir)
                 except OSError:
                     pass
                 else:
                     logger.info("Working directory did not exist, created it.")
+
+            # If anything else is given, it is invalid
             else:
-                logger.error("Input argument 'working_dir' is invalid!")
-                raise InputError("Input argument 'working_dir' is invalid!")
+                err_msg = "Input argument 'working_dir' is invalid!"
+                raise_error(InputError, err_msg, logger)
 
             # Obtain hdf5-file path
             if isinstance(hdf5_file, (str, unicode)):
                 # Check if provided filename has correct extension
                 ext_idx = hdf5_file.find('.')
                 if hdf5_file[ext_idx:] not in ('.hdf5', '.h5'):
-                    logger.error("Input argument 'hdf5_file' has invalid HDF5 "
-                                 "extension!")
-                    raise ValueError("Input argument 'hdf5_file' has invalid "
-                                     "HDF5 extension!")
+                    err_msg = ("Input argument 'hdf5_file' has invalid HDF5 "
+                               "extension!")
+                    raise_error(ValueError, err_msg, logger)
 
-                # Save hdf5-file path and name
+                # Save hdf5-file absolute path
                 self._hdf5_file = path.join(self._working_dir, hdf5_file)
                 logger.info("Master HDF5-file set to '%s'." % (hdf5_file))
+
+            # If no string is given, it is invalid
             else:
-                logger.error("Input argument 'hdf5_file' is not of type "
-                             "'str'!")
-                raise TypeError("Input argument 'hdf5_file' is not of type "
-                                "'str'!")
+                err_msg = "Input argument 'hdf5_file' is not of type 'str'!"
+                raise_error(TypeError, err_msg, logger)
 
             # Obtain PRISM parameter file path
             # If no PRISM parameter file was provided
@@ -862,20 +852,24 @@ class Pipeline(object):
 
             # If a PRISM parameter file was provided
             elif isinstance(prism_file, (str, unicode)):
+                # Check if prism_file was given as an absolute path
                 if path.exists(prism_file):
                     self._prism_file = path.abspath(prism_file)
+                # If not, check if it was relative to root_dir
                 elif path.exists(path.join(self._root_dir, prism_file)):
                     self._prism_file = path.join(self._root_dir, prism_file)
+                # If not either, it is invalid
                 else:
-                    logger.error("Input argument 'prism_file' is a "
-                                 "non-existing path (%s)!" % (prism_file))
-                    raise OSError("Input argument 'prism_file' is a "
-                                  "non-existing path (%s)!" % (prism_file))
+                    err_msg = ("Input argument 'prism_file' is a non-existing "
+                               "path (%s)!" % (prism_file))
+                    raise_error(OSError, err_msg, logger)
                 logger.info("PRISM parameters file set to '%s'."
                             % (self._prism_file))
+
+            # If anything else is given, it is invalid
             else:
-                logger.error("Input argument 'prism_file' is invalid!")
-                raise InputError("Input argument 'prism_file' is invalid!")
+                err_msg = "Input argument 'prism_file' is invalid!"
+                raise_error(InputError, err_msg, logger)
 
         # Workers get dummy paths
         else:
@@ -923,13 +917,15 @@ class Pipeline(object):
                  (self._modellink._par_rng[:, 1] -
                   self._modellink._par_rng[:, 0])).tolist()
 
-        # MPI Barrier
-        self._comm.Barrier()
+        # Controller broadcasting new parameter estimates to workers
+        self._modellink._par_est = self._comm.bcast(self._modellink._par_est,
+                                                    0)
 
         # Set non-default model data values
+        # Check who needs to call the model
         if self._is_controller or self._modellink._MPI_call:
+            # Multi-call model
             if self._modellink._multi_call:
-                # Multi-call model
                 mod_out = self._multi_call_model(0, self._modellink._par_est,
                                                  self._modellink._data_idx)
 
@@ -937,8 +933,8 @@ class Pipeline(object):
                 if self._is_controller:
                     self._emulator._data_val[0] = mod_out[0].tolist()
 
+            # Single-call model
             else:
-                # Controller only call model
                 self._emulator._data_val[0] =\
                     self._call_model(0, self._modellink._par_est,
                                      self._modellink._data_idx).tolist()
@@ -959,6 +955,7 @@ class Pipeline(object):
                         noise[i] *= err[i][0]
                     else:
                         noise[i] *= err[i][1]
+
                 # If value space is log10
                 elif(self._modellink._data_spc[i] == 'log10'):
                     if(noise[i] < 0):
@@ -966,6 +963,7 @@ class Pipeline(object):
                             np.log10((pow(10, -1*err[i][0])-1)*-1*noise[i]+1)
                     else:
                         noise[i] = np.log10((pow(10, err[i][0])-1)*noise[i]+1)
+
                 # If value space is ln
                 elif(self._modellink._data_spc[i] == 'ln'):
                     if(noise[i] < 0):
@@ -973,17 +971,19 @@ class Pipeline(object):
                             np.log((pow(np.e, -1*err[i][0])-1)*-1*noise[i]+1)
                     else:
                         noise[i] = np.log((pow(np.e, err[i][0])-1)*noise[i]+1)
+
                 # If value space is anything else
                 else:
                     raise NotImplementedError
+
+            # Add noise to the data values
             self._modellink._data_val =\
                 (self._emulator._data_val[0]+noise).tolist()
 
             # Logger
             logger.info("Generated mock data.")
 
-        # Broadcast modellink object
-        # TODO: Should entire modellink be broadcasted or just the changes?
+        # Broadcast updated modellink object to workers
         self._modellink = self._comm.bcast(self._modellink, 0)
 
     # This function loads pipeline data
@@ -993,11 +993,12 @@ class Pipeline(object):
         rank.
         If it is detected that the last emulator iteration has not been
         analyzed yet, the implausibility analysis parameters are read in from
-        the PRISM parameters file and temporarily stored in memory.
+        the *PRISM* parameters file and temporarily stored in memory.
 
         Generates
         ---------
-        All relevant pipeline data is loaded into memory.
+        All relevant pipeline data up to the last emulator iteration is loaded
+        into memory.
 
         """
 
@@ -1041,27 +1042,14 @@ class Pipeline(object):
                 self._impl_sam.dtype = float
 
     # This function saves pipeline data to hdf5
+    @docstring_substitute(save_data=save_data_doc_p)
     def _save_data(self, data_dict):
         """
         Saves a given data dict ``{keyword: data}`` at the last emulator
         iteration to the HDF5-file and as an data attribute to the current
         :obj:`~Pipeline` instance.
 
-        Parameters
-        ----------
-        data_dict : dict
-            Dict containing the data that needs to be saved to the HDF5-file.
-
-        Dict Variables
-        --------------
-        keyword : {'impl_cut', 'impl_sam', 'n_eval_sam'}
-            String specifying the type of data that needs to be saved.
-        data : int, float, list
-            The actual data that needs to be saved at data keyword `keyword`.
-
-        Generates
-        ---------
-        The specified data is saved to the HDF5-file.
+        %(save_data)s
 
         """
 
@@ -1099,17 +1087,19 @@ class Pipeline(object):
                     n_impl_sam = np.shape(data)[0]
                     prc = 1 if(n_impl_sam != 0) else 0
 
+                    # Convert data to a compound data set
+                    dtype = [(n, float) for n in self._modellink._par_name]
+                    data_c = data.copy()
+                    data_c.dtype = dtype
+
                     # Check if impl_sam data has been saved before
                     try:
                         self._n_impl_sam[emul_i] = n_impl_sam
                     except IndexError:
                         file.create_dataset('%s/impl_sam' % (emul_i),
-                                            data=data)
+                                            data=data_c)
                         self._n_impl_sam.append(n_impl_sam)
                     else:
-                        dtype = [(n, float) for n in self._modellink._par_name]
-                        data_c = data.copy()
-                        data_c.dtype = dtype
                         del file['%s/impl_sam' % (emul_i)]
                         file.create_dataset('%s/impl_sam' % (emul_i),
                                             data=data_c)
@@ -1131,8 +1121,8 @@ class Pipeline(object):
 
                 # INVALID KEYWORD
                 else:
-                    logger.error("Invalid keyword argument provided!")
-                    raise ValueError("Invalid keyword argument provided!")
+                    err_msg = "Invalid keyword argument provided!"
+                    raise_error(ValueError, err_msg, logger)
 
     # This function saves a statistic to hdf5
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -1164,16 +1154,16 @@ class Pipeline(object):
 
         # Open hdf5-file
         with PRISM_File('r+', None) as file:
-            # Save statistics
+            # Loop over all statistics in stat_dict and save them
             for keyword, (value, unit) in stat_dict.items():
                 file['%s/statistics' % (emul_i)].attrs[keyword] =\
                     [str(value).encode('ascii', 'ignore'),
                      unit.encode('ascii', 'ignore')]
 
+    # This function evaluates the model for a given set of evaluation samples
     # This is function 'k'
-    # Reminder that this function should only be called once per sample set
-    # TODO: Allow variable n_sam for each data point? More versatile and chaos
-    @docstring_substitute(emul_i=std_emul_i_doc)
+    @docstring_substitute(emul_i=std_emul_i_doc, ext_sam=ext_sam_set_doc,
+                          ext_mod=ext_mod_set_doc)
     def _evaluate_model(self, emul_i, sam_set, ext_sam_set, ext_mod_set):
         """
         Evaluates the model at all specified model evaluation samples at a
@@ -1184,11 +1174,8 @@ class Pipeline(object):
         %(emul_i)s
         sam_set : 2D :obj:`~numpy.ndarray` object
             Array containing the model evaluation samples.
-        ext_sam_set : 1D or 2D :obj:`~numpy.ndarray` object
-            Array containing the externally provided model evaluation samples.
-        ext_mod_set : 1D or 2D :obj:`~numpy.ndarray` object
-            Array containing the model outputs of all specified externally
-            provided model evaluation samples.
+        %(ext_sam)s
+        %(ext_mod)s
 
         Generates
         ---------
@@ -1205,7 +1192,7 @@ class Pipeline(object):
         logger = getCLogger('MODEL')
         logger.info("Evaluating model samples.")
 
-        # Do model evaluations
+        # Save the current time
         start_time = time()
 
         # Obtain number of samples
@@ -1278,6 +1265,8 @@ class Pipeline(object):
                 else:
                     self._comm.send([sam_set, mod_set[s_idx:s_idx+n_data]],
                                     dest=rank, tag=777+rank)
+
+                # Save which data parts have already been sent
                 s_idx += n_data
             else:
                 # If workers received their data, save controller data
@@ -1297,32 +1286,27 @@ class Pipeline(object):
         # Controller finishing up
         if self._is_controller:
             # Log that this is finished
+            msg = ("Finished evaluating model samples in %.2f seconds, "
+                   "averaging %.3g seconds per model evaluation."
+                   % (end_time, end_time/n_sam))
             self._save_statistics(emul_i, {
                 'tot_model_eval_time': ['%.2f' % (end_time), 's'],
                 'avg_model_eval_time': ['%.3g' % (end_time/n_sam), 's'],
                 'MPI_comm_size_model': ['%s' % (self._size), '']})
-            print("Finished evaluating model samples in %.2f seconds, "
-                  "averaging %.3g seconds per model evaluation."
-                  % (end_time, end_time/n_sam))
-            logger.info("Finished evaluating model samples in %.2f seconds, "
-                        "averaging %.3g seconds per model evaluation."
-                        % (end_time, end_time/n_sam))
+            logger.info(msg)
+            print(msg)
 
         # MPI Barrier
         self._comm.Barrier()
 
-    # This function generates a large Latin Hypercube sample set to evaluate
+    # This function generates a large Latin Hypercube sample set to analyze
     # the emulator at
-    # TODO: Maybe make sure that n_sam_init samples are used for next iteration
-    # This can be done by evaluating a 1000 samples in the emulator, check how
-    # many survive and then use an LHD with the number of samples required to
-    # let n_sam_init samples survive.
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_eval_sam_set(self, emul_i):
         """
-        Generates an emulator evaluation sample set to be used for updating an
-        emulator iteration. Currently uses the
-        :func:`~e13tools.sampling.lhd` function.
+        Generates an emulator evaluation sample set to be used for analyzing an
+        emulator iteration. Currently uses the :func:`~e13tools.sampling.lhd`
+        function.
 
         Parameters
         ----------
@@ -1341,7 +1325,7 @@ class Pipeline(object):
         # Obtain number of samples
         n_eval_sam = self._get_n_eval_sam(emul_i)
 
-        # Create array containing all new samples to evaluate with emulator
+        # Create array containing all samples for analyzing the emulator
         logger.info("Creating emulator evaluation sample set with size %s."
                     % (n_eval_sam))
         eval_sam_set = lhd(n_eval_sam, self._modellink._n_par,
@@ -1356,18 +1340,16 @@ class Pipeline(object):
     # This function performs an implausibility cut-off check on a given sample
     # TODO: Implement dynamic impl_cut
     @staticmethod
-    @docstring_substitute(emul_i=std_emul_i_doc)
+    @docstring_substitute(obj=obj_doc, emul_i=std_emul_i_doc)
     def _do_impl_check(obj, emul_i, uni_impl_val):
         """
         Performs an implausibility cut-off check on the provided implausibility
         values `uni_impl_val` at emulator iteration `emul_i`, using the
-        impl_cut values given in `obj`.
+        impl_cut values that are loaded in the given `obj`.
 
         Parameters
         ----------
-        obj : :obj:`~Pipeline` object or :obj:`~Projection` object
-            Instance of the :class:`~Pipeline` class or :class:`~Projection`
-            class.
+        %(obj)s
         %(emul_i)s
         uni_impl_val : 1D array_like
             Array containing all univariate implausibility values corresponding
@@ -1376,14 +1358,13 @@ class Pipeline(object):
         Returns
         -------
         result : bool
-            *True* if check was successful, *False* if it was not.
+            1 if check was successful, 0 if it was not.
         impl_cut_val : float
             Implausibility value at the first real implausibility cut-off.
 
         """
 
         # Sort impl_val to compare with the impl_cut list
-        # TODO: Maybe use np.partition here?
         sorted_impl_val = np.flip(np.sort(uni_impl_val, axis=-1), axis=-1)
 
         # Save the implausibility value at the first real cut-off
@@ -1398,11 +1379,10 @@ class Pipeline(object):
             # If for-loop ended in a normal way, the check was successful
             return(1, impl_cut_val)
 
-    # This is function 'I²(x)'
     # This function calculates the univariate implausibility values
+    # This is function 'I²(x)'
     # TODO: Introduce check if emulator variance is much lower than other two
     # TODO: Alternatively, remove covariance calculations when this happens
-    # TODO: Parameter uncertainty should be implemented at some point
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
     def _get_uni_impl(self, emul_i, emul_s_seq, adj_exp_val, adj_var_val):
         """
@@ -1421,7 +1401,7 @@ class Pipeline(object):
         Returns
         -------
         uni_impl_val : 1D :obj:`~numpy.ndarray` object
-            Univariate implausibility value for every data point.
+            Univariate implausibility value for all requested emulator systems.
 
         """
 
@@ -1454,8 +1434,6 @@ class Pipeline(object):
         return(uni_impl_val)
 
     # This function calculates the model discrepancy variance
-    # Basically takes all uncertainties of Sec. 3.1 of Vernon into account that
-    # are not already in the emulator ([3] and [5])
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
     def _get_md_var(self, emul_i, emul_s_seq):
         """
@@ -1497,16 +1475,19 @@ class Pipeline(object):
             for data_val, data_spc in\
                 zip(delist(self._emulator._data_val[emul_i]),
                     delist(self._emulator._data_spc[emul_i])):
-                # If value space is linear, take 1/6ths of the data value
+                # If value space is linear, take 1/6th of the data value
                 if(data_spc == 'lin'):
                     md_var.append([pow(data_val/6, 2)]*2)
+
                 # If value space is log10, take log10(5/6) and log10(7/6)
                 elif(data_spc == 'log10'):
                     md_var.append([0.006269669725654501,
                                    0.0044818726418455815])
+
                 # If value space is ln, take ln(5/6) and ln(7/6)
                 elif(data_spc == 'ln'):
                     md_var.append([0.03324115007177121, 0.023762432091205918])
+
                 # If value space is anything else
                 else:
                     raise NotImplementedError
@@ -1521,11 +1502,11 @@ class Pipeline(object):
 
             # Check if md_var contains n_data values
             if not(md_var.shape[0] == self._emulator._n_data[emul_i]):
-                raise ShapeError("Received array of model discrepancy "
-                                 "variances 'md_var' has incorrect number of "
-                                 "data points (%s != %s)!"
-                                 % (md_var.shape[0],
-                                    self._emulator._n_data[emul_i]))
+                err_msg = ("Received array of model discrepancy variances "
+                           "'md_var' has incorrect number of data points (%s "
+                           "!= %s)!"
+                           % (md_var.shape[0], self._emulator._n_data[emul_i]))
+                raise ShapeError(err_msg)
 
             # Check if single or dual values were given
             if(md_var.ndim == 1):
@@ -1533,9 +1514,10 @@ class Pipeline(object):
             elif(md_var.shape[1] == 2):
                 pass
             else:
-                raise ShapeError("Received array of model discrepancy "
-                                 "variances 'md_var' has incorrect number of "
-                                 "values (%s != 2)!" % (md_var.shape[1]))
+                err_msg = ("Received array of model discrepancy variances "
+                           "'md_var' has incorrect number of values (%s != 2)!"
+                           % (md_var.shape[1]))
+                raise ShapeError(err_msg)
 
             # Check if all values are non-negative floats
             for i, value in enumerate(md_var):
@@ -1547,6 +1529,7 @@ class Pipeline(object):
 
     # This function completes the list of implausibility cut-offs
     @staticmethod
+    @docstring_substitute(obj=obj_doc, impl_temp=impl_temp_doc)
     def _get_impl_cut(obj, impl_cut, temp):
         """
         Generates the full list of impl_cut-offs from the incomplete, shortened
@@ -1554,15 +1537,11 @@ class Pipeline(object):
 
         Parameters
         ----------
-        obj : :obj:`~Pipeline` object or :obj:`~Projection` object
-            Instance of the :class:`~Pipeline` class or :class:`~Projection`
-            class.
+        %(obj)s
         impl_cut : 1D list
             Incomplete, shortened impl_cut-offs list provided during class
             initialization.
-        temp : bool
-            Whether the implausibility parameters should only be stored in
-            memory (*True*) or should also be saved to HDF5 (*False*).
+        %(impl_temp)s
 
         Generates
         ---------
@@ -1570,8 +1549,8 @@ class Pipeline(object):
             Full list containing the impl_cut-offs for all data points provided
             to the emulator.
         cut_idx : int
-            Index of the first impl_cut-off in the impl_cut list that is not
-            a wildcard.
+            Index of the first impl_cut-off in `impl_cut` that is not a
+            wildcard.
 
         """
 
@@ -1580,24 +1559,38 @@ class Pipeline(object):
         logger.info("Generating full implausibility cut-off list.")
 
         # Complete the impl_cut list
-        impl_cut[0] = check_val(impl_cut[0], 'impl_cut[0]', 'nneg')
+        # Obtain the first impl_cut value
+        try:
+            impl_cut[0] = check_val(impl_cut[0], 'impl_cut[0]', 'nneg')
+        except IndexError:
+            err_msg = ("Provided implausibility cut-off list contains no "
+                       "elements!")
+            raise_error(ValueError, err_msg, logger)
+
+        # Loop over the remaining values in impl_cut
         for i in range(1, len(impl_cut)):
+            # Check if provided value is non-negative
             impl_cut[i] = check_val(impl_cut[i], 'impl_cut[%s]' % (i), 'nneg')
+
+            # If the value is zero, take on the value of the previous cut-off
             if(impl_cut[i] == 0):
                 impl_cut[i] = impl_cut[i-1]
+
+            # If the value is lower than the previous value, it is invalid
             elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
-                raise ValueError("Cut-off %s is higher than cut-off %s "
-                                 "(%s > %s)" % (i, i-1, impl_cut[i],
-                                                impl_cut[i-1]))
+                err_msg = ("Cut-off %s is higher than cut-off %s (%s > %s)"
+                           % (i, i-1, impl_cut[i], impl_cut[i-1]))
+                raise_error(ValueError, err_msg, logger)
 
         # Get the index identifying where the first real impl_cut is
         for i, impl in enumerate(impl_cut[:obj._emulator._n_data_tot[-1]]):
             if(impl != 0):
                 cut_idx = i
                 break
+        # If the loop ends normally, there were no wildcards
         else:
-            raise ValueError("No non-wildcard implausibility cut-off is "
-                             "provided!")
+            err_msg = "No non-wildcard implausibility cut-off is provided!"
+            raise_error(ValueError, err_msg, logger)
 
         # Save both impl_cut and cut_idx
         if temp:
@@ -1605,6 +1598,7 @@ class Pipeline(object):
             obj._impl_cut.append(np.array(impl_cut))
             obj._cut_idx.append(cut_idx)
         else:
+            # If they need to be stored to file
             obj._save_data({
                 'impl_cut': [np.array(impl_cut), cut_idx]})
 
@@ -1613,35 +1607,29 @@ class Pipeline(object):
 
     # This function reads in the impl_cut list from the PRISM parameters file
     # TODO: Make impl_cut dynamic
+    @docstring_substitute(impl_temp=impl_temp_doc, impl_cut=impl_cut_doc)
     def _get_impl_par(self, temp):
         """
         Reads in the impl_cut list and other parameters for implausibility
-        evaluations from the PRISM parameters file and saves them in the last
+        evaluations from the *PRISM* parameters file and saves them in the last
         emulator iteration.
 
         Parameters
         ----------
-        temp : bool
-            Whether the implausibility parameters should only be stored in
-            memory (*True*) or should also be saved to HDF5 (*False*).
+        %(impl_temp)s
 
         Generates
         ---------
-        impl_cut : 1D :obj:`~numpy.ndarray` object
-            Full list containing the impl_cut-offs for all data points provided
-            to the emulator.
-        cut_idx : int
-            Index of the first impl_cut-off in the impl_cut list that is not
-            0.
+        %(impl_cut)s
 
         """
 
+        # Do some logging
+        logger = getCLogger('INIT')
+        logger.info("Obtaining implausibility analysis parameters.")
+
         # Controller only
         if self._is_controller:
-            # Do some logging
-            logger = getCLogger('INIT')
-            logger.info("Obtaining implausibility analysis parameters.")
-
             # Obtaining default pipeline parameter dict
             par_dict = self._get_default_parameters()
 
@@ -1673,7 +1661,8 @@ class Pipeline(object):
                         "parameters.")
 
     # This function processes an externally provided real_set
-    # TODO: Perform maximin/mincorr analysis on provided samples?
+    @docstring_substitute(ext_set=ext_real_set_doc, ext_sam=ext_sam_set_doc,
+                          ext_mod=ext_mod_set_doc)
     def _get_ext_real_set(self, ext_real_set):
         """
         Processes an externally provided model realization set `ext_real_set`,
@@ -1681,19 +1670,13 @@ class Pipeline(object):
 
         Parameters
         ----------
-        ext_real_set : list, dict or None
-            List of arrays containing an externally calculated set of model
-            evaluation samples and its data values, a dict with keys
-            ``[sam_set, mod_set]`` containing these arrays or *None* if no
-            external set needs to be used.
+        %(ext_set)s
 
         Returns
         -------
-        ext_sam_set : 1D or 2D :obj:`~numpy.ndarray` object
-            Array containing the externally provided model evaluation samples.
-        ext_mod_set : 1D or 2D :obj:`~numpy.ndarray` object
-            Array containing the model outputs of all specified externally
-            provided model evaluation samples.
+        %(ext_sam)s
+        %(ext_mod)s
+
 
         """
 
@@ -1709,79 +1692,71 @@ class Pipeline(object):
         if isinstance(ext_real_set, list):
             # Check if ext_real_set contains 2 elements
             if(len(ext_real_set) != 2):
-                logger.error("Input argument 'ext_real_set' is not of length "
-                             "2!")
-                raise ShapeError("Input argument 'ext_real_set' is not of "
-                                 "length 2!")
+                err_msg = "Input argument 'ext_real_set' is not of length 2!"
+                raise_error(ShapeError, err_msg, logger)
 
             # Try to extract ext_sam_set and ext_mod_set
             try:
                 ext_sam_set = ext_real_set[0]
                 ext_mod_set = ext_real_set[1]
             except Exception as error:
-                logger.error("Input argument 'ext_real_set' is invalid! (%s)"
-                             % (error))
-                raise InputError("Input argument 'ext_real_set' is invalid! "
-                                 "(%s)" % (error))
+                err_msg = ("Input argument 'ext_real_set' is invalid! (%s)"
+                           % (error))
+                raise_error(InputError, err_msg, logger)
 
         # If a dict is given
         elif isinstance(ext_real_set, dict):
             # Check if ext_real_set contains correct keys
             if 'sam_set' not in ext_real_set.keys():
-                logger.error("Input argument 'ext_real_set' does not contain "
-                             "key 'sam_set'!")
-                raise KeyError("Input argument 'ext_real_set' does not contain"
-                               " key 'sam_set'!")
+                err_msg = ("Input argument 'ext_real_set' does not contain key"
+                           " 'sam_set'!")
+                raise_error(KeyError, err_msg, logger)
             if 'mod_set' not in ext_real_set.keys():
-                logger.error("Input argument 'ext_real_set' does not contain "
-                             "key 'mod_set'!")
-                raise KeyError("Input argument 'ext_real_set' does not contain"
-                               " key 'mod_set'!")
+                err_msg = ("Input argument 'ext_real_set' does not contain key"
+                           " 'mod_set'!")
+                raise_error(KeyError, err_msg, logger)
 
             # Try to extract ext_sam_set and ext_mod_set
             try:
                 ext_sam_set = ext_real_set['sam_set']
                 ext_mod_set = ext_real_set['mod_set']
             except Exception as error:
-                logger.error("Input argument 'ext_real_set' is invalid! (%s)"
-                             % (error))
-                raise InputError("Input argument 'ext_real_set' is invalid! "
-                                 "(%s)" % (error))
+                err_msg = ("Input argument 'ext_real_set' is invalid! (%s)"
+                           % (error))
+                raise_error(InputError, err_msg, logger)
 
-        # If anything else is given
+        # If anything else is given, it is invalid
         else:
-            logger.error("Input argument 'ext_real_set' is invalid!")
-            raise InputError("Input argument 'ext_real_set' is invalid!")
+            err_msg = "Input argument 'ext_real_set' is invalid!"
+            raise_error(InputError, err_msg, logger)
 
         # Check if ext_sam_set and ext_mod_set can be converted to NumPy arrays
         try:
             ext_sam_set = np.array(ext_sam_set, ndmin=2)
             ext_mod_set = np.array(ext_mod_set, ndmin=2)
+        # If not, raise error
         except Exception as error:
-            logger.error("Input argument 'ext_real_set' is invalid! (%s)"
-                         % (error))
-            raise InputError("Input argument 'ext_real_set' is invalid! (%s)"
-                             % (error))
+            err_msg = ("Input argument 'ext_real_set' is invalid! (%s)"
+                       % (error))
+            raise_error(InputError, err_msg, logger)
 
-        # Check if ext_sam_set and ext_mod_set have correct shapes
+        # Check if ext_sam_set and ext_mod_set have correct shapes and raise
+        # error if not
         if not(ext_sam_set.shape[1] == self._modellink._n_par):
-            logger.error("External sample set has incorrect number of "
-                         "parameters (%s != %s)!"
-                         % (ext_sam_set.shape[1], self._modellink._n_par))
-            raise ShapeError("External sample set has incorrect number of "
-                             "parameters (%s != %s)!"
-                             % (ext_sam_set.shape[1], self._modellink._n_par))
+            err_msg = ("External sample set has incorrect number of parameters"
+                       " (%s != %s)!"
+                       % (ext_sam_set.shape[1], self._modellink._n_par))
+            raise_error(ShapeError, err_msg, logger)
         if not(ext_mod_set.shape[1] == self._modellink._n_data):
-            logger.error("External model output set has incorrect number of "
-                         "data values (%s != %s)!"
-                         % (ext_mod_set.shape[1], self._modellink._n_data))
-            raise ShapeError("External model output set has incorrect number "
-                             "of data values (%s != %s)!"
-                             % (ext_mod_set.shape[1], self._modellink._n_data))
+            err_msg = ("External model output set has incorrect number of data"
+                       " values (%s != %s)!"
+                       % (ext_mod_set.shape[1], self._modellink._n_data))
+            raise_error(ShapeError, err_msg, logger)
         if not(ext_sam_set.shape[0] == ext_mod_set.shape[0]):
-            logger.error("External sample and model output sets do not contain"
-                         " the same number of samples (%s != %s)!"
-                         % (ext_sam_set.shape[0], ext_mod_set.shape[0]))
+            err_msg = ("External sample and model output sets do not contain "
+                       "the same number of samples (%s != %s)!"
+                       % (ext_sam_set.shape[0], ext_mod_set.shape[0]))
+            raise_error(ShapeError, err_msg, logger)
 
         # Check if ext_sam_set and ext_mod_set solely contain floats
         for i, (par_set, mod_out) in enumerate(zip(ext_sam_set, ext_mod_set)):
@@ -1793,12 +1768,11 @@ class Pipeline(object):
         lower_bnd = self._modellink._par_rng[:, 0]
         upper_bnd = self._modellink._par_rng[:, 1]
         for i, par_set in enumerate(ext_sam_set):
+            # If not, raise an error
             if not(((lower_bnd <= par_set)*(par_set <= upper_bnd)).all()):
-                logger.error("External sample set contains a sample outside of"
-                             " parameter space at index %s!" % (i))
-                raise ValueError("External sample set contains a sample "
-                                 "outside of parameter space at index %s!"
-                                 % (i))
+                err_msg = ("External sample set contains a sample outside of "
+                           "parameter space at index %s!" % (i))
+                raise_error(ValueError, err_msg, logger)
 
         # Log that processing has been finished
         logger.info("Finished processing externally provided model realization"
@@ -1809,7 +1783,7 @@ class Pipeline(object):
 
     # This function analyzes the emulator for given sam_set using code snippets
     # TODO: Determine whether using arrays or lists is faster
-    @docstring_substitute(emul_i=std_emul_i_doc)
+    @docstring_substitute(obj=obj_doc, emul_i=std_emul_i_doc)
     def _analyze_sam_set(self, obj, emul_i, sam_set, pre_code, eval_code,
                          anal_code, post_code, exit_code):
         """
@@ -1821,9 +1795,7 @@ class Pipeline(object):
 
         Parameters
         ----------
-        obj : :obj:`~Pipeline` object or :obj:`~Projection` object
-            Instance of the :class:`~Pipeline` class or :class:`~Projection`
-            class.
+        %(obj)s
         %(emul_i)s
         sam_set : 2D :obj:`~numpy.ndarray` object
             Array containing model parameter value sets to be evaluated in all
@@ -1841,7 +1813,8 @@ class Pipeline(object):
             Code snippet to be executed after the analysis of `sam_set` ends.
         exit_code : str or code object
             Code snippet to be executed before returning the results of the
-            analysis of `sam_set`.
+            analysis of `sam_set`. This code snippet is only executed by the
+            controller.
 
         Returns
         -------
@@ -1869,11 +1842,11 @@ class Pipeline(object):
                     % (n_sam))
 
         # Make a filled bool list containing which samples are plausible
-        impl_check = np.ones(n_sam, dtype=int)
+        impl_check = np.ones(n_sam, dtype=bool)
 
         # Make a list of plausible sample indices
         sam_idx_full = np.array(list(range(n_sam)))
-        sam_idx = sam_idx_full[impl_check == 1]
+        sam_idx = sam_idx_full[impl_check]
 
         # Set the results property to None
         self.results = None
@@ -1892,7 +1865,7 @@ class Pipeline(object):
                 logger.info("Analyzing evaluation sample set of size %s in "
                             "emulator iteration %s." % (n_sam, i))
 
-                # Determine which samples should be used in this iteration
+                # Determine which samples are still plausible in this iteration
                 eval_sam_set = sam_set[sam_idx]
 
                 # Determine the active emulator systems on every rank
@@ -1902,7 +1875,7 @@ class Pipeline(object):
 #                uni_impl_vals = np.zeros([n_sam, self._emulator._n_data[i]])
                 uni_impl_vals = []
 
-                # Loop over all samples in sam_set
+                # Loop over all still plausible samples in sam_set
                 for j, par_set in enumerate(eval_sam_set):
                     # Evaluate par_set
                     adj_val = self._emulator._evaluate(i, active_emul_s,
@@ -1934,14 +1907,14 @@ class Pipeline(object):
                         impl_check_val, impl_cut_val =\
                             self._do_impl_check(obj, i, uni_impl_val)
 
-                        # Add impl_check_val to the impl_check list
+                        # Modify impl_check with obtained impl_check_val
                         impl_check[sam_idx[j]] = impl_check_val
 
                         # Execute the anal_code snippet
                         exec(anal_code)
 
                     # Modify sam_idx with those that are still plausible
-                    sam_idx = sam_idx_full[impl_check == 1]
+                    sam_idx = sam_idx_full[impl_check]
 
                 # MPI Barrier
                 self._comm.Barrier()
@@ -1964,7 +1937,7 @@ class Pipeline(object):
         # Log that analysis is finished
         logger.info("Finished analyzing evaluation sample set.")
 
-        # Controller sending the results back
+        # Controller returning the results
         if self._is_controller:
             # Execute the exit_code snippet
             exec(exit_code)
@@ -1976,14 +1949,13 @@ class Pipeline(object):
             # Return the results
             return(results)
 
-
-# %% VISIBLE CLASS METHODS
+    # %% VISIBLE CLASS METHODS
     # This function analyzes the emulator and determines the plausible regions
     # TODO: Implement check if impl_idx is big enough to be used in next emul_i
     def analyze(self):
         """
-        Analyzes the emulator system at the last emulator iteration for a large
-        number of emulator evaluation samples. All samples that survive the
+        Analyzes the emulator at the last emulator iteration for a large number
+        of emulator evaluation samples. All samples that survive the
         implausibility checks, are used in the construction of the next
         emulator iteration.
 
@@ -1998,12 +1970,12 @@ class Pipeline(object):
 
         """
 
-        # Get emul_i
+        # Get last emul_i
         emul_i = self._emulator._get_emul_i(None, True)
 
         # Begin logging
         logger = getCLogger('ANALYZE')
-        logger.info("Analyzing emulator system at iteration %s." % (emul_i))
+        logger.info("Analyzing emulator iteration %s." % (emul_i))
 
         # Controller checking whether this iteration can still be (re)analyzed
         if self._is_controller:
@@ -2012,38 +1984,18 @@ class Pipeline(object):
                 self._emulator._ccheck[emul_i+1]
             # If it does not exist, current iteration can be analyzed
             except IndexError:
-                return_flag = 0
+                pass
             # If it does exist, check if mod_real_set has been evaluated
             else:
                 # If it has been evaluated, reanalysis is not possible
-                if('mod_real_set' not in self._emulator._ccheck[emul_i+1] and
-                   'active_par' in self._emulator._ccheck[emul_i+1]):
-                        return_flag = 1
-                        logger.info("Construction of next emulator iteration "
-                                    "(%s) has already been started. Reanalysis"
-                                    " of the current iteration is not "
-                                    "possible." % (emul_i+1))
-                        print("Construction of next emulator iteration (%s) "
-                              "has already been started. Reanalysis of the "
-                              "current iteration is not possible."
-                              % (emul_i+1))
-                # If it has not been evaluated, reanalysis is possible
-                else:
-                    return_flag = 0
+                if 'mod_real_set' not in self._emulator._ccheck[emul_i+1]:
+                        err_msg = ("Construction of next emulator iteration "
+                                   "(%s) has already been started. Reanalysis "
+                                   "of the current iteration is not possible."
+                                   % (emul_i+1))
+                        raise_error(RequestError, err_msg, logger)
 
-        # Workers get dummy flag
-        else:
-            return_flag = None
-
-        # Broadcast return_flag to workers
-        return_flag = self._comm.bcast(return_flag, 0)
-
-        # If return_flag is True, return
-        if return_flag:
-            self.details()
-            return
-
-        # Controller only
+        # Controller obtaining the emulator evaluation sample set
         if self._is_controller:
             # Save current time
             start_time1 = time()
@@ -2088,10 +2040,10 @@ class Pipeline(object):
 
             # Save the results
             self._save_data({
-                'impl_sam': eval_sam_set[impl_check == 1],
+                'impl_sam': eval_sam_set[impl_check],
                 'n_eval_sam': n_eval_sam})
 
-            # Save statistics about anal time, evaluation speed, par_space
+            # Save statistics about analyze time, evaluation speed, par_space
             avg_eval_rate = n_eval_sam/time_diff_eval
             par_space_rem = (sum(impl_check)/n_eval_sam)*100
             self._save_statistics(emul_i, {
@@ -2100,17 +2052,16 @@ class Pipeline(object):
                 'par_space_remaining': ['%.3g' % (par_space_rem), '%'],
                 'MPI_comm_size_anal': ['%s' % (self._size), '']})
 
-            # Log that analysis has been finished and save their statistics
-            print("Finished analysis of emulator system in %.2f seconds, "
-                  "averaging %.2f emulator evaluations per second."
-                  % (time_diff_total, n_eval_sam/time_diff_eval))
-            print("There is %.3g%% of parameter space remaining."
-                  % ((sum(impl_check)/n_eval_sam)*100))
-            logger.info("Finished analysis of emulator system in %.2f seconds,"
-                        "averaging %.2f emulator evaluations per second."
-                        % (time_diff_total, n_eval_sam/time_diff_eval))
-            logger.info("There is %.3g%% of parameter space remaining."
-                        % ((sum(impl_check)/n_eval_sam)*100))
+            # Log that analysis has been finished
+            msg1 = ("Finished analysis of emulator iteration in %.2f seconds, "
+                    "averaging %.2f emulator evaluations per second."
+                    % (time_diff_total, n_eval_sam/time_diff_eval))
+            msg2 = ("There is %.3g%% of parameter space remaining."
+                    % ((sum(impl_check)/n_eval_sam)*100))
+            logger.info(msg1)
+            logger.info(msg2)
+            print(msg1)
+            print(msg2)
 
         # Display details about current state of pipeline
         self.details()
@@ -2118,12 +2069,12 @@ class Pipeline(object):
     # This function constructs a specified iteration of the emulator system
     # TODO: Make time and RAM cost plots
     # TODO: Fix the timers for interrupted constructs
-    @docstring_substitute(emul_i=call_emul_i_doc)
-    def construct(self, emul_i=None, analyze=True, ext_init_set=None,
+    @docstring_substitute(emul_i=call_emul_i_doc, ext_set=ext_real_set_doc)
+    def construct(self, emul_i=None, analyze=True, ext_real_set=None,
                   force=False):
         """
         Constructs the emulator at the specified emulator iteration `emul_i`,
-        and performs an implausibility analysis on the emulator systems right
+        and performs an implausibility analysis on the emulator iteration right
         afterward if requested (:meth:`~analyze`).
 
         Optional
@@ -2133,12 +2084,7 @@ class Pipeline(object):
             Bool indicating whether or not to perform an analysis after the
             specified emulator iteration has been successfully constructed,
             which is required for constructing the next iteration.
-        ext_init_set : list, dict or None. Default: None
-            List of arrays containing an externally calculated set of initial
-            model evaluation samples and its data values, a dict with keys
-            ``[sam_set, mod_set]`` containing these arrays or *None* if no
-            external realization set needs to be used.
-            This parameter has no use for `emul_i` != 1.
+        %(ext_set)s
         force : bool. Default: False
             Controls what to do if the specified emulator iteration `emul_i`
             already (partly) exists.
@@ -2148,21 +2094,21 @@ class Pipeline(object):
 
         Generates
         ---------
-        A new HDF5-group with the emulator iteration value as its name, in the
-        loaded emulator file, containing emulator data required for this
+        A new HDF5-group with the emulator iteration as its name, in the loaded
+        emulator master file, containing emulator data required for this
         emulator iteration.
 
         Notes
         -----
         Using an emulator iteration that has been (partly) constructed before,
-        will finish that construction or skip construction if already finished
-        when `force` = *False*; or it will delete that and all following
-        iterations, and reconstruct the specified iteration when `force` =
-        *True*. Using `emul_i` = 1 and `force` = *True* is equivalent to
-        reconstructing the entire emulator system.
+        will finish construction or skip it if already finished when `force` is
+        *False*; or it will delete that and all following iterations, and
+        reconstruct the specified iteration when `force` is *True*. Using
+        `emul_i` = 1 and `force` is *True* is equivalent to reconstructing the
+        entire emulator.
 
         If no implausibility analysis is requested, then the implausibility
-        parameters are read in from the PRISM parameters file and temporarily
+        parameters are read in from the *PRISM* parameters file and temporarily
         stored in memory in order to enable the usage of the :meth:`~evaluate`
         method.
 
@@ -2174,7 +2120,7 @@ class Pipeline(object):
         # Set emul_i correctly
         emul_i = self._emulator._get_emul_i(emul_i, False)
 
-        # Only the controller should run this
+        # Controller performing checks regarding construction progress
         if self._is_controller:
             # Save current time
             start_time = time()
@@ -2200,12 +2146,11 @@ class Pipeline(object):
 
                 # If already finished, skip everything
                 elif(emul_i <= self._emulator._emul_i):
-                    logger.info("Emulator iteration %s has already been fully "
-                                "constructed. Skipping construction process."
-                                % (emul_i))
-                    print("Emulator iteration %s has already been fully "
-                          "constructed. Skipping construction process."
-                          % (emul_i))
+                    msg = ("Emulator iteration %s has already been fully "
+                           "constructed. Skipping construction process."
+                           % (emul_i))
+                    logger.info(msg)
+                    print(msg)
                     c_from_start = None
 
                 # If interrupted midway, do not reconstruct full iteration
@@ -2236,7 +2181,6 @@ class Pipeline(object):
             self.details(emul_i)
             return
 
-        # If iteration needs to be constructed completely, create/prepare it
         # Log that construction of emulator iteration is being started
         logger.info("Starting construction of emulator iteration %s."
                     % (emul_i))
@@ -2252,9 +2196,9 @@ class Pipeline(object):
             if(emul_i == 1):
                 # Controller only
                 if self._is_controller:
-                    # Process ext_init_set
+                    # Process ext_real_set
                     ext_sam_set, ext_mod_set =\
-                        self._get_ext_real_set(ext_init_set)
+                        self._get_ext_real_set(ext_real_set)
 
                     # Obtain number of externally provided model realizations
                     n_ext_sam = np.shape(ext_sam_set)[0]
@@ -2307,14 +2251,10 @@ class Pipeline(object):
 
                     # Check if a new emulator iteration can be constructed
                     if(not self._prc and self._emulator._emul_i != emul_i):
-                        logger.error("No plausible regions were found in the "
-                                     "analysis of the previous emulator "
-                                     "iteration. Construction is not "
-                                     "possible!")
-                        raise RequestError("No plausible regions were found in"
-                                           " the analysis of the previous "
-                                           "emulator iteration. Construction "
-                                           "is not possible!")
+                        err_msg = ("No plausible regions were found in the "
+                                   "analysis of the previous emulator "
+                                   "iteration. Construction is not possible!")
+                        raise_error(RequestError, err_msg, logger)
 
                     # Make the emulator prepare for a new iteration
                     reload = self._emulator._prepare_new_iteration(emul_i)
@@ -2347,41 +2287,41 @@ class Pipeline(object):
             # Obtain corresponding set of model evaluations
             self._evaluate_model(emul_i, add_sam_set, ext_sam_set, ext_mod_set)
 
-        # Construct emulator
+        # Construct emulator iteration
         self._emulator._construct_iteration(emul_i)
 
-        # Only controller
+        # Controller finishing up construction process
         if self._is_controller:
-            # Save that emulator system has not been analyzed yet
+            # Save that emulator iteration has not been analyzed yet
             self._save_data({
-                'impl_sam': [],
+                'impl_sam': np.array([]),
                 'n_eval_sam': 0})
 
             # Log that construction has been completed
             time_diff_total = time()-start_time
             self._save_statistics(emul_i, {
                 'tot_construct_time': ['%.2f' % (time_diff_total), 's']})
-            print("Finished construction of emulator system in %.2f seconds."
-                  % (time_diff_total))
-            logger.info("Finished construction of emulator system in %.2f "
-                        "seconds." % (time_diff_total))
+            msg = ("Finished construction of emulator iteration in %.2f "
+                   "seconds." % (time_diff_total))
+            logger.info(msg)
+            print(msg)
 
-        # Analyze the emulator system if requested
+        # Analyze the emulator iteration if requested
         if analyze:
             self.analyze()
+        # If not, temporarily save implausibility parameters in memory
         else:
             self._get_impl_par(True)
             self.details(emul_i)
 
-    # This function allows one to obtain the pipeline details/properties
+    # This function allows one to view the pipeline details/properties
     # TODO: Allow the viewing of the entire polynomial function in SymPy
-    # TODO: Rewrite to add MPI compatibility
     @docstring_substitute(emul_i=user_emul_i_doc)
     def details(self, emul_i=None):
         """
-        Prints the details/properties of the currently loaded pipeline instance
-        at given emulator iteration `emul_i`. See ``Notes`` for detailed
-        descriptions of all printed properties.
+        Prints the details/properties of the currently loaded :obj:`~Pipeline`
+        instance at given emulator iteration `emul_i`. See ``Notes`` for
+        detailed descriptions of all printed properties.
 
         Optional
         --------
@@ -2391,28 +2331,29 @@ class Pipeline(object):
         -----
         HDF5-file name
             The relative path to the loaded HDF5-file starting at `root_dir`,
-            which consists of `working_dir` and `hdf5_file`.
+            which consists of the given `working_dir` and `hdf5_file`.
         Emulator type
-            The type of this emulator system, corresponding to the provided
+            The type of this emulator, corresponding to the provided
             `emul_type` during :class:`~Pipeline` initialization.
         ModelLink subclass
             Name of the :class:`~ModelLink` subclass used to construct this
-            emulator system.
+            emulator.
         Emulation method
             Indicates the combination of regression and Gaussian emulation
-            methods that have been used for this emulator system.
+            methods that have been used for this emulator.
         Mock data used?
-            Whether or not mock data has been used to construct this emulator
-            system. If so, the printed estimates for all model parameters are
-            the parameter values used to create the mock data.
+            Whether or not mock data has been used to construct this emulator.
+            If so, the printed estimates for all model parameters are the
+            parameter values used to create the mock data.
 
         Emulator iteration
-            The iteration of the emulator system this details overview is
-            about. By default, this is the last constructed iteration.
+            The iteration of the emulator this details overview is about. By
+            default, this is the last constructed iteration.
         Construction completed?
             Whether or not the construction of this emulator iteration is
-            completed. If not, the missing components are listed and the
-            remaining information of this iteration is not printed.
+            completed. If not, the missing components for each emulator system
+            are listed and the remaining information of this iteration is not
+            printed.
         Plausible regions?
             Whether or not plausible regions have been found during the
             analysis of this emulator iteration. If no analysis has been done
@@ -2447,6 +2388,10 @@ class Pipeline(object):
         # of emulated data points
             The number of data points that have been emulated in this
             emulator iteration.
+        # of emulator systems
+            The total number of emulator systems that are required in this
+            emulator. The number of active emulator systems is equal to the
+            number of data points.
 
         Parameter space
             Lists the name, lower and upper value boundaries and estimate (if
@@ -2473,21 +2418,20 @@ class Pipeline(object):
         # Gather the ccheck_flags on all ranks to see if all are finished
         ccheck_flag = np.all(self._comm.allgather(ccheck_flag))
 
-        # Check what kind of hdf5-file was provided
+        # Try to obtain correct emul_i depending on the construction progress
         try:
             if ccheck_flag:
                 emul_i = self._emulator._get_emul_i(emul_i, True)
             else:
                 emul_i = self._emulator._get_emul_i(emul_i, False)
+        # If this fails, return
         except RequestError:
-            # MPI Barrier
-            self._comm.Barrier()
             return
+        # If this succeeds, gather ccheck information on the controller
         else:
-            # Gather ccheck information from all MPI ranks on the controller
             ccheck_list = self._comm.gather(self._emulator._ccheck[emul_i], 0)
 
-        # Controller only
+        # Controller generating the entire details overview
         if self._is_controller:
             # Flatten the received ccheck_list
             ccheck_flat = [[] for _ in range(self._emulator._n_emul_s_tot)]
@@ -2498,7 +2442,7 @@ class Pipeline(object):
                                           ccheck_rank):
                     ccheck_flat[emul_s] = ccheck
 
-            # Get max lengths of various strings for parameter section
+            # Get max lengths of various strings for parameter space section
             name_len =\
                 max([len(par_name) for par_name in self._modellink._par_name])
             lower_len =\
@@ -2511,7 +2455,7 @@ class Pipeline(object):
 
             # Open hdf5-file
             with PRISM_File('r', None) as file:
-                # Check if projection data is available
+                # Check if projection data is available by trying to access it
                 try:
                     file['%s/proj_hcube' % (emul_i)]
                 except KeyError:
@@ -2520,6 +2464,7 @@ class Pipeline(object):
 
                 # If projection data is available
                 else:
+                    # Get the number of projections and used impl_cut-offs
                     n_proj = len(file['%s/proj_hcube' % (emul_i)].keys())
                     proj_impl_cut =\
                         file['%s/proj_hcube' % (emul_i)].attrs['impl_cut']
@@ -2537,7 +2482,7 @@ class Pipeline(object):
                         else:
                             proj = 2
 
-                    # If analysis was never done, projections are synced
+                    # If analysis was never done, projections are always synced
                     except IndexError:
                         proj = 1
 
@@ -2557,7 +2502,7 @@ class Pipeline(object):
             # Determine the relative path to the master HDF5-file
             hdf5_rel_path = path.relpath(self._hdf5_file, self._root_dir)
 
-            # Set width of detail names
+            # Set width of first details column
             width = 31
 
             # PRINT DETAILS
@@ -2569,7 +2514,7 @@ class Pipeline(object):
             print("\nGENERAL")
             print("-"*width)
 
-            # General details about loaded emulator system
+            # General details about loaded emulator
             print("{0: <{1}}\t'{2}'".format("HDF5-file name", width,
                                             hdf5_rel_path))
             print("{0: <{1}}\t'{2}'".format("Emulator type", width,
@@ -2605,6 +2550,7 @@ class Pipeline(object):
                 # Calculate the maximum number of projections
                 n_proj_max = nCr(n_active_par, 1 if(n_par == 2) else 2)
 
+                # Flag details
                 print("{0: <{1}}\t{2}".format("Construction completed?", width,
                                               "Yes"))
                 if not self._n_eval_sam[emul_i]:
@@ -2650,8 +2596,10 @@ class Pipeline(object):
                     n_active_par, n_par))
                 print("{0: <{1}}\t{2}".format("# of emulated data points",
                                               width, n_data))
+                print("{0: <{1}}\t{2}".format("# of emulator systems",
+                                              width, n_emul_s))
 
-            # If not, then print which components are still missing
+            # If not, print which components are still missing
             else:
                 print("{0: <{1}}\t{2}".format("Construction completed?", width,
                                               "No"))
@@ -2663,10 +2611,10 @@ class Pipeline(object):
                 ccheck_i = [i for i in range(n_emul_s) if
                             'active_par_data' in ccheck_flat[i]]
                 print("  - {0: <{1}}\t{2}".format(
-                    "'active_par'?", width-4, "No (%s)" % (ccheck_i) if
+                    "'active_par_data'?", width-4, "No (%s)" % (ccheck_i) if
                     len(ccheck_i) else "Yes"))
 
-                # Check if all regression processes have been done
+                # Check if all regression processes have been done if requested
                 if self._emulator._method.lower() in ('regression', 'full'):
                     ccheck_i = [i for i in range(n_emul_s) if
                                 'regression' in ccheck_flat[i]]
@@ -2734,7 +2682,7 @@ class Pipeline(object):
     @docstring_substitute(emul_i=user_emul_i_doc)
     def evaluate(self, sam_set, emul_i=None):
         """
-        Evaluates the given model parameter sample set `sam_set` at given
+        Evaluates the given model parameter sample set `sam_set` up to given
         emulator iteration `emul_i`.
         The output of this function depends on the number of dimensions in
         `sam_set`. The output is always provided on the controller rank.
@@ -2743,7 +2691,7 @@ class Pipeline(object):
         ----------
         sam_set : 1D or 2D array_like
             Array containing model parameter value sets to be evaluated in the
-            emulator system.
+            emulator up to emulator iteration `emul_i`.
 
         Optional
         --------
@@ -2755,8 +2703,8 @@ class Pipeline(object):
             List of bool indicating whether or not the given samples passed the
             implausibility check at the given emulator iteration `emul_i`.
         emul_i_stop : list of int
-            List containing the last emulator iteration identifiers at which
-            the given samples are still within the emulator system.
+            List containing the last emulator iterations at which the given
+            samples are still within the plausible region of the emulator.
         adj_exp_val : list of 1D :obj:`~numpy.ndarray` objects
             List of arrays containing the adjusted expectation values for all
             given samples.
@@ -2773,8 +2721,8 @@ class Pipeline(object):
             Bool indicating whether or not the given sample passed the
             implausibility check at the given emulator iteration `emul_i`.
         emul_i_stop : int
-            Last emulator iteration identifier at which the given sample is
-            still within the emulator system.
+            Last emulator iteration at which the given sample is still within
+            the plausible region of the emulator.
         adj_exp_val : 1D :obj:`~numpy.ndarray` object
             The adjusted expectation values for the given sample.
         adj_var_val : 1D :obj:`~numpy.ndarray` object
@@ -2788,8 +2736,7 @@ class Pipeline(object):
         -----
         If given emulator iteration `emul_i` has been analyzed before, the
         implausibility parameters of the last analysis are used. If not, then
-        the values are used that were read in when the emulator system was
-        loaded.
+        the values are used that were read in when the emulator was loaded.
 
         """
 
@@ -2798,36 +2745,35 @@ class Pipeline(object):
 
         # Do some logging
         logger = getCLogger('EVALUATE')
-        logger.info("Evaluating emulator system for provided set of model "
-                    "parameter samples.")
+        logger.info("Evaluating emulator iteration %s for provided set of "
+                    "model parameter samples." % (emul_i))
 
         # Make sure that sam_set is a NumPy array
         sam_set = np.array(sam_set)
 
         # Controller checking the contents of sam_set
         if self._is_controller:
-            # Check the number of dimensions in sam_set
+            # If ndim == 1, convert to 2D array and print output later
             if(sam_set.ndim == 1):
                 sam_set = np.array(sam_set, ndmin=2)
                 print_output = 1
+            # If ndim == 2, return output later
             elif(sam_set.ndim == 2):
                 print_output = 0
+            # If ndim is anything else, it is invalid
             else:
-                logger.error("Input argument 'sam_set' is not one-dimensional "
-                             "or two-dimensional!")
-                raise ShapeError("Input argument 'sam_set' is not "
-                                 "one-dimensional or two-dimensional!")
+                err_msg = ("Input argument 'sam_set' is not one-dimensional or"
+                           " two-dimensional!")
+                raise_error(ShapeError, err_msg, logger)
 
-            # Check if sam_set has n_par parameter values
+            # Check if sam_set has n_par parameter values, raise error if not
             if not(sam_set.shape[1] == self._modellink._n_par):
-                logger.error("Input argument 'sam_set' has incorrect number of"
-                             " parameters (%s != %s)!"
-                             % (sam_set.shape[1], self._modellink._n_par))
-                raise ShapeError("Input argument 'sam_set' has incorrect "
-                                 "number of parameters (%s != %s)!"
-                                 % (sam_set.shape[1], self._modellink._n_par))
+                err_msg = ("Input argument 'sam_set' has incorrect number of "
+                           "parameters (%s != %s)!"
+                           % (sam_set.shape[1], self._modellink._n_par))
+                raise_error(ShapeError, err_msg, logger)
 
-            # Check if sam_set consists only out of floats (or ints)
+            # Check if sam_set consists only out of floats
             else:
                 for i, par_set in enumerate(sam_set):
                     for j, par_val in enumerate(par_set):
@@ -2874,7 +2820,7 @@ class Pipeline(object):
         results = self._analyze_sam_set(self, emul_i, sam_set, *exec_code)
 
         # Do more logging
-        logger.info("Finished evaluating emulator system.")
+        logger.info("Finished evaluating emulator.")
 
         # Controller finishing up
         if self._is_controller:
@@ -2882,7 +2828,7 @@ class Pipeline(object):
             adj_exp_val, adj_var_val, uni_impl_val, emul_i_stop, impl_check =\
                 results
 
-            # If ndim(sam_set) == 1, print the results
+            # If print_output is True, print the results
             if print_output:
                 # Print results
                 if impl_check[0]:
@@ -2897,7 +2843,7 @@ class Pipeline(object):
                 print("sigma_val = %s" % (np.sqrt(adj_var_val[0])))
                 print("uni_impl_val = %s" % (uni_impl_val[0]))
 
-            # Else, return the lists
+            # Else, return the results
             else:
                 # MPI Barrier for controller
                 self._comm.Barrier()
@@ -2909,7 +2855,7 @@ class Pipeline(object):
         # MPI Barrier
         self._comm.Barrier()
 
-    # This function creates the projection figures of a given emul_i
+    # This function creates the projection figures for a given emul_i
     @docstring_copy(Projection.__call__)
     def project(self, emul_i=None, proj_par=None, figure=True, show=False,
                 force=False):
@@ -2919,3 +2865,8 @@ class Pipeline(object):
 
         # MPI Barrier
         self._comm.Barrier()
+
+    # This function simply executes self.__call__
+    @docstring_copy(__call__)
+    def run(self, emul_i=None):
+        self(emul_i)

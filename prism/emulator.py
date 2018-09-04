@@ -3,14 +3,14 @@
 """
 Emulator
 ========
-Provides the definition of the class holding the emulator system of the PRISM
+Provides the definition of the class holding the emulator system of the *PRISM*
 package, the :class:`~Emulator` class.
 
 
 Available classes
 -----------------
 :class:`~Emulator`
-    Defines the :class:`~Emulator` class of the PRISM package.
+    Defines the :class:`~Emulator` class of the *PRISM* package.
 
 """
 
@@ -43,11 +43,12 @@ from sortedcontainers import SortedSet
 
 # PRISM imports
 from .__version__ import prism_version as _prism_version
-from ._docstrings import (emul_s_seq_doc, get_emul_i_doc, lemul_s_doc,
+from ._docstrings import (def_par_doc, emul_s_seq_doc, get_emul_i_doc,
+                          lemul_s_doc, read_par_doc, save_data_doc_e,
                           std_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_compatibility,
-                        check_val, delist, docstring_substitute, getCLogger,
-                        rprint)
+                        check_val, delist, docstring_append,
+                        docstring_substitute, getCLogger, rprint)
 from .modellink import ModelLink
 
 # All declaration
@@ -61,7 +62,7 @@ if(sys.version_info.major >= 3):
 # %% EMULATOR CLASS DEFINITION
 class Emulator(object):
     """
-    Defines the :class:`~Emulator` class of the PRISM package.
+    Defines the :class:`~Emulator` class of the *PRISM* package.
 
     """
 
@@ -381,8 +382,7 @@ class Emulator(object):
 
         return(self._l_corr)
 
-
-# %% GENERAL CLASS METHODS
+    # %% GENERAL CLASS METHODS
     # Get correct emulator iteration
     @docstring_substitute(emul_i=get_emul_i_doc)
     def _get_emul_i(self, emul_i, cur_iter):
@@ -1619,6 +1619,7 @@ class Emulator(object):
         # Return it
         return(self._get_cov(emul_i, emul_s_seq, par_set, par_set))
 
+    # This function calculates the covariance between parameter sets
     # This is function 'Cov(f(x), f(x'))' or 'k(x,x')
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
     def _get_cov(self, emul_i, emul_s_seq, par_set1, par_set2):
@@ -1657,7 +1658,6 @@ class Emulator(object):
         # Determine which residual variance should be used
         if self._method.lower() in ('regression', 'full'):
             rsdl_var = self._rsdl_var[emul_i]
-#            rsdl_var = pow(self._sigma, 2)
         elif(self.method.lower() == 'gaussian'):
             rsdl_var = [pow(self._sigma, 2) for _ in emul_s_seq]
 
@@ -1755,7 +1755,7 @@ class Emulator(object):
         # Return it
         return(cov)
 
-    # This function calculates the regression covariance.
+    # This function calculates the regression covariance between parameter sets
     # This is function 'Cov(r(x), r(x'))'
     # OPTIMIZE: Takes roughly 45-50% of total evaluation time
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
@@ -1867,6 +1867,7 @@ class Emulator(object):
         # Return it
         return(regr_cov)
 
+    # This function calculates the covariance vector of a given parameter set
     # This is function 'Cov(f(x'), D)' or 't(x')'
     # HINT: Calculate cov_vec for all samples at once to save time?
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
@@ -1898,8 +1899,8 @@ class Emulator(object):
         # Return it
         return(cov_vec)
 
+    # This function calculates the covariance matrix
     # This is function 'Var(D)' or 'A'
-    # Reminder that this function should only be called once per sample set
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
     def _get_cov_matrix(self, emul_i, emul_s_seq):
         """
@@ -2429,31 +2430,14 @@ class Emulator(object):
         logger.info("Finished loading relevant emulator data.")
 
     # This function saves emulator data to hdf5
-    @docstring_substitute(emul_i=std_emul_i_doc, lemul_s=lemul_s_doc)
+    @docstring_substitute(save_data=save_data_doc_e)
     def _save_data(self, emul_i, lemul_s, data_dict):
         """
         Saves a given data dict ``{keyword: data}`` at the given emulator
         iteration `emul_i` and local emulator system `lemul_s` to the HDF5-file
         and as an data attribute to the current :obj:`~Emulator` instance.
 
-        Parameters
-        ----------
-        %(emul_i)s
-        %(lemul_s)s
-        data_dict : dict
-            Dict containing the data that needs to be saved to the HDF5-file.
-
-        Dict Variables
-        --------------
-        keyword : {'active_par', 'active_par_data', 'cov_mat', 'mod_real_set',\
-                   'exp_dot_term', 'regression'}
-            String specifying the type of data that needs to be saved.
-        data : int, float, list
-            The actual data that needs to be saved at data keyword `keyword`.
-
-        Generates
-        ---------
-        The specified data is saved to the HDF5-file.
+        %(save_data)s
 
         """
 
@@ -2503,6 +2487,14 @@ class Emulator(object):
                     self._cov_mat_inv[emul_i][lemul_s] = data[1]
                     self._ccheck[emul_i][lemul_s].remove('cov_mat')
 
+                # EXP_DOT_TERM
+                elif(keyword == 'exp_dot_term'):
+                    data_set = file['%s' % (emul_i)]
+                    data_set.create_dataset('prior_exp_sam_set', data=data[0])
+                    data_set.create_dataset('exp_dot_term', data=data[1])
+                    self._exp_dot_term[emul_i][lemul_s] = data[1]
+                    self._ccheck[emul_i][lemul_s].remove('exp_dot_term')
+
                 # MOD_REAL_SET (CONTROLLER)
                 elif(self._is_controller and keyword == 'mod_real_set'):
                     dtype = [(n, float) for n in self._modellink._par_name]
@@ -2531,14 +2523,6 @@ class Emulator(object):
                     data_set = file['%s' % (emul_i)]
                     data_set.create_dataset('mod_set', data=data[1])
                     self._mod_set[emul_i][lemul_s] = data[1]
-
-                # EXP_DOT_TERM
-                elif(keyword == 'exp_dot_term'):
-                    data_set = file['%s' % (emul_i)]
-                    data_set.create_dataset('prior_exp_sam_set', data=data[0])
-                    data_set.create_dataset('exp_dot_term', data=data[1])
-                    self._exp_dot_term[emul_i][lemul_s] = data[1]
-                    self._ccheck[emul_i][lemul_s].remove('exp_dot_term')
 
                 # REGRESSION
                 elif(keyword == 'regression'):
@@ -2617,17 +2601,8 @@ class Emulator(object):
         return(modellink_name)
 
     # This function automatically loads default emulator parameters
+    @docstring_append(def_par_doc.format('emulator'))
     def _get_default_parameters(self):
-        """
-        Generates a dict containing default values for all emulator parameters.
-
-        Returns
-        -------
-        par_dict : dict
-            Dict containing all default emulator parameter values.
-
-        """
-
         # Log this
         logger = getCLogger('INIT')
         logger.info("Generating default emulator parameter dict.")
@@ -2647,13 +2622,8 @@ class Emulator(object):
         return(par_dict)
 
     # Read in the parameters from the provided parameter file
+    @docstring_append(read_par_doc.format("Emulator"))
     def _read_parameters(self):
-        """
-        Reads in the emulator parameters from the provided PRISM parameter file
-        saves them in the current :obj:`~Emulator` instance.
-
-        """
-
         # Log that the PRISM parameter file is being read
         logger = getCLogger('INIT')
         logger.info("Reading emulator parameters.")

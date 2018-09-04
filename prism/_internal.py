@@ -41,8 +41,8 @@ from .__version__ import compat_version, prism_version
 __all__ = ['CLogger', 'PRISM_File', 'RequestError', 'aux_char_list',
            'check_compatibility', 'check_val', 'convert_str_seq', 'delist',
            'docstring_append', 'docstring_copy', 'docstring_substitute',
-           'getCLogger', 'import_cmaps', 'move_logger', 'rprint',
-           'start_logger']
+           'getCLogger', 'import_cmaps', 'move_logger', 'raise_error',
+           'rprint', 'start_logger']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -283,9 +283,8 @@ def check_val(value, name, *args):
         elif(str(value).lower() in ('true', '1')):
             return(1)
         else:
-            logger.error("Input argument '%s' is not of type 'bool'!" % (name))
-            raise TypeError("Input argument '%s' is not of type 'bool'!"
-                            % (name))
+            err_msg = "Input argument '%s' is not of type 'bool'!" % (name)
+            raise_error(TypeError, err_msg, logger)
 
     # Check for string
     elif 'str' in args:
@@ -293,9 +292,8 @@ def check_val(value, name, *args):
         if isinstance(value, (str, np.string_, unicode)):
             return(value)
         else:
-            logger.error("Input argument '%s' is not of type 'str'!" % (name))
-            raise TypeError("Input argument '%s' is not of type 'str'!"
-                            % (name))
+            err_msg = "Input argument '%s' is not of type 'str'!" % (name)
+            raise_error(TypeError, err_msg, logger)
 
     # Check for floats
     elif 'float' in args:
@@ -307,10 +305,8 @@ def check_val(value, name, *args):
         if isinstance(value, (int, float, np.integer, np.floating)):
             return(value)
         else:
-            logger.error("Input argument '%s' is not of type 'float'!"
-                         % (name))
-            raise TypeError("Input argument '%s' is not of type 'float'!"
-                            % (name))
+            err_msg = "Input argument '%s' is not of type 'float'!" % (name)
+            raise_error(TypeError, err_msg, logger)
 
     # Check for integers
     elif 'int' in args:
@@ -322,9 +318,8 @@ def check_val(value, name, *args):
         if isinstance(value, (int, np.integer)):
             return(value)
         else:
-            logger.error("Input argument '%s' is not of type 'int'!" % (name))
-            raise TypeError("Input argument '%s' is not of type 'int'!"
-                            % (name))
+            err_msg = "Input argument '%s' is not of type 'int'!" % (name)
+            raise_error(TypeError, err_msg, logger)
 
     # Check for negative values
     elif 'neg' in args:
@@ -336,8 +331,8 @@ def check_val(value, name, *args):
         if(value < 0):
             return(value)
         else:
-            logger.error("Input argument '%s' is not negative!" % (name))
-            raise ValueError("Input argument '%s' is not negative!" % (name))
+            err_msg = "Input argument '%s' is not negative!" % (name)
+            raise_error(ValueError, err_msg, logger)
 
     # Check for non-negative values
     elif 'nneg' in args:
@@ -349,9 +344,8 @@ def check_val(value, name, *args):
         if not(value < 0):
             return(value)
         else:
-            logger.error("Input argument '%s' is not non-negative!" % (name))
-            raise ValueError("Input argument '%s' is not non-negative!"
-                             % (name))
+            err_msg = "Input argument '%s' is not non-negative!" % (name)
+            raise_error(ValueError, err_msg, logger)
 
     # Check for non-positive values
     elif 'npos' in args:
@@ -363,9 +357,8 @@ def check_val(value, name, *args):
         if not(value > 0):
             return(value)
         else:
-            logger.error("Input argument '%s' is not non-positive!" % (name))
-            raise ValueError("Input argument '%s' is not non-positive!"
-                             % (name))
+            err_msg = "Input argument '%s' is not non-positive!" % (name)
+            raise_error(ValueError, err_msg, logger)
 
     # Check for non-zero values
     elif 'nzero' in args:
@@ -377,8 +370,8 @@ def check_val(value, name, *args):
         if not(value == 0):
             return(value)
         else:
-            logger.error("Input argument '%s' is not non-zero!" % (name))
-            raise ValueError("Input argument '%s' is not non-zero!" % (name))
+            err_msg = "Input argument '%s' is not non-zero!" % (name)
+            raise_error(ValueError, err_msg, logger)
 
     # Check for positive values
     elif 'pos' in args:
@@ -390,8 +383,8 @@ def check_val(value, name, *args):
         if(value > 0):
             return(value)
         else:
-            logger.error("Input argument '%s' is not positive!" % (name))
-            raise ValueError("Input argument '%s' is not positive!" % (name))
+            err_msg = "Input argument '%s' is not positive!" % (name)
+            raise_error(ValueError, err_msg, logger)
 
     # If no criteria are given, it must be a finite value
     elif not len(args):
@@ -399,12 +392,13 @@ def check_val(value, name, *args):
         if np.isfinite(value):
             return(value)
         else:
-            logger.error("Input argument '%s' is not finite!" % (name))
-            raise ValueError("Input argument '%s' is not finite!" % (name))
+            err_msg = "Input argument '%s' is not finite!" % (name)
+            raise_error(ValueError, err_msg, logger)
 
     # If none of the criteria is found, the criteria are invalid
     else:
-        raise InputError("Input argument 'args' is invalid!")
+        err_msg = "Input argument 'args' is invalid!"
+        raise_error(InputError, err_msg, logger)
 
 
 # Function for checking if emulator system is compatible with PRISM version
@@ -426,24 +420,17 @@ def check_compatibility(emul_version):
         # If a compat_version is the same or newer than the emul_version
         # then it is incompatible
         if _compare_versions(version, emul_version):
-            logger.error("The provided emulator is incompatible with the "
-                         "current version of PRISM (v%s). The last compatible "
-                         "version is v%s." % (prism_version, version))
-            raise RequestError("The provided emulator is incompatible with the"
-                               " current version of PRISM (v%s). The last "
-                               "compatible version is v%s."
-                               % (prism_version, version))
+            err_msg = ("The provided emulator is incompatible with the current"
+                       " version of PRISM (v%s). The last compatible version "
+                       "is v%s." % (prism_version, version))
+            raise_error(RequestError, err_msg, logger)
 
     # Check if emul_version is not newer than prism_version
     if not _compare_versions(prism_version, emul_version):
-        logger.error("The provided emulator was constructed with a version "
-                     "later than the current version of PRISM (v%s). Use v%s "
-                     "or later to use this emulator."
-                     % (prism_version, emul_version))
-        raise RequestError("The provided emulator was constructed with a "
-                           "version later than the current version of PRISM "
-                           "(v%s). Use v%s or later to use this emulator."
-                           % (prism_version, emul_version))
+        err_msg = ("The provided emulator was constructed with a version later"
+                   " than the current version of PRISM (v%s). Use v%s or later"
+                   " to use this emulator." % (prism_version, emul_version))
+        raise_error(RequestError, err_msg, logger)
     else:
         logger.info("Version compatibility check was successful.")
 
@@ -620,6 +607,28 @@ def move_logger(working_dir, filename):
 
     # Restart the logger
     start_logger(filename=destination, mode='a')
+
+
+# This function raises a given error after logging the error
+def raise_error(err_type, err_msg, logger):
+    """
+    Raises a given error of type `err_type` with message `err_msg` and logs the
+    error using the provided `logger`.
+
+    Parameters
+    ----------
+    err_type : :class:`~Exception` subclass
+        The type of error that needs to be raised.
+    err_msg : str
+        The message included in the error.
+    logger : :obj:`~logging.Logger` object
+        The logger to which the error message must be written.
+
+    """
+
+    # Log the error and raise it right after
+    logger.error(err_msg)
+    raise err_type(err_msg)
 
 
 # Redefine the print function to include the MPI rank if MPI is used
