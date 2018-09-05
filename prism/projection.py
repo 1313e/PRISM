@@ -274,10 +274,11 @@ class Projection(object):
             # PLOTTING (CONTROLLER ONLY)
             if self._is_controller and self._figure:
                 # Determine the path of this figure
-                fig_path = '%s(%s).png' % (self._fig_prefix, self._hcube_name)
+                self._fig_path = '%s(%s).png' % (self._fig_prefix,
+                                                 self._hcube_name)
 
                 # Skip making figure if it already exists
-                if path.exists(fig_path):
+                if path.exists(self._fig_path):
                     logger.info("Projection figure '%s' already exists. "
                                 "Skipping figure creation."
                                 % (self._hcube_name))
@@ -390,9 +391,6 @@ class Projection(object):
         logger = getLogger('PROJECTION')
         logger.info("Drawing projection figure '%s'." % (self._hcube_name))
 
-        # Determine the path of this figure
-        fig_path = '%s(%s).png' % (self._fig_prefix, self._hcube_name)
-
         # Get the parameter this hypercube is about
         par = hcube[0]
 
@@ -440,7 +438,7 @@ class Projection(object):
         axarr[1].set_ylabel("Line-of-Sight Depth", fontsize='x-large')
 
         # Save the figure
-        plt.savefig(fig_path)
+        plt.savefig(self._fig_path)
 
         # If show is set to True, show the figure
         f.show() if self._show else plt.close(f)
@@ -473,9 +471,6 @@ class Projection(object):
         # Start logger
         logger = getLogger('PROJECTION')
         logger.info("Drawing projection figure '%s'." % (self._hcube_name))
-
-        # Determine the path of this figure
-        fig_path = '%s(%s).png' % (self._fig_prefix, self._hcube_name)
 
         # Get the parameter on x-axis and y-axis this hcube is about
         par1 = hcube[0]
@@ -563,7 +558,7 @@ class Projection(object):
         suplabel("%s" % (par2_name), axis='y', fig=f, fontsize='x-large')
 
         # Save the figure
-        plt.savefig(fig_path)
+        plt.savefig(self._fig_path)
 
         # If show is set to True, show the figure
         f.show() if self._show else plt.close(f)
@@ -676,14 +671,12 @@ class Projection(object):
                                     "Deleting." % (hcube_name))
 
                         # Try to remove figure as well
-                        try:
+                        if path.exists('%s(%s).png'
+                                       % (self._fig_prefix, hcube_name)):
+                            logger.info("Projection figure '%s' already "
+                                        "exists. Deleting." % (hcube_name))
                             os.remove('%s(%s).png'
                                       % (self._fig_prefix, hcube_name))
-                        except OSError:
-                            pass
-                        else:
-                            logger.info("Projection figure '%s' already "
-                                        "exists. Deleting.")
 
                         # Add this hypercube to creation list
                         create_hcube_par.append(hcube)

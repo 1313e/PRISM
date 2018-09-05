@@ -23,6 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 # Built-in imports
 from collections import Counter
 from logging import getLogger
+import os
 from os import path
 from time import time
 import sys
@@ -43,11 +44,13 @@ from sortedcontainers import SortedSet
 
 # PRISM imports
 from .__version__ import prism_version as _prism_version
-from ._docstrings import (def_par_doc, emul_s_seq_doc, get_emul_i_doc,
-                          read_par_doc, save_data_doc_e, std_emul_i_doc)
+from ._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
+                          emul_s_seq_doc, eval_doc, full_cov_doc,
+                          get_emul_i_doc, read_par_doc, regr_cov_doc,
+                          save_data_doc_e, std_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_compatibility,
                         check_val, delist, docstring_append,
-                        docstring_substitute, getCLogger, rprint)
+                        docstring_substitute, getCLogger, raise_error, rprint)
 from .modellink import ModelLink
 
 # All declaration
@@ -124,6 +127,15 @@ class Emulator(object):
     # %% CLASS PROPERTIES
     # General details
     @property
+    def emul_type(self):
+        """
+        String indicating what type of emulator is currently loaded.
+
+        """
+
+        return(self._emul_type)
+
+    @property
     def emul_load(self):
         """
         Bool indicating whether or not a previously constructed emulator is
@@ -134,18 +146,10 @@ class Emulator(object):
         return(bool(self._emul_load))
 
     @property
-    def emul_type(self):
-        """
-        String indicating what type of emulator is currently loaded.
-
-        """
-
-        return(self._emul_type)
-
-    @property
     def emul_i(self):
         """
-        Integer indicating the last/latest available emulator iteration.
+        Integer indicating the last emulator iteration that is fully
+        constructed for all emulator systems on this MPI rank.
 
         """
 
@@ -154,10 +158,11 @@ class Emulator(object):
     @property
     def ccheck(self):
         """
-        List of strings indicating which emulator system specific parts are
-        still required to complete the construction of the specified emulator
-        iteration. The controller rank additionally lists the required parts
-        that are emulator iteration specific ('mod_real_set' and 'active_par').
+        List of strings indicating which emulator system components are still
+        required to complete the construction of the specified emulator
+        iteration on this MPI rank. The controller rank additionally lists the
+        required components that are emulator iteration specific
+        ('mod_real_set' and 'active_par').
 
         """
 
@@ -166,7 +171,8 @@ class Emulator(object):
     @property
     def n_sam(self):
         """
-        Number of model evaluation samples in the specified emulator iteration.
+        Number of model evaluation samples that have been/will be used to
+        construct the specified emulator iteration.
 
         """
 
@@ -194,8 +200,9 @@ class Emulator(object):
     @property
     def method(self):
         """
-        String indicating which emulator method to use.
-        Possible are 'gaussian', 'regression', 'auto' and 'full'.
+        String indicating which emulator method to use for constructing the
+        emulator.
+        Possible are 'gaussian', 'regression' and 'full'.
 
         """
 
@@ -204,8 +211,10 @@ class Emulator(object):
     @property
     def use_mock(self):
         """
-        Bool indicating whether or not mock data has been used for the creation
-        of this emulator instead of actual data.
+        Bool indicating whether or not mock data has been used for the
+        construction of this emulator instead of actual data. If *True*,
+        changes made to the data in the provided :obj:`~ModelLink` object are
+        ignored.
 
         """
 
@@ -218,8 +227,8 @@ class Emulator(object):
         Bool indicating whether or not to take into account the regression
         covariance when calculating the covariance of the emulator, in addition
         to the Gaussian covariance.
-        If `method` == 'gaussian', this bool is not required.
-        If `method` == 'regression', this bool is always set to *True*.
+        If :attr:`~method` == 'gaussian', this bool is not required.
+        If :attr:`~method` == 'regression', this bool is always set to *True*.
 
         """
 
@@ -229,8 +238,8 @@ class Emulator(object):
     def poly_order(self):
         """
         Polynomial order that is considered for the regression process.
-        If `method` == 'gaussian' and :attr:`~Pipeline.do_active_anal` ==
-        *False*, this number is not required.
+        If :attr:`~method` == 'gaussian' and :attr:`~Pipeline.do_active_anal`
+        is *False*, this number is not required.
 
         """
 
@@ -239,8 +248,8 @@ class Emulator(object):
     @property
     def active_emul_s(self):
         """
-        List containing the indices of the emulator systems on this MPI rank
-        that are active in the specified emulator iteration.
+        List of lists containing the indices of the emulator systems on this
+        MPI rank that are active in the specified emulator iteration.
 
         """
 
@@ -270,32 +279,38 @@ class Emulator(object):
     @property
     def active_par(self):
         """
-        List containing the model parameter identifiers that are considered
+        List of lists containing the model parameter names that are considered
         active in the specified emulator iteration. Only available on the
         controller rank.
 
         """
 
-        return(self._active_par)
+        return([[self._modellink._par_name[par] for
+                 par in active_par] for
+                active_par in self._active_par])
 
     @property
     def active_par_data(self):
         """
-        List containing the model parameter identifiers that are considered
-        active in the specified emulator iteration, separated for every data
-        point.
+        List of lists containing the model parameter names that are considered
+        active for every emulator system on this MPI rank in the specified
+        emulator iteration.
 
         """
 
-        return(self._active_par_data)
+        return([[[self._modellink._par_name[par] for
+                  par in active_par] for
+                 active_par in active_par_data] for
+                active_par_data in self._active_par_data])
 
     # Regression
     @property
     def rsdl_var(self):
         """
-        List with residual variances for every data point in the specified
-        emulator iteration.
+        List with residual variances for every emulator system on this MPI rank
+        in the specified emulator iteration.
         Obtained from regression process and replaces the Gaussian sigma.
+        Empty if :attr:`~method` == 'gaussian'.
 
         """
 
@@ -304,9 +319,10 @@ class Emulator(object):
     @property
     def poly_coef(self):
         """
-        List with non-zero coefficients for the polynomial terms in the
-        regression function in the specified emulator iteration, separated per
-        data point.
+        List of arrays with non-zero coefficients for the polynomial terms in
+        the regression function for every emulator system on this MPI rank in
+        the specified emulator iteration.
+        Empty if :attr:`~method` == 'gaussian'.
 
         """
 
@@ -315,9 +331,11 @@ class Emulator(object):
     @property
     def poly_coef_cov(self):
         """
-        List with covariances for all polynomial coefficients in the
-        regression function in the specified emulator iteration, separated per
-        data point.
+        List of arrays with covariances for all coefficients in
+        :attr:`~poly_coef` for every emulator system on this MPI rank in the
+        specified emulator iteration.
+        Empty if :attr:`~method` == 'gaussian' or :attr:`~use_regr_cov` is
+        *False*.
 
         """
 
@@ -326,8 +344,10 @@ class Emulator(object):
     @property
     def poly_powers(self):
         """
-        List containing the polynomial term powers in the specified emulator
-        iteration, separated per data point.
+        List of arrays containing the powers for all polynomial terms with
+        non-zero coefficients in the regression function for every emulator
+        system on this MPI rank in the specified emulator iteration.
+        Empty if :attr:`~method` == 'gaussian'.
 
         """
 
@@ -336,9 +356,10 @@ class Emulator(object):
     @property
     def poly_idx(self):
         """
-        List containing the indices of the polynomial terms with non-zero
-        coefficients in the specified emulator iteration, separated per data
-        point.
+        List of arrays containing the indices for all polynomial terms with
+        non-zero coefficients in the regression function for every emulator
+        system on this MPI rank in the specified emulator iteration.
+        Empty if :attr:`~method` == 'gaussian'.
 
         """
 
@@ -348,8 +369,8 @@ class Emulator(object):
     @property
     def sam_set(self):
         """
-        Array containing all model evaluation samples in the specified emulator
-        iteration.
+        List of arrays containing all model evaluation samples that have
+        been/will be used to construct the specified emulator iteration.
 
         """
 
@@ -358,7 +379,9 @@ class Emulator(object):
     @property
     def mod_set(self):
         """
-        Array containing all model outputs in the specified emulator iteration.
+        List of arrays containing all model outputs corresponding to the
+        samples in :attr:`~sam_set` for every emulator system on this MPI rank
+        in the specified emulator iteration.
 
         """
 
@@ -367,8 +390,9 @@ class Emulator(object):
     @property
     def cov_mat_inv(self):
         """
-        Array containing the inverses of the covariance matrices in the
-        specified emulator iteration, separated per data point.
+        List of arrays containing the inverses of the covariance matrices for
+        every emulator system on this MPI rank in the specified emulator
+        iteration.
 
         """
 
@@ -377,8 +401,9 @@ class Emulator(object):
     @property
     def exp_dot_term(self):
         """
-        Array containing the second expectation adjustment dot-term values of
-        all model evaluation samples in the specified emulator iteration.
+        List of arrays containing the second expectation adjustment dot-term
+        values of all model evaluation samples for every emulator system on
+        this MPI rank in the specified emulator iteration.
 
         """
 
@@ -388,9 +413,9 @@ class Emulator(object):
     @property
     def sigma(self):
         """
-        List with Gaussian sigmas.
-        If `method` == 'regression' or 'full', this value is not required,
-        since it is obtained from the regression process instead.
+        Value of the Gaussian sigma.
+        If :attr:`~method` == 'regression' or 'full', this value is not
+        required, since it is obtained from the regression process instead.
 
         """
 
@@ -399,19 +424,20 @@ class Emulator(object):
     @property
     def l_corr(self):
         """
-        List with Gaussian correlation lengths for active parameters.
+        Array with Gaussian correlation lengths for all model parameters.
 
         """
 
         return(self._l_corr)
 
     # %% GENERAL CLASS METHODS
-    # Get correct emulator iteration
+    # This function checks if provided emul_i can be requested
     @docstring_substitute(emul_i=get_emul_i_doc)
     def _get_emul_i(self, emul_i, cur_iter):
         """
         Checks if the provided emulator iteration `emul_i` can be requested or
         replaces it if *None* was provided.
+        This method requires all MPI ranks to call it simultaneously.
 
         Parameters
         ----------
@@ -429,68 +455,62 @@ class Emulator(object):
 
         # Log that emul_i is being selected
         logger = getCLogger('INIT')
-        logger.info("Selecting emulator iteration for user-method.")
+        logger.info("Checking requested emulator iteration %s." % (emul_i))
 
         # Determine the emul_i that is constructed on all ranks
         global_emul_i = min(self._comm.allgather(self._emul_i))
 
         # Check if provided emul_i is correct/allowed
+        # If the current iteration is requested
         if cur_iter:
             if(emul_i == 0 or self._emul_load == 0 or global_emul_i == 0):
                 raise RequestError("Emulator HDF5-file is not built yet!")
             elif emul_i is None:
                 emul_i = global_emul_i
             elif not(1 <= emul_i <= global_emul_i):
-                logger.error("Requested emulator iteration %s does not exist!"
-                             % (emul_i))
-                raise RequestError("Requested emulator iteration %s does not "
-                                   "exist!" % (emul_i))
+                err_msg = ("Requested emulator iteration %s does not exist!"
+                           % (emul_i))
+                raise_error(RequestError, err_msg, logger)
             else:
                 emul_i = check_val(emul_i, 'emul_i', 'pos', 'int')
+
+        # If the next iteration is requested
         else:
             if emul_i is None:
                 emul_i = global_emul_i+1
             elif not(1 <= emul_i <= global_emul_i+1):
-                logger.error("Requested emulator iteration %s cannot be "
-                             "requested!" % (emul_i))
-                raise RequestError("Requested emulator iteration %s cannot be "
-                                   "requested!" % (emul_i))
+                err_msg = ("Requested emulator iteration %s cannot be "
+                           "requested!" % (emul_i))
+                raise_error(RequestError, err_msg, logger)
             else:
                 emul_i = check_val(emul_i, 'emul_i', 'pos', 'int')
 
         # Do some logging
-        logger.info("Selected emulator iteration %s." % (emul_i))
+        logger.info("Requested emulator iteration set to %s." % (emul_i))
 
         # Return correct emul_i
         return(emul_i)
 
     # Creates a new emulator file and writes all information to it
-    # TODO: Allow for user-provided code to be executed here
-    # Like, copying files after creating a new emulator
     def _create_new_emulator(self):
         """
-        Creates a new HDF5-file that holds all the information of a new
-        emulator system and writes all important emulator details to it.
-        Afterward, resets all loaded emulator data and prepares the HDF5-file
-        and emulator system for the construction of the first emulator
-        iteration.
+        Creates a new master HDF5-file that holds all the information of a new
+        emulator and writes all important emulator details to it.
+        Afterwards, resets all loaded emulator data and prepares the HDF5-file
+        and emulator for the construction of the first emulator iteration.
 
         Generates
         ---------
-        A new HDF5-file contained in the working directory specified in the
-        :obj:`~Pipeline` instance, holding all information required to
-        construct the first iteration of the emulator system.
+        A new master HDF5-file contained in the working directory specified in
+        the :obj:`~Pipeline` instance, holding all information required to
+        construct the first iteration of the emulator.
 
         """
 
         # Start logger
         logger = getCLogger('INIT')
-        logger.info("Creating a new emulator system in HDF5-file '%s'."
+        logger.info("Creating a new emulator in master HDF5-file '%s'."
                     % (self._pipeline._hdf5_file))
-
-        # If no constructed emulator was provided, it will be constructed now
-        # Therefore, set emul_load to 1
-        self._emul_load = 1
 
         # Clean-up all emulator system files
         self._cleanup_emul_files(1)
@@ -498,9 +518,9 @@ class Emulator(object):
         # Read in parameters from provided parameter file
         self._read_parameters()
 
-        # Controller only
+        # Controller creating the master file
         if self._is_controller:
-            # Create hdf5-file
+            # Create master hdf5-file
             with PRISM_File('w', None) as file:
                 # Save all relevant emulator parameters to hdf5
                 file.attrs['sigma'] = self._sigma
@@ -518,7 +538,7 @@ class Emulator(object):
 
         # Check if mock data is requested
         if self._use_mock:
-            # If so, temporarily save ModelLInk properties as Emulator props
+            # If so, temporarily save ModelLink properties as Emulator props
             # This is to make sure that one version of get_md_var() is required
             self._n_data[0] = self._modellink._n_data
             self._data_val[0] = self._modellink._data_val
@@ -531,27 +551,23 @@ class Emulator(object):
 
             # Controller only
             if self._is_controller:
-                # Open hdf5
+                # Open master hdf5-file
                 with PRISM_File('r+', None) as file:
                     # Save mock_data to hdf5
                     file.attrs['mock_par'] = self._modellink._par_est
 
-        # Load relevant data
-        self._load_data(0)
-
-        # Prepare first emulator iteration to be constructed
+        # Prepare first emulator iteration for construction
         self._prepare_new_iteration(1)
 
         # Logging again
         logger.info("Finished creating new emulator system.")
 
     # This function cleans up all the emulator files
-    # TODO: Also delete all projection figures?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _cleanup_emul_files(self, emul_i):
         """
         Opens all emulator HDF5-files and removes the provided emulator
-        iteration `emul_i` and subsequent iterations from the files.
+        iteration `emul_i` and subsequent iterations from them.
 
         Parameters
         ----------
@@ -564,36 +580,58 @@ class Emulator(object):
         logger.info("Cleaning up emulator HDF5-files, starting at emulator"
                     " iteration %s." % (emul_i))
 
-        # Controller only
-        if self._is_controller:
-            # Check what the maximum number of emulator systems is
-            try:
-                n_emuls = max(self._n_data_tot[1:])
-            except ValueError:
-                n_emuls = 0
+        # Workers wait for controller to finish clean-up
+        if self._is_worker:
+            # MPI Barrier
+            self._comm.Barrier()
 
-            # Loop over all emulator system files
-            for s in range(0, n_emuls):
-                # Open emulator system HDF5-file
-                with PRISM_File('r+', s) as file:
-                    # Loop over all requested iterations to be removed
-                    for i in range(emul_i, self._emul_i+2):
-                        # Try to remove it, skip if not possible
-                        try:
-                            del file['%s' % (i)]
-                        except KeyError:
-                            pass
+            # Set emul_i to the last iteration still present in files
+            self._emul_i = emul_i-1
 
-            # Open emulator master HDF5-file if it exists
-            if n_emuls:
-                with PRISM_File('r+', None) as file:
-                    # Loop over all requested iterations to be removed
-                    for i in range(emul_i, self._emul_i+2):
-                        # Try to remove it, skip if not possible
-                        try:
-                            del file['%s' % (i)]
-                        except KeyError:
-                            pass
+            # Return
+            return
+
+        # Loop over all emulator system HDF5-files
+        for s in range(0, self._n_emul_s_tot):
+            # Open emulator system HDF5-file
+            with PRISM_File('r+', s) as file:
+                # Loop over all requested iterations to be removed
+                for i in range(emul_i, self._emul_i+2):
+                    # Try to remove it, skip if not possible
+                    try:
+                        del file['%s' % (i)]
+                    except KeyError:
+                        pass
+
+        # Open emulator master HDF5-file if it exists
+        if self._n_emul_s_tot:
+            with PRISM_File('r+', None) as file:
+                # Loop over all requested iterations to be removed
+                for i in range(emul_i, self._emul_i+2):
+                    # Determine the figure name prefix
+                    fig_prefix = path.join(self._pipeline._working_dir,
+                                           '%s_proj_' % (i))
+
+                    # Check if proj_hcube exists
+                    try:
+                        file['%s/proj_hcube' % (i)]
+                    except KeyError:
+                        pass
+                    else:
+                        # If so, get names of available hcubes
+                        hcube_names = list(file['%s/proj_hcube' % (i)].keys())
+
+                        # Try to remove figures for which data is available
+                        for hcube_name in hcube_names:
+                            fig_path = '%s(%s).png' % (fig_prefix, hcube_name)
+                            if path.exists(fig_path):
+                                os.remove(fig_path)
+
+                    # Try to remove the iteration, skip if not possible
+                    try:
+                        del file['%s' % (i)]
+                    except KeyError:
+                        pass
 
         # MPI Barrier
         self._comm.Barrier()
@@ -604,6 +642,59 @@ class Emulator(object):
         # Do more logging
         logger.info("Finished cleaning up emulator HDF5-files.")
 
+    # This function reads in data_idx parts, combines them and returns it
+    def _read_data_idx(self, emul_s_group):
+        """
+        Reads in and combines the parts of the data point identifier that is
+        assigned to the provided `emul_s_group`.
+
+        Parameters
+        ----------
+        emul_s_group : :obj:`~h5py._hl.group.Group` object
+            The HDF5-group from which the data point identifier needs to be
+            read in.
+
+        Returns
+        -------
+        data_idx : list of {int, float, str}
+            The combined data point identifier.
+
+        """
+
+        # Obtain list of attribute keys that contain data_idx parts
+        idx_keys = [key for key in emul_s_group.attrs.keys()
+                    if key[:8] == 'data_idx']
+
+        # Determine the number of parts
+        idx_len = len(idx_keys)
+
+        # If there is a single part, save it instead of a list
+        if(idx_len == 1):
+            # If part is an encoded string, decode and save it
+            if isinstance(emul_s_group.attrs['data_idx'], bytes):
+                data_idx = emul_s_group.attrs['data_idx'].decode('utf-8')
+            # Else, save it normally
+            else:
+                data_idx = emul_s_group.attrs['data_idx']
+
+        # If there are multiple parts, add all of them to a list
+        else:
+            # Initialize empty data_idx list
+            data_idx = []
+
+            # Loop over all parts
+            for key in idx_keys:
+                # If part is an encoded string, decode and save it
+                if isinstance(emul_s_group.attrs[key], bytes):
+                    idx_str = emul_s_group.attrs[key].decode('utf-8')
+                    data_idx.append(idx_str)
+                # Else, save it normally
+                else:
+                    data_idx.append(emul_s_group.attrs[key])
+
+        # Return data_idx
+        return(data_idx)
+
     # This function matches data points with those in a previous iteration
     # TODO: Give every unique data_idx its own emul_s?
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -611,7 +702,7 @@ class Emulator(object):
         """
         Determines the emulator system each data point in the provided emulator
         iteration `emul_i` should be assigned to, in order to make sure that
-        recurring data points have the same emulator system number as in the
+        recurring data points have the same emulator system index as in the
         previous emulator iteration. If multiple options are possible, data
         points are assigned such to spread them as much as possible.
 
@@ -622,7 +713,7 @@ class Emulator(object):
         Returns
         -------
         data_to_emul_s : list of int
-            The number of the emulator system that each data point should be
+            The index of the emulator system that each data point should be
             assigned to.
         n_emul_s : int
             The total number of active and passive emulator systems there will
@@ -678,37 +769,25 @@ class Emulator(object):
         else:
             n_emul_s = self._modellink._n_data
 
+        # Create some empty lists
         active_emul_s_list = [[]]
         data_idx_list = []
 
         # Open hdf5-file
         with PRISM_File('r', None) as file:
+            # Loop over all previous iterations
             for i in range(1, emul_i):
+                # Obtain the active emulator systems for this iteration
                 active_emul_s_list.append(
                         [int(key[5:]) for key in file['%s' % (i)].keys() if
                          key[:5] == 'emul_'])
 
+            # Loop over all active emulator systems in the last iteration
             for emul_s in active_emul_s_list[-1]:
                 data_set = file['%s/emul_%s' % (emul_i-1, emul_s)]
+
                 # Read in all data_idx parts and combine them
-                idx_keys = [key for key in data_set.attrs.keys()
-                            if key[:8] == 'data_idx']
-                idx_len = len(idx_keys)
-                if(idx_len == 1):
-                    if isinstance(data_set.attrs['data_idx'], bytes):
-                        data_idx_list.append(
-                            data_set.attrs['data_idx'].decode('utf-8'))
-                    else:
-                        data_idx_list.append(data_set.attrs['data_idx'])
-                else:
-                    tmp_data_idx = []
-                    for key in idx_keys:
-                        if isinstance(data_set.attrs[key], bytes):
-                            idx_str = data_set.attrs[key].decode('utf-8')
-                            tmp_data_idx.append(idx_str)
-                        else:
-                            tmp_data_idx.append(data_set.attrs[key])
-                    data_idx_list.append(tmp_data_idx)
+                data_idx_list.append(self._read_data_idx(data_set))
 
         # Set number of occurances for all emulator systems to 0
         for emul_s in range(n_emul_s):
@@ -735,7 +814,7 @@ class Emulator(object):
                 # Also remove emul_s from emul_s_counter
                 emul_s_counter.pop(emul_s)
 
-        # Assign all 'new' data points to the non-filled emulator systems
+        # Assign all 'new' data points to the empty emulator systems
         for i in range(self._modellink._n_data):
             # Check if this data point has already been assigned
             if(data_to_emul_s[i] == []):
@@ -759,8 +838,8 @@ class Emulator(object):
     def _assign_emul_s(self, emul_i):
         """
         Determines which emulator systems (files) should be assigned to which
-        rank in order to balance the number of active emulator systems on every
-        rank for every iteration up to the provided emulator iteration
+        MPI rank in order to balance the number of active emulator systems on
+        every rank for every iteration up to the provided emulator iteration
         `emul_i`. If multiple choices can achieve this, the emulator systems
         are automatically spread out such that the total number of active
         emulator systems on a single rank is also balanced as much as possible.
@@ -892,13 +971,12 @@ class Emulator(object):
         return(emul_s_to_core)
 
     # Prepares the emulator for a new iteration
-    # HINT: Should _create_new_emulator be combined with this method?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _prepare_new_iteration(self, emul_i):
         """
-        Prepares the emulator system for the construction of a new iteration
-        `emul_i`. Checks if this iteration can be prepared or if it has been
-        prepared before, and acts accordingly.
+        Prepares the emulator for the construction of a new iteration `emul_i`.
+        Checks if this iteration can be prepared or if it has been prepared
+        before, and acts accordingly.
 
         Parameters
         ----------
@@ -907,19 +985,19 @@ class Emulator(object):
         Returns
         -------
         reload : bool
-            Bool indicating whether or not the :obj:`~Pipeline` instance needs
-            to reload its data.
+            Bool indicating whether or not the controller rank of the
+            :obj:`~Pipeline` instance needs to reload its data.
 
         Generates
         ---------
-        A new group in the HDF5-file with the emulator iteration as its name,
-        containing subgroups corresponding to all different model comparison
-        data that will be used in this iteration.
+        A new group in the master HDF5-file with the emulator iteration as its
+        name, containing subgroups corresponding to all emulator systems that
+        will be used in this iteration.
 
         Notes
         -----
-        Preparing an iteration that has already been constructed, causes that
-        and all subsequent iterations of the emulator system to be deleted.
+        Preparing an iteration that has been prepared before, causes that and
+        all subsequent iterations of the emulator to be deleted.
         A check is carried out to see if it was necessary to reprepare the
         requested iteration and a warning is given if this check fails.
 
@@ -936,12 +1014,9 @@ class Emulator(object):
             # Set reload flag to 1
             reload = 1
         elif not(1 <= emul_i-1 <= self._emul_i):
-            logger.error("Preparation of emulator iteration %s is only "
-                         "available when all previous iterations exist!"
-                         % (emul_i))
-            raise RequestError("Preparation of emulator iteration %s is "
-                               "only available when all previous "
-                               "iterations exist!" % (emul_i))
+            err_msg = ("Preparation of emulator iteration %s is only available"
+                       " when all previous iterations exist!" % (emul_i))
+            raise_error(RequestError, err_msg, logger)
         elif(emul_i-1 == self._emul_i):
             # Set reload flag to 0
             reload = 0
@@ -973,18 +1048,13 @@ class Emulator(object):
 
             # If all diff_flags were 0, give out a warning
             if self._is_controller and not diff_flag:
-                logger.warning("No differences in model comparison data "
-                               "detected.\nUnless this repreparation was "
-                               "intentional, using the 'analyze' method of"
-                               " the Pipeline class is much faster for "
-                               "reanalyzing the emulator with new pipeline"
-                               " parameters.")
-                print("No differences in model comparison data "
-                      "detected.\nUnless this repreparation was "
-                      "intentional, using the 'analyze' method of "
-                      "the Pipeline class is much faster for "
-                      "reanalyzing the emulator with new pipeline "
-                      "parameters.")
+                msg = ("No differences in model comparison data detected."
+                       "\nUnless this repreparation was intentional, using the"
+                       " 'analyze' method of the Pipeline class is much faster"
+                       " for reanalyzing the emulator with new pipeline "
+                       "parameters.")
+                logger.warning(msg)
+                print(msg)
 
             # Set reload flag to 1
             reload = 1
@@ -1028,23 +1098,29 @@ class Emulator(object):
                                                                 'ignore')
 
                         # Save data_idx in portions to make it HDF5-compatible
-                        if isinstance(self._modellink._data_idx[i], list):
-                            for j, idx in enumerate(
-                                    self._modellink._data_idx[i]):
+                        data_idx = self._modellink._data_idx[i]
+
+                        # If data_idx contains multiple parts
+                        if isinstance(data_idx, list):
+                            # Loop over all parts
+                            for j, idx in enumerate(data_idx):
+                                # If part is a string, encode and save it
                                 if isinstance(idx, (str, unicode)):
                                     data_set.attrs['data_idx_%s' % (j)] =\
                                         idx.encode('ascii', 'ignore')
+                                # Else, save it normally
                                 else:
                                     data_set.attrs['data_idx_%s' % (j)] = idx
+
+                        # If data_idx contains a single part, save it
                         else:
-                            if isinstance(self._modellink._data_idx[i],
-                                          (str, unicode)):
+                            # If part is a string, encode and save it
+                            if isinstance(data_idx, (str, unicode)):
                                 data_set.attrs['data_idx'] =\
-                                    self._modellink._data_idx[i].encode(
-                                        'ascii', 'ignore')
+                                    data_idx.encode('ascii', 'ignore')
+                            # Else, save it normally
                             else:
-                                data_set.attrs['data_idx'] =\
-                                    self._modellink._data_idx[i]
+                                data_set.attrs['data_idx'] = data_idx
 
                         # Create external link between file_i and master file
                         group['emul_%s' % (emul_s)] = h5py.ExternalLink(
@@ -1055,6 +1131,7 @@ class Emulator(object):
 
         # All ranks reload the emulator systems to allow for reassignments
         self._emul_i = emul_i
+        self._emul_load = 1
         self._load_data(emul_i)
 
         # Logging
@@ -1068,8 +1145,9 @@ class Emulator(object):
     def _construct_iteration(self, emul_i):
         """
         Constructs the emulator iteration corresponding to the provided
-        `emul_i`, by performing the given emulator method and calculating the
-        prior expectation and variance values of the model evaluation samples.
+        `emul_i`, by performing the given emulator method and pre-calculating
+        the prior expectation and variance values of the used model evaluation
+        samples.
 
         Parameters
         ----------
@@ -1077,7 +1155,8 @@ class Emulator(object):
 
         Generates
         ---------
-        All data sets that are required to evaluate the emulator system.
+        All data sets that are required to evaluate the emulator at the
+        constructed iteration.
 
         """
 
@@ -1108,12 +1187,11 @@ class Emulator(object):
         if len(ccheck_cov_mat):
             self._get_cov_matrix(emul_i, ccheck_cov_mat)
 
-        # Calculate the prior expectation values of sam_set
-        ccheck_pre_calc_term = [emul_s for emul_s in emul_s_seq if
-                                'exp_dot_term' in
-                                self._ccheck[emul_i][emul_s]]
-        if len(ccheck_pre_calc_term):
-            self._get_exp_dot_term(emul_i, ccheck_pre_calc_term)
+        # Calculate the second dot-term for the adjusted expectation
+        ccheck_exp_dot_term = [emul_s for emul_s in emul_s_seq if
+                               'exp_dot_term' in self._ccheck[emul_i][emul_s]]
+        if len(ccheck_exp_dot_term):
+            self._get_exp_dot_term(emul_i, ccheck_exp_dot_term)
 
         # If a worker is finished, set current emul_i to constructed emul_i
         if self._is_worker:
@@ -1146,30 +1224,8 @@ class Emulator(object):
 
     # This is function 'E_D(f(x'))'
     # This function gives the adjusted emulator expectation value back
-    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
+    @docstring_append(adj_exp_doc)
     def _get_adj_exp(self, emul_i, emul_s_seq, par_set, cov_vec):
-        """
-        Calculates the adjusted emulator expectation value at a given emulator
-        iteration `emul_i` for specified parameter set `par_set` and
-        corresponding covariance vector `cov_vec`.
-
-        Parameters
-        ----------
-        %(emul_i)s
-        %(emul_s_seq)s
-        par_set : 1D :obj:`~numpy.ndarray` object
-            Model parameter value set to calculate the adjusted emulator
-            expectation for.
-        cov_vec : 2D :obj:`~numpy.ndarray` object
-            Covariance vector corresponding to `par_set`.
-
-        Returns
-        -------
-        adj_exp_val : 1D :obj:`~numpy.ndarray` object
-            Adjusted emulator expectation value for every data point.
-
-        """
-
         # Obtain prior expectation value of par_set
         prior_exp_par_set = self._get_prior_exp(emul_i, emul_s_seq, par_set)
 
@@ -1186,32 +1242,10 @@ class Emulator(object):
 
     # This is function 'Var_D(f(x'))'
     # This function gives the adjusted emulator variance value back
-    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
+    @docstring_append(adj_var_doc)
     def _get_adj_var(self, emul_i, emul_s_seq, par_set, cov_vec):
-        """
-        Calculates the adjusted emulator variance value at a given emulator
-        iteration `emul_i` for specified parameter set `par_set` and
-        corresponding covariance vector `cov_vec`.
-
-        Parameters
-        ----------
-        %(emul_i)s
-        %(emul_s_seq)s
-        par_set : 1D :obj:`~numpy.ndarray` object
-            Model parameter value set to calculate the adjusted emulator
-            variance for.
-        cov_vec : 2D :obj:`~numpy.ndarray` object
-            Covariance vector corresponding to `par_set`.
-
-        Returns
-        -------
-        adj_var_val : 1D :obj:`~numpy.ndarray` object
-            Adjusted emulator variance value for every data point.
-
-        """
-
         # Obtain prior variance value of par_set
-        prior_var_par_set = self._get_prior_var(emul_i, emul_s_seq, par_set)
+        prior_var_par_set = self._get_cov(emul_i, emul_s_seq, par_set, par_set)
 
         # Create empty adj_var_val
         adj_var_val = np.zeros(len(emul_s_seq))
@@ -1227,30 +1261,11 @@ class Emulator(object):
 
     # This function evaluates the emulator at a given emul_i and par_set and
     # returns the adjusted expectation and variance values
-    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
+    # TODO: Take sam_set instead of par_set?
+    @docstring_append(eval_doc)
     def _evaluate(self, emul_i, emul_s_seq, par_set):
-        """
-        Evaluates the emulator system at iteration `emul_i` for given
-        `par_set`.
-
-        Parameters
-        ----------
-        %(emul_i)s
-        %(emul_s_seq)s
-        par_set : 1D :obj:`~numpy.ndarray` object
-            Model parameter value set to evaluate the emulator at.
-
-        Returns
-        -------
-        adj_exp_val : 1D :obj:`~numpy.ndarray` object
-            Adjusted emulator expectation value for every data point.
-        adj_var_val : 1D :obj:`~numpy.ndarray` object
-            Adjusted emulator variance value for every data point.
-
-        """
-
         # Calculate the covariance vector for this par_set
-        cov_vec = self._get_cov_vector(emul_i, emul_s_seq, par_set)
+        cov_vec = self._get_cov(emul_i, emul_s_seq, par_set, None)
 
         # Calculate the adjusted expectation and variance values
         adj_exp_val = self._get_adj_exp(emul_i, emul_s_seq, par_set, cov_vec)
@@ -1269,21 +1284,22 @@ class Emulator(object):
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
     def _get_active_par(self, emul_i, emul_s_seq):
         """
-        Determines the active parameters to be used for every individual data
-        point defined in `emul_s_seq` in the provided emulator iteration
-        `emul_i`. Uses backwards stepwise elimination to determine the set of
-        active parameters.
+        Determines the active parameters to be used for every emulator system
+        listed in `emul_s_seq` in the provided emulator iteration `emul_i`.
+        Uses backwards stepwise elimination to determine the set of active
+        parameters. The polynomial order that is used in the stepwise
+        elimination depends on :attr:`~poly_order`.
 
         Parameters
         ----------
         %(emul_i)s
         %(emul_s_seq)s
 
-        Generates
-        ---------
-        active_par_data : List of 1D :obj:`~numpy.ndarray` objects
-            List containing the indices of all the parameters that are active
-            in the emulator iteration `emul_i` for every individual data point.
+        Generates (for every emulator system)
+        -------------------------------------
+        active_par_data : 1D :obj:`~numpy.ndarray` object
+            Array containing the indices of all the parameters that are active
+            in the emulator iteration `emul_i`.
 
         """
 
@@ -1291,7 +1307,7 @@ class Emulator(object):
         logger = getLogger('ACTIVE_PAR')
         logger.info("Determining active parameters.")
 
-        # Loop over all data points and determine active parameters
+        # Loop over all emulator systems and determine active parameters
         for emul_s in emul_s_seq:
             # Initialize active parameters data set
             active_par_data = SortedSet()
@@ -1310,51 +1326,55 @@ class Emulator(object):
 
             # If requested, perform a sequential backward stepwise regression
             else:
-                # Obtain frozen+potentially active parameters
-                frz_pot_act_par = SortedSet(active_par_data)
-                frz_pot_act_par.update(self._pipeline._pot_active_par)
-                frz_pot_act_par = list(frz_pot_act_par)
-                frz_pot_act_idx = list(range(len(frz_pot_act_par)))
-
-                # Obtain non-frozen potentially active parameters
-                non_frz_par = [j for j in self._pipeline._pot_active_par
-                               if j not in active_par_data]
-                non_frz_idx = [frz_pot_act_par.index(j) for j in non_frz_par]
-
-                # Obtain sam_set of frz_pot_act_par
-                frz_pot_act_sam_set = self._sam_set[emul_i][:, frz_pot_act_par]
-
-                # Obtain polynomial terms of frz_pot_act_sam_set
-                pf_obj = PF(self._poly_order, include_bias=False)
-                frz_pot_act_poly_terms =\
-                    pf_obj.fit_transform(frz_pot_act_sam_set)
-
                 # Create SequentialFeatureSelector object
                 sfs_obj = SFS(LR(), k_features='parsimonious', forward=False,
                               floating=False, scoring='r2',
                               cv=min(5, self._n_sam[emul_i]))
 
+                # Obtain frozen+potentially active parameters list
+                frz_pot_par = SortedSet(active_par_data)
+                frz_pot_par.update(self._pipeline._pot_active_par)
+                frz_pot_par = list(frz_pot_par)
+                frz_pot_idx = list(range(len(frz_pot_par)))
+
+                # Obtain non-frozen potentially active parameters
+                non_frz_par = [par for par in self._pipeline._pot_active_par
+                               if par not in active_par_data]
+                non_frz_idx = [frz_pot_par.index(par) for par in non_frz_par]
+
+                # Obtain sam_set of frz_pot_act_par
+                frz_pot_sam_set = self._sam_set[emul_i][:, frz_pot_par]
+
+                # Obtain polynomial terms of frz_pot_act_sam_set
+                pf_obj = PF(self._poly_order, include_bias=False)
+                frz_pot_poly_terms = pf_obj.fit_transform(frz_pot_sam_set)
+
                 # Perform linear regression with linear terms only
-                sfs_obj.fit(frz_pot_act_sam_set, self._mod_set[emul_i][emul_s])
+                sfs_obj.fit(frz_pot_sam_set, self._mod_set[emul_i][emul_s])
 
                 # Extract active parameters due to linear significance
                 act_idx_lin = list(sfs_obj.k_feature_idx_)
 
                 # Get passive non-frozen parameters in linear significance
-                pas_idx_lin = [j for j in non_frz_idx if j not in act_idx_lin]
+                pas_idx_lin = [i for i in non_frz_idx if i not in act_idx_lin]
 
                 # Make sure frozen parameters are considered active
-                act_idx_lin = [j for j in frz_pot_act_idx
-                               if j not in pas_idx_lin]
+                act_idx_lin = [i for i in frz_pot_idx if i not in pas_idx_lin]
                 act_idx = list(act_idx_lin)
 
                 # Perform n-order polynomial regression for every passive par
-                for j in pas_idx_lin:
-                    # Obtain polynomial terms for this passive parameter
-                    poly_idx = pf_obj.powers_[:, j] != 0
+                for i in pas_idx_lin:
+                    # Determine which polynomial terms involve this passive par
+                    poly_idx = pf_obj.powers_[:, i] != 0
+
+                    # Add the active linear terms as well
                     poly_idx[act_idx_lin] = 1
+
+                    # Convert poly_idx to an array of indices
                     poly_idx = np.arange(len(poly_idx))[poly_idx]
-                    poly_terms = frz_pot_act_poly_terms[:, poly_idx]
+
+                    # Obtain polynomial terms for this passive parameter
+                    poly_terms = frz_pot_poly_terms[:, poly_idx]
 
                     # Perform linear regression with addition of poly terms
                     sfs_obj.fit(poly_terms, self._mod_set[emul_i][emul_s])
@@ -1364,11 +1384,11 @@ class Emulator(object):
 
                     # Check if any additional polynomial terms survived
                     # Add i to act_idx if this is the case
-                    if np.any([k not in act_idx_lin for k in act_idx_poly]):
-                        act_idx.append(j)
+                    if np.any([j not in act_idx_lin for j in act_idx_poly]):
+                        act_idx.append(i)
 
-                # Update the active parameters for this data set
-                active_par_data.update(np.array(frz_pot_act_par)[act_idx])
+                # Update the active parameters for this emulator system
+                active_par_data.update(np.array(frz_pot_par)[act_idx])
 
             # Log the resulting active parameters
             logger.info("Active parameters for emulator system %s: %s"
@@ -1387,36 +1407,36 @@ class Emulator(object):
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
     def _do_regression(self, emul_i, emul_s_seq):
         """
-        Performs a forward stepwise linear regression on all model evaluation
-        samples in emulator iteration `emul_i`. Calculates what the expectation
-        values of all polynomial coefficients are. The polynomial order that is
-        used in the regression depends on the `poly_order` parameter provided
-        during class initialization.
+        Performs a forward stepwise linear regression for all requested
+        emulator systems `emul_s_seq` in the provided emulator iteration
+        `emul_i`. Calculates what the expectation values of all polynomial
+        coefficients are. The polynomial order that is used in the regression
+        depends on :attr:`~poly_order`.
 
         Parameters
         ----------
         %(emul_i)s
         %(emul_s_seq)s
 
-        Generates
-        ---------
-        rsdl_var : 1D list
-            List containing the residual variances of the regression function.
-        regr_score : 1D list
-            List containing the regression scores of the regression function.
-        poly_coef : 2D list
-            List containing the expectation values of the polynomial
-            coefficients for all data points.
-        poly_powers : 2D list
-            List containing the powers every sample needs to be raised to, in
-            order to obtain the polynomial terms used in the regression
-            function.
-        poly_idx : 2D list
-            List containing the indices of the polynomial terms that are used
-            in the regression function.
-        poly_coef_cov : 2D list (if :attr:`~Emulator.use_regr_cov` == *True*)
-            List containing the covariance values of the polynomial
-            coefficients for all data points.
+        Generates (for every emulator system)
+        -------------------------------------
+        rsdl_var : float
+            Residual variance of the regression function.
+        regr_score : float
+            Fit-score of the regression function.
+        poly_coef : 1D :obj:`~numpy.ndarray` object
+            Array containing the expectation values of the non-zero polynomial
+            coefficients.
+        poly_powers : 2D :obj:`~numpy.ndarray` object
+            Array containing the powers of the non-zero polynomial terms in the
+            regression function.
+        poly_idx : 1D :obj:`~numpy.ndarray` object
+            Array containing the indices of the non-zero polynomial terms in
+            the regression function.
+        poly_coef_cov : 1D :obj:`~numpy.ndarray` object (if \
+            :attr:`~use_regr_cov` is *True*)
+            Array containing the covariance values of the non-zero polynomial
+            coefficients.
 
         """
 
@@ -1429,7 +1449,7 @@ class Emulator(object):
                       scoring='neg_mean_squared_error',
                       cv=min(5, self._n_sam[emul_i]))
 
-        # Create Pipeline object
+        # Create Scikit-learn Pipeline object
         # The bias/intercept/constant-term is not included in the SFS object to
         # ensure that it is taken into account in the linear regression, since
         # it is required for getting the residual variance. It also ensures
@@ -1438,22 +1458,21 @@ class Emulator(object):
                             ('SFS', sfs_obj),
                             ('linear', LR())])
 
-        # Loop over all data points and perform a regression on all of them
-        # TODO: Redetermine active parameters after regression process
+        # Loop over all emulator systems and perform a regression on them
         for emul_s in emul_s_seq:
             # Extract active_sam_set
             active_sam_set = self._sam_set[emul_i][
                     :, self._active_par_data[emul_i][emul_s]]
 
-            # Perform regression on this data point
+            # Perform regression for this emulator system
             pipe.fit(active_sam_set, self._mod_set[emul_i][emul_s])
 
             # Obtain the corresponding polynomial indices
-            poly_idx_temp = np.array(pipe.named_steps['SFS'].k_feature_idx_)
+            poly_idx = np.array(pipe.named_steps['SFS'].k_feature_idx_)
 
             # Extract sam_set_poly
             sam_set_poly = pipe.named_steps['poly'].transform(
-                active_sam_set)[:, poly_idx_temp]
+                active_sam_set)[:, poly_idx]
 
             # Extract the residual variance
             rsdl_var = mse(self._mod_set[emul_i][emul_s],
@@ -1466,8 +1485,7 @@ class Emulator(object):
                         % (self._emul_s[emul_s], regr_score))
 
             # Add the intercept term to sam_set_poly
-            sam_set_poly = np.concatenate([np.ones([self._n_sam[emul_i], 1]),
-                                           sam_set_poly], axis=-1)
+            sam_set_poly = np.insert(sam_set_poly, 0, 1, 0)
 
             # Calculate the poly_coef covariances
             if self._use_regr_cov:
@@ -1475,31 +1493,33 @@ class Emulator(object):
                     np.dot(sam_set_poly.T, sam_set_poly)).flatten()
 
             # Obtain polynomial powers and include intercept term
-            poly_powers_temp = pipe.named_steps['poly'].powers_[poly_idx_temp]
-            poly_powers_intercept =\
-                [[0]*len(self._active_par_data[emul_i][emul_s])]
-            poly_powers = np.concatenate([poly_powers_intercept,
-                                          poly_powers_temp])
+            poly_powers = np.insert(pipe.named_steps['poly'].powers_[poly_idx],
+                                    0, 0, 0)
 
-            # Add intercept term to polynomial indices
-            poly_idx_temp += 1
-            poly_idx = np.concatenate([[0], poly_idx_temp])
+            # Redetermine the active parameters, poly_powers and poly_idx
+            new_active_par = [np.any(powers) for powers in poly_powers.T]
+            poly_powers = poly_powers[:, new_active_par]
+            new_powers =\
+                PF(self._poly_order).fit([[0]*poly_powers.shape[1]]).powers_
+            new_powers_list = new_powers.tolist()
+            poly_powers_list = poly_powers.tolist()
+            poly_idx = np.array([i for i, powers in enumerate(new_powers_list)
+                                 if powers in poly_powers_list])
 
             # Obtain polynomial coefficients and include intercept term
-            poly_coef_temp = pipe.named_steps['linear'].coef_
-            poly_coef_intercept = [pipe.named_steps['linear'].intercept_]
-            poly_coef = np.concatenate([poly_coef_intercept,
-                                        poly_coef_temp])
+            poly_coef = np.insert(pipe.named_steps['linear'].coef_, 0,
+                                  pipe.named_steps['linear'].intercept_, 0)
 
             # Save everything to hdf5
             if self._use_regr_cov:
                 self._save_data(emul_i, emul_s, {
-                    'regression': [rsdl_var, regr_score, poly_coef,
-                                   poly_powers, poly_idx, poly_coef_cov]})
+                    'regression': [new_active_par, rsdl_var, regr_score,
+                                   poly_coef, poly_powers, poly_idx,
+                                   poly_coef_cov]})
             else:
                 self._save_data(emul_i, emul_s, {
-                    'regression': [rsdl_var, regr_score, poly_coef,
-                                   poly_powers, poly_idx]})
+                    'regression': [new_active_par, rsdl_var, regr_score,
+                                   poly_coef, poly_powers, poly_idx]})
 
         # Log that this is finished
         logger.info("Finished performing regression.")
@@ -1509,9 +1529,9 @@ class Emulator(object):
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
     def _get_prior_exp(self, emul_i, emul_s_seq, par_set):
         """
-        Calculates the prior expectation value at a given emulator iteration
-        `emul_i` for specified parameter set `par_set`. This expectation
-        depends on the emulator method used.
+        Calculates the prior expectation value for requested emulator systems
+        `emul_s_seq` at a given emulator iteration `emul_i` for specified
+        parameter set `par_set`. This expectation depends on :attr:`~method`.
 
         Parameters
         ----------
@@ -1525,8 +1545,8 @@ class Emulator(object):
         Returns
         -------
         prior_exp : 1D or 2D :obj:`~numpy.ndarray` object
-            Prior expectation values for either sam_set or `par_set` for every
-            data point.
+            Prior expectation values for either sam_set or `par_set` for
+            requested emulator systems.
 
         """
 
@@ -1577,9 +1597,9 @@ class Emulator(object):
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
     def _get_exp_dot_term(self, emul_i, emul_s_seq):
         """
-        Pre-calculates the second expectation adjustment dot-term at a given
-        emulator iteration `emul_i` for all model evaluation samples and saves
-        it for later use.
+        Pre-calculates the second expectation adjustment dot-term for requested
+        emulator systems `emul_s_seq` at a given emulator iteration `emul_i`
+        for all model evaluation samples and saves it for later use.
 
         Parameters
         ----------
@@ -1590,9 +1610,8 @@ class Emulator(object):
         ---------
         exp_dot_term : 2D :obj:`~numpy.ndarray` object
             2D array containing the pre-calculated values for the second
-            adjustment dot-term of the adjusted expectation for all model
-            evaluation samples for all data points. Has the same shape as the
-            array with model outputs.
+            adjustment dot-term of the adjusted expectation for requested
+            emulator systems.
 
         """
 
@@ -1616,61 +1635,17 @@ class Emulator(object):
         logger.info("Finished pre-calculating second adjustment dot-term "
                     "values.")
 
-    # This function gives the prior variance value
-    # This is function 'Var(f(x'))'
-    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _get_prior_var(self, emul_i, emul_s_seq, par_set):
-        """
-        Calculates the prior variance value at a given emulator iteration
-        `emul_i` for specified parameter set `par_set`. This variance depends
-        on the emulator method used.
-
-        Parameters
-        ----------
-        %(emul_i)s
-        %(emul_s_seq)s
-        par_set : 1D :obj:`~numpy.ndarray` object
-            Model parameter value set to calculate the prior variance for.
-
-        Returns
-        -------
-        prior_var : 1D :obj:`~numpy.ndarray` object
-            Prior variance value for every data point.
-
-        """
-
-        # Return it
-        return(self._get_cov(emul_i, emul_s_seq, par_set, par_set))
-
     # This function calculates the covariance between parameter sets
     # This is function 'Cov(f(x), f(x'))' or 'k(x,x')
-    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
+    @docstring_substitute(full_cov=full_cov_doc)
     def _get_cov(self, emul_i, emul_s_seq, par_set1, par_set2):
         """
-        Calculates the full emulator covariances at emulator iteration `emul_i`
-        for given parameter sets `par_set1` and `par_set2`. The contributions
-        to these covariances depend on the emulator method used.
+        Calculates the full emulator covariances for requested emulator systems
+        `emul_s_seq` at emulator iteration `emul_i` for given parameter sets
+        `par_set1` and `par_set2`. The contributions to these covariances
+        depend on :attr:`~method`.
 
-        Parameters
-        ----------
-        %(emul_i)s
-        %(emul_s_seq)s
-        par_set1, par_set2 : 1D :obj:`~numpy.ndarray` object or None
-            If `par_set1` and `par_set2` are both not *None*, calculate
-            covariances for `par_set1` with `par_set2`.
-            If `par_set1` is not *None* and `par_set2` is *None*, calculate
-            covariances for `par_set1` with :attr:`~Emulator.sam_set`
-            (covariance vector).
-            If `par_set1` and `par_set2` are both *None*, calculate covariances
-            for :attr:`~Emulator.sam_set` (covariance matrix).
-            When not *None*, `par_set` is the model parameter value set to
-            calculate the covariances for.
-
-        Returns
-        -------
-        cov : 1D, 2D or 3D :obj:`~numpy.ndarray` object
-            Depending on the arguments provided, a covariance value, vector or
-            matrix for all data points.
+        %(full_cov)s
 
         """
 
@@ -1781,32 +1756,14 @@ class Emulator(object):
     # This function calculates the regression covariance between parameter sets
     # This is function 'Cov(r(x), r(x'))'
     # OPTIMIZE: Takes roughly 45-50% of total evaluation time
-    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
+    @docstring_substitute(regr_cov=regr_cov_doc)
     def _get_regr_cov(self, emul_i, emul_s_seq, par_set1, par_set2):
         """
-        Calculates the covariances of the regression function at emulator
-        iteration `emul_i` for given parameter sets `par_set1` and `par_set2`.
+        Calculates the covariances of the regression function for requested
+        emulator systems `emul_s_seq` at emulator iteration `emul_i` for given
+        parameter sets `par_set1` and `par_set2`.
 
-        Parameters
-        ----------
-        %(emul_i)s
-        %(emul_s_seq)s
-        par_set1, par_set2 : 1D :obj:`~numpy.ndarray` object or None
-            If `par_set1` and `par_set2` are both not *None*, calculate
-            regression covariances for `par_set1` with `par_set2`.
-            If `par_set1` is not *None* and `par_set2` is *None*, calculate
-            regression covariances for `par_set1` with
-            :attr:`~Emulator.sam_set` (covariance vector).
-            If `par_set1` and `par_set2` are both *None*, calculate regression
-            covariances for :attr:`~Emulator.sam_set`(covariance matrix).
-            When not *None*, `par_set` is the model parameter value set to
-            calculate the regression covariances for.
-
-        Returns
-        -------
-        regr_cov : 1D, 2D or 3D :obj:`~numpy.ndarray` object
-            Depending on the arguments provided, a regression covariance
-            value, vector or matrix for all data points.
+        %(regr_cov)s
 
         """
 
@@ -1890,45 +1847,14 @@ class Emulator(object):
         # Return it
         return(regr_cov)
 
-    # This function calculates the covariance vector of a given parameter set
-    # This is function 'Cov(f(x'), D)' or 't(x')'
-    # HINT: Calculate cov_vec for all samples at once to save time?
-    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _get_cov_vector(self, emul_i, emul_s_seq, par_set):
-        """
-        Calculates the column vector of covariances between given (`par_set`)
-        and known (:attr:`~Emulator.sam_set`) model parameter value sets for a
-        given emulator iteration `emul_i`.
-
-        Parameters
-        ----------
-        %(emul_i)s
-        %(emul_s_seq)s
-        par_set : 1D :obj:`~numpy.ndarray` object
-            Model parameter value set to calculate the covariances vector
-            for.
-
-        Returns
-        -------
-        cov_vec : 2D :obj:`~numpy.ndarray` object
-            Column vector containing the covariances between given and
-            known model parameter value sets for every data point.
-
-        """
-
-        # Calculate covariance vector
-        cov_vec = self._get_cov(emul_i, emul_s_seq, par_set, None)
-
-        # Return it
-        return(cov_vec)
-
     # This function calculates the covariance matrix
     # This is function 'Var(D)' or 'A'
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
     def _get_cov_matrix(self, emul_i, emul_s_seq):
         """
         Calculates the (inverse) matrix of covariances between known model
-        evaluation samples for a given emulator iteration `emul_i`.
+        evaluation samples for requested emulator systems `emul_s_seq` at
+        emulator iteration `emul_i`.
 
         Parameters
         ----------
@@ -1939,9 +1865,9 @@ class Emulator(object):
         ---------
         cov_mat : 3D :obj:`~numpy.ndarray` object
             Matrix containing the covariances between all known model
-            evaluation samples for every data point.
+            evaluation samples for requested emulator systems.
         cov_mat_inv : 3D :obj:`~numpy.ndarray` object
-            Inverse of covariance matrix for every data point.
+            Inverse of covariance matrix for requested emulator systems.
 
         """
 
@@ -1971,7 +1897,7 @@ class Emulator(object):
                 cov_mat[:, i] = self._get_cov(emul_i, emul_s_seq,
                                               self._sam_set[emul_i][i], None)
 
-        # Loop over all data points
+        # Loop over all emulator systems
         for i, emul_s in enumerate(emul_s_seq):
             # Make sure that cov_mat is symmetric positive-definite by
             # finding the nearest one
@@ -2018,8 +1944,8 @@ class Emulator(object):
     # Load the emulator
     def _load_emulator(self, modellink_obj):
         """
-        Checks if the provided HDF5-file contains a constructed emulator system
-        and loads in the emulator data accordingly.
+        Checks if the provided HDF5-file contains a constructed emulator and
+        loads in the emulator data accordingly.
 
         Parameters
         ----------
@@ -2031,12 +1957,12 @@ class Emulator(object):
 
         # Make logger
         logger = getCLogger('EMUL_LOAD')
-        logger.info("Loading emulator system.")
+        logger.info("Loading emulator.")
 
         # Check if an existing hdf5-file is provided
         try:
             logger.info("Checking if provided emulator file '%s' is a "
-                        "constructed emulator system."
+                        "constructed emulator."
                         % (self._pipeline._hdf5_file))
             with PRISM_File('r', None) as file:
                 # Existing emulator was provided
@@ -2049,10 +1975,9 @@ class Emulator(object):
                 # Check if the hdf5-file contains solely groups made by PRISM
                 req_keys = [str(i) for i in range(1, self._emul_i+1)]
                 if(req_keys != list(file.keys())):
-                    logger.error("Provided emulator HDF5-file contains invalid"
-                                 " data groups!")
-                    raise RequestError("Provided emulator HDF5-file contains "
-                                       "invalid data groups!")
+                    err_msg = ("Provided emulator HDF5-file contains invalid "
+                               "data groups!")
+                    raise_error(RequestError, err_msg, logger)
         except (OSError, IOError):
             # No existing emulator was provided
             logger.info("Non-existing HDF5-file provided.")
@@ -2072,15 +1997,15 @@ class Emulator(object):
         self._load_data(self._emul_i)
 
         # Logging
-        logger.info("Finished loading emulator system.")
+        logger.info("Finished loading emulator.")
 
     # This function connects the provided ModelLink class to the pipeline
     def _set_modellink(self, modellink_obj, modellink_loaded):
         """
         Sets the :obj:`~ModelLink` object that will be used for constructing
-        this emulator system. If a constructed emulator system is present,
-        checks if provided `modellink` argument matches the :class:`~ModelLink`
-        subclass used to construct it.
+        this emulator. If a constructed emulator is present, checks if provided
+        `modellink` argument matches the :class:`~ModelLink` subclass used to
+        construct it.
 
         Parameters
         ----------
@@ -2088,11 +2013,11 @@ class Emulator(object):
             Instance of the :class:`~ModelLink` class that links the emulated
             model to this :obj:`~Pipeline` object.
             The provided :obj:`~ModelLink` object must match the one used to
-            construct the loaded emulator system.
+            construct the loaded emulator.
         modellink_loaded : str or None
             If str, the name of the :class:`~ModelLink` subclass that was used
-            to construct the loaded emulator system.
-            If *None*, no emulator system is loaded.
+            to construct the loaded emulator.
+            If *None*, no emulator is loaded.
 
         """
 
@@ -2102,21 +2027,20 @@ class Emulator(object):
 
         # Check if a subclass of the ModelLink class has been provided
         if not isinstance(modellink_obj, ModelLink):
-            logger.error("Input argument 'modellink' must be an instance of "
-                         "the ModelLink class!")
-            raise TypeError("Input argument 'modellink' must be an instance "
-                            "of the ModelLink class!")
+            err_msg = ("Input argument 'modellink' must be an instance of the "
+                       "ModelLink class!")
+            raise_error(TypeError, err_msg, logger)
 
-        # If no existing emulator system is loaded, pass
+        # If no existing emulator is loaded, pass
         if modellink_loaded is None:
-            logger.info("No constructed emulator system is loaded.")
+            logger.info("No constructed emulator is loaded.")
             # Set ModelLink object for Emulator
             self._modellink = modellink_obj
 
             # Set ModelLink object for Pipeline
             self._pipeline._modellink = self._modellink
 
-        # If an existing emulator system is loaded, check if classes are equal
+        # If an existing emulator is loaded, check if classes are equal
         elif(modellink_obj._name == modellink_loaded):
             logger.info("Provided ModelLink subclass matches ModelLink "
                         "subclass used for emulator construction.")
@@ -2130,14 +2054,11 @@ class Emulator(object):
             # Set ModelLink object for Pipeline
             self._pipeline._modellink = self._modellink
         else:
-            logger.error("Provided ModelLink subclass '%s' does not match "
-                         "the ModelLink subclass '%s' used for emulator "
-                         "construction!"
-                         % (modellink_obj._name, modellink_loaded))
-            raise InputError("Provided ModelLink subclass '%s' does not "
-                             "match the ModelLink subclass '%s' used for "
-                             "emulator construction!"
-                             % (modellink_obj._name, modellink_loaded))
+            err_msg = ("Provided ModelLink subclass '%s' does not match the "
+                       "ModelLink subclass '%s' used for emulator "
+                       "construction!" % (modellink_obj._name,
+                                          modellink_loaded))
+            raise_error(InputError, err_msg, logger)
 
         # Logging
         logger.info("ModelLink object set to '%s'." % (self._modellink._name))
@@ -2168,14 +2089,14 @@ class Emulator(object):
         self._n_sam = [[]]
         self._sam_set = [[]]
         self._mod_set = [[]]
-        self._cov_mat_inv = [[]]
-        self._exp_dot_term = [[]]
         self._active_par_data = [[]]
         self._rsdl_var = [[]]
         self._poly_coef = [[]]
         self._poly_coef_cov = [[]]
         self._poly_powers = [[]]
         self._poly_idx = [[]]
+        self._cov_mat_inv = [[]]
+        self._exp_dot_term = [[]]
         self._n_data = [[]]
         self._data_val = [[]]
         self._data_err = [[]]
@@ -2201,10 +2122,9 @@ class Emulator(object):
 
         # Check if requested emulator iteration exists
         elif not(1 <= emul_i <= self._emul_i):
-            logger.error("Requested emulator iteration %s does not exist!"
-                         % (emul_i))
-            raise RequestError("Requested emulator iteration %s does not "
-                               "exist!" % (emul_i))
+            err_msg = ("Requested emulator iteration %s does not exist!"
+                       % (emul_i))
+            raise_error(RequestError, err_msg, logger)
 
         # If both checks succeed, assign emulator systems to the MPI ranks
         if self._is_controller:
@@ -2285,9 +2205,14 @@ class Emulator(object):
 
                 # Initialize empty data sets
                 mod_set = []
+                active_par_data = []
+                rsdl_var = []
+                poly_coef = []
+                poly_coef_cov = []
+                poly_powers = []
+                poly_idx = []
                 cov_mat_inv = []
                 exp_dot_term = []
-                active_par_data = []
                 data_val = []
                 data_err = []
                 data_spc = []
@@ -2306,9 +2231,14 @@ class Emulator(object):
                     except KeyError:
                         # Add empty lists for all emulator system data
                         mod_set.append([])
+                        active_par_data.append([])
+                        rsdl_var.append([])
+                        poly_coef.append([])
+                        poly_coef_cov.append([])
+                        poly_powers.append([])
+                        poly_idx.append([])
                         cov_mat_inv.append([])
                         exp_dot_term.append([])
-                        active_par_data.append([])
                         data_val.append([])
                         data_err.append([])
                         data_spc.append([])
@@ -2325,6 +2255,37 @@ class Emulator(object):
                     except KeyError:
                         mod_set.append([])
 
+                    # Check if active_par_data is available
+                    try:
+                        par_i = [self._modellink._par_name.index(
+                            par.decode('utf-8')) for par in
+                            data_set.attrs['active_par_data']]
+                        active_par_data.append(np.array(par_i))
+                    except KeyError:
+                        active_par_data.append([])
+                        ccheck_s.append('active_par_data')
+
+                    # Check if regression data is available
+                    try:
+                        rsdl_var.append(data_set.attrs['rsdl_var'])
+                        poly_coef.append(data_set['poly_coef'][()])
+                        if self._use_regr_cov:
+                            poly_coef_cov.append(
+                                data_set['poly_coef_cov'][()])
+                        else:
+                            poly_coef_cov.append([])
+                        poly_powers.append(data_set['poly_powers'][()])
+                        poly_powers[-1].dtype = 'int64'
+                        poly_idx.append(data_set['poly_idx'][()])
+                    except KeyError:
+                        rsdl_var.append([])
+                        poly_coef.append([])
+                        poly_coef_cov.append([])
+                        poly_powers.append([])
+                        poly_idx.append([])
+                        if self._method.lower() in ('regression', 'full'):
+                            ccheck_s.append('regression')
+
                     # Check if cov_mat is available
                     try:
                         cov_mat_inv.append(data_set['cov_mat_inv'][()])
@@ -2340,16 +2301,6 @@ class Emulator(object):
                         exp_dot_term.append([])
                         ccheck_s.append('exp_dot_term')
 
-                    # Check if active_par_data is available
-                    try:
-                        par_i = [self._modellink._par_name.index(
-                            par.decode('utf-8')) for par in
-                            data_set.attrs['active_par_data']]
-                        active_par_data.append(np.array(par_i))
-                    except KeyError:
-                        active_par_data.append([])
-                        ccheck_s.append('active_par_data')
-
                     # Read in data values, errors and spaces
                     data_val.append(data_set.attrs['data_val'])
                     data_err.append(data_set.attrs['data_err'].tolist())
@@ -2357,25 +2308,7 @@ class Emulator(object):
                         data_set.attrs['data_spc'].decode('utf-8'))
 
                     # Read in all data_idx parts and combine them
-                    idx_keys = [key for key in data_set.attrs.keys()
-                                if key[:8] == 'data_idx']
-                    idx_len = len(idx_keys)
-                    if(idx_len == 1):
-                        if isinstance(data_set.attrs['data_idx'], bytes):
-                            data_idx.append(
-                                data_set.attrs['data_idx'].decode('utf-8'))
-                        else:
-                            data_idx.append(data_set.attrs['data_idx'])
-                    else:
-                        tmp_data_idx = []
-                        for key in idx_keys:
-                            if isinstance(data_set.attrs[key], bytes):
-                                idx_str =\
-                                    data_set.attrs[key].decode('utf-8')
-                                tmp_data_idx.append(idx_str)
-                            else:
-                                tmp_data_idx.append(data_set.attrs[key])
-                        data_idx.append(tmp_data_idx)
+                    data_idx.append(self._read_data_idx(data_set))
 
                     # Add ccheck_s to ccheck
                     ccheck.insert(j, ccheck_s)
@@ -2383,64 +2316,20 @@ class Emulator(object):
                 # Determine the number of data points on this MPI rank
                 self._n_data.append(len(self._active_emul_s[-1]))
 
-                # Add all read-in data to their respective places
+                # Add all read-in data for this iteration to respective places
                 self._mod_set.append(mod_set)
+                self._active_par_data.append(active_par_data)
+                self._rsdl_var.append(rsdl_var)
+                self._poly_coef.append(poly_coef)
+                self._poly_coef_cov.append(poly_coef_cov)
+                self._poly_powers.append(poly_powers)
+                self._poly_idx.append(poly_idx)
                 self._cov_mat_inv.append(cov_mat_inv)
                 self._exp_dot_term.append(exp_dot_term)
-                self._active_par_data.append(active_par_data)
                 self._data_val.append(data_val)
                 self._data_err.append(data_err)
                 self._data_spc.append(data_spc)
                 self._data_idx.append(data_idx)
-
-                # If regression is used, also read in regression data
-                if self._method.lower() in ('regression', 'full'):
-                    rsdl_var = []
-                    poly_coef = []
-                    if self._use_regr_cov:
-                        poly_coef_cov = []
-                    poly_powers = []
-                    poly_idx = []
-                    for j, emul_s in enumerate(self._emul_s):
-                        # Try to access the emulator system
-                        try:
-                            data_set = group['emul_%s' % (emul_s)]
-                        # If it does not exist, it was passive
-                        except KeyError:
-                            # Add empty lists for all regression data
-                            rsdl_var.append([])
-                            poly_coef.append([])
-                            if self._use_regr_cov:
-                                poly_coef_cov.append([])
-                            poly_powers.append([])
-                            poly_idx.append([])
-                            continue
-
-                        # Check if regression variables are available
-                        try:
-                            rsdl_var.append(data_set.attrs['rsdl_var'])
-                            poly_coef.append(data_set['poly_coef'][()])
-                            if self._use_regr_cov:
-                                poly_coef_cov.append(
-                                    data_set['poly_coef_cov'][()])
-                            poly_powers.append(data_set['poly_powers'][()])
-                            poly_powers[-1].dtype = 'int64'
-                            poly_idx.append(data_set['poly_idx'][()])
-                        except KeyError:
-                            rsdl_var.append([])
-                            poly_coef.append([])
-                            if self._use_regr_cov:
-                                poly_coef_cov.append([])
-                            poly_powers.append([])
-                            poly_idx.append([])
-                            ccheck[j].append('regression')
-
-                    self._rsdl_var.append(rsdl_var)
-                    self._poly_coef.append(poly_coef)
-                    if self._use_regr_cov:
-                        self._poly_coef_cov.append(poly_coef_cov)
-                    self._poly_powers.append(poly_powers)
-                    self._poly_idx.append(poly_idx)
 
                 # Add ccheck for this iteration to global ccheck
                 self._ccheck.append(ccheck)
@@ -2483,96 +2372,140 @@ class Emulator(object):
                 logger.info("Saving %s data at iteration %s to HDF5."
                             % (keyword, emul_i))
 
+                # Obtain the dataset this data needs to be saved to
+                data_set = file['%s' % (emul_i)]
+
                 # Check what data keyword has been provided
                 # ACTIVE PARAMETERS
                 if(keyword == 'active_par'):
+                    # Determine the active parameter names
                     par_names = [self._modellink._par_name[i].encode(
                         'ascii', 'ignore') for i in data]
-                    data_set = file['%s' % (emul_i)]
+
+                    # Save active_par data to file and memory
                     data_set.attrs['active_par'] = par_names
                     self._active_par[emul_i] = data
+
+                    # Remove active_par from ccheck
                     self._ccheck[emul_i].remove('active_par')
 
                 # ACTIVE PARAMETERS DATA
                 elif(keyword == 'active_par_data'):
+                    # Determine the active parameter names for this system
                     par_names = [self._modellink._par_name[i].encode(
                         'ascii', 'ignore') for i in data]
-                    data_set = file['%s' % (emul_i)]
+
+                    # Save active_par_data data to file and memory
                     data_set.attrs['active_par_data'] = par_names
                     self._active_par_data[emul_i][lemul_s] = data
+
+                    # Remove active_par_data from respective ccheck
                     self._ccheck[emul_i][lemul_s].remove('active_par_data')
 
                 # COV_MAT
                 elif(keyword == 'cov_mat'):
-                    data_set = file['%s' % (emul_i)]
+                    # Save cov_mat data to file and memory
                     data_set.create_dataset('cov_mat', data=data[0])
                     data_set.create_dataset('cov_mat_inv', data=data[1])
                     self._cov_mat_inv[emul_i][lemul_s] = data[1]
+
+                    # Remove cov_mat from respective ccheck
                     self._ccheck[emul_i][lemul_s].remove('cov_mat')
 
                 # EXP_DOT_TERM
                 elif(keyword == 'exp_dot_term'):
-                    data_set = file['%s' % (emul_i)]
+                    # Save exp_dot_term data to file and memory
                     data_set.create_dataset('prior_exp_sam_set', data=data[0])
                     data_set.create_dataset('exp_dot_term', data=data[1])
                     self._exp_dot_term[emul_i][lemul_s] = data[1]
+
+                    # Remove exp_dot_term from respective ccheck
                     self._ccheck[emul_i][lemul_s].remove('exp_dot_term')
 
                 # MOD_REAL_SET (CONTROLLER)
                 elif(self._is_controller and keyword == 'mod_real_set'):
+                    # Determine dtype-list for compound dataset
                     dtype = [(n, float) for n in self._modellink._par_name]
+
+                    # Convert sam_set to a compound dataset
                     data_c = data[0].copy()
                     data_c.dtype = dtype
-                    file.create_dataset('%s/sam_set' % (emul_i), data=data_c)
-                    file['%s' % (emul_i)].attrs['n_sam'] = np.shape(data[0])[0]
+
+                    # Save sam_set data to file and memory
+                    data_set.create_dataset('sam_set', data=data_c)
+                    data_set.attrs['n_sam'] = np.shape(data[0])[0]
                     self._sam_set[emul_i] = data[0]
                     self._n_sam[emul_i] = np.shape(data[0])[0]
 
+                    # Loop over all received mod_sets
                     for i, lemul_s in enumerate(self._active_emul_s[emul_i]):
+                        # Determine the emulator system for this mod_set
                         emul_s = self._emul_s[lemul_s]
-                        data_set = file['%s/emul_%s' % (emul_i, emul_s)]
-                        data_set.create_dataset('mod_set', data=data[1][i])
+
+                        # Save mod_set data to file and memory
+                        data_set_s = data_set['emul_%s' % (emul_s)]
+                        data_set_s.create_dataset('mod_set', data=data[1][i])
                         self._mod_set[emul_i][lemul_s] = data[1][i]
 
-                    file['%s' % (emul_i)].attrs['use_ext_real_set'] =\
-                        bool(data[2])
+                    # Save whether or not ext_real_set was used
+                    data_set.attrs['use_ext_real_set'] = bool(data[2])
+
+                    # Remove mod_real_set from ccheck
                     self._ccheck[emul_i].remove('mod_real_set')
 
                 # MOD_REAL_SET (WORKER)
                 elif(self._is_worker and keyword == 'mod_real_set'):
+                    # Save sam_set data to memory
                     self._sam_set[emul_i] = data[0]
                     self._n_sam[emul_i] = np.shape(data[0])[0]
 
-                    data_set = file['%s' % (emul_i)]
+                    # Save mod_set data to file and memory
                     data_set.create_dataset('mod_set', data=data[1])
                     self._mod_set[emul_i][lemul_s] = data[1]
 
                 # REGRESSION
                 elif(keyword == 'regression'):
-                    data_set = file['%s' % (emul_i)]
+                    # Determine the new array of active parameters
+                    data[0] = self._active_par_data[emul_i][lemul_s][data[0]]
+
+                    # Determine the new active parameter names for this system
+                    par_names = [self._modellink._par_name[i].encode(
+                        'ascii', 'ignore') for i in data[0]]
+
+                    # Save new active_par_data data to file and memory
+                    data_set.attrs['active_par_data'] = par_names
+                    self._active_par_data[emul_i][lemul_s] = data[0]
+
+                    # Determine dtype-list for compound dataset
                     names = [self._modellink._par_name[par] for par in
                              self._active_par_data[emul_i][lemul_s]]
                     dtype = [(n, 'int64') for n in names]
-                    data_c = data[3].copy()
+
+                    # Convert poly_powers to a compound dataset
+                    data_c = data[4].copy()
                     data_c.dtype = dtype
-                    data_set.attrs['rsdl_var'] = data[0]
-                    data_set.attrs['regr_score'] = data[1]
-                    data_set.create_dataset('poly_coef', data=data[2])
+
+                    # Save all regression data to file and memory
+                    data_set.attrs['rsdl_var'] = data[1]
+                    data_set.attrs['regr_score'] = data[2]
+                    data_set.create_dataset('poly_coef', data=data[3])
                     data_set.create_dataset('poly_powers', data=data_c)
-                    data_set.create_dataset('poly_idx', data=data[4])
-                    self._rsdl_var[emul_i][lemul_s] = data[0]
-                    self._poly_coef[emul_i][lemul_s] = data[2]
-                    self._poly_powers[emul_i][lemul_s] = data[3]
-                    self._poly_idx[emul_i][lemul_s] = data[4]
+                    data_set.create_dataset('poly_idx', data=data[5])
+                    self._rsdl_var[emul_i][lemul_s] = data[1]
+                    self._poly_coef[emul_i][lemul_s] = data[3]
+                    self._poly_powers[emul_i][lemul_s] = data[4]
+                    self._poly_idx[emul_i][lemul_s] = data[5]
                     if self._use_regr_cov:
-                        data_set.create_dataset('poly_coef_cov', data=data[5])
-                        self._poly_coef_cov[lemul_s] = data[5]
+                        data_set.create_dataset('poly_coef_cov', data=data[6])
+                        self._poly_coef_cov[lemul_s] = data[6]
+
+                    # Remove regression from respective ccheck
                     self._ccheck[emul_i][lemul_s].remove('regression')
 
                 # INVALID KEYWORD
                 else:
-                    logger.error("Invalid keyword argument provided!")
-                    raise ValueError("Invalid keyword argument provided!")
+                    err_msg = "Invalid keyword argument provided!"
+                    raise_error(ValueError, err_msg, logger)
 
         # More logging
         logger.info("Finished saving data to HDF5.")
@@ -2606,12 +2539,10 @@ class Emulator(object):
 
         # Check if provided emulator is the same as requested
         if(emul_type != self._emul_type):
-            logger.error("Provided emulator system type ('%s') does not "
-                         "match the requested type ('%s')!"
-                         % (emul_type, self._emul_type))
-            raise RequestError("Provided emulator system type ('%s') does "
-                               "not match the requested type ('%s')!"
-                               % (emul_type, self._emul_type))
+            err_msg = ("Provided emulator system type ('%s') does not match "
+                       "the requested type ('%s')!" % (emul_type,
+                                                       self._emul_type))
+            raise_error(RequestError, err_msg, logger)
 
         # Check if provided emul_version is compatible
         check_compatibility(emul_version)
@@ -2752,24 +2683,7 @@ class Emulator(object):
                     data_spc.append(data_set.attrs['data_spc'].decode('utf-8'))
 
                     # Read in all data_idx parts and combine them
-                    idx_keys = [key for key in data_set.attrs.keys()
-                                if key[:8] == 'data_idx']
-                    idx_len = len(idx_keys)
-                    if(idx_len == 1):
-                        if isinstance(data_set.attrs['data_idx'], bytes):
-                            data_idx.append(
-                                data_set.attrs['data_idx'].decode('utf-8'))
-                        else:
-                            data_idx.append(data_set.attrs['data_idx'])
-                    else:
-                        tmp_data_idx = []
-                        for key in idx_keys:
-                            if isinstance(data_set.attrs[key], bytes):
-                                idx_str = data_set.attrs[key].decode('utf-8')
-                                tmp_data_idx.append(idx_str)
-                            else:
-                                tmp_data_idx.append(data_set.attrs[key])
-                        data_idx.append(tmp_data_idx)
+                    data_idx.append(self._read_data_idx(data_set))
 
                 # Overwrite ModelLink properties
                 self._modellink._par_est = file.attrs['mock_par'].tolist()

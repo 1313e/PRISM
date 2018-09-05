@@ -86,7 +86,7 @@ class Pipeline(object):
         be used to construct the next emulator iteration.
     :meth:`~construct`
         Constructs the provided emulator iteration by determining all required
-        components of all emulator systems.
+        components for all emulator systems.
     :meth:`~details`
         Gives an overview of the provided emulator iteration, printing many
         details about the used emulator, the current iteration and the used
@@ -2690,6 +2690,9 @@ class Pipeline(object):
             # FOOTER
             print("="*width)
 
+            # Flush the console
+            sys.stdout.flush()
+
         # MPI Barrier
         self._comm.Barrier()
 
@@ -2791,9 +2794,8 @@ class Pipeline(object):
 
             # Check if sam_set consists only out of floats
             else:
-                for i, par_set in enumerate(sam_set):
-                    for j, par_val in enumerate(par_set):
-                        check_val(par_val, 'sam_set[%s, %s]' % (i, j), 'float')
+                for (i, j), par_val in np.ndenumerate(sam_set):
+                    check_val(par_val, 'sam_set[%s, %s]' % (i, j), 'float')
 
         # The workers make sure that sam_set is also two-dimensional
         else:
@@ -2879,8 +2881,8 @@ class Pipeline(object):
         # Initialize the Projection class and make the figures
         Projection(self, emul_i, proj_par, figure, show, force)
 
-        # MPI Barrier
-        self._comm.Barrier()
+        # Show details
+        self.details()
 
     # This function simply executes self.__call__
     @docstring_copy(__call__)
