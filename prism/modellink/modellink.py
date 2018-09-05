@@ -24,12 +24,12 @@ from __future__ import absolute_import, division, print_function
 # Built-in imports
 import abc
 from os import path
-from six import with_metaclass
 import sys
 
 # Package imports
 from e13tools import InputError
 import numpy as np
+from six import with_metaclass
 from sortedcontainers import SortedDict
 
 # PRISM imports

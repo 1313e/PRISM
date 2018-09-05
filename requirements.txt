@@ -1,14 +1,15 @@
-numpy>=1.8
-setuptools>=36.3.0
-matplotlib>=1.4.3
+check-manifest
 e13tools>=0.4.6a0
-scipy>=1.0.0
 h5py>=2.8.0
+matplotlib>=1.4.3
 mlxtend>=0.9.1
+mpi_dummy>=1.0.0
+numpy>=1.8
+readme_renderer
 scikit-learn>=0.19.1
+scipy>=1.0.0
+setuptools>=36.3.0
+six>=1.11.0
 sortedcontainers>=1.5.9
 tqdm>=4.7.6
-mpi_dummy>=1.0.0
-check-manifest
-readme_renderer
 

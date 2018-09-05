@@ -3,7 +3,7 @@
 """
 Emulator
 ========
-Provides the definition of the class holding the emulator system of the *PRISM*
+Provides the definition of the class holding the emulator of the *PRISM*
 package, the :class:`~Emulator` class.
 
 
@@ -21,13 +21,13 @@ from __future__ import (absolute_import, division, print_function,
                         with_statement)
 
 # Built-in imports
+from collections import Counter
 from logging import getLogger
 from os import path
 from time import time
 import sys
 
 # Package imports
-from collections import Counter
 from e13tools import InputError
 from e13tools.math import diff, nearest_PD
 import h5py
@@ -44,8 +44,7 @@ from sortedcontainers import SortedSet
 # PRISM imports
 from .__version__ import prism_version as _prism_version
 from ._docstrings import (def_par_doc, emul_s_seq_doc, get_emul_i_doc,
-                          lemul_s_doc, read_par_doc, save_data_doc_e,
-                          std_emul_i_doc)
+                          read_par_doc, save_data_doc_e, std_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_compatibility,
                         check_val, delist, docstring_append,
                         docstring_substitute, getCLogger, rprint)
@@ -63,6 +62,28 @@ if(sys.version_info.major >= 3):
 class Emulator(object):
     """
     Defines the :class:`~Emulator` class of the *PRISM* package.
+
+    Description
+    -----------
+    The :class:`~Emulator` class is the backbone of the *PRISM* package,
+    holding all tools necessary to construct, load, save and evaluate the
+    emulator of a model. It performs many checks to see if the provided
+    :obj:`~ModelLink` object is compatible with the current emulator, advises
+    the user on alternatives when certain operations are requested,
+    automatically takes care of distributing emulator systems over MPI ranks
+    and more.
+
+    Even though the purpose of the :class:`~Emulator` class is to hold only
+    information about the emulator and therefore does not require any details
+    about the provided :obj:`~ModelLink` object, it will keep track of changes
+    made to it. This is to allow the user to modify the properties of the
+    :class:`~ModelLink` subclass without causing any desynchronization problems
+    by accident.
+
+    The :class:`~Emulator` class requires to be linked to an instance of the
+    :class:`~Pipeline` class and will automatically attempt to do so when
+    initialized. By default, this class should only be initialized from within
+    a :obj:`~Pipeline` object.
 
     """
 
@@ -84,7 +105,7 @@ class Emulator(object):
 
         """
 
-        # Save the provided pipeline object
+        # Save the provided Pipeline object
         self._pipeline = pipeline_obj
 
         # Copy MPI properties to this instance
@@ -97,14 +118,16 @@ class Emulator(object):
         # Load the emulator and data
         self._load_emulator(modellink_obj)
 
+        # Bind this Emulator instance to the supplied Pipeline object
+        self._pipeline._emulator = self
 
-# %% CLASS PROPERTIES
+    # %% CLASS PROPERTIES
     # General details
     @property
     def emul_load(self):
         """
-        Bool indicating whether or not a previously constructed emulator system
-        is currently loaded.
+        Bool indicating whether or not a previously constructed emulator is
+        currently loaded.
 
         """
 
@@ -113,7 +136,7 @@ class Emulator(object):
     @property
     def emul_type(self):
         """
-        String indicating what type of emulator system is currently loaded.
+        String indicating what type of emulator is currently loaded.
 
         """
 

@@ -16,77 +16,43 @@ ds = ". Default: "
 # %% EMUL_I DOCSTRINGS
 # Description of emul_i used in __call__/construct
 call_emul_i_doc = \
-    """emul_i : int or None. Default: None
-           If int, number indicating the requested emulator iteration.
-           If *None*, the next iteration of the loaded emulator system will be
-           constructed."""
+        """emul_i : int or None. Default: None
+            If int, number indicating the requested emulator iteration.
+            If *None*, the next iteration of the loaded emulator system will be
+            constructed."""
 
 # Description of emul_i used in the get_emul_i() method of the Emulator class
 get_emul_i_doc = \
-    """emul_i : int or None
-           Number indicating the requested emulator iteration."""
+        """emul_i : int or None
+            Number indicating the requested emulator iteration."""
 
 # Description of emul_i used in basically all standard hidden functions
 std_emul_i_doc = \
-    """emul_i : int
-           Number indicating the requested emulator iteration."""
+        """emul_i : int
+            Number indicating the requested emulator iteration."""
 
 # Description of emul_i used in all user functions except __call__/construct
 user_emul_i_doc = \
-    """emul_i : int or None. Default: None
-           If int, number indicating the requested emulator iteration.
-           If *None*, the last iteration of the loaded emulator system will be
-           used."""
+        """emul_i : int or None. Default: None
+            If int, number indicating the requested emulator iteration.
+            If *None*, the last iteration of the loaded emulator system will be
+            used."""
 
 
 # %% EMUL_S DOCSTRINGS
 # Description of sequence of emul_s used in all standard hidden functions
 emul_s_seq_doc = \
-    """emul_s_seq : list of int
-           List of numbers indicating the requested emulator systems."""
+        """emul_s_seq : list of int
+            List of numbers indicating the requested emulator systems."""
 
 # Description of emul_s used in basically all standard hidden functions
 lemul_s_doc = \
-    """lemul_s : int or None
-           Number indicating the requested local emulator system.
-           If *None*, use the master emulator file instead."""
+        """lemul_s : int or None
+            Number indicating the requested local emulator system.
+            If *None*, use the master emulator file instead."""
 
 
 # %% PIPELINE DOCSTRINGS
-# Description for the different paths parameters
-paths_doc = \
-        """root_dir : str or None{0}{1}
-            String containing the absolute path of the root directory where all
-            working directories are stored. If *None*, root directory will be
-            set to the directory this class was initialized at.
-        working_dir : str, int or None{0}{2}
-            String containing the name of the working directory of the emulator
-            in `root_dir`. If int, a new working directory will be created in
-            `root_dir`. If *None*, working directory is set to the last one
-            that was created in `root_dir` that starts with the given `prefix`.
-            If no directories are found, one will be created.
-        prefix : str{0}{3}
-            String containing a prefix that is used for naming new working
-            directories or scan for existing ones.
-        hdf5_file : str{0}{4}
-            String containing the name of the master HDF5-file in `working_dir`
-            to be used in this class instance. Different types of master
-            HDF5-files can be provided:
-                *Non-existing master HDF5-file*: This file will be created and
-                used to save the constructed emulator system in.
-
-                *Existing master HDF5-file*: This file will be used to
-                regenerate a previously constructed emulator system.
-        prism_file : str or None{0}{5}
-            String containing the absolute or relative path to the TXT-file
-            containing the *PRISM* parameters that need to be changed from
-            their default values. If a relative path is given, its path must be
-            relative to `root_dir` or the current directory. If *None*, no
-            changes will be made to the default parameters."""
-paths_doc_s = paths_doc.format("", "", "", "", "", "")
-paths_doc_d = paths_doc.format(ds, "None", "None", "'prism_'", "'prism.hdf5'",
-                               "'prism.txt'")
-
 # Description for the call_model methods
 call_model_doc = \
         """Obtain the output{3} corresponding to the provided `data_idx` that
@@ -133,6 +99,40 @@ impl_temp_doc = \
         """temp : bool
             Whether the implausibility parameters should only be stored in
             memory (*True*) or should also be saved to HDF5 (*False*)."""
+
+# Description for the different paths parameters
+paths_doc = \
+        """root_dir : str or None{0}{1}
+            String containing the absolute path of the root directory where all
+            working directories are stored. If *None*, root directory will be
+            set to the directory this class was initialized at.
+        working_dir : str, int or None{0}{2}
+            String containing the name of the working directory of the emulator
+            in `root_dir`. If int, a new working directory will be created in
+            `root_dir`. If *None*, working directory is set to the last one
+            that was created in `root_dir` that starts with the given `prefix`.
+            If no directories are found, one will be created.
+        prefix : str{0}{3}
+            String containing a prefix that is used for naming new working
+            directories or scan for existing ones.
+        hdf5_file : str{0}{4}
+            String containing the name of the master HDF5-file in `working_dir`
+            to be used in this class instance. Different types of master
+            HDF5-files can be provided:
+                *Non-existing master HDF5-file*: This file will be created and
+                used to save the constructed emulator system in.
+
+                *Existing master HDF5-file*: This file will be used to
+                regenerate a previously constructed emulator system.
+        prism_file : str or None{0}{5}
+            String containing the absolute or relative path to the TXT-file
+            containing the *PRISM* parameters that need to be changed from
+            their default values. If a relative path is given, its path must be
+            relative to `root_dir` or the current directory. If *None*, no
+            changes will be made to the default parameters."""
+paths_doc_s = paths_doc.format("", "", "", "", "", "")
+paths_doc_d = paths_doc.format(ds, "None", "None", "'prism_'", "'prism.hdf5'",
+                               "'prism.txt'")
 
 
 # %% GENERAL DOCSTRINGS

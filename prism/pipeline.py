@@ -22,6 +22,7 @@ from __future__ import (absolute_import, division, print_function,
 
 # Built-in imports
 from logging import getLogger
+from inspect import isclass
 import os
 from os import path
 import sys
@@ -119,9 +120,12 @@ class Pipeline(object):
         Optional
         --------
         %(paths)s
-        emul_type : {'default'}. Default: 'default'
+        emul_type : {'default'} or :class:`~Emulator` subclass. Default: \
+            'default'
             String indicating which emulator type to use. In the
             :class:`~Pipeline` base class, only 'default' is supported.
+            If :class:`~Emulator` subclass, the supplied :class:`~Emulator`
+            subclass will be used instead.
 
         """
 
@@ -166,8 +170,20 @@ class Pipeline(object):
             start_logger(path.join(self._working_dir, 'prism_log.log'), 'a')
 
         # Initialize Emulator class
-        if(emul_type == 'default'):
-            self._emulator = Emulator(self, modellink)
+        # If emul_type is a subclass of Emulator, try to initialize it
+        if isclass(emul_type) and issubclass(emul_type, Emulator):
+            try:
+                emul_type(self, modellink)
+            except Exception as error:
+                err_msg = ("Input argument 'emul_type' is invalid (%s)!"
+                           % (error))
+                raise_error(InputError, err_msg, logger)
+
+        # If not, initialize a registered Emulator class
+        elif(emul_type == 'default'):
+            Emulator(self, modellink)
+
+        # If anything else is given, it is invalid
         else:
             err_msg = "Input argument 'emul_type' is invalid!"
             raise_error(RequestError, err_msg, logger)
