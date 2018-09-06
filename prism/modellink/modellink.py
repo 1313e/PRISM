@@ -11,7 +11,7 @@ Available classes
 :class:`~ModelLink`
     Provides an abstract base class definition that allows the
     :class:`~Pipeline` class to be linked to any model/test object of choice.
-    Every model wrapper class used in the :class:`~Pipeline` class must be an
+    Every model wrapper used in the :class:`~Pipeline` class must be an
     instance of the :class:`~ModelLink` class.
 
 """
@@ -44,14 +44,38 @@ if(sys.version_info.major >= 3):
     unicode = str
 
 
-# %% CLASS DEFINITION
-# TODO: Allow users to change model parameters and data based on emul_i
+# %% MODELLINK CLASS DEFINITION
 class ModelLink(with_metaclass(abc.ABCMeta, object)):
     """
     Provides an abstract base class definition that allows the
     :class:`~Pipeline` class to be linked to any model/test object of choice.
-    Every model wrapper class used in the :class:`~Pipeline` class must be an
+    Every model wrapper used in the :class:`~Pipeline` class must be an
     instance of the :class:`~ModelLink` class.
+
+    Description
+    -----------
+    The :class:`~ModelLink` class is an abstract base class, which forms the
+    base for wrapping a model and allowing *PRISM* to use it effectively.
+    Because it is mandatory for every model to be wrapped in a user-made
+    :class:`~ModelLink` subclass, several tools are provided to the user to
+    make this as versatile as possible.
+
+    The :class:`~ModelLink` class uses three properties that define the way the
+    subclass will be used by *PRISM*: :attr:`~name`, :attr:`~multi_call` and
+    :attr:`~MPI_call`. The first defines what the name of the subclass is,
+    which is used by *PRISM* to identify the subclass with and check if one did
+    not use a different subclass by accident. The other two are switches that
+    determine how the :meth:`~call_model` method should be used. These three
+    properties can be set anywhere during the initialization of the
+    :class:`~ModelLink` subclass, or are set to a default value if they are not
+    modified.
+
+    The model parameters and comparison data can be set in two different ways.
+    They can be hard-coded into the :class:`~ModelLink` subclass by altering
+    the :attr:`~_default_model_parameters` and :attr:`~_default_model_data`
+    properties or set by providing them during class initialization. A
+    combination of both is also possible. More details on this can be found in
+    :meth:`~__init__`.
 
     Abstract methods
     ----------------
@@ -60,7 +84,6 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         emulator iteration `emul_i` for model parameter values
         `model_parameters` and returns the data points corresponding to
         `data_idx`.
-
     :meth:`~get_md_var`
         Calculates the model discrepancy variance at a given emulator iteration
         `emul_i` for given data points `data_idx` for the model wrapped in this
@@ -103,18 +126,22 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         The model parameters dict requires to have the name of the parameters
         as the keyword, and a 1D list containing the lower bound, the upper
         bound and, if applicable, the estimate of this parameter. It is not
-        required to provide an estimate for every parameter.
+        required to provide an estimate for every parameter. The estimates are
+        used to draw illustrative lines when making projection figures.
         An example of a model parameters file can be found in the 'data' folder
         of the *PRISM* package.
 
         Formatting :
-            ``{par_name: [lower_bnd, upper_bnd, par_est]}``
+            ``{par_name: [lower_bnd, upper_bnd, par_est]}`` \n
+            **and/or** \n
+            ``{par_name: [lower_bnd, upper_bnd]}``
 
         Notes (model_data)
         ------------------
         The model data array contains the data values in the first column; the
         data errors in the second (and third) column(s); the data spaces in the
-        third (or fourth) column and the data index in the remaining columns.
+        third (or fourth) column and the data identifiers in the remaining
+        columns.
         If the data errors are given with one column, then the data points are
         assumed to have a centered one sigma confidence interval. If the data
         errors are given with two columns, then the data points are assumed to
@@ -122,13 +149,14 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         upper errors. The data spaces are one of five strings ({'lin', 'log' or
         'log_10', 'ln' or 'log_e'}) indicating in which of the three value
         spaces (linear, log, ln) the data values are.
-        The data index is a sequence of ints, floats and strings that is unique
-        for every data point. *PRISM* uses it to identify a data point with,
-        which is required in some cases (like MPI), while the model itself can
-        use it as a description of the operations required to extract the data
-        point from the model. It can be provided as any sequence of any length
-        for any data point. If any sequence contains a single element, it is
-        replaced by just that element.
+
+        The data identifier is a sequence of ints, floats and strings that is
+        unique for every data point. *PRISM* uses it to identify a data point
+        with, which is required in some cases (like MPI), while the model
+        itself can use it as a description of the operations required to
+        extract the data point from the model output. It can be provided as any
+        sequence of any length for any data point. If any sequence contains a
+        single element, it is replaced by just that element instead of a list.
         An example of a model data file can be found in the 'data' folder of
         the *PRISM* package.
 
@@ -252,11 +280,15 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             # Check if a parameter estimate was provided
             try:
                 values[2]
+            # If not, save it as None
             except IndexError:
                 self._par_est.append(None)
+            # If so, check if it was not replaced
             else:
+                # If provided as None or inf, save it as None
                 if values[2] in (np.infty, None):
                     self._par_est.append(None)
+                # If not, check if value provided is a float and save it
                 else:
                     self._par_est.append(
                         check_val(values[2], 'par_est[%s]' % (i), 'float'))
@@ -331,7 +363,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             # Obtain data identifiers
             data_str = np.genfromtxt(data_file, dtype=str, delimiter='\n')
 
-            # Make sure that arrays are 2D or 1D (n_data=1)
+            # Make sure that arrays are 1D/2D (n_data=1)
             data_points = np.array(data_points, ndmin=2)
             data_spc = np.array(data_spc, ndmin=1)
             data_str = np.array(data_str, ndmin=1)
@@ -350,11 +382,15 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
                 # Check if int, float or str was provided and save it
                 for i, idx in enumerate(tmp_idx):
+                    # Try to convert to int or float
                     try:
+                        # If string contains a dot, check if it is a float
                         if '.' in idx:
                             tmp_idx[i] = float(idx)
+                        # If string contains no dot, check if it is an int
                         else:
                             tmp_idx[i] = int(idx)
+                    # If cannot be converted to int or float, save as string
                     except ValueError:
                         tmp_idx[i] = idx
 
@@ -513,6 +549,31 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         # Raise NotImplementedError if only super() was called
         raise NotImplementedError
 
+    @classmethod
+    def _check_subinstance(cls, instance):
+        """
+        Checks if provided `instance` has been initialized from a proper
+        :class:`~ModelLink` subclass.
+
+        """
+
+        # Check if instance was initialized from a ModelLink subclass
+        if not isinstance(instance, cls):
+            raise TypeError
+
+        # Retrieve a list of all ModelLink properties
+        modellink_props = [prop for prop in dir(cls) if
+                           isinstance(getattr(cls, prop), property)]
+
+        # Check if all ModelLink properties can be called in instance
+        for prop in modellink_props:
+            try:
+                getattr(instance, prop)
+            except AttributeError:
+                return(0)
+        else:
+            return(1)
+
     # %% CLASS PROPERTIES
     # General
     @property
@@ -549,9 +610,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     def MPI_call(self):
         """
         Bool determining whether :meth:`~ModelLink.call_model` can/should be
-        called by all MPI processes simultaneously instead of by the
-        controller.
-        By default, only the controller calls the model (False).
+        called by all MPI ranks simultaneously instead of by the controller.
+        By default, only the controller rank calls the model (False).
 
         """
 

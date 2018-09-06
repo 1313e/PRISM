@@ -50,7 +50,7 @@ from ._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
                           save_data_doc_e, std_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_compatibility,
                         check_val, delist, docstring_append,
-                        docstring_substitute, getCLogger, raise_error, rprint)
+                        docstring_substitute, getCLogger, raise_error)
 from .modellink import ModelLink
 
 # All declaration
@@ -220,7 +220,6 @@ class Emulator(object):
 
         return(bool(self._use_mock))
 
-    # TODO: Allow selective regr_cov usage?
     @property
     def use_regr_cov(self):
         """
@@ -2025,8 +2024,17 @@ class Emulator(object):
         logger = getCLogger('INIT')
         logger.info("Setting ModelLink object.")
 
-        # Check if a subclass of the ModelLink class has been provided
-        if not isinstance(modellink_obj, ModelLink):
+        # Try to check the provided modellink_obj
+        try:
+            # Check if modellink_obj was initialized properly
+            if not ModelLink._check_subinstance(modellink_obj):
+                err_msg = ("Provided ModelLink subclass '%s' was not "
+                           "initialized properly!"
+                           % (modellink_obj.__class__.__name__))
+                raise_error(InputError, err_msg, logger)
+
+        # If this fails, modellink_obj is not an instance of ModelLink
+        except TypeError:
             err_msg = ("Input argument 'modellink' must be an instance of the "
                        "ModelLink class!")
             raise_error(TypeError, err_msg, logger)

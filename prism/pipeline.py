@@ -79,8 +79,8 @@ class Pipeline(object):
     and provides a user-friendly environment that gives access to all
     operations within the package.
 
-    Defined user methods
-    --------------------
+    User methods
+    ------------
     :meth:`~analyze`
         Analyzes the last emulator iteration and determines which samples will
         be used to construct the next emulator iteration.
@@ -103,11 +103,10 @@ class Pipeline(object):
 
     """
 
-    # TODO: Should prism_file be defaulted to None?
     @docstring_substitute(paths=paths_doc_d)
     def __init__(self, modellink, root_dir=None, working_dir=None,
-                 prefix='prism_', hdf5_file='prism.hdf5',
-                 prism_file='prism.txt', emul_type='default'):
+                 prefix='prism_', hdf5_file='prism.hdf5', prism_file=None,
+                 emul_type='default'):
         """
         Initialize an instance of the :class:`~Pipeline` class.
 

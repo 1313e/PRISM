@@ -132,7 +132,7 @@ paths_doc =\
             changes will be made to the default parameters."""
 paths_doc_s = paths_doc.format("", "", "", "", "", "")
 paths_doc_d = paths_doc.format(ds, "None", "None", "'prism_'", "'prism.hdf5'",
-                               "'prism.txt'")
+                               "None")
 
 
 # %% EMULATOR DOCSTRINGS
