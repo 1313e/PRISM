@@ -45,7 +45,7 @@ from sortedcontainers import SortedSet
 from ._docstrings import (call_emul_i_doc, call_model_doc_s, call_model_doc_m,
                           def_par_doc, emul_s_seq_doc, ext_mod_set_doc,
                           ext_real_set_doc, ext_sam_set_doc, impl_cut_doc,
-                          impl_temp_doc, obj_doc, paths_doc_d, paths_doc_s,
+                          impl_temp_doc, paths_doc_d, paths_doc_s,
                           read_par_doc, save_data_doc_p, std_emul_i_doc,
                           user_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_val, convert_str_seq,
@@ -69,7 +69,7 @@ if(sys.version_info.major >= 3):
 # OPTIMIZE: Overlap plausible regions to remove boundary artifacts?
 # TODO: Think of a way to allow no ModelLink instance to be provided.
 # This could be done with a DummyLink, but md_var is then uncallable.
-class Pipeline(object):
+class Pipeline(Projection, object):
     """
     Defines the :class:`~Pipeline` class of the *PRISM* package.
 
@@ -95,7 +95,7 @@ class Pipeline(object):
         Evaluates a provided set of model parameter samples in the emulator up
         to the provided emulator iteration and prints/returns the results.
     :meth:`~project`
-        Analyzes the behaviour of the emulator at the provided emulator
+        Analyzes the behavior of the emulator at the provided emulator
         iteration and constructs a series of projection figures.
     :meth:`~run`
         Constructs, analyzes and projects the emulator at the provided emulator
@@ -508,13 +508,9 @@ class Pipeline(object):
         # Return it
         return(np.array(mod_set))
 
-    # This function automatically loads default pipeline parameters
+    # This function returns default pipeline parameters
     @docstring_append(def_par_doc.format("pipeline"))
     def _get_default_parameters(self):
-        # Log this
-        logger = getCLogger('INIT')
-        logger.info("Generating default pipeline parameter dict.")
-
         # Create parameter dict with default parameters
         par_dict = {'n_sam_init': '500',
                     'base_eval_sam': '800',
@@ -524,14 +520,11 @@ class Pipeline(object):
                     'freeze_active_par': 'True',
                     'pot_active_par': 'None'}
 
-        # Log end
-        logger.info("Finished generating default pipeline parameter dict.")
-
         # Return it
         return(par_dict)
 
     # Read in the parameters from the provided parameter file
-    @docstring_append(read_par_doc.format("Pipeline"))
+    @docstring_append(read_par_doc.format("pipeline", "Pipeline"))
     def _read_parameters(self):
         # Log that the PRISM parameter file is being read
         logger = getCLogger('INIT')
@@ -1076,6 +1069,9 @@ class Pipeline(object):
 
         # Open hdf5-file
         with PRISM_File('r+', None) as file:
+            # Obtain the dataset this data needs to be saved to
+            data_set = file['%s' % (emul_i)]
+
             # Loop over entire provided data dict
             for keyword, data in data_dict.items():
                 # Log what data is being saved
@@ -1093,8 +1089,8 @@ class Pipeline(object):
                         self._impl_cut.append(data[0])
                         self._cut_idx.append(data[1])
                     finally:
-                        file['%s' % (emul_i)].attrs['impl_cut'] = data[0]
-                        file['%s' % (emul_i)].attrs['cut_idx'] = data[1]
+                        data_set.attrs['impl_cut'] = data[0]
+                        data_set.attrs['cut_idx'] = data[1]
 
                 # IMPL_SAM
                 elif(keyword == 'impl_sam'):
@@ -1111,18 +1107,16 @@ class Pipeline(object):
                     try:
                         self._n_impl_sam[emul_i] = n_impl_sam
                     except IndexError:
-                        file.create_dataset('%s/impl_sam' % (emul_i),
-                                            data=data_c)
+                        data_set.create_dataset('impl_sam', data=data_c)
                         self._n_impl_sam.append(n_impl_sam)
                     else:
-                        del file['%s/impl_sam' % (emul_i)]
-                        file.create_dataset('%s/impl_sam' % (emul_i),
-                                            data=data_c)
+                        del data_set['impl_sam']
+                        data_set.create_dataset('impl_sam', data=data_c)
                     finally:
                         self._prc = prc
                         self._impl_sam = data
-                        file['%s' % (emul_i)].attrs['prc'] = bool(prc)
-                        file['%s' % (emul_i)].attrs['n_impl_sam'] = n_impl_sam
+                        data_set.attrs['prc'] = bool(prc)
+                        data_set.attrs['n_impl_sam'] = n_impl_sam
 
                 # N_EVAL_SAM
                 elif(keyword == 'n_eval_sam'):
@@ -1132,7 +1126,7 @@ class Pipeline(object):
                     except IndexError:
                         self._n_eval_sam.append(data)
                     finally:
-                        file['%s' % (emul_i)].attrs['n_eval_sam'] = data
+                        data_set.attrs['n_eval_sam'] = data
 
                 # INVALID KEYWORD
                 else:
@@ -1354,17 +1348,14 @@ class Pipeline(object):
 
     # This function performs an implausibility cut-off check on a given sample
     # TODO: Implement dynamic impl_cut
-    @staticmethod
-    @docstring_substitute(obj=obj_doc, emul_i=std_emul_i_doc)
-    def _do_impl_check(obj, emul_i, uni_impl_val):
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _do_impl_check(self, emul_i, uni_impl_val):
         """
         Performs an implausibility cut-off check on the provided implausibility
-        values `uni_impl_val` at emulator iteration `emul_i`, using the
-        impl_cut values that are loaded in the given `obj`.
+        values `uni_impl_val` at emulator iteration `emul_i`.
 
         Parameters
         ----------
-        %(obj)s
         %(emul_i)s
         uni_impl_val : 1D array_like
             Array containing all univariate implausibility values corresponding
@@ -1383,10 +1374,10 @@ class Pipeline(object):
         sorted_impl_val = np.flip(np.sort(uni_impl_val, axis=-1), axis=-1)
 
         # Save the implausibility value at the first real cut-off
-        impl_cut_val = sorted_impl_val[obj._cut_idx[emul_i]]
+        impl_cut_val = sorted_impl_val[self._cut_idx[emul_i]]
 
         # Scan over all data points in this sample
-        for impl_val, cut_val in zip(sorted_impl_val, obj._impl_cut[emul_i]):
+        for impl_val, cut_val in zip(sorted_impl_val, self._impl_cut[emul_i]):
             # If impl_cut is not 0 and impl_val is not below impl_cut, break
             if(cut_val != 0 and impl_val > cut_val):
                 return(0, impl_cut_val)
@@ -1543,16 +1534,14 @@ class Pipeline(object):
         return(md_var)
 
     # This function completes the list of implausibility cut-offs
-    @staticmethod
-    @docstring_substitute(obj=obj_doc, impl_temp=impl_temp_doc)
-    def _get_impl_cut(obj, impl_cut, temp):
+    @docstring_substitute(impl_temp=impl_temp_doc)
+    def _get_impl_cut(self, impl_cut, temp):
         """
         Generates the full list of impl_cut-offs from the incomplete, shortened
-        `impl_cut` list and saves them in the given `obj`.
+        `impl_cut` list.
 
         Parameters
         ----------
-        %(obj)s
         impl_cut : 1D list
             Incomplete, shortened impl_cut-offs list provided during class
             initialization.
@@ -1598,7 +1587,7 @@ class Pipeline(object):
                 raise_error(ValueError, err_msg, logger)
 
         # Get the index identifying where the first real impl_cut is
-        for i, impl in enumerate(impl_cut[:obj._emulator._n_data_tot[-1]]):
+        for i, impl in enumerate(impl_cut[:self._emulator._n_data_tot[-1]]):
             if(impl != 0):
                 cut_idx = i
                 break
@@ -1610,11 +1599,11 @@ class Pipeline(object):
         # Save both impl_cut and cut_idx
         if temp:
             # If they need to be stored temporarily
-            obj._impl_cut.append(np.array(impl_cut))
-            obj._cut_idx.append(cut_idx)
+            self._impl_cut.append(np.array(impl_cut))
+            self._cut_idx.append(cut_idx)
         else:
             # If they need to be stored to file
-            obj._save_data({
+            self._save_data({
                 'impl_cut': [np.array(impl_cut), cut_idx]})
 
         # Log end of process
@@ -1669,7 +1658,7 @@ class Pipeline(object):
 
             # Convert list of strings to list of floats and perform completion
             self._get_impl_cut(
-                self, list(float(impl_cut) for impl_cut in impl_cut_str), temp)
+                list(float(impl_cut) for impl_cut in impl_cut_str), temp)
 
             # Finish logging
             logger.info("Finished obtaining implausibility analysis "
@@ -1798,19 +1787,18 @@ class Pipeline(object):
 
     # This function analyzes the emulator for given sam_set using code snippets
     # TODO: Determine whether using arrays or lists is faster
-    @docstring_substitute(obj=obj_doc, emul_i=std_emul_i_doc)
-    def _analyze_sam_set(self, obj, emul_i, sam_set, pre_code, eval_code,
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _analyze_sam_set(self, emul_i, sam_set, pre_code, eval_code,
                          anal_code, post_code, exit_code):
         """
         Analyzes a provided set of emulator evaluation samples `sam_set` at a
-        given emulator iteration `emul_i`, using the impl_cut values given in
-        `obj`. The provided code snippets `pre_code`; `eval_code`; `anal_code`;
+        given emulator iteration `emul_i`.
+        The provided code snippets `pre_code`; `eval_code`; `anal_code`;
         `post_code` and `exit_code` are executed using Python's :func:`~exec`
         function at specific points during the analysis.
 
         Parameters
         ----------
-        %(obj)s
         %(emul_i)s
         sam_set : 2D :obj:`~numpy.ndarray` object
             Array containing model parameter value sets to be evaluated in all
@@ -1920,7 +1908,7 @@ class Pipeline(object):
                     # Perform implausibility cutoff check on all elements
                     for j, uni_impl_val in enumerate(uni_impl_vals_array):
                         impl_check_val, impl_cut_val =\
-                            self._do_impl_check(obj, i, uni_impl_val)
+                            self._do_impl_check(i, uni_impl_val)
 
                         # Modify impl_check with obtained impl_check_val
                         impl_check[sam_idx[j]] = impl_check_val
@@ -2043,8 +2031,7 @@ class Pipeline(object):
         start_time2 = time()
 
         # Analyze eval_sam_set
-        impl_check = self._analyze_sam_set(self, emul_i, eval_sam_set,
-                                           *exec_code)
+        impl_check = self._analyze_sam_set(emul_i, eval_sam_set, *exec_code)
 
         # Controller finishing up
         if self._is_controller:
@@ -2125,7 +2112,7 @@ class Pipeline(object):
         If no implausibility analysis is requested, then the implausibility
         parameters are read in from the *PRISM* parameters file and temporarily
         stored in memory in order to enable the usage of the :meth:`~evaluate`
-        method.
+        and :meth:`~project` methods.
 
         """
 
@@ -2472,7 +2459,7 @@ class Pipeline(object):
             with PRISM_File('r', None) as file:
                 # Check if projection data is available by trying to access it
                 try:
-                    file['%s/proj_hcube' % (emul_i)]
+                    data_set = file['%s/proj_hcube' % (emul_i)]
                 except KeyError:
                     proj = 0
                     n_proj = 0
@@ -2480,11 +2467,9 @@ class Pipeline(object):
                 # If projection data is available
                 else:
                     # Get the number of projections and used impl_cut-offs
-                    n_proj = len(file['%s/proj_hcube' % (emul_i)].keys())
-                    proj_impl_cut =\
-                        file['%s/proj_hcube' % (emul_i)].attrs['impl_cut']
-                    proj_cut_idx =\
-                        file['%s/proj_hcube' % (emul_i)].attrs['cut_idx']
+                    n_proj = len(data_set.keys())
+                    proj_impl_cut = data_set.attrs['impl_cut']
+                    proj_cut_idx = data_set.attrs['cut_idx']
 
                     # Check if projections were made with the same impl_cut
                     try:
@@ -2689,8 +2674,8 @@ class Pipeline(object):
             # FOOTER
             print("="*width)
 
-            # Flush the console
-            sys.stdout.flush()
+        # Flush the console
+        sys.stdout.flush()
 
         # MPI Barrier
         self._comm.Barrier()
@@ -2834,7 +2819,7 @@ class Pipeline(object):
         exec_code = (pre_code, eval_code, anal_code, post_code, exit_code)
 
         # Analyze sam_set
-        results = self._analyze_sam_set(self, emul_i, sam_set, *exec_code)
+        results = self._analyze_sam_set(emul_i, sam_set, *exec_code)
 
         # Do more logging
         logger.info("Finished evaluating emulator.")
@@ -2871,17 +2856,6 @@ class Pipeline(object):
 
         # MPI Barrier
         self._comm.Barrier()
-
-    # This function creates the projection figures for a given emul_i
-    @docstring_copy(Projection.__call__)
-    def project(self, emul_i=None, proj_par=None, figure=True, show=False,
-                force=False):
-
-        # Initialize the Projection class and make the figures
-        Projection(self, emul_i, proj_par, figure, show, force)
-
-        # Show details
-        self.details()
 
     # This function simply executes self.__call__
     @docstring_copy(__call__)

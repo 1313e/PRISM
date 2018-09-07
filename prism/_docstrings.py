@@ -18,7 +18,7 @@ ds = ". Default: "
 call_emul_i_doc =\
         """emul_i : int or None. Default: None
             If int, number indicating the requested emulator iteration.
-            If *None*, the next iteration of the loaded emulator system will be
+            If *None*, the next iteration of the emulator will be
             constructed."""
 
 # Description of emul_i used in the get_emul_i() method of the Emulator class
@@ -35,8 +35,7 @@ std_emul_i_doc =\
 user_emul_i_doc =\
         """emul_i : int or None. Default: None
             If int, number indicating the requested emulator iteration.
-            If *None*, the last iteration of the loaded emulator system will be
-            used."""
+            If *None*, the last iteration of the emulator will be used."""
 
 
 # %% EMUL_S DOCSTRINGS
@@ -214,6 +213,46 @@ eval_doc =\
                       adj_var_val_doc)
 
 
+# %% PROJECTION DOCSTRINGS
+# Docstrings of draw_proj_fig methods
+draw_proj_fig_doc =\
+        """Draws the {0} projection figure for the provided `hcube`, given the
+        `impl_min` and `impl_los` values.
+
+        Parameters
+        ----------
+        hcube : 1D array_like of int of length {1}
+            Array containing the internal integer identifiers of the main model
+            parameters that require a projection figure.
+        impl_min : 1D list
+            List containing the lowest implausibility value that can be reached
+            in every single grid point on the given hypercube.
+        impl_los : 1D list
+            List containing the fraction of the total amount of evaluated
+            samples in every single grid point on the given hypercube, that
+            still satisfied the implausibility cut-off criterion."""
+
+# Description of hcube
+hcube_doc =\
+        """hcube : 1D array_like of int of length {1, 2}
+            Array containing the internal integer identifiers of the main model
+            parameters that require a projection hypercube."""
+
+# Description of proj_par
+proj_par_doc =\
+        """proj_par : 1D array_like of {{int, str}} or None{0}{1}
+            For which model parameters to construct the projection figures.
+            If 1D array_like, construct projection figures for all combinations
+            of provided model parameters that are active, with a string
+            referring to the name of the model parameter and an integer
+            referring to the position in which the model parameter is shown in
+            the :meth:`~details` method.
+            If *None*, projection figures are made for all active model
+            parameters."""
+proj_par_doc_s = proj_par_doc.format("", "")
+proj_par_doc_d = proj_par_doc.format(ds, "None")
+
+
 # %% GENERAL DOCSTRINGS
 # Docstrings for the various get_default_parameters methods
 def_par_doc =\
@@ -234,16 +273,10 @@ impl_cut_doc =\
             Index of the first impl_cut-off in the impl_cut list that is not
             0."""
 
-# Description for the usage of the obj input parameter
-obj_doc =\
-        """obj : :obj:`~Pipeline` object or :obj:`~Projection` object
-            Instance of the :class:`~Pipeline` class or :class:`~Projection`
-            class that calls this method."""
-
 # Docstrings for the various read_parameters methods
 read_par_doc =\
         """Reads in the {0} parameters from the provided *PRISM* parameter
-        file and saves them in the current :obj:`~{0}` instance."""
+        file and saves them in the current :obj:`~{1}` instance."""
 
 # Description of the various save_data methods
 save_data_doc =\

@@ -608,8 +608,8 @@ class Emulator(object):
                 # Loop over all requested iterations to be removed
                 for i in range(emul_i, self._emul_i+2):
                     # Determine the figure name prefix
-                    fig_prefix = path.join(self._pipeline._working_dir,
-                                           '%s_proj_' % (i))
+                    fig_prefix = self._pipeline._fig_prefix.format(
+                        self._pipeline._working_dir, i)
 
                     # Check if proj_hcube exists
                     try:
@@ -2374,14 +2374,14 @@ class Emulator(object):
 
         # Open hdf5-file
         with PRISM_File('r+', emul_s) as file:
+            # Obtain the dataset this data needs to be saved to
+            data_set = file['%s' % (emul_i)]
+
             # Loop over entire provided data dict
             for keyword, data in data_dict.items():
                 # Log what data is being saved
                 logger.info("Saving %s data at iteration %s to HDF5."
                             % (keyword, emul_i))
-
-                # Obtain the dataset this data needs to be saved to
-                data_set = file['%s' % (emul_i)]
 
                 # Check what data keyword has been provided
                 # ACTIVE PARAMETERS
@@ -2562,13 +2562,9 @@ class Emulator(object):
         # emulator system
         return(modellink_name)
 
-    # This function automatically loads default emulator parameters
+    # This function returns default emulator parameters
     @docstring_append(def_par_doc.format('emulator'))
     def _get_default_parameters(self):
-        # Log this
-        logger = getCLogger('INIT')
-        logger.info("Generating default emulator parameter dict.")
-
         # Create parameter dict with default parameters
         par_dict = {'sigma': '0.8',
                     'l_corr': '0.3',
@@ -2577,14 +2573,11 @@ class Emulator(object):
                     'poly_order': '3',
                     'use_mock': 'False'}
 
-        # Log end
-        logger.info("Finished generating default emulator parameter dict.")
-
         # Return it
         return(par_dict)
 
     # Read in the parameters from the provided parameter file
-    @docstring_append(read_par_doc.format("Emulator"))
+    @docstring_append(read_par_doc.format("emulator", "Emulator"))
     def _read_parameters(self):
         # Log that the PRISM parameter file is being read
         logger = getCLogger('INIT')

@@ -39,8 +39,9 @@ Available modules
     :class:`~Pipeline` class.
 
 :mod:`~projection`
-    Provides the definition of *PRISM*'s :class:`~Projection` class, that
-    allows for projection figures detailing a model's behavior to be created.
+    Provides the definition of *PRISM*'s :class:`~Projection` class, a
+    :class:`~Pipeline` base class that allows for projection figures detailing
+    a model's behavior to be created.
 
 """
 

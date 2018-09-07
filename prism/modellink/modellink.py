@@ -262,7 +262,11 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                 model_parameters.update(par_dict)
 
         # Save number of model parameters
-        self._n_par = check_val(len(model_parameters.keys()), 'n_par', 'pos')
+        n_par = len(model_parameters.keys())
+        if(n_par == 1):
+            raise InputError("Number of model parameters must be at least 2!")
+        else:
+            self._n_par = check_val(n_par, 'n_par', 'pos')
 
         # Create empty parameter name, ranges and estimate lists/arrays
         self._par_name = []
