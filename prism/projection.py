@@ -708,7 +708,7 @@ class Projection(object):
             # Generate latin hypercube of the remaining parameters
             hidden_sam_set = lhd(self.__depth, 1,
                                  self._modellink._par_rng[par_hid], 'fixed',
-                                 self._criterion)
+                                 self._criterion)[:, 0]
 
             # Fill every cell in the projection hypercube accordingly
             for i in range(self.__res):
