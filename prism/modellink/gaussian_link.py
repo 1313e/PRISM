@@ -72,7 +72,6 @@ class GaussianLink(ModelLink):
 
     def call_model(self, emul_i, model_parameters, data_idx):
         par = model_parameters
-        data_idx = [self._par_est[i+3] for i in data_idx]
         mod_set =\
             par['A1']*np.exp(-1*((data_idx-par['B1'])**2/(2*par['C1']**2))) +\
             par['A2']*np.exp(-1*((data_idx-par['B2'])**2/(2*par['C2']**2))) +\

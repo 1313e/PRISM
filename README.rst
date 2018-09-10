@@ -1,4 +1,4 @@
-|PyPI| |Python| |License|
+|PyPI| |Python| |License| |Travis| |AppVeyor| |Coverage|
 
 Model dispersion with PRISM, a "Probabilistic Regression Instrument for Simulating Models"
 ==========================================================================================
@@ -64,10 +64,19 @@ For running PRISM in MPI, the following packages are also required (not installe
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/prism_tool.svg
    :target: https://pypi.python.org/pypi/prism_tool
-   :alt: PyPI Release
+   :alt: PyPI - Release
 .. |Python| image:: https://img.shields.io/pypi/pyversions/prism_tool.svg
    :target: https://pypi.python.org/pypi/prism_tool
-   :alt: Python Versions
-.. |License| image:: https://img.shields.io/pypi/l/prism_tool.svg
-   :target: https://raw.githubusercontent.com/1313e/PRISM/master/LICENSE
-   :alt: BSD-3 License
+   :alt: PyPi - Python Versions
+.. |License| image:: https://img.shields.io/pypi/l/prism_tool.svg?colorB=blue
+   :target: https://github.com/1313e/PRISM/raw/master/LICENSE
+   :alt: PyPi - License
+.. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis&label=Travis%20CI
+   :target: https://travis-ci.com/1313e/PRISM
+   :alt: Travis CI - Build Status
+.. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/master.svg?logo=appveyor&label=AppVeyor
+   :target: https://ci.appveyor.com/project/1313e/PRISM
+   :alt: AppVeyor - Build Status
+.. |Coverage| image:: https://coveralls.io/repos/github/1313e/PRISM/badge.svg?branch=master
+   :target: https://coveralls.io/github/1313e/PRISM?branch=master
+   :alt: Coveralls - Coverage Status

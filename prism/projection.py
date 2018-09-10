@@ -74,7 +74,7 @@ class Projection(object):
     def __init__(self, *args, **kwargs):
         logger = getCLogger('PROJECTION')
         err_msg = ("The Projection class is a base class for the Pipeline "
-                   "class and cannot be initialized on its own!")
+                   "class and cannot be used on its own!")
         raise_error(RequestError, err_msg, logger)
 
     # Function that creates all projection figures
@@ -122,7 +122,7 @@ class Projection(object):
             (bottom) plot. It takes all arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` or
             :func:`~matplotlib.pyplot.hexbin` function.
-        line_kwargs : dict of  Default: {'linestyle': '--', 'color': 'grey'}
+        line_kwargs : dict. Default: {'linestyle': '--', 'color': 'grey'}
             Dict of keyword arguments to be used for drawing the parameter
             estimate lines in both plots. It takes all arguments that can be
             provided to the :func:`~matplotlib.pyplot.draw` function.
@@ -301,29 +301,36 @@ class Projection(object):
 
         # Do plotting
         f, axarr = plt.subplots(2, **self.__fig_kwargs)
-        plt.rc('text', usetex=True)
         f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
                    fontsize='xx-large')
 
         # Plot minimum implausibility
         axarr[0].plot(x, f_min(x), **self.__impl_kwargs)
         draw_y = self._impl_cut[self.__emul_i][self._cut_idx[self.__emul_i]]
-        draw_textline(r"$I_{\mathrm{cut-off, 1}}$", y=draw_y, ax=axarr[0],
-                      line_kwargs={'color': 'g'})
+        axarr[0].axis([self._modellink._par_rng[par, 0],
+                       self._modellink._par_rng[par, 1],
+                       0, 1.5*draw_y])
         if self._modellink._par_est[par] is not None:
             draw_textline(r"", x=self._modellink._par_est[par], ax=axarr[0],
                           line_kwargs=self.__line_kwargs)
-        axarr[0].set_ylabel(r"Minimum Implausibility $I_{\mathrm{min}}(%s)$"
-                            % (par_name), fontsize='x-large')
+        plt.rc('text', usetex=True)
+        draw_textline(r"$I_{\mathrm{cut-off, %s}}$"
+                      % (self._cut_idx[self.__emul_i]), y=draw_y, ax=axarr[0],
+                      line_kwargs={'color': 'g'})
+        plt.rcdefaults()
+        axarr[0].set_ylabel("Minimum Implausibility", fontsize='large')
 
         # Plot line-of-sight depth
         axarr[1].plot(x, f_los(x), **self.__los_kwargs)
+        axarr[1].axis([self._modellink._par_rng[par, 0],
+                       self._modellink._par_rng[par, 1],
+                       0, min(1, np.max(impl_los))])
         if self._modellink._par_est[par] is not None:
             draw_textline(r"", x=self._modellink._par_est[par], ax=axarr[1],
                           line_kwargs=self.__line_kwargs)
         axarr[1].set_xlabel("Input Parameter %s" % (par_name),
                             fontsize='x-large')
-        axarr[1].set_ylabel("Line-of-Sight Depth", fontsize='x-large')
+        axarr[1].set_ylabel("Line-of-Sight Depth", fontsize='large')
 
         # Save the figure
         plt.savefig(self.__fig_path)

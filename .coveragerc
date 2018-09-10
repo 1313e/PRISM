@@ -1,0 +1,7 @@
+[run]
+source = e13tools
+omit =
+  e13tools/__init__*
+  e13tools/*/__init__*
+  e13tools/__version__*
+

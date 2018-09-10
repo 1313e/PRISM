@@ -138,10 +138,12 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         Notes (model_data)
         ------------------
-        The model data array contains the data values in the first column; the
-        data errors in the second (and third) column(s); the data spaces in the
-        third (or fourth) column and the data identifiers in the remaining
-        columns.
+        The model data array contains the data values (:attr:`~data_val`) in
+        the first column; the data errors (:attr:`~data_err`) in the second
+        (and third) column(s); the data spaces (:attr:`~data_spc`) in the
+        third (or fourth) column and the data identifiers (:attr:`~data_idx`)
+        in the remaining columns.
+
         If the data errors are given with one column, then the data points are
         assumed to have a centered one sigma confidence interval. If the data
         errors are given with two columns, then the data points are assumed to
@@ -157,6 +159,11 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         extract the data point from the model output. It can be provided as any
         sequence of any length for any data point. If any sequence contains a
         single element, it is replaced by just that element instead of a list.
+
+        A simple example of a data identifier is :math:`f(\\text{data_idx}) =
+        \\text{data_val}`, where the output of the model is given by
+        :math:`f(x)`.
+
         An example of a model data file can be found in the 'data' folder of
         the *PRISM* package.
 

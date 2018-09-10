@@ -2674,8 +2674,8 @@ class Pipeline(Projection, object):
             # FOOTER
             print("="*width)
 
-        # Flush the console
-        sys.stdout.flush()
+            # Flush the console
+            sys.stdout.flush()
 
         # MPI Barrier
         self._comm.Barrier()
