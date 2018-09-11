@@ -2,4 +2,6 @@ include LICENSE
 include README.rst
 include requirements*.txt
 recursive-include prism *.txt
+include prism/tests/*
+include prism/modellink/tests/*
 
