@@ -77,6 +77,6 @@ For running PRISM in MPI, the following packages are also required (not installe
 .. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/master.svg?logo=appveyor&label=AppVeyor
    :target: https://ci.appveyor.com/project/1313e/PRISM
    :alt: AppVeyor - Build Status
-.. |Coverage| image:: https://coveralls.io/repos/github/1313e/PRISM/badge.svg?branch=master
+.. |Coverage| image:: https://img.shields.io/coveralls/github/1313e/PRISM/master.svg
    :target: https://coveralls.io/github/1313e/PRISM?branch=master
    :alt: Coveralls - Coverage Status

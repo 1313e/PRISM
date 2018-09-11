@@ -153,8 +153,6 @@ class Test_check_val(object):
         assert check_val('str', 'str', 'str') == 'str'
         assert check_val(u'str', 'str', 'str') == u'str'
         with pytest.raises(TypeError):
-            check_val(b'str', 'str', 'str')
-        with pytest.raises(TypeError):
             check_val(1, 'str', 'str')
 
         # Test for float
