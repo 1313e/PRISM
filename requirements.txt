@@ -1,6 +1,6 @@
 e13tools>=0.4.6a0
 h5py>=2.8.0
-matplotlib>=1.4.3
+matplotlib>=1.4.3,<3.0.0
 mlxtend>=0.9.1
 mpi_dummy>=1.0.0
 numpy>=1.8
