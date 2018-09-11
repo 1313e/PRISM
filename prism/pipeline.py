@@ -173,6 +173,7 @@ class Pipeline(Projection, object):
         if isclass(emul_type) and issubclass(emul_type, Emulator):
             try:
                 emul_type(self, modellink)
+                self._emulator
             except Exception as error:
                 err_msg = ("Input argument 'emul_type' is invalid (%s)!"
                            % (error))

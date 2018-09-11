@@ -5,6 +5,5 @@ omit =
   prism/*/__init__*
   prism/tests/*
   prism/*/tests/*
-  prism/_docstrings*
   prism/__version__*
 
