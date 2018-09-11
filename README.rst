@@ -70,7 +70,7 @@ For running PRISM in MPI, the following packages are also required (not installe
    :alt: PyPi - Python Versions
 .. |License| image:: https://img.shields.io/pypi/l/prism_tool.svg?colorB=blue
    :target: https://github.com/1313e/PRISM/raw/master/LICENSE
-   :alt: PyPi - License
+   :alt: PyPI - License
 .. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis&label=Travis%20CI
    :target: https://travis-ci.com/1313e/PRISM
    :alt: Travis CI - Build Status

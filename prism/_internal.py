@@ -389,11 +389,13 @@ def check_val(value, name, *args):
     # If no criteria are given, it must be a finite value
     elif not len(args):
         # Check if finite value is provided and return if so
-        if np.isfinite(value):
-            return(value)
-        else:
-            err_msg = "Input argument '%s' is not finite!" % (name)
-            raise_error(ValueError, err_msg, logger)
+        try:
+            if np.isfinite(value):
+                return(value)
+        except Exception:
+            pass
+        err_msg = "Input argument '%s' is not finite!" % (name)
+        raise_error(ValueError, err_msg, logger)
 
     # If none of the criteria is found, the criteria are invalid
     else:
@@ -482,13 +484,10 @@ def delist(list_obj):
     delisted_copy = list(list_obj)
 
     # Remove all empty lists from this copy
-    try:
-        off_dex = len(delisted_copy)-1
-        for i, element in enumerate(reversed(delisted_copy)):
-            if(isinstance(element, list) and element == []):
-                delisted_copy.pop(off_dex-i)
-    except AttributeError:
-        raise TypeError("Input argument 'list_obj' is not of type 'list'!")
+    off_dex = len(delisted_copy)-1
+    for i, element in enumerate(reversed(delisted_copy)):
+        if(isinstance(element, list) and element == []):
+            delisted_copy.pop(off_dex-i)
 
     # Return the copy
     return(delisted_copy)
@@ -541,6 +540,7 @@ def import_cmaps(cmap_dir=None):
     for filename in filenames:
         if(filename[0:3] != 'cm_'):
             cm_files.remove(filename)
+    cm_files.sort()
 
     # Read in all the defined colormaps, transform and register them
     for cm_file in cm_files:

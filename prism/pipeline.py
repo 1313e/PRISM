@@ -2474,8 +2474,8 @@ class Pipeline(Projection, object):
                     # Check if projections were made with the same impl_cut
                     try:
                         # If it was, projections are synced
-                        if((proj_impl_cut == self._impl_cut[emul_i]).all()
-                           and proj_cut_idx == self._cut_idx[emul_i]):
+                        if((proj_impl_cut == self._impl_cut[emul_i]).all() and
+                           proj_cut_idx == self._cut_idx[emul_i]):
                             proj = 1
 
                         # If not, projections are desynced

@@ -14,9 +14,11 @@ matrix:
 install:
   - pip install -r requirements_dev.txt
 script:
-  - check-manifest --ignore appveyor.cmd,.appveyor.yml,.coveragerc,tests*
+  - check-manifest --ignore appveyor.cmd,.appveyor.yml,.coveragerc
   - python setup.py check -m -r -s
   - python setup.py install
-  - python tests/test.py
+  - py.test prism --pep8 prism -v --cov prism --cov-report term-missing
+after_success:
+  - coveralls
 notifications:
   email: false

@@ -1,7 +1,10 @@
 [run]
-source = e13tools
+source = prism
 omit =
-  e13tools/__init__*
-  e13tools/*/__init__*
-  e13tools/__version__*
+  prism/__init__*
+  prism/*/__init__*
+  prism/tests/*
+  prism/*/tests/*
+  prism/_docstrings*
+  prism/__version__*
 
