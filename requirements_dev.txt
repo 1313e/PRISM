@@ -5,4 +5,5 @@ pytest-cov
 pytest-pep8
 python-coveralls
 readme_renderer
+setuptools>=36.3.0
 
