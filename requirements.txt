@@ -1,4 +1,4 @@
-e13tools>=0.4.6a3
+e13tools>=0.4.6a4
 h5py>=2.8.0
 matplotlib>=1.4.3,<3.0.0
 mlxtend>=0.9.1
