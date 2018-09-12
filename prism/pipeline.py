@@ -1208,28 +1208,28 @@ class Pipeline(Projection, object):
         # Obtain number of samples
         n_sam = np.shape(sam_set)[0]
 
+        # Gather the data_idx from all MPI ranks on the controller
+        data_idx_list = self._comm.gather(
+            delist(self._emulator._data_idx[emul_i]), 0)
+
+        # Flatten the received data_idx_list on the controller
+        if self._is_controller:
+            data_idx_flat = []
+            data_idx_len = []
+            for rank, data_idx_rank in enumerate(data_idx_list):
+                data_idx_len.append(len(data_idx_rank))
+                for data_idx in data_idx_rank:
+                    data_idx_flat.append(data_idx)
+
+        # Use dummy data_idx_flat on workers
+        else:
+            data_idx_flat = None
+
+        # For sake of consistency, broadcast data_idx_flat to workers
+        data_idx_flat = self._comm.bcast(data_idx_flat, 0)
+
         # If there are any samples in sam_set, evaluate them in the model
         if n_sam:
-            # Gather the data_idx from all MPI ranks on the controller
-            data_idx_list = self._comm.gather(
-                delist(self._emulator._data_idx[emul_i]), 0)
-
-            # Flatten the received data_idx_list on the controller
-            if self._is_controller:
-                data_idx_flat = []
-                data_idx_len = []
-                for rank, data_idx_rank in enumerate(data_idx_list):
-                    data_idx_len.append(len(data_idx_rank))
-                    for data_idx in data_idx_rank:
-                        data_idx_flat.append(data_idx)
-
-            # Use dummy data_idx_flat on workers
-            else:
-                data_idx_flat = None
-
-            # For sake of consistency, broadcast data_idx_flat to workers
-            data_idx_flat = self._comm.bcast(data_idx_flat, 0)
-
             # Check who needs to call the model
             if self._is_controller or self._modellink._MPI_call:
                 # Request all evaluation samples at once
@@ -1296,12 +1296,13 @@ class Pipeline(Projection, object):
         # Controller finishing up
         if self._is_controller:
             # Log that this is finished
+            eval_rate = end_time/n_sam if n_sam else 0
             msg = ("Finished evaluating model samples in %.2f seconds, "
                    "averaging %.3g seconds per model evaluation."
-                   % (end_time, end_time/n_sam))
+                   % (end_time, eval_rate))
             self._save_statistics(emul_i, {
                 'tot_model_eval_time': ['%.2f' % (end_time), 's'],
-                'avg_model_eval_time': ['%.3g' % (end_time/n_sam), 's'],
+                'avg_model_eval_time': ['%.3g' % (eval_rate), 's'],
                 'MPI_comm_size_model': ['%s' % (self._size), '']})
             logger.info(msg)
             print(msg)

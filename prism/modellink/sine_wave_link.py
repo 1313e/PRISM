@@ -73,4 +73,3 @@ class SineWaveLink(ModelLink):
 
     def get_md_var(self, emul_i, data_idx):
         return(pow(0.1*np.ones(len(data_idx)), 2))
-#        super(SineWaveLink, self).get_md_var(emul_i=emul_i, data_idx=data_idx)

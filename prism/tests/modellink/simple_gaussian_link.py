@@ -15,7 +15,7 @@ import numpy as np
 from prism.modellink import ModelLink
 
 # All declaration
-__all__ = ['GaussianLink3D']
+__all__ = ['GaussianLink2D', 'GaussianLink3D']
 
 
 # %% CLASS DEFINITION
@@ -48,6 +48,13 @@ class GaussianLink2D(ModelLink):
         par_dict = {'A': [1, 5, 2.5],
                     'B': [1, 3, 2]}
         return(par_dict)
+
+    @property
+    def _default_model_data(self):
+        model_data = [[1, 0.05, 0.05, 'lin', 1],
+                      [2, 0.05, 0.05, 'lin', 3],
+                      [3, 0.05, 0.05, 'lin', 4]]
+        return(model_data)
 
     def call_model(self, emul_i, model_parameters, data_idx):
         if self._multi_call:
@@ -82,21 +89,9 @@ class GaussianLink3D(ModelLink):
     """
 
     def __init__(self, *args, **kwargs):
-        # Request single model calls
-        self.multi_call = False
-
-        # Request only controller calls
-        self.MPI_call = False
-
+        # Do not set flags to cover auto-setting them
         # Inheriting ModelLink __init__()
         super(GaussianLink3D, self).__init__(*args, **kwargs)
-
-    @property
-    def _default_model_parameters(self):
-        par_dict = {'A': [1, 5, 2.5],
-                    'B': [1, 3, 2],
-                    'C': [0, 2, 1]}
-        return(par_dict)
 
     def call_model(self, emul_i, model_parameters, data_idx):
         par = model_parameters
@@ -104,5 +99,5 @@ class GaussianLink3D(ModelLink):
 
         return(mod_set)
 
-    def get_md_var(self, emul_i, data_idx):
-        return(pow(0.1*np.ones(len(data_idx)), 2))
+    def get_md_var(self, *args, **kwargs):
+        super(GaussianLink3D, self).get_md_var(*args, **kwargs)

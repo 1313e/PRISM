@@ -1,9 +1,0 @@
-[run]
-source = prism
-omit =
-  prism/__init__*
-  prism/*/__init__*
-  prism/tests/*
-  prism/*/tests/*
-  prism/__version__*
-

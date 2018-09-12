@@ -17,7 +17,7 @@ script:
   - check-manifest --ignore appveyor.cmd,.appveyor.yml,.coveragerc,prism_trash*,docs*,test_scripts*
   - python setup.py check -m -r -s
   - python setup.py install
-  - py.test prism --mpl --pep8 prism -v --cov prism --cov-report term-missing
+  - py.test prism
 after_success:
   - coveralls
 notifications:

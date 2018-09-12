@@ -424,6 +424,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             else:
                 # Update the model data list
                 for data in add_model_data:
+                    if isinstance(data[2], (str, unicode)):
+                        data.insert(2, data[1])
                     model_data.append(data)
 
         # Save number of model data points
@@ -498,7 +500,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         Parameters
         ----------
         %(emul_i)s
-        model_parameters : dict
+        model_parameters : dict of :class:`~np.float64`
             Dict containing the values for all model parameters corresponding
             to the requested model realization(s). If
             :attr:`~ModelLink.multi_call` is *False*, dict is formatted as
@@ -575,6 +577,14 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         # Retrieve a list of all ModelLink properties
         modellink_props = [prop for prop in dir(cls) if
                            isinstance(getattr(cls, prop), property)]
+
+        # Check if call_model can be called
+        try:
+            instance.call_model(0, 0, 0)
+        except NotImplementedError:
+            return(0)
+        except TypeError:
+            pass
 
         # Check if all ModelLink properties can be called in instance
         for prop in modellink_props:
