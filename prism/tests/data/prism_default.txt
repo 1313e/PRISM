@@ -12,4 +12,4 @@ poly_order		: 3			# Polynomial order for regression (only required if method != 
 do_active_anal		: True			# Perform active parameter analysis
 freeze_active_par	: True			# Active parameters always stay active
 pot_active_par		: None			# List of potentially active parameters
-use_mock		: False			# Use mock data
+use_mock		: True			# Use mock data

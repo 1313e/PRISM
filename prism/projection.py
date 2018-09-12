@@ -313,11 +313,7 @@ class Projection(object):
         if self._modellink._par_est[par] is not None:
             draw_textline(r"", x=self._modellink._par_est[par], ax=axarr[0],
                           line_kwargs=self.__line_kwargs)
-        plt.rc('text', usetex=True)
-        draw_textline(r"$I_{\mathrm{cut-off, %s}}$"
-                      % (self._cut_idx[self.__emul_i]), y=draw_y, ax=axarr[0],
-                      line_kwargs={'color': 'g'})
-        plt.rcdefaults()
+        draw_textline(r"", y=draw_y, ax=axarr[0], line_kwargs={'color': 'g'})
         axarr[0].set_ylabel("Minimum Implausibility", fontsize='large')
 
         # Plot line-of-sight depth

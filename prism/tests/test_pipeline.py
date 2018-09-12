@@ -37,7 +37,7 @@ class InvalidEmulator(Emulator):
 class Test_Pipeline(object):
     # Save paths to various files
     model_data = path.join(dirpath, 'data/data_gaussian.txt')
-    prism_file = path.join(dirpath, 'data/prism.txt')
+    prism_file = path.join(dirpath, 'data/prism_default.txt')
     model_parameters_2D = path.join(dirpath, 'data/parameters_gaussian_2D.txt')
     model_parameters_3D = path.join(dirpath, 'data/parameters_gaussian_3D.txt')
 
