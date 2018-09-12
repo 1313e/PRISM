@@ -2,6 +2,7 @@ check-manifest
 coveralls
 pytest
 pytest-cov
+pytest-mpl
 pytest-pep8
 python-coveralls
 readme_renderer

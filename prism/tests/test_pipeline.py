@@ -13,6 +13,7 @@ import sys
 from e13tools.core import InputError, ShapeError
 import numpy as np
 import pytest
+import pytest_mpl
 
 # PRISM imports
 from .modellink.test_gaussian_link import GaussianLink2D, GaussianLink3D
@@ -61,23 +62,25 @@ class Test_Pipeline(object):
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                         prism_file=self.prism_file, emul_type='default')
 
-        # Check if first iteration can be constructed
-        pipe.construct(1, 0)
+        # Set MPL backend temporarily to Agg
+        with pytest_mpl.plugin.switch_backend('Agg'):
+            # Check if first iteration can be constructed
+            pipe.construct(1, 0)
 
-        # Check if first iteration can be analyzed
-        pipe.analyze()
+            # Check if first iteration can be analyzed
+            pipe.analyze()
 
-        # Check if first iteration can be evaluated
-        pipe.evaluate([1.5, 1.5])
+            # Check if first iteration can be evaluated
+            pipe.evaluate([1.5, 1.5])
 
-        # Check if first iteration can be projected
-        pipe.project()
+            # Check if first iteration can be projected
+            pipe.project()
 
-        # Check if details overview of first iteration can be given
-        pipe.details()
+            # Check if details overview of first iteration can be given
+            pipe.details()
 
-        # Check if entire second iteration can be created
-        pipe.run(2)
+            # Check if entire second iteration can be created
+            pipe.run(2)
 
         # Try to access all Pipeline properties
         for prop in self.pipeline_props:
@@ -100,23 +103,25 @@ class Test_Pipeline(object):
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                         prism_file=self.prism_file, emul_type='default')
 
-        # Check if first iteration can be constructed
-        pipe.construct(1, 0)
+        # Set MPL backend temporarily to Agg
+        with pytest_mpl.plugin.switch_backend('Agg'):
+            # Check if first iteration can be constructed
+            pipe.construct(1, 0)
 
-        # Check if first iteration can be analyzed
-        pipe.analyze()
+            # Check if first iteration can be analyzed
+            pipe.analyze()
 
-        # Check if first iteration can be evaluated
-        pipe.evaluate([1.5, 1.5, 1.5])
+            # Check if first iteration can be evaluated
+            pipe.evaluate([1.5, 1.5, 1.5])
 
-        # Check if first iteration can be projected
-#        pipe.project()
+            # Check if first iteration can be projected
+#            pipe.project()
 
-        # Check if details overview of first iteration can be given
-        pipe.details()
+            # Check if details overview of first iteration can be given
+            pipe.details()
 
-        # Check if entire second iteration can be created
-#        pipe.run(2)
+            # Check if entire second iteration can be created
+#            pipe.run(2)
 
         # Try to access all Pipeline properties
 #        for prop in self.pipeline_props:
