@@ -937,7 +937,8 @@ class Projection(object):
 
             # FIG_KWARGS
             # Check if any forbidden kwargs are given and remove them
-            for key in fig_kwargs.keys():
+            fig_keys = list(fig_kwargs.keys())
+            for key in fig_keys:
                 if key in pop_fig_kwargs:
                     fig_kwargs.pop(key)
 
@@ -951,7 +952,8 @@ class Projection(object):
                 raise_error(InputError, err_msg, logger)
 
             # Check if any forbidden kwargs are given and remove them
-            for key in impl_kwargs.keys():
+            impl_keys = list(impl_kwargs.keys())
+            for key in impl_keys:
                 if key in pop_plt_kwargs:
                     impl_kwargs.pop(key)
             if(self._modellink._n_par == 2):
@@ -967,7 +969,8 @@ class Projection(object):
                 raise_error(InputError, err_msg, logger)
 
             # Check if any forbidden kwargs are given and remove them
-            for key in los_kwargs.keys():
+            los_keys = list(los_kwargs.keys())
+            for key in los_keys:
                 if key in pop_plt_kwargs:
                     los_kwargs.pop(key)
             if(self._modellink._n_par == 2):

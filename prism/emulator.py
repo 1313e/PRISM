@@ -1025,19 +1025,21 @@ class Emulator(object):
             # Check if repreparation was actually necessary
             # TODO: Think about how to extend this check
             diff_flag = 1
-            for i in range(self._n_data[emul_i]):
-                if not(self._data_val[emul_i][i] in
-                       self._modellink._data_val):
+            for i, idx in enumerate(self._modellink._data_idx):
+                try:
+                    j = self._data_idx[emul_i].index(idx)
+                except ValueError:
                     break
-                if not(self._data_err[emul_i][i] in
-                       self._modellink._data_err):
-                    break
-                if not(self._data_spc[emul_i][i] in
-                       self._modellink._data_spc):
-                    break
-                if not(self._data_idx[emul_i][i] in
-                       self._modellink._data_idx):
-                    break
+                else:
+                    if(self._data_val[emul_i][j] !=
+                       self._modellink._data_val[i]):
+                        break
+                    if(self._data_err[emul_i][j] !=
+                       self._modellink._data_err[i]):
+                        break
+                    if(self._data_spc[emul_i][j] !=
+                       self._modellink._data_spc[i]):
+                        break
             # If not, set diff_flag to 0
             else:
                 diff_flag = 0
@@ -1483,14 +1485,6 @@ class Emulator(object):
             logger.info("Regression score for emulator system %s: %s."
                         % (self._emul_s[emul_s], regr_score))
 
-            # Add the intercept term to sam_set_poly
-            sam_set_poly = np.insert(sam_set_poly, 0, 1, 0)
-
-            # Calculate the poly_coef covariances
-            if self._use_regr_cov:
-                poly_coef_cov = rsdl_var*inv(
-                    np.dot(sam_set_poly.T, sam_set_poly)).flatten()
-
             # Obtain polynomial powers and include intercept term
             poly_powers = np.insert(pipe.named_steps['poly'].powers_[poly_idx],
                                     0, 0, 0)
@@ -1498,12 +1492,23 @@ class Emulator(object):
             # Redetermine the active parameters, poly_powers and poly_idx
             new_active_par = [np.any(powers) for powers in poly_powers.T]
             poly_powers = poly_powers[:, new_active_par]
-            new_powers =\
-                PF(self._poly_order).fit([[0]*poly_powers.shape[1]]).powers_
+            new_pf_obj = PF(self._poly_order).fit([[0]*poly_powers.shape[1]])
+            new_powers = new_pf_obj.powers_
             new_powers_list = new_powers.tolist()
             poly_powers_list = poly_powers.tolist()
             poly_idx = np.array([i for i, powers in enumerate(new_powers_list)
                                  if powers in poly_powers_list])
+
+            # If regression covariances is requested, calculate it
+            if self._use_regr_cov:
+                # Redetermine the active sam_set_poly
+                active_sam_set = self._sam_set[emul_i][:, new_active_par]
+                sam_set_poly = new_pf_obj.fit_transform(active_sam_set)[
+                    :, poly_idx]
+
+                # Calculate the poly_coef covariancesa
+                poly_coef_cov = rsdl_var*inv(
+                    np.dot(sam_set_poly.T, sam_set_poly)).flatten()
 
             # Obtain polynomial coefficients and include intercept term
             poly_coef = np.insert(pipe.named_steps['linear'].coef_, 0,
@@ -2505,7 +2510,7 @@ class Emulator(object):
                     self._poly_idx[emul_i][lemul_s] = data[5]
                     if self._use_regr_cov:
                         data_set.create_dataset('poly_coef_cov', data=data[6])
-                        self._poly_coef_cov[lemul_s] = data[6]
+                        self._poly_coef_cov[emul_i][lemul_s] = data[6]
 
                     # Remove regression from respective ccheck
                     self._ccheck[emul_i][lemul_s].remove('regression')

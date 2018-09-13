@@ -478,7 +478,9 @@ class Pipeline(Projection, object):
         par_dict = dict(zip(self._modellink._par_name, sam))
 
         # Obtain model output
-        mod_out = self._modellink.call_model(emul_i, par_dict, data_idx)
+        mod_out = self._modellink.call_model(emul_i=emul_i,
+                                             model_parameters=par_dict,
+                                             data_idx=data_idx)
 
         # Log that calling model has been finished
         logger.info("Model returned %s." % (mod_out))
@@ -501,7 +503,9 @@ class Pipeline(Projection, object):
         sam_dict = dict(zip(self._modellink._par_name, sam_set.T))
 
         # Obtain set of model outputs
-        mod_set = self._modellink.call_model(emul_i, sam_dict, data_idx)
+        mod_set = self._modellink.call_model(emul_i=emul_i,
+                                             model_parameters=sam_dict,
+                                             data_idx=data_idx)
 
         # Log that multi-calling model has been finished
         logger.info("Finished model multi-call.")
@@ -1468,7 +1472,8 @@ class Pipeline(Projection, object):
         # Try to use the user-defined md variances
         try:
             md_var = self._modellink.get_md_var(
-                emul_i, delist(self._emulator._data_idx[emul_i]))
+                emul_i=emul_i,
+                data_idx=delist(self._emulator._data_idx[emul_i]))
 
         # If it was not user-defined, use a default value
         except NotImplementedError:
@@ -1736,15 +1741,19 @@ class Pipeline(Projection, object):
             err_msg = "Input argument 'ext_real_set' is invalid!"
             raise_error(InputError, err_msg, logger)
 
-        # Check if ext_sam_set and ext_mod_set can be converted to NumPy arrays
-        try:
-            ext_sam_set = np.array(ext_sam_set, ndmin=2)
-            ext_mod_set = np.array(ext_mod_set, ndmin=2)
-        # If not, raise error
-        except Exception as error:
-            err_msg = ("Input argument 'ext_real_set' is invalid! (%s)"
-                       % (error))
-            raise_error(InputError, err_msg, logger)
+        # Convert ext_sam_set and ext_mod_set to NumPy arrays
+        ext_sam_set = np.array(ext_sam_set, ndmin=2)
+        ext_mod_set = np.array(ext_mod_set, ndmin=2)
+
+        # Check if both arrays are two-dimensional
+        if not(ext_sam_set.ndim == 2):
+            err_msg = ("External sample set has more than two dimensions (%s)!"
+                       % (ext_sam_set.ndim))
+            raise_error(ShapeError, err_msg, logger)
+        if not(ext_mod_set.ndim == 2):
+            err_msg = ("External model output set has more than two dimensions"
+                       " (%s)!" % (ext_mod_set.ndim))
+            raise_error(ShapeError, err_msg, logger)
 
         # Check if ext_sam_set and ext_mod_set have correct shapes and raise
         # error if not
@@ -2474,19 +2483,14 @@ class Pipeline(Projection, object):
                     proj_cut_idx = data_set.attrs['cut_idx']
 
                     # Check if projections were made with the same impl_cut
-                    try:
+                    if(len(proj_impl_cut) == len(self._impl_cut[emul_i]) and
+                       (proj_impl_cut == self._impl_cut[emul_i]).all() and
+                       proj_cut_idx == self._cut_idx[emul_i]):
                         # If it was, projections are synced
-                        if((proj_impl_cut == self._impl_cut[emul_i]).all() and
-                           proj_cut_idx == self._cut_idx[emul_i]):
-                            proj = 1
-
-                        # If not, projections are desynced
-                        else:
-                            proj = 2
-
-                    # If analysis was never done, projections are always synced
-                    except IndexError:
                         proj = 1
+                    else:
+                        # If not, projections are desynced
+                        proj = 2
 
             # Log file being closed
             logger.info("Finished collecting details about current pipeline "
