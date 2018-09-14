@@ -1,12 +1,27 @@
 language: python
-sudo: true
-dist: xenial
-python:
-  - "2.7"
-  - "3.4"
-  - "3.5"
-  - "3.6"
-  - "3.7"
+matrix:
+  include:
+    - python: 2.7
+      dist: xenial
+      sudo: true
+    - python: 3.4
+      dist: trusty
+      sudo: true
+    - python: 3.5
+      dist: xenial
+      sudo: true
+    - python: 3.5-dev
+      dist: xenial
+      sudo: true
+    - python: 3.6
+      dist: xenial
+      sudo: true
+    - python: 3.6-dev
+      dist: xenial
+      sudo: true
+    - python: 3.7
+      dist: xenial
+      sudo: true
 install:
   - pip install -r requirements_dev.txt
 script:
