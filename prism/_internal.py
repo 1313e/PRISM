@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 """
-PRISM Internal
-==============
+Internal
+========
 Contains a collection of support classes/functions/lists for the *PRISM*
 package.
 
@@ -257,7 +257,7 @@ def check_val(value, name, *args):
     name : str
         The name of the input argument, which is used in the error message if
         a criterion is not met.
-    args: {'bool', 'float', 'int', 'neg', 'nneg', 'npos', 'nzero', 'pos',\
+    args : {'bool', 'float', 'int', 'neg', 'nneg', 'npos', 'nzero', 'pos',\
            'str'}
         Sequence of strings determining the criteria that `value` must meet. If
         `args` is empty, it is checked if `value` is finite.
