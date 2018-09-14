@@ -1,6 +1,6 @@
 check-manifest
 coveralls
-pytest
+pytest>=3.8.0
 pytest-cov
 pytest-mpl
 pytest-pep8
