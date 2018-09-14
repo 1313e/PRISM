@@ -49,9 +49,9 @@ These test scripts work out-of-the-box and can be used to see how PRISM works, a
 
 Dependencies
 ------------
-PRISM requires ``python == 2.7`` or ``python >= 3.4`` and the following non-standard dependencies (installed automatically):
+PRISM requires ``python == 2.7`` or ``python >= 3.5`` and the following non-standard dependencies (installed automatically):
 
-- ``e13tools >= 0.4.6a0``;
+- ``e13tools >= 0.4.6a4``;
 - ``mlxtend >= 0.9.1``;
 - ``mpi_dummy >= 1.0.0``;
 - ``scikit-learn >= 0.19.1``;
