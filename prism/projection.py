@@ -4,14 +4,8 @@
 Projection
 ==========
 Provides the definition of *PRISM*'s :class:`~Projection` class, a
-:class:`~Pipeline` base class that allows for projection figures detailing a
-model's behavior to be created.
-
-
-Available classes
------------------
-:class:`~Projection`
-    Defines the :class:`~Projection` class of the *PRISM* package.
+:class:`~prism.pipeline.Pipeline` base class that allows for projection figures
+detailing a model's behavior to be created.
 
 """
 
@@ -60,10 +54,11 @@ class Projection(object):
     Description
     -----------
     The :class:`~Projection` class holds all specific methods that the
-    :class:`~Pipeline` class needs in order to create projections of the model.
+    :class:`~prism.pipeline.Pipeline` class needs in order to create
+    projections of the model.
 
-    This is a base class for the :class:`~Pipeline` class and cannot be used on
-    its own.
+    This is a base class for the :class:`~prism.pipeline.Pipeline` class and
+    cannot be used on its own.
 
     """
 
@@ -85,10 +80,10 @@ class Projection(object):
         projection figures detailing the behavior of the model parameters
         corresponding to the given `proj_par`.
         The input and output depend on the number of model parameters
-        :attr:`~ModelLink.n_par`.
+        :attr:`~prism.modellink.modellink.ModelLink.n_par`.
 
-        Positional/keyword arguments
-        ----------------------------
+        Arguments
+        ---------
         %(emul_i)s
         %(proj_par)s
 
@@ -131,22 +126,24 @@ class Projection(object):
         ---------
         A series of projection figures detailing the behavior of the model.
         The lay-out and output of the projection figures depend on the number
-        of model parameters :attr:`~ModelLink.n_par`:
-            :attr:`~ModelLink.n_par` == 2: The output will feature two figures
-            for the two model parameters with two subplots each. Every figure
-            gives details about the behavior of the corresponding model
-            parameter, by showing the minimum implausibility value (top) and
-            the line-of-sight depth (bottom) obtained at the specified
-            parameter value, independent of the value of the other parameter.
+        of model parameters :attr:`~prism.modellink.modellink.ModelLink.n_par`:
+            :attr:`~prism.modellink.modellink.ModelLink.n_par` == 2: The output
+            will feature two figures for the two model parameters with two
+            subplots each. Every figure gives details about the behavior of the
+            corresponding model parameter, by showing the minimum
+            implausibility value (top) and the line-of-sight depth (bottom)
+            obtained at the specified parameter value, independent of the value
+            of the other parameter.
 
-            :attr:`~ModelLink.n_par` > 2: The output will feature a figure with
-            two subplots for every combination of two active model parameters
-            that can be made (``n_par*(n_par-1)/2``). Every figure gives
-            details about the behavior of the corresponding model parameters,
-            as well as their dependency on each other. This is done by showing
-            the minimum implausibility (top) and the line-of-sight depth
-            (bottom) obtained at the specified parameter values, independent of
-            the values of the remaining model parameters.
+            :attr:`~prism.modellink.modellink.ModelLink.n_par` > 2: The output
+            will feature a figure with two subplots for every combination of
+            two active model parameters that can be made
+            (``n_par*(n_par-1)/2``). Every figure gives details about the
+            behavior of the corresponding model parameters, as well as their
+            dependency on each other. This is done by showing the minimum
+            implausibility (top) and the line-of-sight depth (bottom) obtained
+            at the specified parameter values, independent of the values of the
+            remaining model parameters.
 
         Notes
         -----
@@ -250,7 +247,7 @@ class Projection(object):
     @property
     def proj_res(self):
         """
-        Number of emulator evaluations used to generate the grid for the
+        int: Number of emulator evaluations used to generate the grid for the
         projection figures.
 
         """
@@ -260,8 +257,8 @@ class Projection(object):
     @property
     def proj_depth(self):
         """
-        Number of emulator evaluations used to generate the samples in every
-        grid point for the projection figures.
+        int: Number of emulator evaluations used to generate the samples in
+        every grid point for the projection figures.
 
         """
 
@@ -626,7 +623,7 @@ class Projection(object):
         return(kwargs_dict)
 
     # This function reads in the impl_cut list from the PRISM parameters file
-    @docstring_append(read_par_doc.format("projection", "Pipeline"))
+    @docstring_append(read_par_doc.format("projection", "pipeline.Pipeline"))
     def __read_parameters(self):
         # Log that the PRISM parameter file is being read
         logger = getCLogger('INIT')

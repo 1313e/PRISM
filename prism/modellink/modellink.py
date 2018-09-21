@@ -5,15 +5,6 @@ ModelLink
 =========
 Provides the definition of the :class:`~ModelLink` abstract base class.
 
-
-Available classes
------------------
-:class:`~ModelLink`
-    Provides an abstract base class definition that allows the
-    :class:`~Pipeline` class to be linked to any model/test object of choice.
-    Every model wrapper used in the :class:`~Pipeline` class must be an
-    instance of the :class:`~ModelLink` class.
-
 """
 
 
@@ -48,9 +39,10 @@ if(sys.version_info.major >= 3):
 class ModelLink(with_metaclass(abc.ABCMeta, object)):
     """
     Provides an abstract base class definition that allows the
-    :class:`~Pipeline` class to be linked to any model/test object of choice.
-    Every model wrapper used in the :class:`~Pipeline` class must be an
-    instance of the :class:`~ModelLink` class.
+    :class:`~prism.pipeline.Pipeline` class to be linked to any model/test
+    object of choice. Every model wrapper used in the
+    :class:`~prism.pipeline.Pipeline` class must be an instance of the
+    :class:`~ModelLink` class.
 
     Description
     -----------
@@ -77,23 +69,10 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     combination of both is also possible. More details on this can be found in
     :meth:`~__init__`.
 
-    Abstract methods
-    ----------------
-    :meth:`~call_model`
-        Calls the model wrapped in this :class:`~ModelLink` subclass at
-        emulator iteration `emul_i` for model parameter values
-        `model_parameters` and returns the data points corresponding to
-        `data_idx`.
-    :meth:`~get_md_var`
-        Calculates the model discrepancy variance at a given emulator iteration
-        `emul_i` for given data points `data_idx` for the model wrapped in this
-        :class:`~ModelLink` subclass.
-
-    Mandatory inherited methods
-    ---------------------------
-    :meth:`~__init__`
-        This method may be overridden by the :class:`~ModelLink` subclass, but
-        the inherited version must always be called.
+    Note
+    ----
+    The :meth:`~__init__` method may be overridden by the :class:`~ModelLink`
+    subclass, but the inherited version must always be called.
 
     """
 
@@ -145,12 +124,12 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         in the remaining columns.
 
         If the data errors are given with one column, then the data points are
-        assumed to have a centered one sigma confidence interval. If the data
-        errors are given with two columns, then the data points are assumed to
-        have a one sigma confidence interval defined by the provided lower and
-        upper errors. The data spaces are one of five strings ({'lin', 'log' or
-        'log_10', 'ln' or 'log_e'}) indicating in which of the three value
-        spaces (linear, log, ln) the data values are.
+        assumed to have a centered :math:`1\\sigma`-confidence interval. If the
+        data errors are given with two columns, then the data points are
+        assumed to have a :math:`1\\sigma`-confidence interval defined by the
+        provided lower and upper errors. The data spaces are one of five
+        strings ({'lin', 'log' or 'log_10', 'ln' or 'log_e'}) indicating in
+        which of the three value spaces (linear, log, ln) the data values are.
 
         The data identifier is a sequence of ints, floats and strings that is
         unique for every data point. *PRISM* uses it to identify a data point
@@ -327,8 +306,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         data_val : list
             List with values of provided data points.
         data_err : list
-            List with lower and upper one sigma confidence levels of provided
-            data points.
+            List with lower and upper :math:`1\\sigma`-confidence levels of
+            provided data points.
         data_spc : list
             List with types of value space ({'lin', 'log', 'ln'}) of provided
             data points.
@@ -500,12 +479,12 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         Parameters
         ----------
         %(emul_i)s
-        model_parameters : dict of :class:`~np.float64`
+        model_parameters : dict of :class:`~numpy.float64`
             Dict containing the values for all model parameters corresponding
-            to the requested model realization(s). If
-            :attr:`~ModelLink.multi_call` is *False*, dict is formatted as
-            ``{par_name: par_val}``. If *True*, it is formatted as
-            ``{par_name: [par_val_1, par_val_2, ..., par_val_n]}``.
+            to the requested model realization(s). If :attr:`~multi_call` is
+            *False*, dict is formatted as ``{par_name: par_val}``. If *True*,
+            it is formatted as ``{par_name: [par_val_1, par_val_2, ...,
+            par_val_n]}``.
         data_idx : list of lists
             List containing the user-defined data point identifiers
             corresponding to the requested data points.
@@ -515,7 +494,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         data_val : 1D or 2D array_like
             Array containing the data values corresponding to the requested
             data points generated by the requested model realization(s). If
-            :attr:`~ModelLink.multi_call` is *True*, `data_val` is of shape
+            :attr:`~multi_call` is *True*, `data_val` is of shape
             ``(n_sam, n_data)``.
 
         """
@@ -600,7 +579,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def name(self):
         """
-        Name associated with an instance of this :class:`~ModelLink` subclass.
+        str: Name associated with an instance of this :class:`~ModelLink`
+        subclass.
         By default, it is set to the name of this :class:`~ModelLink` subclass.
         Can be manually manipulated to allow for more user control.
 
@@ -615,8 +595,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def multi_call(self):
         """
-        Bool determining whether :meth:`~ModelLink.call_model` can/should be
-        supplied with a set of evaluation samples instead of a single sample.
+        bool: Whether :meth:`~call_model` can/should be supplied with a set of
+        evaluation samples instead of a single sample.
         By default, single model calls are requested (False).
 
         """
@@ -630,8 +610,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def MPI_call(self):
         """
-        Bool determining whether :meth:`~ModelLink.call_model` can/should be
-        called by all MPI ranks simultaneously instead of by the controller.
+        bool: Whether :meth:`~call_model` can/should be called by all MPI ranks
+        simultaneously instead of by the controller.
         By default, only the controller rank calls the model (False).
 
         """
@@ -646,7 +626,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def n_par(self):
         """
-        Number of model parameters.
+        int: Number of model parameters.
 
         """
 
@@ -655,7 +635,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def par_name(self):
         """
-        List with model parameter names.
+        list of str: List with model parameter names.
 
         """
 
@@ -664,7 +644,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def par_rng(self):
         """
-        Array containing the lower and upper values of the model parameters.
+        :obj:`~numpy.ndarray`: The lower and upper values of the model
+        parameters.
 
         """
 
@@ -673,8 +654,9 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def par_est(self):
         """
-        List containing user-defined estimated values of the model parameters.
-        Contains *None* in places where estimates were not provided.
+        list of float or None: The user-defined estimated values of the model
+        parameters. Contains *None* in places where estimates were not
+        provided.
 
         """
 
@@ -684,7 +666,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def n_data(self):
         """
-        Number of provided data points.
+        int: Number of provided data points.
 
         """
 
@@ -693,7 +675,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def data_val(self):
         """
-        List with values of provided data points.
+        list of float: The values of provided data points.
 
         """
 
@@ -702,8 +684,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def data_err(self):
         """
-        List with lower and upper one sigma confidence levels of provided data
-        points.
+        list of float: The lower and upper :math:`1\\sigma`-confidence levels
+        of provided data points.
 
         """
 
@@ -712,8 +694,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def data_spc(self):
         """
-        List with types of value space ({'lin', 'log', 'ln'}) of provided data
-        points.
+        list of str: The types of value space ({'lin', 'log', 'ln'}) of
+        provided data points.
 
         """
 
@@ -722,7 +704,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def data_idx(self):
         """
-        List of lists with user-defined data point identifiers.
+        list of lists: The user-defined data point identifiers.
 
         """
 

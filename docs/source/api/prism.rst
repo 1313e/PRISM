@@ -3,8 +3,6 @@ prism package
 
 .. automodule:: prism
     :members:
-    :undoc-members:
-    :show-inheritance:
 
 Subpackages
 -----------

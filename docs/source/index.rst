@@ -1,8 +1,3 @@
-.. PRISM documentation master file, created by
-   sphinx-quickstart on Fri Sep 14 14:39:33 2018.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-   
 Model dispersion with *PRISM*, a "Probabilistic Regression Instrument for Simulating Models"
 ============================================================================================
 
@@ -26,9 +21,13 @@ The documentation of *PRISM* is spread out over several sections:
    :maxdepth: 2
    :caption: User Documentation
    
-   description
+   introduction
    user/getting_started
    user/usage
+   user/descriptions
+   user/terminology
+   user/FAQ
+   licenses_citation
    
 .. _api-docs:
 

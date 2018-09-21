@@ -6,12 +6,6 @@ Emulator
 Provides the definition of the class holding the emulator of the *PRISM*
 package, the :class:`~Emulator` class.
 
-
-Available classes
------------------
-:class:`~Emulator`
-    Defines the :class:`~Emulator` class of the *PRISM* package.
-
 """
 
 
@@ -71,22 +65,22 @@ class Emulator(object):
     The :class:`~Emulator` class is the backbone of the *PRISM* package,
     holding all tools necessary to construct, load, save and evaluate the
     emulator of a model. It performs many checks to see if the provided
-    :obj:`~ModelLink` object is compatible with the current emulator, advises
-    the user on alternatives when certain operations are requested,
-    automatically takes care of distributing emulator systems over MPI ranks
-    and more.
+    :obj:`~prism.modellink.modellink.ModelLink` object is compatible with the
+    current emulator, advises the user on alternatives when certain operations
+    are requested, automatically takes care of distributing emulator systems
+    over MPI ranks and more.
 
     Even though the purpose of the :class:`~Emulator` class is to hold only
     information about the emulator and therefore does not require any details
-    about the provided :obj:`~ModelLink` object, it will keep track of changes
-    made to it. This is to allow the user to modify the properties of the
-    :class:`~ModelLink` subclass without causing any desynchronization problems
-    by accident.
+    about the provided :obj:`~prism.modellink.modellink.ModelLink` object, it
+    will keep track of changes made to it. This is to allow the user to modify
+    the properties of the :class:`~prism.modellink.modellink.ModelLink`
+    subclass without causing any desynchronization problems by accident.
 
     The :class:`~Emulator` class requires to be linked to an instance of the
-    :class:`~Pipeline` class and will automatically attempt to do so when
-    initialized. By default, this class should only be initialized from within
-    a :obj:`~Pipeline` object.
+    :class:`~prism.pipeline.Pipeline` class and will automatically attempt to
+    do so when initialized. By default, this class should only be initialized
+    from within a :obj:`~prism.pipeline.Pipeline` object.
 
     """
 
@@ -99,12 +93,8 @@ class Emulator(object):
 
         Parameters
         ----------
-        pipeline_obj : :obj:`~Pipeline` object
-            Instance of the :class:`~Pipeline` class that initialized this
-            class.
-        modellink_obj : :obj:`~ModelLink` object
-            Instance of the :class:`~ModelLink` class that links the emulated
-            model to this :obj:`~Pipeline` object.
+        pipeline_obj : :obj:`~prism.pipeline.Pipeline` object
+        modellink_obj : :obj:`~prism.modellink.modellink.ModelLink` object
 
         """
 
@@ -129,7 +119,7 @@ class Emulator(object):
     @property
     def emul_type(self):
         """
-        String indicating what type of emulator is currently loaded.
+        str: The type of emulator is currently loaded.
 
         """
 
@@ -138,8 +128,8 @@ class Emulator(object):
     @property
     def emul_load(self):
         """
-        Bool indicating whether or not a previously constructed emulator is
-        currently loaded.
+        bool: Whether or not a previously constructed emulator is currently
+        loaded.
 
         """
 
@@ -148,8 +138,8 @@ class Emulator(object):
     @property
     def emul_i(self):
         """
-        Integer indicating the last emulator iteration that is fully
-        constructed for all emulator systems on this MPI rank.
+        int: The last emulator iteration that is fully constructed for all
+        emulator systems on this MPI rank.
 
         """
 
@@ -158,11 +148,10 @@ class Emulator(object):
     @property
     def ccheck(self):
         """
-        List of strings indicating which emulator system components are still
-        required to complete the construction of the specified emulator
-        iteration on this MPI rank. The controller rank additionally lists the
-        required components that are emulator iteration specific
-        ('mod_real_set' and 'active_par').
+        list of str: The emulator system components are still required to
+        complete the construction of an emulator iteration on this MPI rank.
+        The controller rank additionally lists the required components that are
+        emulator iteration specific ('mod_real_set' and 'active_par').
 
         """
 
@@ -171,8 +160,8 @@ class Emulator(object):
     @property
     def n_sam(self):
         """
-        Number of model evaluation samples that have been/will be used to
-        construct the specified emulator iteration.
+        int: Number of model evaluation samples that have been/will be used to
+        construct an emulator iteration.
 
         """
 
@@ -181,7 +170,7 @@ class Emulator(object):
     @property
     def n_emul_s(self):
         """
-        Number of emulator systems assigned to this MPI rank.
+        int: Number of emulator systems assigned to this MPI rank.
 
         """
 
@@ -190,8 +179,8 @@ class Emulator(object):
     @property
     def n_emul_s_tot(self):
         """
-        Total number of emulator systems assigned to all MPI ranks combined.
-        Only available on the controller rank.
+        int: Total number of emulator systems assigned to all MPI ranks
+        combined. Only available on the controller rank.
 
         """
 
@@ -200,8 +189,7 @@ class Emulator(object):
     @property
     def method(self):
         """
-        String indicating which emulator method to use for constructing the
-        emulator.
+        str: The emulation method to use for constructing the emulator.
         Possible are 'gaussian', 'regression' and 'full'.
 
         """
@@ -211,10 +199,10 @@ class Emulator(object):
     @property
     def use_mock(self):
         """
-        Bool indicating whether or not mock data has been used for the
-        construction of this emulator instead of actual data. If *True*,
-        changes made to the data in the provided :obj:`~ModelLink` object are
-        ignored.
+        bool: Whether or not mock data has been used for the construction of
+        this emulator instead of actual data. If *True*, changes made to the
+        data in the provided :obj:`~prism.modellink.modellink.ModelLink` object
+        are ignored.
 
         """
 
@@ -223,9 +211,9 @@ class Emulator(object):
     @property
     def use_regr_cov(self):
         """
-        Bool indicating whether or not to take into account the regression
-        covariance when calculating the covariance of the emulator, in addition
-        to the Gaussian covariance.
+        bool: Whether or not to take into account the regression covariance
+        when calculating the covariance of the emulator, in addition to the
+        Gaussian covariance.
         If :attr:`~method` == 'gaussian', this bool is not required.
         If :attr:`~method` == 'regression', this bool is always set to *True*.
 
@@ -236,9 +224,10 @@ class Emulator(object):
     @property
     def poly_order(self):
         """
-        Polynomial order that is considered for the regression process.
-        If :attr:`~method` == 'gaussian' and :attr:`~Pipeline.do_active_anal`
-        is *False*, this number is not required.
+        int: Polynomial order that is considered for the regression process.
+        If :attr:`~method` == 'gaussian' and
+        :attr:`~prism.pipeline.Pipeline.do_active_anal` is *False*, this number
+        is not required.
 
         """
 
@@ -247,8 +236,8 @@ class Emulator(object):
     @property
     def active_emul_s(self):
         """
-        List of lists containing the indices of the emulator systems on this
-        MPI rank that are active in the specified emulator iteration.
+        list of int: The indices of the emulator systems on this MPI rank that
+        are active.
 
         """
 
@@ -257,8 +246,8 @@ class Emulator(object):
     @property
     def emul_s(self):
         """
-        List containing the indices of the emulator systems that are assigned
-        to this MPI rank.
+        list of int: The indices of the emulator systems that are assigned to
+        this MPI rank.
 
         """
 
@@ -267,7 +256,7 @@ class Emulator(object):
     @property
     def emul_s_to_core(self):
         """
-        List of lists containing the indices of the emulator systems that are
+        list of lists: List of the indices of the emulator systems that are
         assigned to every MPI rank. Only available on the controller rank.
 
         """
@@ -278,9 +267,8 @@ class Emulator(object):
     @property
     def active_par(self):
         """
-        List of lists containing the model parameter names that are considered
-        active in the specified emulator iteration. Only available on the
-        controller rank.
+        list of str: The model parameter names that are considered active.
+        Only available on the controller rank.
 
         """
 
@@ -291,9 +279,8 @@ class Emulator(object):
     @property
     def active_par_data(self):
         """
-        List of lists containing the model parameter names that are considered
-        active for every emulator system on this MPI rank in the specified
-        emulator iteration.
+        list of str: The model parameter names that are considered active for
+        every emulator system on this MPI rank.
 
         """
 
@@ -306,8 +293,8 @@ class Emulator(object):
     @property
     def rsdl_var(self):
         """
-        List with residual variances for every emulator system on this MPI rank
-        in the specified emulator iteration.
+        list of int: The residual variances for every emulator system on this
+        MPI rank.
         Obtained from regression process and replaces the Gaussian sigma.
         Empty if :attr:`~method` == 'gaussian'.
 
@@ -318,9 +305,9 @@ class Emulator(object):
     @property
     def poly_coef(self):
         """
-        List of arrays with non-zero coefficients for the polynomial terms in
-        the regression function for every emulator system on this MPI rank in
-        the specified emulator iteration.
+        list of :obj:`~numpy.ndarray`: The non-zero coefficients for the
+        polynomial terms in the regression function for every emulator system
+        on this MPI rank.
         Empty if :attr:`~method` == 'gaussian'.
 
         """
@@ -330,9 +317,8 @@ class Emulator(object):
     @property
     def poly_coef_cov(self):
         """
-        List of arrays with covariances for all coefficients in
-        :attr:`~poly_coef` for every emulator system on this MPI rank in the
-        specified emulator iteration.
+        list of :obj:`~numpy.ndarray`: The covariances for all coefficients in
+        :attr:`~poly_coef` for every emulator system on this MPI rank.
         Empty if :attr:`~method` == 'gaussian' or :attr:`~use_regr_cov` is
         *False*.
 
@@ -343,9 +329,9 @@ class Emulator(object):
     @property
     def poly_powers(self):
         """
-        List of arrays containing the powers for all polynomial terms with
+        list of :obj:`~numpy.ndarray`: The powers for all polynomial terms with
         non-zero coefficients in the regression function for every emulator
-        system on this MPI rank in the specified emulator iteration.
+        system on this MPI rank.
         Empty if :attr:`~method` == 'gaussian'.
 
         """
@@ -355,9 +341,9 @@ class Emulator(object):
     @property
     def poly_idx(self):
         """
-        List of arrays containing the indices for all polynomial terms with
-        non-zero coefficients in the regression function for every emulator
-        system on this MPI rank in the specified emulator iteration.
+        list of :obj:`~numpy.ndarray`: The indices for all polynomial terms
+        with non-zero coefficients in the regression function for every
+        emulator system on this MPI rank.
         Empty if :attr:`~method` == 'gaussian'.
 
         """
@@ -368,8 +354,8 @@ class Emulator(object):
     @property
     def sam_set(self):
         """
-        List of arrays containing all model evaluation samples that have
-        been/will be used to construct the specified emulator iteration.
+        :obj:`~numpy.ndarray`: The model evaluation samples that have been/will
+        be used to construct the specified emulator iteration.
 
         """
 
@@ -378,9 +364,8 @@ class Emulator(object):
     @property
     def mod_set(self):
         """
-        List of arrays containing all model outputs corresponding to the
-        samples in :attr:`~sam_set` for every emulator system on this MPI rank
-        in the specified emulator iteration.
+        list of :obj:`~numpy.ndarray`: The model outputs corresponding to the
+        samples in :attr:`~sam_set` for every emulator system on this MPI rank.
 
         """
 
@@ -389,9 +374,8 @@ class Emulator(object):
     @property
     def cov_mat_inv(self):
         """
-        List of arrays containing the inverses of the covariance matrices for
-        every emulator system on this MPI rank in the specified emulator
-        iteration.
+        list of :obj:`~numpy.ndarray`: The inverses of the covariance matrices
+        for every emulator system on this MPI rank.
 
         """
 
@@ -400,9 +384,9 @@ class Emulator(object):
     @property
     def exp_dot_term(self):
         """
-        List of arrays containing the second expectation adjustment dot-term
-        values of all model evaluation samples for every emulator system on
-        this MPI rank in the specified emulator iteration.
+        list of :obj:`~numpy.ndarray`: The second expectation adjustment
+        dot-term values of all model evaluation samples for every emulator
+        system on this MPI rank.
 
         """
 
@@ -412,9 +396,9 @@ class Emulator(object):
     @property
     def sigma(self):
         """
-        Value of the Gaussian sigma.
-        If :attr:`~method` == 'regression' or 'full', this value is not
-        required, since it is obtained from the regression process instead.
+        int: Value of the Gaussian sigma.
+        If :attr:`~method` != 'gaussian' or 'full', this value is not required,
+        since it is obtained from the regression process instead.
 
         """
 
@@ -423,7 +407,8 @@ class Emulator(object):
     @property
     def l_corr(self):
         """
-        Array with Gaussian correlation lengths for all model parameters.
+        :obj:`~numpy.ndarray`: The Gaussian correlation lengths for all model
+        parameters.
 
         """
 
@@ -501,8 +486,8 @@ class Emulator(object):
         Generates
         ---------
         A new master HDF5-file contained in the working directory specified in
-        the :obj:`~Pipeline` instance, holding all information required to
-        construct the first iteration of the emulator.
+        the :obj:`~prism.pipeline.Pipeline` instance, holding all information
+        required to construct the first iteration of the emulator.
 
         """
 
@@ -985,7 +970,7 @@ class Emulator(object):
         -------
         reload : bool
             Bool indicating whether or not the controller rank of the
-            :obj:`~Pipeline` instance needs to reload its data.
+            :obj:`~prism.pipeline.Pipeline` instance needs to reload its data.
 
         Generates
         ---------
@@ -1146,7 +1131,7 @@ class Emulator(object):
     def _construct_iteration(self, emul_i):
         """
         Constructs the emulator iteration corresponding to the provided
-        `emul_i`, by performing the given emulator method and pre-calculating
+        `emul_i`, by performing the given emulation method and pre-calculating
         the prior expectation and variance values of the used model evaluation
         samples.
 
@@ -1953,9 +1938,10 @@ class Emulator(object):
 
         Parameters
         ----------
-        modellink_obj : :obj:`~ModelLink` object
-            Instance of the :class:`~ModelLink` class that links the emulated
-            model to this :obj:`~Pipeline` object.
+        modellink_obj : :obj:`~prism.modellink.modellink.ModelLink` object
+            Instance of the :class:`~prism.modellink.modellink.ModelLink` class
+            that links the emulated model to this
+            :obj:`~prism.pipeline.Pipeline` object.
 
         """
 
@@ -2006,21 +1992,24 @@ class Emulator(object):
     # This function connects the provided ModelLink class to the pipeline
     def _set_modellink(self, modellink_obj, modellink_loaded):
         """
-        Sets the :obj:`~ModelLink` object that will be used for constructing
-        this emulator. If a constructed emulator is present, checks if provided
-        `modellink` argument matches the :class:`~ModelLink` subclass used to
+        Sets the :obj:`~prism.modellink.modellink.ModelLink` object that will
+        be used for constructing this emulator. If a constructed emulator is
+        present, checks if provided `modellink` argument matches the
+        :class:`~prism.modellink.modellink.ModelLink` subclass used to
         construct it.
 
         Parameters
         ----------
-        modellink_obj : :obj:`~ModelLink` object
-            Instance of the :class:`~ModelLink` class that links the emulated
-            model to this :obj:`~Pipeline` object.
-            The provided :obj:`~ModelLink` object must match the one used to
-            construct the loaded emulator.
+        modellink_obj : :obj:`~prism.modellink.modellink.ModelLink` object
+            Instance of the :class:`~prism.modellink.modellink.ModelLink` class
+            that links the emulated model to this
+            :obj:`~prism.pipeline.Pipeline` object.
+            The provided :obj:`~prism.modellink.modellink.ModelLink` object
+            must match the one used to construct the loaded emulator.
         modellink_loaded : str or None
-            If str, the name of the :class:`~ModelLink` subclass that was used
-            to construct the loaded emulator.
+            If str, the name of the
+            :class:`~prism.modellink.modellink.ModelLink` subclass that was
+            used to construct the loaded emulator.
             If *None*, no emulator is loaded.
 
         """
@@ -2582,7 +2571,7 @@ class Emulator(object):
         return(par_dict)
 
     # Read in the parameters from the provided parameter file
-    @docstring_append(read_par_doc.format("emulator", "Emulator"))
+    @docstring_append(read_par_doc.format("emulator", "emulator.Emulator"))
     def _read_parameters(self):
         # Log that the PRISM parameter file is being read
         logger = getCLogger('INIT')
@@ -2648,14 +2637,16 @@ class Emulator(object):
     # TODO: Allow user to add/remove mock data? Requires consistency check
     def _set_mock_data(self):
         """
-        Loads previously used mock data into the :class:`~ModelLink` object,
-        overwriting the parameter estimates, data values, data errors, data
-        spaces and data identifiers with their mock equivalents.
+        Loads previously used mock data into the
+        :class:`~prism.modellink.modellink.ModelLink` object, overwriting the
+        parameter estimates, data values, data errors, data spaces and data
+        identifiers with their mock equivalents.
 
         Generates
         ---------
-        Overwrites the corresponding :class:`~ModelLink` class properties with
-        the previously used values (taken from the first emulator iteration).
+        Overwrites the corresponding
+        :class:`~prism.modellink.modellink.ModelLink` class properties with the
+        previously used values (taken from the first emulator iteration).
 
         """
 

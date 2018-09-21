@@ -23,26 +23,6 @@ tools one needs to utilize the full capabilities of *PRISM*, while the
 :class:`~ModelLink` abstract base class allows for any model to be connected to
 the *PRISM* pipeline and holds all information about this model.
 
-
-Available modules
------------------
-:mod:`~emulator`
-    Provides the definition of the class holding the emulator of the *PRISM*
-    package, the :class:`~Emulator` class.
-
-:mod:`~modellink`
-    Contains the definition of *PRISM*'s :class:`~ModelLink` abstract base
-    class and various default/example :class:`~ModelLink` subclasses.
-
-:mod:`~pipeline`
-    Provides the definition of the main class of the *PRISM* package, the
-    :class:`~Pipeline` class.
-
-:mod:`~projection`
-    Provides the definition of *PRISM*'s :class:`~Projection` class, a
-    :class:`~Pipeline` base class that allows for projection figures detailing
-    a model's behavior to be created.
-
 """
 
 

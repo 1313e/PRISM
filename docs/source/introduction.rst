@@ -1,7 +1,5 @@
-Description
-===========
 Introduction
-------------
+============
 Typically we probe the universe by making models that try to reconstruct reality based on our scientific knowledge.
 Since our knowledge is limited, models tend to only tell part of the story.
 Commonly we utilize MCMC methods in order to check how closely this resembles reality.

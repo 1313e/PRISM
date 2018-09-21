@@ -33,7 +33,7 @@ release = '1.0.0'
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-# needs_sphinx = '1.0'
+needs_sphinx = '1.8'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -43,9 +43,21 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon',
+    'sphinx.ext.napoleon'
 ]
+
+# Autodoc configuration
+autodoc_default_options = {'members': None,
+			   'private-members': None}
+autodoc_member_order = 'groupwise'
+
+# Napoleon configuration
+napoleon_include_init_with_doc = True
+napoleon_use_admonition_for_notes = True
+napoleon_use_ivar = True
 napoleon_use_param = False
+napoleon_use_keyword = False
+napoleon_use_rtype = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

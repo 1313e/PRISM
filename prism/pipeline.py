@@ -6,12 +6,6 @@ Pipeline
 Provides the definition of the main class of the *PRISM* package, the
 :class:`~Pipeline` class.
 
-
-Available classes
------------------
-:class:`~Pipeline`
-    Defines the :class:`~Pipeline` class of the *PRISM* package.
-
 """
 
 
@@ -73,33 +67,9 @@ class Pipeline(Projection, object):
     """
     Defines the :class:`~Pipeline` class of the *PRISM* package.
 
-    Description
-    -----------
     The :class:`~Pipeline` class is the main user class of the *PRISM* package
     and provides a user-friendly environment that gives access to all
     operations within the package.
-
-    User methods
-    ------------
-    :meth:`~analyze`
-        Analyzes the last emulator iteration and determines which samples will
-        be used to construct the next emulator iteration.
-    :meth:`~construct`
-        Constructs the provided emulator iteration by determining all required
-        components for all emulator systems.
-    :meth:`~details`
-        Gives an overview of the provided emulator iteration, printing many
-        details about the used emulator, the current iteration and the used
-        :class:`~ModelLink` subclass.
-    :meth:`~evaluate`
-        Evaluates a provided set of model parameter samples in the emulator up
-        to the provided emulator iteration and prints/returns the results.
-    :meth:`~project`
-        Analyzes the behavior of the emulator at the provided emulator
-        iteration and constructs a series of projection figures.
-    :meth:`~run`
-        Constructs, analyzes and projects the emulator at the provided emulator
-        iteration. Can also be executed with :meth:`~__call__`.
 
     """
 
@@ -112,19 +82,19 @@ class Pipeline(Projection, object):
 
         Parameters
         ----------
-        modellink : :obj:`~ModelLink` object
-            Instance of the :class:`~ModelLink` class that links the emulated
-            model to this :obj:`~Pipeline` instance.
+        modellink : :obj:`~prism.modellink.modellink.ModelLink` object
+            Instance of the :class:`~prism.modellink.modellink.ModelLink` class
+            that links the emulated model to this :obj:`~Pipeline` instance.
 
         Optional
         --------
         %(paths)s
-        emul_type : {'default'} or :class:`~Emulator` subclass. Default: \
-            'default'
+        emul_type : {'default'} or :class:`~prism.emulator.Emulator` subclass.\
+            Default: 'default'
             String indicating which emulator type to use. In the
             :class:`~Pipeline` base class, only 'default' is supported.
-            If :class:`~Emulator` subclass, the supplied :class:`~Emulator`
-            subclass will be used instead.
+            If :class:`~prism.emulator.Emulator` subclass, the supplied
+            :class:`~prism.emulator.Emulator` subclass will be used instead.
 
         """
 
@@ -232,7 +202,8 @@ class Pipeline(Projection, object):
     @property
     def comm(self):
         """
-        The global MPI world communicator. Currently always MPI.COMM_WORLD.
+        :obj:`~mpi4py.MPI.Intracomm`: The global MPI world communicator.
+        Currently always :obj:`~mpi4py.MPI.COMM_WORLD`.
 
         """
 
@@ -241,8 +212,8 @@ class Pipeline(Projection, object):
     @property
     def rank(self):
         """
-        The rank of this MPI process in :attr:`~Pipeline.comm`. If no MPI is
-        used, this is always 0.
+        int: The rank of this MPI process in :attr:`~comm`. If no MPI is used,
+        this is always 0.
 
         """
 
@@ -251,8 +222,8 @@ class Pipeline(Projection, object):
     @property
     def size(self):
         """
-        The number of MPI processes in :attr:`~Pipeline.comm`. If no MPI is
-        used, this is always 1.
+        int: The number of MPI processes in :attr:`~comm`. If no MPI is used,
+        this is always 1.
 
         """
 
@@ -261,8 +232,8 @@ class Pipeline(Projection, object):
     @property
     def is_controller(self):
         """
-        Bool indicating whether or not this MPI process is a controller rank.
-        If no MPI is used, this is always *True*.
+        bool: Whether or not this MPI process is a controller rank. If no MPI
+        is used, this is always *True*.
 
         """
 
@@ -271,8 +242,8 @@ class Pipeline(Projection, object):
     @property
     def is_worker(self):
         """
-        Bool indicating whether or not this MPI process is a worker rank. If no
-        MPI is used, this is always *False*.
+        bool: Whether or not this MPI process is a worker rank. If no MPI is
+        used, this is always *False*.
 
         """
 
@@ -282,7 +253,7 @@ class Pipeline(Projection, object):
     @property
     def root_dir(self):
         """
-        Absolute path to the root directory.
+        str: Absolute path to the root directory.
 
         """
 
@@ -291,7 +262,7 @@ class Pipeline(Projection, object):
     @property
     def working_dir(self):
         """
-        Absolute path to the working directory.
+        str: Absolute path to the working directory.
 
         """
 
@@ -300,7 +271,7 @@ class Pipeline(Projection, object):
     @property
     def hdf5_file(self):
         """
-        Absolute path to the loaded master HDF5-file.
+        str: Absolute path to the loaded master HDF5-file.
 
         """
 
@@ -309,8 +280,8 @@ class Pipeline(Projection, object):
     @property
     def prism_file(self):
         """
-        Absolute path to the *PRISM* parameters file or *None* if no file was
-        provided.
+        str: Absolute path to the *PRISM* parameters file or *None* if no file
+        was provided.
 
         """
 
@@ -319,8 +290,9 @@ class Pipeline(Projection, object):
     @property
     def modellink(self):
         """
-        The :obj:`~ModelLink` instance provided during :class:`~Pipeline`
-        initialization.
+        :obj:`~prism.modellink.modellink.ModelLink`: The
+        :obj:`~prism.modellink.modellink.ModelLink` instance provided during
+        :class:`~Pipeline` initialization.
 
         """
 
@@ -329,8 +301,8 @@ class Pipeline(Projection, object):
     @property
     def emulator(self):
         """
-        The :obj:`~Emulator` instance created during :class:`~Pipeline`
-        initialization.
+        :obj:`~prism.emulator.Emulator`: The :obj:`~prism.emulator.Emulator`
+        instance created during :class:`~Pipeline` initialization.
 
         """
 
@@ -339,8 +311,8 @@ class Pipeline(Projection, object):
     @property
     def criterion(self):
         """
-        String, float or *None* indicating which criterion to use in the
-        :func:`e13tools.sampling.lhd` function.
+        str, float or None: Value indicating which criterion to use in the
+        :func:`~e13tools.sampling.lhd` function.
 
         """
 
@@ -349,8 +321,8 @@ class Pipeline(Projection, object):
     @property
     def do_active_anal(self):
         """
-        Bool indicating whether or not to do an active parameters analysis
-        during the construction of the emulator systems.
+        bool: Whether or not to do an active parameters analysis during the
+        construction of the emulator systems.
 
         """
 
@@ -359,8 +331,7 @@ class Pipeline(Projection, object):
     @property
     def freeze_active_par(self):
         """
-        Bool indicating whether or not previously active parameters always stay
-        active.
+        bool: Whether or not previously active parameters always stay active.
 
         """
 
@@ -369,10 +340,10 @@ class Pipeline(Projection, object):
     @property
     def pot_active_par(self):
         """
-        List of potentially active parameters. Only parameters from this list
-        can become active during the active parameters analysis. If
-        :attr:`~Pipeline.do_active_anal` is *False*, all parameters in this
-        list will be active.
+        list of str: The potentially active parameters. Only parameters from
+        this list can become active during the active parameters analysis.
+        If :attr:`~do_active_anal` is *False*, all parameters in this list will
+        be active.
 
         """
 
@@ -381,8 +352,8 @@ class Pipeline(Projection, object):
     @property
     def n_sam_init(self):
         """
-        Number of evaluation samples used to construct the first iteration of
-        the emulator systems.
+        int: Number of evaluation samples used to construct the first iteration
+        of the emulator systems.
 
         """
 
@@ -391,9 +362,9 @@ class Pipeline(Projection, object):
     @property
     def n_eval_sam(self):
         """
-        List containing the number of evaluation samples used to analyze the
-        corresponding emulator iteration of the emulator systems. The number of
-        plausible evaluation samples is stored in :attr:`~Pipeline.n_impl_sam`.
+        int: The number of evaluation samples used to analyze an emulator
+        iteration of the emulator systems. The number of plausible evaluation
+        samples is stored in :attr:`~n_impl_sam`.
 
         """
 
@@ -402,10 +373,10 @@ class Pipeline(Projection, object):
     @property
     def base_eval_sam(self):
         """
-        Base number of emulator evaluations used to analyze the emulator
+        int: Base number of emulator evaluations used to analyze the emulator
         systems. This number is scaled up by the number of model parameters and
         the current emulator iteration to generate the true number of emulator
-        evaluations (:attr:`~Pipeline.n_eval_sam`).
+        evaluations (:attr:`~n_eval_sam`).
 
         """
 
@@ -414,8 +385,8 @@ class Pipeline(Projection, object):
     @property
     def impl_cut(self):
         """
-        List of lists containing all univariate implausibility cut-off values
-        for the corresponding emulator iteration. A zero indicates a wildcard.
+        list of int: The univariate implausibility cut-off values for an
+        emulator iteration. A zero indicates a wildcard.
 
         """
 
@@ -424,8 +395,8 @@ class Pipeline(Projection, object):
     @property
     def cut_idx(self):
         """
-        List of list indices of the first non-wildcard cut-off in
-        :attr:`~Pipeline.impl_cut`.
+        int: The list index of the first non-wildcard cut-off in
+        :attr:`~impl_cut`.
 
         """
 
@@ -434,9 +405,9 @@ class Pipeline(Projection, object):
     @property
     def prc(self):
         """
-        Bool indicating whether or not plausible regions have been found in the
-        last constructed emulator iteration. If *False*, the next iteration
-        cannot be constructed.
+        bool: Whether or not plausible regions have been found in the last
+        constructed emulator iteration. If *False*, the next iteration cannot
+        be constructed.
 
         """
 
@@ -445,9 +416,8 @@ class Pipeline(Projection, object):
     @property
     def n_impl_sam(self):
         """
-        List of number of model evaluation samples that passed the
-        implausibility checks during the analysis of the corresponding emulator
-        iteration.
+        int: Number of model evaluation samples that passed the implausibility
+        checks during the analysis of an emulator iteration.
 
         """
 
@@ -456,8 +426,8 @@ class Pipeline(Projection, object):
     @property
     def impl_sam(self):
         """
-        Array containing all model evaluation samples that will be added to the
-        next emulator iteration.
+        :obj:`~numpy.ndarray`: The model evaluation samples that will be added
+        to the next emulator iteration.
 
         """
 
@@ -529,7 +499,7 @@ class Pipeline(Projection, object):
         return(par_dict)
 
     # Read in the parameters from the provided parameter file
-    @docstring_append(read_par_doc.format("pipeline", "Pipeline"))
+    @docstring_append(read_par_doc.format("pipeline", "pipeline.Pipeline"))
     def _read_parameters(self):
         # Log that the PRISM parameter file is being read
         logger = getCLogger('INIT')
@@ -681,8 +651,8 @@ class Pipeline(Projection, object):
     def _get_n_eval_sam(self, emul_i):
         """
         This function calculates the total number of emulator evaluation
-        samples at a given emulator iteration `emul_i` from the `base_eval_sam`
-        provided during class initialization.
+        samples at a given emulator iteration `emul_i` from
+        :attr:`~base_eval_sam`.
 
         Parameters
         ----------
@@ -903,15 +873,18 @@ class Pipeline(Projection, object):
     # This function generates mock data and loads it into ModelLink
     def _get_mock_data(self):
         """
-        Generates mock data and loads it into the :obj:`~ModelLink` object that
-        was provided during class initialization.
-        This function overwrites the :class:`~ModelLink` properties holding the
+        Generates mock data and loads it into the
+        :obj:`~prism.modellink.modellink.ModelLink` object that was provided
+        during class initialization.
+        This function overwrites the
+        :class:`~prism.modellink.modellink.ModelLink` properties holding the
         parameter estimates, data values and data errors.
 
         Generates
         ---------
-        Overwrites the corresponding :class:`~ModelLink` class properties with
-        the generated values.
+        Overwrites the corresponding
+        :class:`~prism.modellink.modellink.ModelLink` class properties with the
+        generated values.
 
         """
 
@@ -1450,8 +1423,9 @@ class Pipeline(Projection, object):
     def _get_md_var(self, emul_i, emul_s_seq):
         """
         Retrieves the model discrepancy variance, which includes all variances
-        that are created by the model provided by the :obj:`~ModelLink`
-        instance. This method tries to call the :meth:`~ModelLink.get_md_var`
+        that are created by the model provided by the
+        :obj:`~prism.modellink.modellink.ModelLink` instance. This method tries
+        to call the :meth:`~prism.modellink.modellink.ModelLink.get_md_var`
         method, and assumes a default model discrepancy variance of ``1/6th``
         the data value if it cannot be called. If the data value space is not
         linear, then this default value is calculated such to reflect that.
@@ -1833,10 +1807,9 @@ class Pipeline(Projection, object):
         Returns
         -------
         results : object
-            The object that is assigned to :attr:`~Pipeline.results`, which is
-            defaulted to *None* if no code snippet changes it. Preferably, the
-            execution of `post_code` and/or `exit_code` modifies
-            :attr:`~Pipeline.results`.
+            The object that is assigned to :attr:`~results`, which is defaulted
+            to *None* if no code snippet changes it. Preferably, the execution
+            of `post_code` and/or `exit_code` modifies :attr:`~results`.
 
         Notes
         -----
@@ -2123,7 +2096,7 @@ class Pipeline(Projection, object):
         If no implausibility analysis is requested, then the implausibility
         parameters are read in from the *PRISM* parameters file and temporarily
         stored in memory in order to enable the usage of the :meth:`~evaluate`
-        and :meth:`~project` methods.
+        and :meth:`~prism.projection.Projection.project` methods.
 
         """
 
@@ -2333,14 +2306,14 @@ class Pipeline(Projection, object):
     def details(self, emul_i=None):
         """
         Prints the details/properties of the currently loaded :obj:`~Pipeline`
-        instance at given emulator iteration `emul_i`. See ``Notes`` for
+        instance at given emulator iteration `emul_i`. See ``Props`` for
         detailed descriptions of all printed properties.
 
         Optional
         --------
         %(emul_i)s
 
-        Notes
+        Props
         -----
         HDF5-file name
             The relative path to the loaded HDF5-file starting at `root_dir`,
@@ -2349,8 +2322,8 @@ class Pipeline(Projection, object):
             The type of this emulator, corresponding to the provided
             `emul_type` during :class:`~Pipeline` initialization.
         ModelLink subclass
-            Name of the :class:`~ModelLink` subclass used to construct this
-            emulator.
+            Name of the :class:`~prism.modellink.modellink.ModelLink` subclass
+            used to construct this emulator.
         Emulation method
             Indicates the combination of regression and Gaussian emulation
             methods that have been used for this emulator.
@@ -2358,6 +2331,8 @@ class Pipeline(Projection, object):
             Whether or not mock data has been used to construct this emulator.
             If so, the printed estimates for all model parameters are the
             parameter values used to create the mock data.
+
+        ----
 
         Emulator iteration
             The iteration of the emulator this details overview is about. By
@@ -2376,12 +2351,14 @@ class Pipeline(Projection, object):
             iteration. If projections are available and analysis has been done,
             but with different implausibility cut-offs, a "desync" note is
             added. Also prints number of available projections versus maximum
-            number of projections in brackets.
+            number of projections in parentheses.
+
+        ----
 
         # of model evaluation samples
             The total number of model evaluation samples used to construct all
             emulator iterations up to this iteration, with the number for every
-            individual iteration in brackets.
+            individual iteration in parentheses.
         # of plausible/analyzed samples
             The number of emulator evaluation samples that passed the
             implausibility check out of the total number of analyzed samples in
@@ -2405,6 +2382,8 @@ class Pipeline(Projection, object):
             The total number of emulator systems that are required in this
             emulator. The number of active emulator systems is equal to the
             number of data points.
+
+        ----
 
         Parameter space
             Lists the name, lower and upper value boundaries and estimate (if

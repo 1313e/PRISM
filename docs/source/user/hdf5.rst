@@ -1,9 +1,17 @@
-Whenever PRISM constructs an emulator, it automatically stores all the calculated data for it in an HDF5-file called 'prism.hdf5' (default) in the designated working directory.
+HDF5
+----
+Whenever *PRISM* constructs an emulator, it automatically stores all the calculated data for it in a series of HDF5-files named ``'prism.hdf5'`` (default) in the designated working directory.
 This file contains all the data that is required in order to recreate all emulator systems that have been constructed for the emulator belonging to this run.
-If the Pipeline class is initialized by using an HDF5-file made by PRISM, it will load in this data and return a Pipeline object in the same state as described in the file.
+If the :class:`~prism.pipeline.Pipeline` class is initialized by using an HDF5-file made by *PRISM*, it will load in this data and return a :obj:`~prism.pipeline.Pipeline` object in the same state as described in the file.
 
-The PRISM HDF5-file contains the following data:
+Below is a short overview of all the data that can be found inside a *PRISM* master HDF5-file.
+HDF5-files can be viewed freely by the user using the `HDFView`_ application of `The HDFGroup`_.
+
+.. _HDFView: https://portal.hdfgroup.org/display/support/Download+HDFView
+.. _The HDFGroup: https://portal.hdfgroup.org
+
 ------------------------------------------------
+
 - Attributes (9/10): Describe the general non-changeable properties of the emulator, which include the emulator type and method; Gaussian parameters; name of used ModelLink subclass; used PRISM version; polynomial order; bools for using mock data or regression covariance; and the mock data parameters if mock data was used.
 
 - Every emulator iteration has its own data group with the iteration number as its name. This data group stores all data/information specific to that iteration.
