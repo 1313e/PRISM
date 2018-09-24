@@ -30,6 +30,7 @@ What can PRISM do for your model?
 What characterizes PRISM?
 -------------------------
 - Written in pure Python 2/3, for versatility;
+- Stores results in `HDF5-files`_, allowing for easy user-access;
 - Can be executed in serial or MPI, on any number of processes;
 - Compatible with Windows, MacOS and Unix-based machines;
 - Accepts any type of model and comparison data;
@@ -38,6 +39,8 @@ What characterizes PRISM?
 - Extensively documented;
 - Suited for both simple and advanced projects.
 
+
+.. _HDF5-files: https://portal.hdfgroup.org/display/HDF5/HDF5
 
 Installation and Usage
 ======================

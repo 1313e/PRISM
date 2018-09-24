@@ -445,9 +445,8 @@ def convert_str_seq(seq):
 
     """
 
-    # Convert sequence to a raw string
+    # Convert sequence to a string
     seq = str(seq)
-    seq = "%r" % (seq)
 
     # Remove all unwanted characters from the string
     for char in aux_char_list:

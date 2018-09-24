@@ -85,7 +85,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         model_parameters : array_like, dict, str or None. Default: None
             Anything that can be converted to a dict that provides non-default
             model parameters information or *None* if only default information
-            is used from :meth:`~_default_model_parameters`. For more
+            is used from :attr:`~_default_model_parameters`. For more
             information on the lay-out of this dict, see ``Notes``.
 
             If array_like, dict(model_parameters) must generate a dict with the
@@ -97,7 +97,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         model_data : array_like, str or None. Default: None
             Array containing the non-default data the model will be compared
             against, a filename with data that can be converted to it or *None*
-            if only default data is used from :meth:`~_default_model_data`. For
+            if only default data is used from :attr:`~_default_model_data`. For
             more information on the lay-out of this array, see ``Notes``.
 
         Notes (model_parameters)
@@ -181,6 +181,12 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     @property
     def _default_model_parameters(self):
+        """
+        dict: The default model parameters to use for every instance of this
+        :class:`~ModelLink` subclass.
+
+        """
+
         return(SortedDict())
 
     def _set_model_parameters(self, add_model_parameters):
@@ -193,7 +199,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         add_model_parameters : array_like, dict, str or None
             Anything that can be converted to a dict that provides non-default
             model parameters information or *None* if only default information
-            is used from :meth:`~_default_model_parameters`.
+            is used from :attr:`~_default_model_parameters`.
 
         Generates
         ---------
@@ -285,6 +291,12 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     @property
     def _default_model_data(self):
+        """
+        list of lists: The default model data to use for every instance of this
+        :class:`~ModelLink` subclass.
+
+        """
+
         return([])
 
     def _set_model_data(self, add_model_data):
@@ -297,7 +309,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         add_model_data : array_like, str or None
             Array containing the non-default data the model will be compared
             against, a filename with data that can be converted to it or *None*
-            if only default data is used from :meth:`~_default_model_data`.
+            if only default data is used from :attr:`~_default_model_data`.
 
         Generates
         ---------

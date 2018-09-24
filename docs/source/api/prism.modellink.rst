@@ -3,8 +3,6 @@ prism.modellink package
 
 .. automodule:: prism.modellink
     :members:
-    :undoc-members:
-    :show-inheritance:
 
 Submodules
 ----------

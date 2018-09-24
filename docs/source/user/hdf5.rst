@@ -31,31 +31,31 @@ The general file contains:
 An iteration data group (``'i'``) contains:
   - Attributes (10): Describe the general properties and results of this iteration, including:
 
+    - Active parameters for this emulator iteration;
     - Implausibility cut-off parameters;
-    - Active parameters;
     - Number of emulated data points, emulator systems, emulator evaluation samples, plausible samples and model realization samples;
     - Bools stating whether this emulator iteration contains plausible regions or used an external model realization set.
 
-  - ``'active_par'``: The names of the model parameters that are active in this iteration;
   - ``'emul_n'``: The data group that contains all data for a specific emulator system in this iteration. The value of ``'n'`` indicates which emulator system it is, not the data point. See below for its contents;
   - ``'impl_sam'``: The set of emulator evaluation samples that survived the implausibility checks and will be used to construct the next iteration;
-  - ``'proj_hcube'``: The data group that contains all data for the (created) projections for this iteration. See below for its contents;
+  - ``'proj_hcube'``: The data group that contains all data for the (created) projections for this iteration, if at least one has been made. See below for its contents;
   - ``'sam_set'``: The set of model realization samples that were used to construct this iteration. In every iteration after the first, this is the ``'impl_sam'`` of the previous iteration;
-  - ``'statistics'``: An empty data set that stores several different types of statistics as its attributes, including the size of the MPI communicator during various construction steps; the average evaluation rate/time of the emulator and model; the total time cost of most construction steps; and the percentage of parameter space that is still plausible within the iteration.
+  - ``'statistics'``: An empty data set that stores several different types of statistics as its attributes, including:
+
+    - Size of the MPI communicator during various construction steps;
+    - Average evaluation rate/time of the emulator and model;
+    - Total time cost of most construction steps;
+    - Percentage of parameter space that is still plausible within the iteration.
 
 ----
 
 An emulator system data group (``'i/emul_n'``) contains:
-  - Attributes (variable): List the details about the model comparison data point used in this emulator system, including:
+  - Attributes (5+): List the details about the model comparison data point used in this emulator system, including:
 
-    - Provided data value;
-    - Data errors;
-    - Data value space;
-    - Data identifiers;
-    - Active parameters;
+    - Active parameters for this emulator system;
+    - Data errors, identifiers, value space and value;
     - Regression score and residual variance if regression was used.
 
-  - ``'active_par_data'``: The names of the model parameters that are active in this emulator system;
   - ``'cov_mat'``: The pre-calculated covariance matrix of all model evaluation samples in this emulator system. This data set is never used in *PRISM* and stored solely for user-convenience;
   - ``'cov_mat_inv'``: The pre-calculated inverse of ``'cov_mat'``;
   - ``'exp_dot_term'``: The pre-calculated second expectation adjustment dot-term (:math:`Var\left(D\right)^{-1}\cdot\left(D-E(D)\right)`) of all model evaluation samples in this emulator system.
@@ -72,6 +72,6 @@ A projection data group (``'i/proj_hcube'``) contains:
   - Attributes (4): List the general properties of the projections that were made, including:
 
     - Implausibility cut-off parameters (they can differ from the iteration itself);
-    - Projection resolution and depth.
+    - Projection depth and resolution.
 
   - Individual projection groups: Data groups that are named after the active parameters this specific projection is about (1 parameter for 2D models, 2 parameters for nD models), containing the ``'impl_los'`` and ``'impl_min'`` data sets. These two data sets list the calculated line-of-sight depths and minimum implausibility values for all grid points in this projection.
