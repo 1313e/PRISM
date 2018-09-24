@@ -55,7 +55,7 @@ Data value [`data_val`]
 	The value of a model comparison data point, often an observed/measured value.
 
 Emulation method [`method`]
-	The specific methods (Gaussian, regression or both) that need to be used to construct an emulator.
+	The specific method (Gaussian, regression or both) that needs to be used to construct an emulator.
 
 Emulator [`emul`/`emulator`]
 	The collection of all emulator systems together, provided by an :obj:`~prism.emulator.Emulator` object.
@@ -73,7 +73,7 @@ Emulator type [`emul_type`]
 	The type of emulator that needs to be constructed. This is used to make sure different emulator types are not mixed together by accident.
 
 Evaluation/Evaluate
-	The process of calculating the adjusted values of a parameter set in all emulator systems starting at the first iteration, determining the corresponding implausibility values and performing an implausibility check. This process is repeated in the next iteration if the check was successful until the requested iteration has been reached.
+	The process of calculating the adjusted values of a parameter set in all emulator systems starting at the first iteration, determining the corresponding implausibility values and performing an implausibility check. This process is repeated in the next iteration if the check was successful and the requested iteration has not been reached.
 
 Evaluation set
 	Same as sample set.
@@ -88,7 +88,7 @@ Gaussian correlation length [`l_corr`]
 	The maximum distance between two values of a specific model parameter at which the Gaussian contribution to the correlation between the values is still significant.
 
 Gaussian sigma [`sigma`]
-	The standard deviation of the Gaussian function. It is not required if only regression is used.
+	The standard deviation of the Gaussian function. It is not required if regression is used.
 
 Implausibility (cut-off) check [`impl_check`]
 	The process of determining whether or not a given set of implausibility values satisfy the implausibility cut-offs of a specific emulator iteration.
@@ -108,11 +108,20 @@ Mock data
 Model
 	A `black box` that takes a parameter set, performs a sequence of operations and returns a unique collection of values corresponding to the provided parameter set.
 
+	.. note::
+	   This is how *PRISM* 'sees' a model, not the used definition of one.
+
+2D model
+	A model that has/takes 2 model parameters.
+
+2+D/nD model
+	A model that has/takes more than 2 model parameters.
+
 ModelLink (subclass) [`modellink`]
 	The user-provided wrapper around the model that needs to be emulated, provided by a :obj:`~prism.modellink.modellink.ModelLink` object.
 
 Model discrepancy variance [`md_var`]
-	A user-defined value that includes all contributions to the overall variance on a model output that is created/caused by the model itself.
+	A user-defined value that includes all contributions to the overall variance on a model output that is created/caused by the model itself. More information on this can be found :ref:`here<md_var>`.
 
 Model evaluation samples [`add_sam_set`]
 	The sample set (to be) used for evaluating the model.
@@ -120,20 +129,17 @@ Model evaluation samples [`add_sam_set`]
 Model output(s) [`mod_out`/`mod_set`]
 	The model output(s) corresponding to a single (set of) model realization/evaluation sample(s).
 
-Model realizations (set) [`mod_real_set`]
-	The combination of model realization/evaluation samples and their corresponding model outputs.
-
 Model realization samples
 	Same as model evaluation samples.
+
+Model realizations (set) [`mod_real_set`]
+	The combination of model realization/evaluation samples and their corresponding model outputs.
 
 Parameter set [`par_set`]
 	A single combination/set of model parameter values, used to evaluate the emulator/model once.
 
 Passive parameters
 	The set of model parameters that are not considered active, and therefore are considered to not have a significant influence on the output of the model.
-
-PRISM
-	The acronym for *Probabilistic Regression Instrument for Simulating Models*. It is also a one-word description of what *PRISM* does (splitting up a model into individually emulated model outputs).
 
 (PRISM) Pipeline [`pipe`/`pipeline`]
 	The main *PRISM* framework that orchestrates all operations, provided by a :obj:`~prism.pipeline.Pipeline` object.
@@ -150,14 +156,17 @@ Polynomial order [`poly_order`]
 Potentially active parameters [`pot_active_par`]
 	A user-provided set of model parameters that are allowed to become active. Any model parameter that is not potentially active will never become active, even if it should.
 
-PRISM (parameters) file [`prism_file`]
-	(Path to) The text-file that contains non-default values for the *PRISM* :ref:`parameters<parameters>` that need to be used for the currently loaded emulator. It is *None* if no such file is used.
+PRISM
+	The acronym for *Probabilistic Regression Instrument for Simulating Models*. It is also a one-word description of what *PRISM* does (splitting up a model into individually emulated model outputs).
 
-Prior expectation [`prior_exp`]
-	The expectation value of a parameter set as determined by an emulator system, without taking the adjustment term (from the BLA) into account. It is zero if regression is not used.
+PRISM (parameters) file [`prism_file`]
+	(Path to) The text-file that contains non-default values for the :ref:`PRISM parameters<parameters>` that need to be used for the currently loaded emulator. It is *None* if no such file is used.
 
 Prior covariance [`prior_cov`]
 	The covariance value between two parameter sets as determined by an emulator system.
+
+Prior expectation [`prior_exp`]
+	The expectation value of a parameter set as determined by an emulator system, without taking the adjustment term (from the BLA) into account. It is zero if regression is not used.
 
 Prior variance [`prior_var`]
 	The variance value of a parameter set as determined by an emulator system, without taking the adjustment term (from the BLA) into account.
@@ -178,7 +187,7 @@ Residual variance [`rsdl_var`]
 	The variance that has not been captured during the regression process. It is empty if regression is not used.
 
 Root directory [`root_dir`]
-	(Path to) The directory/folder on the current machine in which all *PRISM* working directories are located, and the base for all relative paths.
+	(Path to) The directory/folder on the current machine in which all *PRISM* working directories are located. It also acts as the base for all relative paths.
 
 Sample [`sam`]
 	Same as a parameter set.
@@ -190,4 +199,4 @@ Worker (rank)
 	An MPI process that receives its calls/orders from a controller and performs the heavy-duty operations in *PRISM*.
 
 Working directory [`working_dir`]
-	(Path to) The directory/folder on the current machine in which the *PRISM* master file and logfile of the currently loaded emulator is stored.
+	(Path to) The directory/folder on the current machine in which the *PRISM* master file and logfile of the currently loaded emulator are stored.

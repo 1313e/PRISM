@@ -18,7 +18,7 @@ The documentation of *PRISM* is spread out over several sections:
 .. _user-docs:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: User Documentation
    
    introduction

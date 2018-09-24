@@ -14,6 +14,7 @@
 #
 import os
 import sys
+from codecs import open
 sys.path.insert(0, os.path.abspath('../..'))
 
 
@@ -26,7 +27,8 @@ author = 'Ellert van der Velden'
 # The short X.Y version
 version = 'latest'
 # The full version, including alpha/beta/rc tags
-release = '1.0.0'
+exec(open('../../prism/__version__.py', 'r').read())
+release = prism_version
 
 
 # -- General configuration ---------------------------------------------------

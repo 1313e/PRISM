@@ -257,7 +257,7 @@ def test_check_compatibility():
 # Pytest for the convert_str_seq function
 def test_convert_str_seq():
     # Check if string sequence is converted correctly
-    assert convert_str_seq('[[]]]1, 8,A<{7)4') == ['1', '8', 'A', '7', '4']
+    assert convert_str_seq('[:[]]]1, 8,A<{7)\n') == ['1', '8', 'A', '7', 'n']
 
 
 # Pytest for the delist function
