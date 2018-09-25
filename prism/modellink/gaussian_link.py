@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # Simple Gaussian ModelLink
-# Compatible with Python 2.7 and 3.4+
+# Compatible with Python 2.7 and 3.5+
 
 """
 GaussianLink
@@ -26,6 +26,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 # PRISM imports
+from .._internal import check_val
 from .modellink import ModelLink
 
 # All declaration
@@ -47,7 +48,25 @@ class GaussianLink(ModelLink):
 
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, n_gaussians=1, *args, **kwargs):
+        """
+        Initialize an instance of the :class:`~GaussianLink` class.
+
+        Optional
+        --------
+        n_gaussians : int. Default: 1
+            The number of Gaussians to use for the Gaussian model in this
+            instance. The resulting number of model parameters :attr:`~n_par`
+            will be :math:`3*n_{gaussians}`.
+
+        """
+
+        # Set the number of Gaussians
+        self._n_gaussians = check_val(n_gaussians, 'n_gaussians', 'pos', 'int')
+
+        # Set the name of this GaussianLink instance
+        self.name = 'GaussianLink_n%i' % (self._n_gaussians)
+
         # Request single model calls
         self.multi_call = False
 
@@ -59,23 +78,26 @@ class GaussianLink(ModelLink):
 
     @property
     def _default_model_parameters(self):
-        par_dict = {'A1': [1, 5, 2.5],
-                    'B1': [1, 3, 2],
-                    'C1': [0, 2, 1],
-                    'A2': [1, 5, 2.5],
-                    'B2': [2, 4, 3],
-                    'C2': [0, 2, 1],
-                    'A3': [1, 5, 2.5],
-                    'B3': [3, 5, 4],
-                    'C3': [0, 2, 1]}
+        # Set default parameters for every Gaussian
+        A = [1, 10, 5]
+        B = [0, 10, 5]
+        C = [0, 5, 2]
+
+        # Create default parameters dict and return it
+        par_dict = {}
+        for i in range(1, self._n_gaussians+1):
+            par_dict['A%i' % (i)] = list(A)
+            par_dict['B%i' % (i)] = list(B)
+            par_dict['C%i' % (i)] = list(C)
         return(par_dict)
 
     def call_model(self, emul_i, model_parameters, data_idx):
         par = model_parameters
-        mod_set =\
-            par['A1']*np.exp(-1*((data_idx-par['B1'])**2/(2*par['C1']**2))) +\
-            par['A2']*np.exp(-1*((data_idx-par['B2'])**2/(2*par['C2']**2))) +\
-            par['A3']*np.exp(-1*((data_idx-par['B3'])**2/(2*par['C3']**2)))
+        mod_set = 0
+        for i in range(1, self._n_gaussians+1):
+            mod_set +=\
+                par['A%i' % (i)]*np.exp(-1*((data_idx-par['B%i' % (i)])**2 /
+                                            (2*par['C%i' % (i)]**2)))
 
         return(mod_set)
 

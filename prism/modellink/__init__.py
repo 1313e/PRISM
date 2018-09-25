@@ -17,7 +17,6 @@ from __future__ import absolute_import, division, print_function
 from .gaussian_link import GaussianLink
 from .modellink import ModelLink
 from .sine_wave_link import SineWaveLink
-from . import tests
 
 # All declaration
-__all__ = ['GaussianLink', 'ModelLink', 'SineWaveLink', 'tests']
+__all__ = ['GaussianLink', 'ModelLink', 'SineWaveLink']

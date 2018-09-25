@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # Simple Sine Wave ModelLink
-# Compatible with Python 2.7 and 3.4+
+# Compatible with Python 2.7 and 3.5+
 
 """
 SineWaveLink

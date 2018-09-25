@@ -23,7 +23,7 @@ def test_GaussianLink():
     model_data = path.join(dirpath, 'data/data_gaussian.txt')
 
     # Initialize GaussianLink class
-    model_link = GaussianLink(model_data=model_data)
+    model_link = GaussianLink(3, model_data=model_data)
 
     # Check if this instance is from a proper ModelLink subclass
     assert ModelLink._check_subinstance(model_link)

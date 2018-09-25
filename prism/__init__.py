@@ -40,6 +40,9 @@ from .pipeline import Pipeline
 # All declaration
 __all__ = ['modellink', 'ModelLink', 'Pipeline']
 
+# Author declaration
+__author__ = "Ellert van der Velden"
+
 
 # %% EXECUTE INITIALIZING CODE
 _internal.import_cmaps()

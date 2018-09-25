@@ -556,10 +556,15 @@ def import_cmaps(cmap_dir=None):
         # Process colormap files
         try:
             # Obtain absolute path to colormap data file
-            cm_file = path.join(cmap_dir, cm_file)
+            cm_file_path = path.join(cmap_dir, cm_file)
 
             # Read in colormap data
-            colorlist = np.genfromtxt(cm_file).tolist()
+            if(ext_idx != -1 and cm_file[ext_idx:] in ('.npy', '.npz')):
+                # If file is a NumPy binary file
+                colorlist = np.load(cm_file_path).tolist()
+            else:
+                # If file is anything else
+                colorlist = np.genfromtxt(cm_file_path).tolist()
 
             # Transform colorlist into a Colormap
             cmap = LSC.from_list(cm_name, colorlist, N=len(colorlist))
