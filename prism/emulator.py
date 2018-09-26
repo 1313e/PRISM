@@ -43,7 +43,7 @@ from ._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
                           get_emul_i_doc, read_par_doc, regr_cov_doc,
                           save_data_doc_e, std_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_compatibility,
-                        check_val, delist, docstring_append,
+                        check_instance, check_val, delist, docstring_append,
                         docstring_substitute, getCLogger, raise_error)
 from .modellink import ModelLink
 
@@ -2021,7 +2021,7 @@ class Emulator(object):
         # Try to check the provided modellink_obj
         try:
             # Check if modellink_obj was initialized properly
-            if not ModelLink._check_subinstance(modellink_obj):
+            if not check_instance(modellink_obj, ModelLink):
                 err_msg = ("Provided ModelLink subclass '%s' was not "
                            "initialized properly!"
                            % (modellink_obj.__class__.__name__))
@@ -2156,9 +2156,9 @@ class Emulator(object):
                 else:
                     self._comm.send(emul_s_seq, dest=rank, tag=888+rank)
 
-                # Log that assignments are finished
-                logger.info("Finished assigning emulator systems to available "
-                            "MPI ranks.")
+            # Log that assignments are finished
+            logger.info("Finished assigning emulator systems to available "
+                        "MPI ranks.")
 
         # The workers wait for the controller to assign them their systems
         else:

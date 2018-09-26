@@ -1,5 +1,7 @@
-Usage Notes
------------
+General usage rules
+-------------------
+Below is a list of general usage rules that apply to *PRISM*.
+
 - Unless specified otherwise in the documentation, all input arguments in the *PRISM* package that accept
 
   - a bool (*True*/*False*) also accept 0/1 as a valid input;

@@ -20,7 +20,7 @@ import pytest_mpl
 
 # PRISM imports
 from .modellink.simple_gaussian_link import GaussianLink2D, GaussianLink3D
-from prism._internal import RequestError
+from prism._internal import RequestError, check_instance
 from prism.emulator import Emulator
 from prism.modellink import ModelLink
 from prism.pipeline import Pipeline
@@ -31,12 +31,6 @@ dirpath = path.dirname(__file__)
 
 # Set the random seed of NumPy
 np.random.seed(2)
-
-# Get lists of all Pipeline and Emulator properties
-pipe_props = [prop for prop in dir(Pipeline) if
-              isinstance(getattr(Pipeline, prop), property)]
-emul_props = [prop for prop in dir(Emulator) if
-              isinstance(getattr(Emulator, prop), property)]
 
 # Save paths to various files
 model_data_single = path.join(dirpath, 'data/data_gaussian_single.txt')
@@ -195,13 +189,11 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Try to access all Pipeline properties
     def test_access_pipe_props(self, pipe):
-        for prop in pipe_props:
-            getattr(pipe, prop)
+        check_instance(pipe, Pipeline)
 
     # Try to access all Emulator properties
     def test_access_emul_props(self, pipe):
-        for prop in emul_props:
-            getattr(pipe._emulator, prop)
+        check_instance(pipe._emulator, Emulator)
 
     # Try to reload and reanalyze the entire Pipeline using different impl_cut
     def test_reload_reanalyze_pipeline(self, pipe):
@@ -251,13 +243,11 @@ class Test_Pipeline_Gaussian3D(object):
 
     # Try to access all Pipeline properties
     def test_access_pipe_props(self, pipe):
-        for prop in pipe_props:
-            getattr(pipe, prop)
+        check_instance(pipe, Pipeline)
 
     # Try to access all Emulator properties
     def test_access_emul_props(self, pipe):
-        for prop in emul_props:
-            getattr(pipe._emulator, prop)
+        check_instance(pipe._emulator, Emulator)
 
 
 # Pytest for Pipeline class exception handling during initialization
@@ -292,13 +282,12 @@ class Test_Pipeline_Init_Exceptions(object):
                      prism_file=prism_file_default, emul_type='default')
 
     # Create a Pipeline object using a ModelLink object with no call_model
-    def test_no_call_ModelLink(self, root_working_dir):
-        with pytest.raises(InputError):
+    def test_no_call_ModelLink(self):
+        with pytest.raises(NotImplementedError):
             model_link =\
                 NoCallModelLink(model_parameters=model_parameters_3D,
                                 model_data=model_data_single)
-            Pipeline(model_link, *root_working_dir,
-                     prism_file=prism_file_default, emul_type='default')
+            model_link.call_model(0, 0, 0)
 
     # Create a Pipeline object using a ModelLink object with missing attr
     def test_no_attr_ModelLink(self, root_working_dir):

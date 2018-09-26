@@ -39,10 +39,10 @@ from .__version__ import compat_version, prism_version
 
 # All declaration
 __all__ = ['CLogger', 'PRISM_File', 'RequestError', 'aux_char_list',
-           'check_compatibility', 'check_val', 'convert_str_seq', 'delist',
-           'docstring_append', 'docstring_copy', 'docstring_substitute',
-           'getCLogger', 'import_cmaps', 'move_logger', 'raise_error',
-           'rprint', 'start_logger']
+           'check_compatibility', 'check_instance', 'check_val',
+           'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
+           'docstring_substitute', 'getCLogger', 'import_cmaps', 'move_logger',
+           'raise_error', 'rprint', 'start_logger']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -241,6 +241,81 @@ def docstring_substitute(*args, **kwargs):
 
 
 # %% FUNCTION DEFINITIONS
+# Function for checking if emulator system is compatible with PRISM version
+def check_compatibility(emul_version):
+    """
+    Checks if the provided `emul_version` is compatible with the current
+    version of *PRISM*.
+    Raises a :class:`~RequestError` if *False* and indicates which version of
+    *PRISM* still supports the provided `emul_version`.
+
+    """
+
+    # Do some logging
+    logger = logging.getLogger('CHECK')
+    logger.info("Performing version compatibility check.")
+
+    # Loop over all compatibility versions
+    for version in compat_version:
+        # If a compat_version is the same or newer than the emul_version
+        # then it is incompatible
+        if _compare_versions(version, emul_version):
+            err_msg = ("The provided emulator is incompatible with the current"
+                       " version of PRISM (v%s). The last compatible version "
+                       "is v%s." % (prism_version, version))
+            raise_error(RequestError, err_msg, logger)
+
+    # Check if emul_version is not newer than prism_version
+    if not _compare_versions(prism_version, emul_version):
+        err_msg = ("The provided emulator was constructed with a version later"
+                   " than the current version of PRISM (v%s). Use v%s or later"
+                   " to use this emulator." % (prism_version, emul_version))
+        raise_error(RequestError, err_msg, logger)
+    else:
+        logger.info("Version compatibility check was successful.")
+
+
+# This function checks if a given instance was initialized properly
+def check_instance(instance, cls):
+    """
+    Checks if provided `instance` has been initialized from a proper `cls`
+    (sub)class. Raises a :class:`~TypeError` if `instance` is not an instance
+    of `cls`.
+
+    Parameters
+    ----------
+    instance : :obj:`~object`
+        Class instance that needs to be checked.
+    cls : class
+        The class which `instance` needs to be properly initialized from.
+
+    Returns
+    -------
+    result : bool
+        Bool indicating whether or not the provided `instance` was initialized
+        from a proper `cls` (sub)class.
+
+    """
+
+    # Check if instance was initialized from a cls (sub)class
+    if not isinstance(instance, cls):
+        raise TypeError("Input argument 'instance' must be an instance of the "
+                        "%s class!" % (cls.__name__))
+
+    # Retrieve a list of all cls properties
+    class_props = [prop for prop in dir(cls) if
+                   isinstance(getattr(cls, prop), property)]
+
+    # Check if all cls properties can be called in instance
+    for prop in class_props:
+        try:
+            getattr(instance, prop)
+        except AttributeError:
+            return(0)
+    else:
+        return(1)
+
+
 # This function checks if the input value meets all given criteria
 def check_val(value, name, *args):
     """
@@ -401,40 +476,6 @@ def check_val(value, name, *args):
     else:
         err_msg = "Input argument 'args' is invalid!"
         raise_error(InputError, err_msg, logger)
-
-
-# Function for checking if emulator system is compatible with PRISM version
-def check_compatibility(emul_version):
-    """
-    Checks if the provided `emul_version` is compatible with the current
-    version of *PRISM*.
-    Raises a :class:`~RequestError` if *False* and indicates which version of
-    *PRISM* still supports the provided `emul_version`.
-
-    """
-
-    # Do some logging
-    logger = logging.getLogger('CHECK')
-    logger.info("Performing version compatibility check.")
-
-    # Loop over all compatibility versions
-    for version in compat_version:
-        # If a compat_version is the same or newer than the emul_version
-        # then it is incompatible
-        if _compare_versions(version, emul_version):
-            err_msg = ("The provided emulator is incompatible with the current"
-                       " version of PRISM (v%s). The last compatible version "
-                       "is v%s." % (prism_version, version))
-            raise_error(RequestError, err_msg, logger)
-
-    # Check if emul_version is not newer than prism_version
-    if not _compare_versions(prism_version, emul_version):
-        err_msg = ("The provided emulator was constructed with a version later"
-                   " than the current version of PRISM (v%s). Use v%s or later"
-                   " to use this emulator." % (prism_version, emul_version))
-        raise_error(RequestError, err_msg, logger)
-    else:
-        logger.info("Version compatibility check was successful.")
 
 
 # Function for converting a string sequence to a sequence of elements

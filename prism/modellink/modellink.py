@@ -553,39 +553,6 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         # Raise NotImplementedError if only super() was called
         raise NotImplementedError
 
-    @classmethod
-    def _check_subinstance(cls, instance):
-        """
-        Checks if provided `instance` has been initialized from a proper
-        :class:`~ModelLink` subclass.
-
-        """
-
-        # Check if instance was initialized from a ModelLink subclass
-        if not isinstance(instance, cls):
-            raise TypeError
-
-        # Retrieve a list of all ModelLink properties
-        modellink_props = [prop for prop in dir(cls) if
-                           isinstance(getattr(cls, prop), property)]
-
-        # Check if call_model can be called
-        try:
-            instance.call_model(0, 0, 0)
-        except NotImplementedError:
-            return(0)
-        except TypeError:
-            pass
-
-        # Check if all ModelLink properties can be called in instance
-        for prop in modellink_props:
-            try:
-                getattr(instance, prop)
-            except AttributeError:
-                return(0)
-        else:
-            return(1)
-
     # %% CLASS PROPERTIES
     # General
     @property

@@ -10,6 +10,7 @@ from os import path
 import numpy as np
 
 # PRISM imports
+from prism._internal import check_instance
 from prism.modellink import GaussianLink, ModelLink
 
 # Save the path to this directory
@@ -26,7 +27,7 @@ def test_GaussianLink():
     model_link = GaussianLink(3, model_data=model_data)
 
     # Check if this instance is from a proper ModelLink subclass
-    assert ModelLink._check_subinstance(model_link)
+    assert check_instance(model_link, ModelLink)
 
     # Call model
     par_set = [2.5, 2, 1, 2.5, 3, 1, 2.5, 4, 1]

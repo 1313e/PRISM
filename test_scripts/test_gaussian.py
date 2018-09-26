@@ -20,7 +20,7 @@ emul_type = 'default'
 # Initialize the GaussianLink subclass
 # It takes optionally model parameters and comparison data
 # The parameters are hard-coded in the model, so only data is provided
-model_link = GaussianLink(model_parameters='data/parameters_gaussian.txt',
+model_link = GaussianLink(3, model_parameters='data/parameters_gaussian.txt',
                           model_data='data/data_gaussian.txt')
 
 # Initialize the Pipeline class by giving it the ModelLink object

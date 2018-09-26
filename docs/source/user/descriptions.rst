@@ -2,4 +2,4 @@ Descriptions
 ============
 .. include:: parameters.rst
 .. include:: hdf5.rst
-.. include:: notes.rst
+.. include:: general_rules.rst

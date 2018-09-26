@@ -2,7 +2,7 @@ FAQ
 ===
 What does the term `...` mean?
 ------------------------------
-.. include:: terminology_docs.rst
+A list of the most commonly used terms in *PRISM* can be found on the :ref:`terminology` page.
 
 What OS are supported?
 ----------------------
