@@ -65,13 +65,13 @@ For running PRISM in MPI, the following packages are also required (not installe
 - ``mpi4py >= 3.0.0``.
 
 
-.. |PyPI| image:: https://img.shields.io/pypi/v/prism_tool.svg
+.. |PyPI| image:: https://img.shields.io/pypi/v/prism_tool.svg?label=PyPI
    :target: https://pypi.python.org/pypi/prism_tool
    :alt: PyPI - Release
-.. |Python| image:: https://img.shields.io/pypi/pyversions/prism_tool.svg
+.. |Python| image:: https://img.shields.io/pypi/pyversions/prism_tool.svg?label=Python
    :target: https://pypi.python.org/pypi/prism_tool
    :alt: PyPi - Python Versions
-.. |License| image:: https://img.shields.io/pypi/l/prism_tool.svg?colorB=blue
+.. |License| image:: https://img.shields.io/pypi/l/prism_tool.svg?colorB=blue&label=License
    :target: https://github.com/1313e/PRISM/raw/master/LICENSE
    :alt: PyPI - License
 .. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis&label=Travis%20CI
@@ -80,6 +80,6 @@ For running PRISM in MPI, the following packages are also required (not installe
 .. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/master.svg?logo=appveyor&label=AppVeyor
    :target: https://ci.appveyor.com/project/1313e/PRISM
    :alt: AppVeyor - Build Status
-.. |Coverage| image:: https://img.shields.io/coveralls/github/1313e/PRISM/master.svg
+.. |Coverage| image:: https://img.shields.io/coveralls/github/1313e/PRISM/master.svg?label=Coverage
    :target: https://coveralls.io/github/1313e/PRISM?branch=master
    :alt: Coveralls - Coverage Status
