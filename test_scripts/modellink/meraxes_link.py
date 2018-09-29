@@ -74,7 +74,7 @@ class MeraxesLink(ModelLink):
 
     def __init__(self, input_file, *args, **kwargs):
         """
-        Initialize an instance of the :class:`~MeraxesLink` subclass.
+        Initialize an instance of the :class:`~MeraxesLink` class.
 
         Parameters
         ----------

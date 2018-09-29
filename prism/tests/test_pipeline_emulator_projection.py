@@ -1,0 +1,1020 @@
+# -*- coding: utf-8 -*-
+
+# %% IMPORTS
+# Future imports
+from __future__ import absolute_import, division, print_function
+
+# Built-in imports
+import logging
+import os
+from os import path
+import shutil
+
+# Package imports
+from e13tools.core import InputError, ShapeError
+from e13tools.sampling import lhd
+import h5py
+import numpy as np
+import pytest
+import pytest_mpl
+
+# PRISM imports
+from .modellink.simple_gaussian_link import GaussianLink2D, GaussianLink3D
+from prism._internal import RequestError, check_instance
+from prism.emulator import Emulator
+from prism.modellink import ModelLink
+from prism.pipeline import Pipeline
+from prism.projection import Projection
+
+# Save the path to this directory
+dirpath = path.dirname(__file__)
+
+# Set the random seed of NumPy
+np.random.seed(2)
+
+# Save paths to various files
+model_data_single = path.join(dirpath, 'data/data_gaussian_single.txt')
+prism_file_default = path.join(dirpath, 'data/prism_default.txt')
+prism_file_impl = path.join(dirpath, 'data/prism_impl.txt')
+model_parameters_2D = path.join(dirpath, 'data/parameters_gaussian_2D.txt')
+model_parameters_3D = path.join(dirpath, 'data/parameters_gaussian_3D.txt')
+
+
+# %% CUSTOM CLASSES
+# TODO: See if it is possible to run some methods in parallel
+# Custom invalid Emulator class
+class InvalidEmulator(Emulator):
+    def __init__(self, *args, **kwargs):
+        pass
+
+
+# Custom invalid ModelLink class
+class InvalidModelLink(ModelLink):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def call_model(self, *args, **kwargs):
+        super(InvalidModelLink, self).call_model(*args, **kwargs)
+
+    def get_md_var(self, *args, **kwargs):
+        super(InvalidModelLink, self).get_md_var(*args, **kwargs)
+
+
+# Custom ModelLink class with no call_model
+class NoCallModelLink(ModelLink):
+    def call_model(self, *args, **kwargs):
+        super(NoCallModelLink, self).call_model(*args, **kwargs)
+
+    def get_md_var(self, *args, **kwargs):
+        super(NoCallModelLink, self).get_md_var(*args, **kwargs)
+
+
+# Custom ModelLink class with missing attributes
+class NoAttrModelLink(ModelLink):
+    def __init__(self, *args, **kwargs):
+        super(NoAttrModelLink, self).__init__(*args, **kwargs)
+        del self._n_data
+
+    def call_model(self, *args, **kwargs):
+        return(1)
+
+    def get_md_var(self, *args, **kwargs):
+        super(NoAttrModelLink, self).get_md_var(*args, **kwargs)
+
+
+# Custom ModelLink class with incorrect number of md_var values
+class InvalidNMdVarModelLink(ModelLink):
+    def call_model(self, data_idx, *args, **kwargs):
+        return([1]*len(data_idx))
+
+    def get_md_var(self, *args, **kwargs):
+        return([1])
+
+
+# Custom ModelLink class with incorrect shape for md_var values
+class InvalidShapeMdVarModelLink(ModelLink):
+    def call_model(self, data_idx, *args, **kwargs):
+        return([1]*len(data_idx))
+
+    def get_md_var(self, emul_i, data_idx):
+        return([[1, 1, 1]]*len(data_idx))
+
+
+# Custom ModelLink class with double md_var values
+class DoubleMdVarModelLink(ModelLink):
+    def call_model(self, data_idx, *args, **kwargs):
+        return(np.random.rand(len(data_idx)))
+
+    def get_md_var(self, emul_i, data_idx):
+        return([[1, 1]]*len(data_idx))
+
+
+# Custom List class that reports wrong length
+class InvalidLen2List(list):
+    def __len__(self):
+        return(2)
+
+
+# Custom Dict class that returns wrong items
+class InvalidDict(dict):
+    def __getitem__(self, y):
+        super(InvalidDict, self).__getitem__(1)
+
+
+# %% PYTEST CLASSES AND FUNCTIONS
+# Pytest for standard Pipeline class (+Emulator, +Projection) for 2D model
+class Test_Pipeline_Gaussian2D(object):
+    # Test a 2D Gaussian model
+    @pytest.fixture(scope='class')
+    def pipe(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test2D')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink2D()
+        return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file_default, emul_type='default'))
+
+    # Check if first iteration can be constructed
+    def test_construct(self, pipe):
+        pipe.construct(1, 0)
+
+    # Check if first iteration can be reconstructed unforced
+    def test_reconstruct_no_force(self, pipe):
+        pipe.construct(1, 0, None, 0)
+
+    # Check if first iteration can be reconstructed forced
+    def test_reconstruct_force(self, pipe):
+        pipe.construct(1, 0, None, 1)
+
+    # Check if first iteration can be projected before analysis
+    def test_project_pre_anal(self, pipe):
+        with pytest_mpl.plugin.switch_backend('Agg'):
+            pipe.project(proj_par=(0), figure=False)
+            pipe.project(proj_par=(1), figure=True)
+
+    # Check if first iteration can be projected again (unforced)
+    def test_reproject_unforced(self, pipe):
+        with pytest_mpl.plugin.switch_backend('Agg'):
+            pipe.project()
+
+    # Check if pipeline data can be reloaded before analysis
+    def test_reload(self, pipe):
+        pipe._load_data()
+
+    # Check if first iteration can be analyzed
+    def test_analyze(self, pipe):
+        pipe.analyze()
+
+    # Check if first iteration can be evaluated for a single parameter set
+    def test_evaluate_1D(self, pipe):
+        pipe.evaluate([2.5, 2])
+
+    # Check if first iteration can be evaluated for more than one parameter set
+    def test_evaluate_ND(self, pipe):
+        pipe.evaluate([[2.5, 2]])
+
+    # Check if first iteration can be reprojected (forced)
+    def test_reproject_forced(self, pipe):
+        with pytest_mpl.plugin.switch_backend('Agg'):
+            pipe.project(force=True)
+
+    # Check if details overview of first iteration can be given
+    def test_details(self, pipe):
+        pipe.details()
+
+    # Check if entire second iteration can be created
+    def test_run(self, pipe):
+        with pytest_mpl.plugin.switch_backend('Agg'):
+            pipe.run(2)
+
+    # Try to access all Pipeline properties
+    def test_access_pipe_props(self, pipe):
+        check_instance(pipe, Pipeline)
+
+    # Try to access all Emulator properties
+    def test_access_emul_props(self, pipe):
+        check_instance(pipe._emulator, Emulator)
+
+    # Try to reload and reanalyze the entire Pipeline using different impl_cut
+    def test_reload_reanalyze_pipeline(self, pipe):
+        pipe_reload = Pipeline(pipe._modellink, root_dir=pipe._root_dir,
+                               working_dir=pipe._working_dir,
+                               prism_file=prism_file_impl, emul_type='default')
+        pipe_reload.analyze()
+
+    # Check if second iteration can be reconstructed
+    def test_reconstruct_iteration_two(self, pipe):
+        pipe.construct(2, 0, None, 1)
+
+
+# Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model
+class Test_Pipeline_Gaussian3D(object):
+    # Test a 3D Gaussian model
+    @pytest.fixture(scope='class')
+    def pipe(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test3D')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink3D(model_parameters=model_parameters_3D,
+                                    model_data=model_data_single)
+        return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file_default, emul_type='default'))
+
+    # Check if first iteration can be constructed
+    def test_construct(self, pipe):
+        pipe.construct(1, 0)
+
+    # Check if first iteration can be analyzed
+    def test_analyze(self, pipe):
+        pipe.analyze()
+
+    # Check if first iteration can be evaluated
+    def test_evaluate(self, pipe):
+        pipe.evaluate([2.5, 2, 1])
+
+    # Check if first iteration can be projected
+    def test_project(self, pipe):
+        with pytest_mpl.plugin.switch_backend('Agg'):
+            pipe.project(1, (0, 1))
+
+    # Check if details overview of first iteration can be given
+    def test_details(self, pipe):
+        pipe.details()
+
+    # Try to access all Pipeline properties
+    def test_access_pipe_props(self, pipe):
+        check_instance(pipe, Pipeline)
+
+    # Try to access all Emulator properties
+    def test_access_emul_props(self, pipe):
+        check_instance(pipe._emulator, Emulator)
+
+
+# Pytest for Pipeline class exception handling during initialization
+class Test_Pipeline_Init_Exceptions(object):
+    # Create a model_link object used in some test functions
+    @pytest.fixture(scope='function')
+    def model_link(self):
+        return(GaussianLink2D())
+
+    @pytest.fixture(scope='function')
+    def root_working_dir(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test_init_exceptions')
+        return(path.dirname(tmpdir.strpath), path.basename(tmpdir.strpath))
+
+    # Create a Pipeline object using an invalid Emulator class
+    def test_invalid_Emulator(self, root_working_dir, model_link):
+        with pytest.raises(InputError):
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file_default, emul_type=InvalidEmulator)
+
+    # Create a Pipeline object using not an Emulator class
+    def test_no_Emulator(self, root_working_dir, model_link):
+        with pytest.raises(RequestError):
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file_default, emul_type=Pipeline)
+
+    # Create a Pipeline object using an invalid ModelLink object
+    def test_invalid_ModelLink(self, root_working_dir):
+        with pytest.raises(InputError):
+            model_link = InvalidModelLink()
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file_default, emul_type='default')
+
+    # Create a Pipeline object using a ModelLink object with no call_model
+    def test_no_call_ModelLink(self):
+        with pytest.raises(NotImplementedError):
+            model_link =\
+                NoCallModelLink(model_parameters=model_parameters_3D,
+                                model_data=model_data_single)
+            model_link.call_model(0, 0, 0)
+
+    # Create a Pipeline object using a ModelLink object with missing attr
+    def test_no_attr_ModelLink(self, root_working_dir):
+        with pytest.raises(InputError):
+            model_link =\
+                NoAttrModelLink(model_parameters=model_parameters_3D,
+                                model_data=model_data_single)
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file_default, emul_type='default')
+
+    # Create a Pipeline object using not a ModelLink object
+    def test_no_ModelLink(self, root_working_dir):
+        with pytest.raises(TypeError):
+            Pipeline(np.array([1]), *root_working_dir,
+                     prism_file=prism_file_default, emul_type='default')
+
+    # Create a Pipeline object using invalid number of md_var
+    def test_invalid_N_md_var(self, root_working_dir):
+        model_link =\
+            InvalidNMdVarModelLink(model_parameters=model_parameters_3D,
+                                   model_data=model_data_single)
+        pipe = Pipeline(model_link, *root_working_dir,
+                        prism_file=prism_file_default, emul_type='default')
+        with pytest.raises(ShapeError):
+            pipe._emulator._create_new_emulator()
+
+    # Create a Pipeline object using invalid shape of md_var
+    def test_invalid_shape_md_var(self, root_working_dir):
+        model_link =\
+            InvalidShapeMdVarModelLink(model_parameters=model_parameters_3D,
+                                       model_data=model_data_single)
+        pipe = Pipeline(model_link, *root_working_dir,
+                        prism_file=prism_file_default, emul_type='default')
+        with pytest.raises(ShapeError):
+            pipe._emulator._create_new_emulator()
+
+    # Create a Pipeline object using alternate values for criterion and
+    # pot_active_par. Also include an invalid pot_active_par
+    def test_invalid_pot_act_par(self, root_working_dir, model_link):
+        prism_file = path.join(dirpath, 'data/prism_invalid_pot_act_par.txt')
+        with pytest.raises(InputError):
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file, emul_type='default')
+
+    # Create a Pipeline object using alternate values for criterion and
+    # pot_active_par. Also include an empty pot_active_par
+    def test_empty_pot_act_par(self, root_working_dir, model_link):
+        prism_file = path.join(dirpath, 'data/prism_empty_pot_act_par.txt')
+        with pytest.raises(ValueError):
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file, emul_type='default')
+
+    # Create a Pipeline object using an invalid value for criterion (bool)
+    def test_bool_criterion(self, root_working_dir, model_link):
+        prism_file = path.join(dirpath, 'data/prism_bool_criterion.txt')
+        with pytest.raises(TypeError):
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file, emul_type='default')
+
+    # Create a Pipeline object using an invalid value for pot_active_par (bool)
+    def test_bool_pot_act_par(self, root_working_dir, model_link):
+        prism_file = path.join(dirpath, 'data/prism_bool_pot_act_par.txt')
+        with pytest.raises(TypeError):
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file, emul_type='default')
+
+    # Create a Pipeline object using a non_existent PRISM file
+    def test_non_existent_prism_file(self, root_working_dir, model_link):
+        with pytest.raises(OSError):
+            Pipeline(model_link, *root_working_dir,
+                     prism_file='test.txt', emul_type='default')
+        logging.shutdown()
+        os.remove(logging.root.handlers[0].baseFilename)
+
+    # Create a Pipeline object using an invalid root dir
+    def test_invalid_root_dir(self, tmpdir, model_link):
+        working_dir = path.basename(tmpdir.strpath)
+        with pytest.raises(InputError):
+            Pipeline(model_link, root_dir=1, working_dir=working_dir,
+                     prism_file=prism_file_default, emul_type='default')
+        logging.shutdown()
+        os.remove(logging.root.handlers[0].baseFilename)
+
+    # Create a Pipeline object using an invalid working dir
+    def test_invalid_working_dir(self, tmpdir, model_link):
+        root_dir = path.dirname(tmpdir.strpath)
+        with pytest.raises(InputError):
+            Pipeline(model_link, root_dir=root_dir, working_dir=1.0,
+                     prism_file=prism_file_default, emul_type='default')
+        logging.shutdown()
+        os.remove(logging.root.handlers[0].baseFilename)
+
+    # Create a Pipeline object using an invalid PRISM file
+    def test_invalid_prism_file(self, root_working_dir, model_link):
+        with pytest.raises(InputError):
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=1, emul_type='default')
+        logging.shutdown()
+        os.remove(logging.root.handlers[0].baseFilename)
+
+    # Create a Pipeline object using an invalid prefix
+    def test_invalid_prefix(self, root_working_dir, model_link):
+        with pytest.raises(TypeError):
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file_default, prefix=1,
+                     emul_type='default')
+        logging.shutdown()
+        os.remove(logging.root.handlers[0].baseFilename)
+
+    # Create a Pipeline object using an invalid hdf5_file path
+    def test_invalid_hdf5_file_name(self, root_working_dir, model_link):
+        with pytest.raises(TypeError):
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file_default, hdf5_file=1,
+                     emul_type='default')
+        logging.shutdown()
+        os.remove(logging.root.handlers[0].baseFilename)
+
+    # Create a Pipeline object using an invalid hdf5_file extension
+    def test_invalid_hdf5_file_extension(self, root_working_dir, model_link):
+        with pytest.raises(ValueError):
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file_default, hdf5_file='test.txt',
+                     emul_type='default')
+        logging.shutdown()
+        os.remove(logging.root.handlers[0].baseFilename)
+
+    # Create a Pipeline object using invalid mock data spaces
+    def test_invalid_mock_data_spc_predef(self, root_working_dir, model_link):
+        model_link._data_spc = ['A', 'B', 'C']
+        pipe = Pipeline(model_link, *root_working_dir,
+                        prism_file=prism_file_default, emul_type='default')
+        with pytest.raises(NotImplementedError):
+            pipe._emulator._create_new_emulator()
+
+    # Create a Pipeline object using invalid mock data spaces
+    def test_invalid_mock_data_spc_undef(self, root_working_dir):
+        model_link = GaussianLink3D(model_parameters=model_parameters_3D,
+                                    model_data=model_data_single)
+        model_link._data_spc = ['A', 'B', 'C']
+        pipe = Pipeline(model_link, *root_working_dir,
+                        prism_file=prism_file_default, emul_type='default')
+        with pytest.raises(NotImplementedError):
+            pipe._emulator._create_new_emulator()
+
+    # Create a Pipeline object using an empty impl_cut list
+    def test_empty_impl_cut(self, root_working_dir, model_link):
+        prism_file = path.join(dirpath, 'data/prism_empty_impl_cut.txt')
+        pipe = Pipeline(model_link, *root_working_dir,
+                        prism_file=prism_file, emul_type='default')
+        with pytest.raises(ValueError):
+            pipe._get_impl_par(True)
+
+    # Create a Pipeline object using an impl_cut list with only wildcards
+    def test_wildcard_impl_cut(self, root_working_dir, model_link):
+        prism_file = path.join(dirpath, 'data/prism_wildcard_impl_cut.txt')
+        pipe = Pipeline(model_link, *root_working_dir,
+                        prism_file=prism_file, emul_type='default')
+        pipe._emulator._n_data_tot.append(model_link._n_data)
+        with pytest.raises(ValueError):
+            pipe._get_impl_par(True)
+
+    # Create a Pipeline object using an invalid impl_cut list
+    def test_invalid_impl_cut(self, root_working_dir, model_link):
+        prism_file = path.join(dirpath, 'data/prism_invalid_impl_cut.txt')
+        pipe = Pipeline(model_link, *root_working_dir,
+                        prism_file=prism_file, emul_type='default')
+        with pytest.raises(ValueError):
+            pipe._get_impl_par(True)
+
+    # Try to load an emulator that was built with a different modellink
+    def test_unmatched_ModelLink(self, root_working_dir, model_link):
+        pipe = Pipeline(model_link, *root_working_dir,
+                        prism_file=prism_file_default, emul_type='default')
+        pipe.construct(1, 0)
+        with pytest.raises(InputError):
+            model_link = GaussianLink3D(model_parameters=model_parameters_3D,
+                                        model_data=model_data_single)
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file_default, emul_type='default')
+
+    # Try to use the 'auto' emulation method
+    def test_auto_emul_method(self, root_working_dir, model_link):
+        prism_file = path.join(dirpath, 'data/prism_auto_emul_method.txt')
+        pipe = Pipeline(model_link, *root_working_dir,
+                        prism_file=prism_file, emul_type='default')
+        with pytest.raises(NotImplementedError):
+            pipe._emulator._create_new_emulator()
+
+    # Try to use an invalid emulation method
+    def test_invalid_emul_method(self, root_working_dir, model_link):
+        prism_file = path.join(dirpath, 'data/prism_invalid_emul_method.txt')
+        pipe = Pipeline(model_link, *root_working_dir,
+                        prism_file=prism_file, emul_type='default')
+        with pytest.raises(ValueError):
+            pipe._emulator._create_new_emulator()
+
+
+# Pytest for Pipeline class user exception handling
+class Test_Pipeline_User_Exceptions(object):
+    # Create a universal Pipeline object for testing request exceptions
+    @pytest.fixture(scope='class')
+    def pipe(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test_user_exceptions')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink2D()
+        return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file_default, emul_type='default'))
+
+    # Try using an ext_real_set list with three elements
+    def test_three_element_ext_real_set(self, pipe):
+        with pytest.raises(ShapeError):
+            pipe.construct(1, 0, [1, 1, 1])
+
+    # Try using an invalid ext_real_set "list"
+    def test_invalid_ext_real_set_list(self, pipe):
+        with pytest.raises(InputError):
+            pipe.construct(1, 0, InvalidLen2List([1]))
+
+    # Try using an ext_real_set dict with no sam_set
+    def test_no_ext_sam_set_dict(self, pipe):
+        with pytest.raises(KeyError):
+            pipe.construct(1, 0, {'mod_set': 1})
+
+    # Try using an ext_real_set dict with no mod_set
+    def test_no_ext_mod_set_dict(self, pipe):
+        with pytest.raises(KeyError):
+            pipe.construct(1, 0, {'sam_set': 1})
+
+    # Try using an invalid ext_real_set "dict"
+    def test_invalid_ext_real_set_dict(self, pipe):
+        with pytest.raises(InputError):
+            pipe.construct(1, 0, InvalidDict({'sam_set': 1, 'mod_set': 1}))
+
+    # Try using an invalid ext_real_set (tuple)
+    def test_invalid_ext_real_set(self, pipe):
+        with pytest.raises(InputError):
+            pipe.construct(1, 0, (1))
+
+    # Try using a 3D ext_sam_set
+    def test_3D_ext_sam_set(self, pipe):
+        with pytest.raises(ShapeError):
+            pipe.construct(1, 0, [np.zeros([1, 1, 1]), [1]])
+
+    # Try using a 3D ext_mod_set
+    def test_3D_ext_mod_set(self, pipe):
+        with pytest.raises(ShapeError):
+            pipe.construct(1, 0, [[1], np.zeros([1, 1, 1])])
+
+    # Try using an ext_sam_set with wrong n_par
+    def test_ext_sam_set_n_par(self, pipe):
+        with pytest.raises(ShapeError):
+            pipe.construct(1, 0, [np.zeros([1, pipe._modellink._n_par+1]),
+                                  np.zeros([1, pipe._modellink._n_data])])
+
+    # Try using an ext_mod_set with wrong n_data
+    def test_ext_mod_set_n_data(self, pipe):
+        with pytest.raises(ShapeError):
+            pipe.construct(1, 0, [np.zeros([1, pipe._modellink._n_par]),
+                                  np.zeros([1, pipe._modellink._n_data+1])])
+
+    # Try using an ext_real_set with inconsistent n_sam
+    def test_ext_real_set_n_sam(self, pipe):
+        with pytest.raises(ShapeError):
+            pipe.construct(1, 0, [np.zeros([2, pipe._modellink._n_par]),
+                                  np.zeros([1, pipe._modellink._n_data])])
+
+    # Try using an ext_sam_set outside of par_space
+    def test_ext_sam_set_par_space(self, pipe):
+        with pytest.raises(ValueError):
+            pipe.construct(1, 0, [np.zeros([1, pipe._modellink._n_par]),
+                                  np.zeros([1, pipe._modellink._n_data])])
+
+    # Try analyzing the emulator with an emul_type other than 'default'
+    def test_non_default_emul_type_analyze(self, pipe):
+        pipe.construct(1, 0)
+        pipe._emulator._emul_type = 'non_default'
+        with pytest.raises(NotImplementedError):
+            pipe.analyze()
+
+    # Try calling details for an emulator with emul_type other than 'default'
+    def test_non_default_emul_type_details(self, pipe):
+        with pytest.raises(NotImplementedError):
+            pipe.details()
+        pipe._emulator._emul_type = 'default'
+
+    # Try evaluating an 3D sam_set
+    def test_3D_evaluate(self, pipe):
+        with pytest.raises(ShapeError):
+            pipe.evaluate([[[2.5, 2]]])
+
+    # Try evaluating a sam_set with wrong number of parameters
+    def test_invalid_evaluate(self, pipe):
+        with pytest.raises(ShapeError):
+            pipe.evaluate([2.5, 2, 1])
+
+    # Try to call project with more than 2 positional arguments
+    def test_too_many_args_project(self, pipe):
+        with pytest.raises(InputError):
+            pipe.project(1, 1, 1)
+
+    # Try to call project with no dict as fig_kwargs
+    def test_no_fig_kwargs_dict(self, pipe):
+        with pytest.raises(TypeError):
+            pipe.project(1, (0, 1), fig_kwargs=())
+
+    # Try to call project with an invalid impl_kwargs dict
+    def test_invalid_impl_kwargs_dict(self, pipe):
+        with pytest.raises(InputError):
+            pipe.project(1, (0, 1), fig_kwargs={'nrows': 1},
+                         impl_kwargs={'cmap': 1})
+
+    # Try to call project with an invalid los_kwargs dict
+    def test_invalid_los_kwargs_dict(self, pipe):
+        with pytest.raises(InputError):
+            pipe.project(1, (0, 1), impl_kwargs={'x': 1},
+                         los_kwargs={'cmap': 1})
+
+
+# Pytest for Pipeline class request exception handling
+class Test_Pipeline_Request_Exceptions(object):
+    # Create a universal Pipeline object for testing request exceptions
+    @pytest.fixture(scope='class')
+    def pipe_impl(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test_request_exceptions_impl')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink2D()
+        return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file_impl, emul_type='default'))
+
+    # Create a universal Pipeline object for testing request exceptions
+    @pytest.fixture(scope='class')
+    def pipe_default(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test_request_exceptions_default')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink2D()
+        return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file_default, emul_type='default'))
+
+    # Try to construct an iteration that cannot be constructed
+    def test_invalid_construction(self, pipe_default):
+        with pytest.raises(RequestError):
+            pipe_default.construct(2)
+
+    # Try to call an iteration that cannot be used
+    def test_invalid_call(self, pipe_default):
+        with pytest.raises(RequestError):
+            pipe_default(2)
+
+    # Try to analyze iteration 1 while iteration 2 is being constructed
+    def test_invalid_analyze(self, pipe_default):
+        pipe_default.construct(1)
+        pipe_default.construct(2)
+        pipe_default._emulator._ccheck[2].append('active_par')
+        pipe_default._emulator._emul_i = 1
+        with pytest.raises(RequestError):
+            pipe_default.analyze()
+        pipe_default._emulator._ccheck[2].remove('active_par')
+        pipe_default._emulator._emul_i = 2
+
+    # Try to call an iteration that does not exist
+    def test_invalid_iteration(self, pipe_default):
+        with pytest.raises(RequestError):
+            pipe_default._emulator._get_emul_i(3, True)
+
+    # Try to make projection figures with no parameters
+    def test_no_par_project(self, pipe_default):
+        pipe_default._emulator._active_par[1][0] = 1
+        with pytest.raises(RequestError):
+            pipe_default.project(1, (0))
+        pipe_default._emulator._active_par[1][0] = 0
+
+    # Try to load an emulator with invalid emulator iteration groups
+    def test_invalid_iteration_groups(self, pipe_default):
+        with h5py.File(pipe_default._hdf5_file, 'r+') as file:
+            file.create_group('test')
+        with pytest.raises(RequestError):
+            model_link = GaussianLink2D()
+            pipe_default._emulator._load_emulator(model_link)
+
+    # Try to call an iteration that cannot be finished
+    def test_break_call(self, pipe_impl):
+        with pytest.raises(RequestError):
+            pipe_impl(1)
+
+    # Try to construct an iteration with no plausible regions
+    def test_impl_construction(self, pipe_impl):
+        with pytest.raises(RequestError):
+            pipe_impl.construct(2)
+
+    # Try to prepare an iteration that cannot be prepared
+    def test_prepare_invalid_iteration(self, pipe_impl):
+        with pytest.raises(RequestError):
+            pipe_impl._emulator._prepare_new_iteration(3)
+
+    # Try to load an iteration that does not exist
+    def test_load_invalid_iteration(self, pipe_impl):
+        with pytest.raises(RequestError):
+            pipe_impl._emulator._load_data(3)
+
+    # Try to use an emulator with a different emul_type
+    def test_unmatched_emul_type(self, pipe_impl):
+        pipe_impl._emulator._emul_type = 'test'
+        with pytest.raises(RequestError):
+            pipe_impl._emulator._retrieve_parameters()
+        pipe_impl._emulator._emul_type = 'default'
+
+
+# Pytest for Pipeline class internal exception handling
+class Test_Internal_Exceptions(object):
+    # Create a universal Pipeline object for testing request exceptions
+    @pytest.fixture(scope='class')
+    def pipe(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test_internal_exceptions')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink2D()
+        return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file_default, emul_type='default'))
+
+    # Try to save data using the wrong keyword for pipeline
+    def test_invalid_pipe_save_data_keyword(self, pipe):
+        pipe.construct(1, 0)
+        with pytest.raises(ValueError):
+            pipe._save_data({'test': []})
+
+    # Try to save data using the wrong keyword for emulator
+    def test_invalid_emul_save_data_keyword(self, pipe):
+        with pytest.raises(ValueError):
+            pipe._emulator._save_data(1, None, {'test': []})
+
+    # Try to save data using the wrong keyword for projection
+    def test_invalid_proj_save_data_keyword(self, pipe):
+        pipe._Projection__prepare_projections(los_kwargs={'x': 1})
+        with pytest.raises(ValueError):
+            pipe._Projection__save_data({'test': []})
+
+
+# Pytest for trying to initialize a lone Projection class
+def test_Projection_init():
+    with pytest.raises(RequestError):
+        Projection()
+
+
+# Pytest for Pipeline class initialization versatility
+class Test_Pipeline_Init_Versatility(object):
+    # Create a model_link object used in some test functions
+    @pytest.fixture(scope='function')
+    def model_link(self):
+        return(GaussianLink2D())
+
+    # Create a Pipeline object using a custom Emulator class
+    def test_custom_Emulator(self, tmpdir, model_link):
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                 prism_file=prism_file_default, emul_type=Emulator)
+
+    # Create a Pipeline object using custom pot_active_par
+    def test_custom_pot_act_par(self, tmpdir, model_link):
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        prism_file = path.join(dirpath, 'data/prism_custom_pot_act_par.txt')
+        Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                 prism_file=prism_file, emul_type='default')
+
+    # Create a Pipeline object using no defined paths
+    def test_default_paths(self, model_link):
+        pipe = Pipeline(model_link, emul_type='default')
+        logging.shutdown()
+        os.remove(path.join(pipe._working_dir, 'prism_log.log'))
+        os.rmdir(pipe._working_dir)
+
+    # Create a Pipeline object using a non_existent root dir
+    def test_non_existent_root_dir(self, tmpdir, model_link):
+        root_dir = path.join(tmpdir.strpath, 'root')
+        Pipeline(model_link, root_dir=root_dir, prism_file=prism_file_default,
+                 emul_type='default')
+
+    # Create a Pipeline object using a non_existent root dir
+    def test_non_existent_working_dir(self, tmpdir, model_link):
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = 'working_dir'
+        Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                 prism_file=prism_file_default, emul_type='default')
+
+    # Create a Pipeline object using a relative path to a PRISM file
+    def test_rel_path_PRISM_file(self, tmpdir, model_link):
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        shutil.copy(prism_file_default, root_dir)
+        Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                 prism_file='prism_default.txt', emul_type='default')
+
+    # Create a Pipeline object requesting a new working dir three times
+    def test_new_working_dir(self, tmpdir, model_link):
+        root_dir = path.dirname(tmpdir.strpath)
+        Pipeline(model_link, root_dir=root_dir, working_dir=1,
+                 prism_file=prism_file_default, emul_type='default')
+        Pipeline(model_link, root_dir=root_dir, working_dir=1,
+                 prism_file=prism_file_default, emul_type='default')
+        Pipeline(model_link, root_dir=root_dir, working_dir=1,
+                 prism_file=prism_file_default, emul_type='default')
+
+    # Create a Pipeline object loading an existing working dir
+    def test_load_existing_working_dir(self, tmpdir, model_link):
+        root_dir = path.dirname(tmpdir.strpath)
+        Pipeline(model_link, root_dir=root_dir, working_dir=1,
+                 prism_file=prism_file_default, emul_type='default')
+        Pipeline(model_link, root_dir=root_dir, working_dir=None,
+                 prism_file=prism_file_default, emul_type='default')
+
+
+# Pytest for Pipeline + ModelLink versatility
+class Test_Pipeline_ModelLink_Versatility(object):
+    # Create a universal Pipeline object for testing request exceptions
+    @pytest.fixture(scope='function')
+    def pipe2D(self, tmpdir):
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink2D()
+        return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file_default, emul_type='default'))
+
+    # Create a universal Pipeline object for testing request exceptions
+    @pytest.fixture(scope='function')
+    def pipe3D(self, tmpdir):
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink3D(model_parameters=model_parameters_3D,
+                                    model_data=model_data_single)
+        return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file_default, emul_type='default'))
+
+    # Test if interrupted construction can be continued
+    def test_continue_interrupt(self, pipe2D):
+        pipe2D.construct(1, 0)
+        pipe2D._emulator._ccheck[1].append('active_par')
+        pipe2D._emulator._emul_i = 0
+        pipe2D.construct(1, 0)
+
+    # Test if interrupted construction (at start) can be continued
+    def test_continue_interrupt_start(self, pipe2D):
+        pipe2D._emulator._create_new_emulator()
+        pipe2D.details()
+        pipe2D.construct(1, 0)
+
+    # Test details for different switches
+    def test_details_switches(self, pipe2D):
+        # Construct first iteration
+        pipe2D.construct(1, 0)
+
+        # Emulation methods
+        pipe2D._emulator._method = 'gaussian'
+        pipe2D.details()
+        pipe2D._emulator._method = 'regression'
+        pipe2D.details()
+        pipe2D._emulator._method = 'full'
+
+        # Missing parameter estimates
+        temp = pipe2D._modellink._par_est[0]
+        pipe2D._modellink._par_est[0] = None
+        pipe2D.details()
+        pipe2D._modellink._par_est[0] = temp
+
+        # Inactive parameters
+        pipe2D._emulator._active_par[1][1] = 0
+        pipe2D.details()
+        pipe2D._emulator._active_par[1][1] = 1
+
+    # Test if multi_call can be used correctly
+    def test_multi_call(self, pipe2D):
+        pipe2D._modellink.multi_call = True
+        pipe2D.construct(1, 0)
+
+    # Test if mock data takes log10 value spaces into account correctly
+    def test_mock_data_spaces_log(self, pipe3D):
+        pipe3D._modellink._data_spc = ['log10', 'log10', 'log10']
+        pipe3D._emulator._create_new_emulator()
+
+    # Test if mock data takes ln value spaces into account correctly
+    def test_mock_data_spaces_ln(self, pipe3D):
+        pipe3D._modellink._data_spc = ['ln', 'ln', 'ln']
+        pipe3D._emulator._create_new_emulator()
+
+    # Test if an ext_real_set bigger than n_sam_init can be provided
+    def test_ext_real_set_large(self, pipe2D):
+        # Change the modellink in pipe to use multi_call
+        pipe2D._modellink.multi_call = True
+
+        # Create ext_real_set larger than n_sam_init
+        sam_set = lhd(pipe2D._n_sam_init*2, pipe2D._modellink._n_par,
+                      pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
+        sam_dict = dict(zip(pipe2D._modellink._par_name, sam_set.T))
+        mod_set = pipe2D._modellink.call_model(
+            1, sam_dict, np.array(pipe2D._modellink._data_idx))
+
+        # Try to construct the iteration
+        pipe2D.construct(1, 0, [sam_set, mod_set])
+
+    # Test if an ext_real_set smaller than n_sam_init can be provided
+    def test_ext_real_set_small(self, pipe2D):
+        # Change the modellink in pipe to use multi_call
+        pipe2D._modellink.multi_call = True
+
+        # Create ext_real_set smaller than n_sam_init
+        sam_set = lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
+                      pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
+        sam_dict = dict(zip(pipe2D._modellink._par_name, sam_set.T))
+        mod_set = pipe2D._modellink.call_model(
+            1, sam_dict, np.array(pipe2D._modellink._data_idx))
+
+        # Try to construct the iteration
+        pipe2D.construct(1, 0, [sam_set, mod_set])
+
+    # Test if an ext_real_set dict can be provided
+    def test_ext_real_set_dict(self, pipe2D):
+        # Change the modellink in pipe to use multi_call
+        pipe2D._modellink.multi_call = True
+
+        # Create ext_real_set dict
+        sam_set = lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
+                      pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
+        sam_dict = dict(zip(pipe2D._modellink._par_name, sam_set.T))
+        mod_set = pipe2D._modellink.call_model(
+            1, sam_dict, np.array(pipe2D._modellink._data_idx))
+
+        # Try to construct the iteration
+        pipe2D.construct(1, 0, {'sam_set': sam_set, 'mod_set': mod_set})
+
+    # Test if double md_var values can be returned
+    def test_double_md_var(self, tmpdir):
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = DoubleMdVarModelLink(model_parameters=model_parameters_3D,
+                                          model_data=model_data_single)
+        pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file_default, emul_type='default')
+        pipe.construct(1, 0)
+
+
+class Test_Pipeline_Emulator_Versatility(object):
+    # Test if emulator can be constructed with only regression
+    def test_regression_method(self, tmpdir):
+        prism_file = path.join(dirpath, 'data/prism_regression_method.txt')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink2D()
+        pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file, emul_type='default')
+        pipe.construct(1, 1)
+        pipe._emulator._load_data(1)
+
+    # Test if emulator can be constructed with only gaussian
+    def test_gaussian_method(self, tmpdir):
+        prism_file = path.join(dirpath, 'data/prism_gaussian_method.txt')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink2D()
+        pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file, emul_type='default')
+        pipe.construct(1, 1)
+
+    # Test if emulator can be constructed with no active analysis
+    def test_no_active_par_analysis(self, tmpdir):
+        prism_file = path.join(dirpath, 'data/prism_no_act_par_anal.txt')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink2D()
+        pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file, emul_type='default')
+        pipe.construct(1, 1)
+
+    # Test if different data_idx sequences can be loaded properly
+    def test_data_idx_seq(self, tmpdir):
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_data = [[1, 0.05, 'lin', 1, 'A'],
+                      [2, 0.05, 'lin', 'A'],
+                      [3, 0.05, 'lin', 4.]]
+        model_link = DoubleMdVarModelLink(model_parameters=model_parameters_3D,
+                                          model_data=model_data)
+        pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file_default, emul_type='default')
+        pipe._emulator._create_new_emulator()
+
+    # Test if different model_data can be used in different iterations
+    def test_change_data(self, tmpdir):
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        prism_file = path.join(dirpath, 'data/prism_no_mock.txt')
+        model_link = GaussianLink3D(model_parameters=model_parameters_3D,
+                                    model_data=model_data_single)
+        pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file, emul_type='default')
+        pipe.construct(1)
+
+        # Change data for second iteration
+        model_data = [[1, 0.05, 'lin', 2],
+                      [2, 0.05, 'lin', 3],
+                      [3, 0.05, 'lin', 4],
+                      [3, 0.05, 'lin', 5]]
+        model_link = GaussianLink3D(model_parameters=model_parameters_3D,
+                                    model_data=model_data)
+        pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file, emul_type='default')
+        pipe.construct(2, 0)
+
+        # Change a data value
+        pipe._modellink._data_val[0] = 0
+        pipe._emulator._emul_i = 2
+        pipe._emulator._prepare_new_iteration(2)
+
+        # Change a data error
+        pipe._modellink._data_err[0] = [0.10, 0.10]
+        pipe._emulator._emul_i = 2
+        pipe._emulator._prepare_new_iteration(2)
+
+        # Change a data space
+        pipe._modellink._data_spc[0] = 'log10'
+        pipe._emulator._emul_i = 2
+        pipe._emulator._prepare_new_iteration(2)
+
+        # Change a data identifier
+        pipe._modellink._data_idx[0] = 1
+        pipe._emulator._emul_i = 2
+        pipe._emulator._prepare_new_iteration(2)

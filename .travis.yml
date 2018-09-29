@@ -1,0 +1,23 @@
+language: python
+dist: xenial
+sudo: true
+matrix:
+  include:
+    - python: 2.7
+    - python: 3.5
+    - python: 3.5-dev
+    - python: 3.6
+    - python: 3.6-dev
+    - python: 3.7
+    - python: 3.7-dev
+install:
+  - pip install -r requirements_dev.txt
+script:
+  - check-manifest --ignore appveyor.cmd,.appveyor.yml,.coveragerc,prism_trash*,docs*,test_scripts*
+  - python setup.py check -m -r -s
+  - python setup.py install
+  - py.test prism
+after_success:
+  - coveralls
+notifications:
+  email: false

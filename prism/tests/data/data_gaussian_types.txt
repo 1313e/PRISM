@@ -1,0 +1,6 @@
+# data_val	data_err	data_spc	x
+  1		0.05		'lin'		1	2
+  2		0.05		'log'		3.0
+  3		0.05		'ln'		'A'
+  4		0.05		'A'		1
+

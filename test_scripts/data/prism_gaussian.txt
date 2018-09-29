@@ -1,0 +1,15 @@
+n_sam_init		: 500
+proj_res		: 15
+proj_depth		: 150
+base_eval_sam		: 800
+sigma			: 0.8
+l_corr			: 0.3
+impl_cut		: [4.0, 3.8, 3.5, 3.0]
+criterion		: None
+method			: 'full'
+use_regr_cov		: False
+poly_order		: 3
+do_active_anal		: True
+freeze_active_par	: True
+pot_active_par		: None
+use_mock		: True

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # Simple Sine Wave ModelLink
-# Compatible with Python 2.7 and 3.4+
+# Compatible with Python 2.7 and 3.5+
 
 """
 SineWaveLink
@@ -13,7 +13,7 @@ Available classes
 -----------------
 :class:`~SineWaveLink`
     :class:`~ModelLink` class wrapper for a simple sine wave model, used for
-    testing the functionality of the PRISM pipeline in unittests.
+    testing the functionality of the *PRISM* pipeline in unittests.
 
 """
 
@@ -36,7 +36,7 @@ __all__ = ['SineWaveLink']
 class SineWaveLink(ModelLink):
     """
     :class:`~ModelLink` class wrapper for a simple sine wave model, used for
-    testing the functionality of the PRISM pipeline in unittests.
+    testing the functionality of the *PRISM* pipeline in unittests.
 
     Formatting data_idx
     -------------------
@@ -72,5 +72,4 @@ class SineWaveLink(ModelLink):
         return(mod_set)
 
     def get_md_var(self, emul_i, data_idx):
-        return(pow(0.05*np.array(self._data_val), 2))
-#        super(SineWaveLink, self).get_md_var(emul_i=emul_i, data_idx=data_idx)
+        return(pow(0.1*np.ones(len(data_idx)), 2))

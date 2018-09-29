@@ -19,7 +19,7 @@ model_link = ImagineLink(hammu_model,
                                     % (str(sys.argv[2])))
 
 pipe = Pipeline(model_link, root_dir='tests',
-                working_dir=str(sys.argv[3]),
+                working_dir='%s_%s' % (str(sys.argv[1]), str(sys.argv[3])),
                 prism_file='data/prism_%s.txt' % (hammu_model),
                 emul_type=emul_type)
 
@@ -27,4 +27,3 @@ pipe = Pipeline(model_link, root_dir='tests',
 # %% CONSTRUCT
 pipe.construct(1)
 pipe.project(1)
-

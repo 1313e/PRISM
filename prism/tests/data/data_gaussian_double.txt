@@ -1,0 +1,5 @@
+# data_val	lower_data_err	upper_data_err	data_spc	x
+  1		0.05		0.05		'lin'		1
+  2		0.05		0.05		'lin'		3
+  3		0.05		0.05		'lin'		4
+

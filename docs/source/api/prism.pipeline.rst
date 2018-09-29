@@ -1,0 +1,2 @@
+.. automodule:: prism.pipeline
+    :members:

@@ -1,0 +1,2 @@
+.. automodule:: prism.projection
+    :members:
