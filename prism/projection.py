@@ -35,8 +35,8 @@ from tqdm import tqdm
 
 # PRISM imports
 from ._docstrings import (def_par_doc, draw_proj_fig_doc, hcube_doc,
-                          proj_par_doc_d, proj_par_doc_s, read_par_doc,
-                          save_data_doc_pr, user_emul_i_doc)
+                          proj_data_doc, proj_par_doc_d, proj_par_doc_s,
+                          read_par_doc, save_data_doc_pr, user_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_val,
                         docstring_append, docstring_substitute, getCLogger,
                         raise_error)
@@ -205,20 +205,7 @@ class Projection(object):
 
                 # If projection data is not already loaded, load it
                 if impl_min is None and impl_los is None:
-                    # Open hdf5-file
-                    with PRISM_File('r', None) as file:
-                        # Log that projection data is being obtained
-                        logger.info("Obtaining projection data '%s'."
-                                    % (hcube_name))
-
-                        # Obtain data
-                        data_set = file['%s/proj_hcube' % (self.__emul_i)]
-                        impl_los = data_set['%s/impl_los' % (hcube_name)][()]
-                        impl_min = data_set['%s/impl_min' % (hcube_name)][()]
-
-                        # Log that projection data was obtained successfully
-                        logger.info("Finished obtaining projection data '%s'."
-                                    % (hcube_name))
+                    impl_min, impl_los = self.__get_proj_data(hcube)
 
                 # Draw projection figure
                 if(self._modellink._n_par == 2):
@@ -436,6 +423,46 @@ class Projection(object):
 
         # Log that this hypercube has been drawn
         logger.info("Finished drawing projection figure '%s'." % (hcube_name))
+
+    # This function returns the projection data belonging to a proj_hcube
+    @docstring_substitute(hcube=hcube_doc, proj_data=proj_data_doc)
+    def __get_proj_data(self, hcube):
+        """
+        Returns the projection data belonging to the provided hypercube
+        `hcube`.
+
+        Parameters
+        ----------
+        %(hcube)s
+
+        Returns
+        -------
+        %(proj_data)s
+
+        """
+
+        # Make logger
+        logger = getCLogger('PROJECTION')
+
+        # Obtain hcube name
+        hcube_name = self.__get_hcube_name(hcube)
+
+        # Open hdf5-file
+        with PRISM_File('r', None) as file:
+            # Log that projection data is being obtained
+            logger.info("Obtaining projection data '%s'." % (hcube_name))
+
+            # Obtain data
+            data_set = file['%s/proj_hcube' % (self.__emul_i)]
+            impl_min_hcube = data_set['%s/impl_min' % (hcube_name)][()]
+            impl_los_hcube = data_set['%s/impl_los' % (hcube_name)][()]
+
+            # Log that projection data was obtained successfully
+            logger.info("Finished obtaining projection data '%s'."
+                        % (hcube_name))
+
+        # Return it
+        return(impl_min_hcube, impl_los_hcube)
 
     # This function determines the projection hypercubes to be analyzed
     @docstring_substitute(proj_par=proj_par_doc_s)
@@ -764,7 +791,7 @@ class Projection(object):
         return(proj_hcube)
 
     # This function analyzes a projection hypercube
-    @docstring_substitute(hcube=hcube_doc)
+    @docstring_substitute(hcube=hcube_doc, proj_data=proj_data_doc)
     def __analyze_proj_hcube(self, hcube):
         """
         Analyzes an emulator projection hypercube `hcube`.
@@ -775,13 +802,7 @@ class Projection(object):
 
         Returns
         -------
-        impl_min_hcube : 1D list
-            List containing the lowest implausibility value that can be reached
-            in every single grid point on the given hypercube.
-        impl_los_hcube : 1D list
-            List containing the fraction of the total amount of evaluated
-            samples in every single grid point on the given hypercube, that
-            still satisfied the implausibility cut-off criterion.
+        %(proj_data)s
 
         """
 

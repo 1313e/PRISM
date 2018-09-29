@@ -239,6 +239,16 @@ hcube_doc =\
             Array containing the internal integer identifiers of the main model
             parameters that require a projection hypercube."""
 
+# Descriptions of proj_data
+proj_data_doc =\
+        """impl_min_hcube : 1D list
+            List containing the lowest implausibility value that can be reached
+            in every single grid point on the given hypercube.
+        impl_los_hcube : 1D list
+            List containing the fraction of the total amount of evaluated
+            samples in every single grid point on the given hypercube, that
+            still satisfied the implausibility cut-off criterion."""
+
 # Description of proj_par
 proj_par_doc =\
         """proj_par : 1D array_like of {{int, str}} or None{0}{1}
