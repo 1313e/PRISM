@@ -16,10 +16,11 @@ import pytest
 
 # PRISM imports
 from prism._internal import (compat_version, prism_version, CLogger,
-                             PRISM_File, RequestError, docstring_append,
-                             docstring_copy, docstring_substitute, check_val,
+                             PRISM_File, RLogger, RequestError,
+                             docstring_append, docstring_copy,
+                             docstring_substitute, check_val,
                              check_compatibility, convert_str_seq, delist,
-                             getCLogger, import_cmaps, move_logger,
+                             getCLogger, getRLogger, import_cmaps, move_logger,
                              raise_error, rprint, start_logger)
 
 # Save the path to this directory
@@ -86,6 +87,42 @@ class Test_PRISM_File(object):
         with PRISM_File('w', filename=filename) as file:
             assert path.basename(file.filename) == 'test_test.hdf5'
         assert path.exists(filename)
+
+
+# Pytest for RLogger class
+class Test_RLogger(object):
+    # Initialize logger
+    logger = RLogger('TEST')
+
+    # Check if all overridden methods still work properly
+    def test_init(self):
+        assert isinstance(self.logger, logging.Logger)
+
+    def test_debug(self):
+        assert self.logger.debug("Test") is None
+
+    def test_info(self):
+        assert self.logger.info("Test") is None
+
+    def test_warning(self):
+        assert self.logger.warning("Test") is None
+
+    def test_error(self):
+        assert self.logger.error("Test") is None
+
+    def test_exception(self):
+        assert self.logger.exception("Test") is None
+
+    def test_critical(self):
+        assert self.logger.critical("Test") is None
+
+    def test_log(self):
+        assert self.logger.log(logging.DEBUG, "Test") is None
+        assert self.logger.log(logging.INFO, "Test") is None
+        assert self.logger.log(logging.WARNING, "Test") is None
+        assert self.logger.log(logging.ERROR, "Test") is None
+        assert self.logger.log(logging.FATAL, "Test") is None
+        assert self.logger.log(logging.CRITICAL, "Test") is None
 
 
 # Pytest for RequestError exception class
@@ -277,6 +314,15 @@ def test_getCLogger():
 
     # CHeck if getCLogger returns the root logger if not specified
     assert getCLogger() == logging.root
+
+
+# Pytest for the getRLogger function
+def test_getRLogger():
+    # Check if getRLogger returns a Logger instance
+    assert isinstance(getRLogger('TEST'), logging.Logger)
+
+    # CHeck if getRLogger returns the root logger if not specified
+    assert getRLogger() == logging.root
 
 
 # Pytest for the import_cmaps function
