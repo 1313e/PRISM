@@ -17,7 +17,6 @@ from __future__ import (absolute_import, division, print_function,
 
 # Built-in imports
 from itertools import chain, combinations
-from logging import getLogger
 import os
 from os import path
 from time import time
@@ -39,7 +38,7 @@ from ._docstrings import (def_par_doc, draw_proj_fig_doc, hcube_doc,
                           read_par_doc, save_data_doc_pr, user_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_val,
                         docstring_append, docstring_substitute, getCLogger,
-                        raise_error)
+                        getRLogger, raise_error)
 
 # All declaration
 __all__ = ['Projection']
@@ -259,7 +258,7 @@ class Projection(object):
         hcube_name = self.__get_hcube_name(hcube)
 
         # Start logger
-        logger = getLogger('PROJECTION')
+        logger = getCLogger('PROJECTION')
         logger.info("Drawing projection figure '%s'." % (hcube_name))
 
         # Get the parameter this hypercube is about
@@ -328,7 +327,7 @@ class Projection(object):
         hcube_name = self.__get_hcube_name(hcube)
 
         # Start logger
-        logger = getLogger('PROJECTION')
+        logger = getCLogger('PROJECTION')
         logger.info("Drawing projection figure '%s'." % (hcube_name))
 
         # Get the parameter on x-axis and y-axis this hcube is about
@@ -1077,7 +1076,7 @@ class Projection(object):
         """
 
         # Do some logging
-        logger = getLogger('SAVE_DATA')
+        logger = getCLogger('SAVE_DATA')
 
         # Open hdf5-file
         with PRISM_File('r+', None) as file:

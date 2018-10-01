@@ -15,7 +15,6 @@ from __future__ import (absolute_import, division, print_function,
                         with_statement)
 
 # Built-in imports
-from logging import getLogger
 from inspect import isclass
 import os
 from os import path
@@ -44,8 +43,8 @@ from ._docstrings import (call_emul_i_doc, call_model_doc_s, call_model_doc_m,
                           user_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_val, convert_str_seq,
                         delist, docstring_append, docstring_copy,
-                        docstring_substitute, getCLogger, move_logger,
-                        raise_error, start_logger)
+                        docstring_substitute, getCLogger, getRLogger,
+                        move_logger, raise_error, start_logger)
 from .emulator import Emulator
 from .projection import Projection
 
@@ -888,14 +887,14 @@ class Pipeline(Projection, object):
 
         """
 
+        # Start logger
+        logger = getCLogger('MOCK_DATA')
+
+        # Log new mock_data being created
+        logger.info("Generating mock data for new emulator system.")
+
         # Controller only
         if self._is_controller:
-            # Start logger
-            logger = getLogger('MOCK_DATA')
-
-            # Log new mock_data being created
-            logger.info("Generating mock data for new emulator system.")
-
             # Set non-default parameter estimate
             self._modellink._par_est =\
                 (self._modellink._par_rng[:, 0] +
@@ -966,8 +965,8 @@ class Pipeline(Projection, object):
             self._modellink._data_val =\
                 (self._emulator._data_val[0]+noise).tolist()
 
-            # Logger
-            logger.info("Generated mock data.")
+        # Logger
+        logger.info("Generated mock data.")
 
         # Broadcast updated modellink object to workers
         self._modellink = self._comm.bcast(self._modellink, 0)
@@ -989,7 +988,7 @@ class Pipeline(Projection, object):
         """
 
         # Set the logger
-        logger = getLogger('LOAD_DATA')
+        logger = getRLogger('LOAD_DATA')
 
         # Initialize all data sets with empty lists
         logger.info("Initializing pipeline data sets.")
@@ -1040,7 +1039,7 @@ class Pipeline(Projection, object):
         """
 
         # Do some logging
-        logger = getLogger('SAVE_DATA')
+        logger = getRLogger('SAVE_DATA')
 
         # Obtain last emul_i
         emul_i = self._emulator._emul_i
@@ -1136,7 +1135,7 @@ class Pipeline(Projection, object):
         """
 
         # Do logging
-        logger = getLogger('STATISTICS')
+        logger = getCLogger('STATISTICS')
         logger.info("Saving statistics to HDF5.")
 
         # Open hdf5-file
@@ -1308,7 +1307,7 @@ class Pipeline(Projection, object):
         """
 
         # Log about this
-        logger = getLogger('EVAL_SAMS')
+        logger = getCLogger('EVAL_SAMS')
 
         # Obtain number of samples
         n_eval_sam = self._get_n_eval_sam(emul_i)

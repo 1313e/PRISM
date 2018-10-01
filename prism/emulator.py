@@ -16,7 +16,6 @@ from __future__ import (absolute_import, division, print_function,
 
 # Built-in imports
 from collections import Counter
-from logging import getLogger
 import os
 from os import path
 from time import time
@@ -44,7 +43,8 @@ from ._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
                           save_data_doc_e, std_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_compatibility,
                         check_instance, check_val, delist, docstring_append,
-                        docstring_substitute, getCLogger, raise_error)
+                        docstring_substitute, getCLogger, getRLogger,
+                        raise_error)
 from .modellink import ModelLink
 
 # All declaration
@@ -1290,7 +1290,7 @@ class Emulator(object):
         """
 
         # Log that active parameters are being determined
-        logger = getLogger('ACTIVE_PAR')
+        logger = getRLogger('ACTIVE_PAR')
         logger.info("Determining active parameters.")
 
         # Loop over all emulator systems and determine active parameters
@@ -1427,7 +1427,7 @@ class Emulator(object):
         """
 
         # Create logger
-        logger = getLogger('REGRESSION')
+        logger = getRLogger('REGRESSION')
         logger.info("Performing regression.")
 
         # Create SequentialFeatureSelector object
@@ -1605,7 +1605,7 @@ class Emulator(object):
         """
 
         # Create logger
-        logger = getLogger('DOT_TERM')
+        logger = getRLogger('DOT_TERM')
         logger.info("Pre-calculating second expectation adjustment dot-term "
                     "for known samples at emulator iteration %s." % (emul_i))
 
@@ -1861,7 +1861,7 @@ class Emulator(object):
         """
 
         # Log the creation of the covariance matrix
-        logger = getLogger('COV_MAT')
+        logger = getRLogger('COV_MAT')
         logger.info("Calculating covariance matrix for emulator iteration %s."
                     % (emul_i))
 
@@ -2084,7 +2084,7 @@ class Emulator(object):
         """
 
         # Set the logger
-        logger = getLogger('LOAD_DATA')
+        logger = getRLogger('LOAD_DATA')
 
         # Initialize all data sets with empty lists
         logger.info("Initializing emulator data sets.")
@@ -2356,7 +2356,7 @@ class Emulator(object):
         """
 
         # Do some logging
-        logger = getLogger('SAVE_DATA')
+        logger = getRLogger('SAVE_DATA')
 
         # If controller keyword contains 'mod_real_set', emul_s must be None
         if((self._is_controller and 'mod_real_set' in data_dict.keys()) or

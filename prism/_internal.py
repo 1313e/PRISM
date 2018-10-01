@@ -24,7 +24,7 @@ import sys
 from tempfile import mkstemp
 
 # Package imports
-from e13tools.core import _compare_versions, InputError
+from e13tools.core import InputError, compare_versions
 import h5py
 from matplotlib.cm import register_cmap
 from matplotlib.colors import LinearSegmentedColormap as LSC
@@ -38,11 +38,11 @@ import numpy as np
 from .__version__ import compat_version, prism_version
 
 # All declaration
-__all__ = ['CLogger', 'PRISM_File', 'RequestError', 'aux_char_list',
+__all__ = ['CLogger', 'PRISM_File', 'RLogger', 'RequestError', 'aux_char_list',
            'check_compatibility', 'check_instance', 'check_val',
            'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
-           'docstring_substitute', 'getCLogger', 'import_cmaps', 'move_logger',
-           'raise_error', 'rprint', 'start_logger']
+           'docstring_substitute', 'getCLogger', 'getRLogger', 'import_cmaps',
+           'move_logger', 'raise_error', 'rprint', 'start_logger']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -124,7 +124,7 @@ class PRISM_File(h5py.File):
         """
 
         # Log that an HDF5-file is being opened
-        logger = logging.getLogger('HDF5-FILE')
+        logger = getRLogger('HDF5-FILE')
 
         # Set default settings
         hdf5_kwargs = {'driver': None,
@@ -158,13 +158,50 @@ class PRISM_File(h5py.File):
     # Override __exit__() to include logging
     def __exit__(self, *args, **kwargs):
         # Log that an HDF5-file will be closed
-        logger = logging.getLogger('HDF5-FILE')
+        logger = getRLogger('HDF5-FILE')
 
         # Log about closing the file
         logger.info("Closing HDF5-file '%s'." % (path.basename(self.filename)))
 
         # Inheriting File __exit__()
         super(PRISM_File, self).__exit__(*args, **kwargs)
+
+
+# Define custom Logger class that logs the rank of process that calls it
+class RLogger(logging.Logger):
+    manager = logging.Logger.manager
+
+    def __init__(self, *args, **kwargs):
+        self.prefix = "Rank %i:" % (rank)
+        super(RLogger, self).__init__(*args, **kwargs)
+
+    def debug(self, msg, *args, **kwargs):
+        msg = " ".join([self.prefix, msg])
+        super(RLogger, self).debug(msg, *args, **kwargs)
+
+    def info(self, msg, *args, **kwargs):
+        msg = " ".join([self.prefix, msg])
+        super(RLogger, self).info(msg, *args, **kwargs)
+
+    def warning(self, msg, *args, **kwargs):
+        msg = " ".join([self.prefix, msg])
+        super(RLogger, self).warning(msg, *args, **kwargs)
+
+    def error(self, msg, *args, **kwargs):
+        msg = " ".join([self.prefix, msg])
+        super(RLogger, self).error(msg, *args, **kwargs)
+
+    def exception(self, msg, *args, **kwargs):
+        msg = " ".join([self.prefix, msg])
+        super(RLogger, self).exception(msg, *args, **kwargs)
+
+    def critical(self, msg, *args, **kwargs):
+        msg = " ".join([self.prefix, msg])
+        super(RLogger, self).critical(msg, *args, **kwargs)
+
+    def log(self, level, msg, *args, **kwargs):
+        msg = " ".join([self.prefix, msg])
+        super(RLogger, self).log(level, msg, *args, **kwargs)
 
 
 # Define Exception class for when a requested action is not possible
@@ -252,21 +289,21 @@ def check_compatibility(emul_version):
     """
 
     # Do some logging
-    logger = logging.getLogger('CHECK')
+    logger = getRLogger('CHECK')
     logger.info("Performing version compatibility check.")
 
     # Loop over all compatibility versions
     for version in compat_version:
         # If a compat_version is the same or newer than the emul_version
         # then it is incompatible
-        if _compare_versions(version, emul_version):
+        if compare_versions(version, emul_version):
             err_msg = ("The provided emulator is incompatible with the current"
                        " version of PRISM (v%s). The last compatible version "
                        "is v%s." % (prism_version, version))
             raise_error(RequestError, err_msg, logger)
 
     # Check if emul_version is not newer than prism_version
-    if not _compare_versions(prism_version, emul_version):
+    if not compare_versions(prism_version, emul_version):
         err_msg = ("The provided emulator was constructed with a version later"
                    " than the current version of PRISM (v%s). Use v%s or later"
                    " to use this emulator." % (prism_version, emul_version))
@@ -345,7 +382,7 @@ def check_val(value, name, *args):
     """
 
     # Define logger
-    logger = logging.getLogger('CHECK')
+    logger = getRLogger('CHECK')
 
     # Convert args to a list
     args = list(args)
@@ -543,6 +580,17 @@ def getCLogger(name=None):
         return(logger)
     else:
         return CLogger.root
+
+
+# Define custom getLogger function that calls the custom RLogger instead
+def getRLogger(name=None):
+    if name:
+        RLogger.manager.loggerClass = RLogger
+        logger = RLogger.manager.getLogger(name)
+        RLogger.manager.loggerClass = None
+        return(logger)
+    else:
+        return RLogger.root
 
 
 # Function to import all custom colormaps in a directory
