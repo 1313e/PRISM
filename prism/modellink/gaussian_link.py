@@ -8,13 +8,6 @@ GaussianLink
 ============
 Provides the definition of the :class:`~GaussianLink` class.
 
-
-Available classes
------------------
-:class:`~GaussianLink`
-    :class:`~ModelLink` class wrapper for a simple Gaussian model, used for
-    testing the functionality of the *PRISM* pipeline in unittests.
-
 """
 
 

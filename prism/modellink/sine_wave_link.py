@@ -8,13 +8,6 @@ SineWaveLink
 ============
 Provides the definition of the :class:`~SineWaveLink` class.
 
-
-Available classes
------------------
-:class:`~SineWaveLink`
-    :class:`~ModelLink` class wrapper for a simple sine wave model, used for
-    testing the functionality of the *PRISM* pipeline in unittests.
-
 """
 
 

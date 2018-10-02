@@ -182,7 +182,7 @@ cov_doc =\
             {0}covariances for `par_set1` with
             :attr:`~Emulator.sam_set` (covariance vector).
             If `par_set1` and `par_set2` are both *None*, calculate
-            {0}covariances for :attr:`~Emulator.sam_set`(covariance matrix).
+            {0}covariances for :attr:`~Emulator.sam_set` (covariance matrix).
             When not *None*, `par_set` is the model parameter value set to
             calculate the {0}covariances for.
 
@@ -287,7 +287,7 @@ impl_cut_doc =\
 # Docstrings for the various read_parameters methods
 read_par_doc =\
         """Reads in the {0} parameters from the provided *PRISM* parameter
-        file and saves them in the current :obj:`~prism.{1}` instance."""
+        file and saves them in the current :obj:`~{0}` instance."""
 
 # Description of the various save_data methods
 save_data_doc =\

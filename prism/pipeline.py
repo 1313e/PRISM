@@ -498,7 +498,7 @@ class Pipeline(Projection, object):
         return(par_dict)
 
     # Read in the parameters from the provided parameter file
-    @docstring_append(read_par_doc.format("pipeline", "pipeline.Pipeline"))
+    @docstring_append(read_par_doc.format("Pipeline"))
     def _read_parameters(self):
         # Log that the PRISM parameter file is being read
         logger = getCLogger('INIT')
@@ -1645,6 +1645,7 @@ class Pipeline(Projection, object):
                         "parameters.")
 
     # This function processes an externally provided real_set
+    # TODO: Additionally allow for an old PRISM master file to be provided
     @docstring_substitute(ext_set=ext_real_set_doc, ext_sam=ext_sam_set_doc,
                           ext_mod=ext_mod_set_doc)
     def _get_ext_real_set(self, ext_real_set):

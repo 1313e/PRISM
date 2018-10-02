@@ -1909,7 +1909,7 @@ class Emulator(object):
     # This function calculates the inverse of a given matrix
     def _get_inv_matrix(self, matrix):
         """
-        Calculates the inverse of a given matrix `matrix`.
+        Calculates the inverse of a given `matrix`.
         Right now only uses the :func:`~numpy.linalg.inv` function.
 
         Parameters
@@ -1920,7 +1920,7 @@ class Emulator(object):
         Returns
         -------
         matrix_inv : 2D :obj:`~numpy.ndarray` object
-            Inverse of the given matrix `matrix`.
+            Inverse of the given `matrix`.
 
         """
 
@@ -2571,7 +2571,7 @@ class Emulator(object):
         return(par_dict)
 
     # Read in the parameters from the provided parameter file
-    @docstring_append(read_par_doc.format("emulator", "emulator.Emulator"))
+    @docstring_append(read_par_doc.format("Emulator"))
     def _read_parameters(self):
         # Log that the PRISM parameter file is being read
         logger = getCLogger('INIT')

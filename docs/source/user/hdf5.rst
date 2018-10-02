@@ -24,7 +24,8 @@ The general file contains:
     - Bools for using mock data or regression covariance;
     - Mock data parameters if mock data was used.
 
-  - Every emulator iteration has its own data group with the iteration number as its name. This data group stores all data/information specific to that iteration.
+  - Every emulator iteration has its own data group with the iteration number as its name.
+    This data group stores all data/information specific to that iteration.
 
 ----
 
@@ -36,10 +37,13 @@ An iteration data group (``'i'``) contains:
     - Number of emulated data points, emulator systems, emulator evaluation samples, plausible samples and model realization samples;
     - Bools stating whether this emulator iteration contains plausible regions or used an external model realization set.
 
-  - ``'emul_n'``: The data group that contains all data for a specific emulator system in this iteration. The value of ``'n'`` indicates which emulator system it is, not the data point. See below for its contents;
+  - ``'emul_n'``: The data group that contains all data for a specific emulator system in this iteration.
+    The value of ``'n'`` indicates which emulator system it is, not the data point.
+    See below for its contents;
   - ``'impl_sam'``: The set of emulator evaluation samples that survived the implausibility checks and will be used to construct the next iteration;
   - ``'proj_hcube'``: The data group that contains all data for the (created) projections for this iteration, if at least one has been made. See below for its contents;
-  - ``'sam_set'``: The set of model realization samples that were used to construct this iteration. In every iteration after the first, this is the ``'impl_sam'`` of the previous iteration;
+  - ``'sam_set'``: The set of model realization samples that were used to construct this iteration.
+    In every iteration after the first, this is the ``'impl_sam'`` of the previous iteration;
   - ``'statistics'``: An empty data set that stores several different types of statistics as its attributes, including:
 
     - Size of the MPI communicator during various construction steps;
@@ -56,15 +60,18 @@ An emulator system data group (``'i/emul_n'``) contains:
     - Data errors, identifiers, value space and value;
     - Regression score and residual variance if regression was used.
 
-  - ``'cov_mat'``: The pre-calculated covariance matrix of all model evaluation samples in this emulator system. This data set is never used in *PRISM* and stored solely for user-convenience;
+  - ``'cov_mat'``: The pre-calculated covariance matrix of all model evaluation samples in this emulator system.
+    This data set is never used in *PRISM* and stored solely for user-convenience;
   - ``'cov_mat_inv'``: The pre-calculated inverse of ``'cov_mat'``;
   - ``'exp_dot_term'``: The pre-calculated second expectation adjustment dot-term (:math:`Var\left(D\right)^{-1}\cdot\left(D-E(D)\right)`) of all model evaluation samples in this emulator system.
   - ``'mod_set'``: The model outputs for the data point in this emulator system corresponding to the ``'sam_set'`` used in this iteration;
   - ``'poly_coef'`` (if regression is used): The non-zero coefficients for the polynomial terms in the regression function in this emulator system;
   - ``'poly_coef_cov'`` (if regression and regr_cov are used): The covariances for all polynomial coefficients ``'poly_coef'``;
   - ``'poly_idx'`` (if regression is used): The indices of the polynomial terms with non-zero coefficients if all active parameters are converted to polynomial terms;
-  - ``'poly_powers'`` (if regression is used): The powers of the polynomial terms corresponding to ``'poly_idx'``. Both ``'poly_idx'`` and ``'poly_powers'`` are required since different methods of calculating the polynomial terms are used depending on the number of required terms and samples;
-  - ``'prior_exp_sam_set'``: The pre-calculated prior expectation values of all model evaluation samples in this emulator system. This data set is also never used in *PRISM*.
+  - ``'poly_powers'`` (if regression is used): The powers of the polynomial terms corresponding to ``'poly_idx'``.
+    Both ``'poly_idx'`` and ``'poly_powers'`` are required since different methods of calculating the polynomial terms are used depending on the number of required terms and samples;
+  - ``'prior_exp_sam_set'``: The pre-calculated prior expectation values of all model evaluation samples in this emulator system.
+    This data set is also never used in *PRISM*.
 
 ----
 
@@ -74,4 +81,5 @@ A projection data group (``'i/proj_hcube'``) contains:
     - Implausibility cut-off parameters (they can differ from the iteration itself);
     - Projection depth and resolution.
 
-  - Individual projection groups: Data groups that are named after the active parameters this specific projection is about (1 parameter for 2D models, 2 parameters for nD models), containing the ``'impl_los'`` and ``'impl_min'`` data sets. These two data sets list the calculated line-of-sight depths and minimum implausibility values for all grid points in this projection.
+  - Individual projection groups: Data groups that are named after the active parameters this specific projection is about (1 parameter for 2D models, 2 parameters for nD models), containing the ``'impl_los'`` and ``'impl_min'`` data sets.
+    These two data sets list the calculated line-of-sight depths and minimum implausibility values for all grid points in this projection.

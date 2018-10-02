@@ -55,6 +55,13 @@ rank = MPI.COMM_WORLD.Get_rank()
 # %% CLASS DEFINITIONS
 # Define custom Logger class that only logs if the controller calls it
 class CLogger(logging.Logger):
+    """
+    Custom :class:`~logging.Logger` class that only allows the controller rank
+    to log messages to the logfile. Calls from worker ranks are ignored.
+
+    """
+
+    # Set the manager of this class to the default one
     manager = logging.Logger.manager
 
     def __init__(self, *args, **kwargs):
@@ -92,6 +99,14 @@ class CLogger(logging.Logger):
 
 # Override h5py's File.__init__() and __exit__() methods
 class PRISM_File(h5py.File):
+    """
+    Custom :class:`~h5py.File` class that automatically knows where all *PRISM*
+    HDF5-files are located if it is initialized by a :obj:`~Pipeline` object.
+    Additionally, certain keyword arguments have default values and the
+    opening/closing of an HDF5-file is logged.
+
+    """
+
     # Add hdf5_file attribute
     _hdf5_file = None
 
@@ -99,9 +114,7 @@ class PRISM_File(h5py.File):
     def __init__(self, mode, emul_s=None, filename=None, **kwargs):
         """
         Opens the master HDF5-file `filename` in `mode` according to some set
-        of default parameters. This method only works properly if the
-        :class:`~PRISM_File` class is initialized within a :obj:`~Pipeline`
-        object.
+        of default parameters.
 
         Parameters
         ----------
@@ -111,8 +124,9 @@ class PRISM_File(h5py.File):
         Optional
         --------
         emul_s : int or None. Default: None
-            If int, number indicating the requested emulator system to open.
-            If *None*, the master emulator itself is opened.
+            If int, number indicating the requested emulator system file to
+            open.
+            If *None*, the master HDF5-file itself is opened.
         filename : str. Default: None
             The name/path of the master HDF5-file that needs to be opened in
             `working_dir`. Default is to open the master HDF5-file that was
@@ -169,6 +183,13 @@ class PRISM_File(h5py.File):
 
 # Define custom Logger class that logs the rank of process that calls it
 class RLogger(logging.Logger):
+    """
+    Custom :class:`~logging.Logger` class that prepends the rank of the MPI
+    process that calls it to the logging message.
+
+    """
+
+    # Set the manager of this class to the default one
     manager = logging.Logger.manager
 
     def __init__(self, *args, **kwargs):

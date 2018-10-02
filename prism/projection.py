@@ -469,8 +469,8 @@ class Projection(object):
         """
         Determines which projection hypercubes have been requested by the user.
         Also checks if these projection hypercubes have been calculated before,
-        and depending on the value of `force`, either skips them or recreates
-        them.
+        and depending on the value of :attr:`~force`, either skips them or
+        recreates them.
 
         Parameters
         ----------
@@ -649,7 +649,7 @@ class Projection(object):
         return(kwargs_dict)
 
     # This function reads in the impl_cut list from the PRISM parameters file
-    @docstring_append(read_par_doc.format("projection", "pipeline.Pipeline"))
+    @docstring_append(read_par_doc.format("Projection"))
     def __read_parameters(self):
         # Log that the PRISM parameter file is being read
         logger = getCLogger('INIT')
