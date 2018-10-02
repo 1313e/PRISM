@@ -112,9 +112,11 @@ paths_doc =\
             `root_dir`. If *None*, working directory is set to the last one
             that was created in `root_dir` that starts with the given `prefix`.
             If no directories are found, one will be created.
-        prefix : str{0}{3}
+        prefix : str or None{0}{3}
             String containing a prefix that is used for naming new working
-            directories or scan for existing ones.
+            directories or scan for existing ones. If *None*, all directories
+            in `root_dir` are considered working directories and 'prism_' will
+            be used as a prefix for new ones.
         hdf5_file : str{0}{4}
             String containing the name of the master HDF5-file in `working_dir`
             to be used in this class instance. Different types of master
@@ -131,7 +133,7 @@ paths_doc =\
             relative to `root_dir` or the current directory. If *None*, no
             changes will be made to the default parameters."""
 paths_doc_s = paths_doc.format("", "", "", "", "", "")
-paths_doc_d = paths_doc.format(ds, "None", "None", "'prism_'", "'prism.hdf5'",
+paths_doc_d = paths_doc.format(ds, "None", "None", "None", "'prism.hdf5'",
                                "None")
 
 

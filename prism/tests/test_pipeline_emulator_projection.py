@@ -5,8 +5,6 @@
 from __future__ import absolute_import, division, print_function
 
 # Built-in imports
-import logging
-import os
 from os import path
 import shutil
 
@@ -15,6 +13,7 @@ from e13tools.core import InputError, ShapeError
 from e13tools.sampling import lhd
 import h5py
 import numpy as np
+from py.path import local
 import pytest
 import pytest_mpl
 
@@ -31,6 +30,9 @@ dirpath = path.dirname(__file__)
 
 # Set the random seed of NumPy
 np.random.seed(2)
+
+# Set the current working directory to the temporary directory
+local.get_temproot().chdir()
 
 # Save paths to various files
 model_data_single = path.join(dirpath, 'data/data_gaussian_single.txt')
@@ -359,8 +361,6 @@ class Test_Pipeline_Init_Exceptions(object):
         with pytest.raises(OSError):
             Pipeline(model_link, *root_working_dir,
                      prism_file='test.txt', emul_type='default')
-        logging.shutdown()
-        os.remove(logging.root.handlers[0].baseFilename)
 
     # Create a Pipeline object using an invalid root dir
     def test_invalid_root_dir(self, tmpdir, model_link):
@@ -368,8 +368,6 @@ class Test_Pipeline_Init_Exceptions(object):
         with pytest.raises(InputError):
             Pipeline(model_link, root_dir=1, working_dir=working_dir,
                      prism_file=prism_file_default, emul_type='default')
-        logging.shutdown()
-        os.remove(logging.root.handlers[0].baseFilename)
 
     # Create a Pipeline object using an invalid working dir
     def test_invalid_working_dir(self, tmpdir, model_link):
@@ -377,16 +375,12 @@ class Test_Pipeline_Init_Exceptions(object):
         with pytest.raises(InputError):
             Pipeline(model_link, root_dir=root_dir, working_dir=1.0,
                      prism_file=prism_file_default, emul_type='default')
-        logging.shutdown()
-        os.remove(logging.root.handlers[0].baseFilename)
 
     # Create a Pipeline object using an invalid PRISM file
     def test_invalid_prism_file(self, root_working_dir, model_link):
         with pytest.raises(InputError):
             Pipeline(model_link, *root_working_dir,
                      prism_file=1, emul_type='default')
-        logging.shutdown()
-        os.remove(logging.root.handlers[0].baseFilename)
 
     # Create a Pipeline object using an invalid prefix
     def test_invalid_prefix(self, root_working_dir, model_link):
@@ -394,8 +388,6 @@ class Test_Pipeline_Init_Exceptions(object):
             Pipeline(model_link, *root_working_dir,
                      prism_file=prism_file_default, prefix=1,
                      emul_type='default')
-        logging.shutdown()
-        os.remove(logging.root.handlers[0].baseFilename)
 
     # Create a Pipeline object using an invalid hdf5_file path
     def test_invalid_hdf5_file_name(self, root_working_dir, model_link):
@@ -403,8 +395,6 @@ class Test_Pipeline_Init_Exceptions(object):
             Pipeline(model_link, *root_working_dir,
                      prism_file=prism_file_default, hdf5_file=1,
                      emul_type='default')
-        logging.shutdown()
-        os.remove(logging.root.handlers[0].baseFilename)
 
     # Create a Pipeline object using an invalid hdf5_file extension
     def test_invalid_hdf5_file_extension(self, root_working_dir, model_link):
@@ -412,8 +402,6 @@ class Test_Pipeline_Init_Exceptions(object):
             Pipeline(model_link, *root_working_dir,
                      prism_file=prism_file_default, hdf5_file='test.txt',
                      emul_type='default')
-        logging.shutdown()
-        os.remove(logging.root.handlers[0].baseFilename)
 
     # Create a Pipeline object using invalid mock data spaces
     def test_invalid_mock_data_spc_predef(self, root_working_dir, model_link):
@@ -758,11 +746,9 @@ class Test_Pipeline_Init_Versatility(object):
                  prism_file=prism_file, emul_type='default')
 
     # Create a Pipeline object using no defined paths
-    def test_default_paths(self, model_link):
-        pipe = Pipeline(model_link, emul_type='default')
-        logging.shutdown()
-        os.remove(path.join(pipe._working_dir, 'prism_log.log'))
-        os.rmdir(pipe._working_dir)
+    def test_default_paths(self, tmpdir, model_link):
+        with tmpdir.as_cwd():
+            Pipeline(model_link, emul_type='default')
 
     # Create a Pipeline object using a non_existent root dir
     def test_non_existent_root_dir(self, tmpdir, model_link):
@@ -777,6 +763,14 @@ class Test_Pipeline_Init_Versatility(object):
         Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                  prism_file=prism_file_default, emul_type='default')
 
+    # Create a Pipeline object using a custom prefix
+    def test_custom_prefix(self, tmpdir, model_link):
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = 'working_dir'
+        Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                 prefix='test_', prism_file=prism_file_default,
+                 emul_type='default')
+
     # Create a Pipeline object using a relative path to a PRISM file
     def test_rel_path_PRISM_file(self, tmpdir, model_link):
         root_dir = path.dirname(tmpdir.strpath)
@@ -785,12 +779,12 @@ class Test_Pipeline_Init_Versatility(object):
         Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                  prism_file='prism_default.txt', emul_type='default')
 
-    # Create a Pipeline object requesting a new working dir three times
+    # Create a Pipeline object requesting a new working dir two times
     def test_new_working_dir(self, tmpdir, model_link):
-        root_dir = path.dirname(tmpdir.strpath)
+        root_dir = tmpdir.strpath
         Pipeline(model_link, root_dir=root_dir, working_dir=1,
                  prism_file=prism_file_default, emul_type='default')
-        Pipeline(model_link, root_dir=root_dir, working_dir=1,
+        Pipeline(model_link, root_dir=root_dir, working_dir='prism_2',
                  prism_file=prism_file_default, emul_type='default')
         Pipeline(model_link, root_dir=root_dir, working_dir=1,
                  prism_file=prism_file_default, emul_type='default')

@@ -20,7 +20,7 @@ import os
 from os import path
 import sys
 from textwrap import dedent
-from time import strftime, strptime, time
+from time import time
 
 # Package imports
 from e13tools import InputError, ShapeError
@@ -74,7 +74,7 @@ class Pipeline(Projection, object):
 
     @docstring_substitute(paths=paths_doc_d)
     def __init__(self, modellink, root_dir=None, working_dir=None,
-                 prefix='prism_', hdf5_file='prism.hdf5', prism_file=None,
+                 prefix=None, hdf5_file='prism.hdf5', prism_file=None,
                  emul_type='default'):
         """
         Initialize an instance of the :class:`~Pipeline` class.
@@ -718,8 +718,13 @@ class Pipeline(Projection, object):
                 raise_error(InputError, err_msg, logger)
 
             # Check if a valid working directory prefix string is given
-            if isinstance(prefix, (str, unicode)):
-                prefix = prefix
+            if prefix is None:
+                prefix_scan = ''
+                prefix_new = 'prism_'
+                prefix_len = 0
+            elif isinstance(prefix, (str, unicode)):
+                prefix_scan = prefix
+                prefix_new = prefix
                 prefix_len = len(prefix)
             else:
                 err_msg = "Input argument 'prefix' is not of type 'str'!"
@@ -731,23 +736,20 @@ class Pipeline(Projection, object):
                 logger.info("No working directory specified, trying to load "
                             "last one created.")
                 dirnames = next(os.walk(self._root_dir))[1]
-                emul_dirs = list(dirnames)
+                emul_dirs = []
 
                 # Check which directories in the root_dir satisfy the default
                 # naming scheme of the emulator directories
                 for dirname in dirnames:
-                    if(dirname[0:prefix_len] != prefix):
-                        emul_dirs.remove(dirname)
-                    else:
-                        try:
-                            strptime(dirname[prefix_len:prefix_len+10],
-                                     '%Y-%m-%d')
-                        except ValueError:
-                            emul_dirs.remove(dirname)
+                    if(dirname[0:prefix_len] == prefix_scan):
+                        dir_path = path.join(self._root_dir, dirname)
+                        ctime = path.getctime(dir_path)
+                        emul_dirs.append([dir_path, ctime])
+                emul_dirs.sort(key=lambda x: x[1], reverse=True)
 
                 # If no working directory exists, create a new one
                 if(len(emul_dirs) == 0):
-                    working_dir = ''.join([prefix, strftime('%Y-%m-%d')])
+                    working_dir = ''.join([prefix_new, '0'])
                     self._working_dir = path.join(self._root_dir, working_dir)
                     os.mkdir(self._working_dir)
                     logger.info("No working directories found, created '%s'."
@@ -755,45 +757,40 @@ class Pipeline(Projection, object):
 
                 # If working directories exist, load last one created
                 else:
-                    emul_dirs.sort(reverse=True)
-                    working_dir = emul_dirs[0]
-                    self._working_dir = path.join(self._root_dir, working_dir)
+                    self._working_dir = emul_dirs[0][0]
                     logger.info("Working directories found, set to '%s'."
-                                % (working_dir))
+                                % (path.basename(self._working_dir)))
 
             # If one requested a new working directory
             elif isinstance(working_dir, int):
                 # Obtain list of working directories that satisfy naming scheme
-                working_dir = ''.join([prefix, strftime('%Y-%m-%d')])
                 dirnames = next(os.walk(self._root_dir))[1]
-                emul_dirs = list(dirnames)
+                n_dirs = 0
 
                 for dirname in dirnames:
-                    if(dirname[0:prefix_len+10] != working_dir):
-                        emul_dirs.remove(dirname)
+                    if(dirname[0:prefix_len] == prefix_scan):
+                        n_dirs += 1
 
                 # Check if working directories already exist with the same
                 # prefix and append a number to the name if this is the case
-                emul_dirs.sort(reverse=True)
-                if(len(emul_dirs) == 0):
-                    pass
-                elif(len(emul_dirs) == 1):
-                    working_dir = ''.join([working_dir, '_1'])
-                else:
-                    working_dir =\
-                        ''.join([working_dir, '_%s'
-                                 % (int(emul_dirs[0][prefix_len+11:])+1)])
+                while True:
+                    working_dir = path.join(self._root_dir,
+                                            ''.join([prefix_new, str(n_dirs)]))
+                    try:
+                        os.mkdir(working_dir)
+                    except OSError:
+                        n_dirs += 1
+                    else:
+                        break
 
-                # Save path to new working directory and create it
-                self._working_dir = path.join(self._root_dir, working_dir)
-                os.mkdir(self._working_dir)
+                # Save path to new working directory
+                self._working_dir = working_dir
                 logger.info("New working directory requested, created '%s'."
-                            % (working_dir))
+                            % (path.basename(working_dir)))
 
             # If one specified a working directory, use it
             elif isinstance(working_dir, (str, unicode)):
-                self._working_dir =\
-                    path.join(self._root_dir, working_dir)
+                self._working_dir = path.join(self._root_dir, working_dir)
                 logger.info("Working directory set to '%s'." % (working_dir))
 
                 # Check if this directory already exists and create it if not

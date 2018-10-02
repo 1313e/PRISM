@@ -642,14 +642,14 @@ def import_cmaps(cmap_dir=None):
     else:
         cmap_dir = path.abspath(cmap_dir)
 
-    # Obtain the names of all PRISM data files
+    # Obtain the names of all files in cmap_dir
     filenames = next(os.walk(cmap_dir))[2]
-    cm_files = list(filenames)
+    cm_files = []
 
     # Extract the files with defined colormaps
     for filename in filenames:
-        if(filename[0:3] != 'cm_'):
-            cm_files.remove(filename)
+        if(filename[0:3] == 'cm_'):
+            cm_files.append(filename)
     cm_files.sort()
 
     # Read in all the defined colormaps, transform and register them
