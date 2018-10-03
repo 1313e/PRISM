@@ -232,8 +232,19 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             # Read the parameter file and obtain parameter names, ranges
             # (and estimates if provided)
             par_names = np.genfromtxt(par_file, dtype=str, usecols=0)
-            par_values = np.genfromtxt(par_file, dtype=float,
-                                       filling_values=np.infty)[:, 1:]
+            par_rng = np.genfromtxt(par_file, dtype=float, usecols=(1, 2))
+            par_str = np.genfromtxt(par_file, dtype=str, delimiter='\n')
+            par_values = par_rng.tolist()
+
+            # Convert all par_str sequences to par_est
+            for i, str_seq in enumerate(par_str):
+                try:
+                    par_values[i].append(float(convert_str_seq(str_seq)[3]))
+                except IndexError:
+                    par_values[i].append(None)
+                except ValueError:
+                    raise TypeError("Input argument 'par_est[%s]' is not of "
+                                    "type 'float'!" % (i))
 
             # Update the model parameters dict
             model_parameters.update(zip(par_names, par_values))
