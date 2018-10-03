@@ -196,6 +196,20 @@ class Pipeline(Projection, object):
             except Exception:
                 raise
 
+    # Define the representation of a Pipeline object
+    def __repr__(self):
+        cwd = os.getcwd()
+        str_repr = [repr(self._modellink),
+                    "%r" % (path.relpath(self._root_dir, cwd)),
+                    "%r" % (path.relpath(self._working_dir, self._root_dir)),
+                    "None",
+                    "%r" % (path.relpath(self._hdf5_file,
+                                         self._working_dir)),
+                    "%r" % (path.relpath(self._prism_file, cwd)),
+                    "%s.%s" % (self._emulator.__class__.__module__,
+                               self._emulator.__class__.__name__)]
+        return("Pipeline(%s)" % (", ".join(str_repr)))
+
     # %% CLASS PROPERTIES
     # MPI properties
     @property

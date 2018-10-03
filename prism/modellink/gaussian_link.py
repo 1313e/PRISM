@@ -69,6 +69,9 @@ class GaussianLink(ModelLink):
         # Inheriting ModelLink __init__()
         super(GaussianLink, self).__init__(*args, **kwargs)
 
+    def _get_str_repr(self):
+        return(['n_gaussians=%r' % (self._n_gaussians)])
+
     @property
     def _default_model_parameters(self):
         # Set default parameters for every Gaussian

@@ -179,6 +179,41 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         # Generate model data properties
         self._set_model_data(model_data)
 
+    # Define the representation of a ModelLink object
+    def __repr__(self):
+        # Obtain representation of model_parameters
+        par_values = [[i, j, k] for (i, j), k in zip(self._par_rng,
+                                                     self._par_est)]
+        par_repr = []
+        for name, val in zip(self._par_name, par_values):
+            par_repr.append("%r: %r" % (name, val))
+
+        par_repr = "model_parameters={%s}" % (", ".join(map(str, par_repr)))
+
+        # Obtain representation of model_data
+        data_repr = []
+        for val, err, spc, idx in zip(self._data_val, self._data_err,
+                                      self._data_spc, self._data_idx):
+            data_repr.append("[%r, %r, %r, %r, %r]"
+                             % (val, err[0], err[1], spc, idx))
+        data_repr = "model_data=[%s]" % (", ".join(map(str, data_repr)))
+
+        # Obtain non-default representation and add default ones
+        str_repr = self._get_str_repr()
+        str_repr.extend([par_repr, data_repr])
+
+        # Return representation
+        return("%s(%s)" % (self.__class__.__name__, ", ".join(str_repr)))
+
+    def _get_str_repr(self):
+        """
+        Returns a list of all additional input arguments with which this
+        :class:`~ModelLink` subclass was initialized.
+
+        """
+
+        return([])
+
     @property
     def _default_model_parameters(self):
         """
