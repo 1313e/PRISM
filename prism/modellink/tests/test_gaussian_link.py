@@ -25,6 +25,7 @@ def test_GaussianLink():
 
     # Initialize GaussianLink class
     model_link = GaussianLink(3, model_data=model_data)
+    repr(model_link)
 
     # Check if this instance is from a proper ModelLink subclass
     assert check_instance(model_link, ModelLink)

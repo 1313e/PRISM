@@ -136,6 +136,10 @@ class Test_Pipeline_Gaussian2D(object):
         return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                         prism_file=prism_file_default, emul_type='default'))
 
+    # Check if representation can be called
+    def test_repr(self, pipe):
+        repr(pipe)
+
     # Check if first iteration can be constructed
     def test_construct(self, pipe):
         pipe.construct(1, 0)
@@ -221,6 +225,10 @@ class Test_Pipeline_Gaussian3D(object):
                                     model_data=model_data_single)
         return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                         prism_file=prism_file_default, emul_type='default'))
+
+    # Check if representation can be called
+    def test_repr(self, pipe):
+        repr(pipe)
 
     # Check if first iteration can be constructed
     def test_construct(self, pipe):

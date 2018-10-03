@@ -103,6 +103,9 @@ class MeraxesLink(ModelLink):
         # Inheriting ModelLink __init__()
         super(MeraxesLink, self).__init__(*args, **kwargs)
 
+    def _get_str_repr(self):
+        return("input_file=%r" % (self._input_file))
+
     @property
     def _default_model_parameters(self):
         par_dict = {'SfEfficiency': [0, 1, 0.05]}

@@ -25,6 +25,7 @@ def test_SineWaveLink():
 
     # Initialize SineWaveLink class
     model_link = SineWaveLink(model_data=model_data)
+    repr(model_link)
 
     # Check if this instance is from a proper ModelLink subclass
     assert check_instance(model_link, ModelLink)
