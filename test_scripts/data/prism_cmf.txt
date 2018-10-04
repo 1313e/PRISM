@@ -1,11 +1,11 @@
-n_sam_init		: 1000
+n_sam_init		: 100
 proj_res		: 25
-proj_depth		: 1500
+proj_depth		: 750
 base_eval_sam		: 3200
 sigma			: 0.8
 l_corr			: 0.3
 impl_cut		: [0.0, 4.0, 3.8, 3.5]
-criterion		: 'multi'
+criterion		: None
 method			: 'full'
 use_regr_cov		: False
 poly_order		: 3

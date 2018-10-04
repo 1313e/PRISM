@@ -51,9 +51,9 @@ class GaussianLink2D(ModelLink):
 
     @property
     def _default_model_data(self):
-        model_data = [[1, 0.05, 0.05, 'lin', 1],
-                      [2, 0.05, 0.05, 'lin', 3],
-                      [3, 0.05, 0.05, 'lin', 4]]
+        model_data = {1: [1, 0.05],
+                      3: [2, 0.05],
+                      4: [3, 0.05]}
         return(model_data)
 
     def call_model(self, emul_i, model_parameters, data_idx):

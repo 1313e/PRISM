@@ -34,7 +34,8 @@ def test_GaussianLink():
     par_set = [2.5, 2, 1, 2.5, 3, 1, 2.5, 4, 1]
     par_dict = dict(zip(model_link._par_name, np.array(par_set)))
     exp_mod_out = [4.853169333697371, 4.5858319665035, 4.0377509940191105]
-    assert np.isclose(model_link.call_model(1, par_dict, model_link._data_idx),
+    assert np.isclose(model_link.call_model(1, par_dict,
+                                            sorted(model_link._data_idx)),
                       exp_mod_out).all()
 
     # Retrieve model discrepancy variance

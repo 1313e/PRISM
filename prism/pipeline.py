@@ -198,16 +198,41 @@ class Pipeline(Projection, object):
 
     # Define the representation of a Pipeline object
     def __repr__(self):
+        # Get path to current working directory, make all paths relative to it
         cwd = os.getcwd()
-        str_repr = [repr(self._modellink),
-                    "%r" % (path.relpath(self._root_dir, cwd)),
-                    "%r" % (path.relpath(self._working_dir, self._root_dir)),
-                    "None",
-                    "%r" % (path.relpath(self._hdf5_file,
-                                         self._working_dir)),
-                    "%r" % (path.relpath(self._prism_file, cwd)),
-                    "%s.%s" % (self._emulator.__class__.__module__,
-                               self._emulator.__class__.__name__)]
+
+        # Make empty list holding representations of all input arguments
+        str_repr = []
+
+        # Add the ModelLink representation
+        str_repr.append(repr(self._modellink))
+
+        # Add the root_dir representation if it is not default
+        rel_root_path = path.relpath(self._root_dir, cwd)
+        if(rel_root_path != '.'):
+            str_repr.append("root_dir=%r" % (rel_root_path))
+
+        # Add the working_dir representation
+        str_repr.append("working_dir=%r" % (path.relpath(self._working_dir,
+                                                         self._root_dir)))
+
+        # Add the hdf5_file representation if it is not default
+        rel_hdf5_path = path.relpath(self._hdf5_file, self._working_dir)
+        if(rel_hdf5_path != 'prism.hdf5'):
+            str_repr.append("hdf5_file=%r" % (rel_hdf5_path))
+
+        # Add the prism_file representation if it is not default
+        if self._prism_file is not None:
+            str_repr.append("prism_file=%r" % (path.relpath(self._prism_file,
+                                                            cwd)))
+
+        # Add the emul_type representation if it is not default
+        emul_repr = "%s.%s" % (self._emulator.__class__.__module__,
+                               self._emulator.__class__.__name__)
+        if(emul_repr != 'prism.emulator.Emulator'):
+            str_repr.append("emul_type=%s" % (emul_repr))
+
+        # Return representation
         return("Pipeline(%s)" % (", ".join(str_repr)))
 
     # %% CLASS PROPERTIES

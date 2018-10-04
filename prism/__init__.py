@@ -65,4 +65,4 @@ else:
                     "set to 1 (%s), with MPI enabled. Unless this was "
                     "intentional, it is advised to set 'OMP_NUM_THREADS' to 1."
                     % (os.environ.get('OMP_NUM_THREADS')))
-        warnings.warn(warn_msg)
+        warnings.warn(warn_msg, stacklevel=2)

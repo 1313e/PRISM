@@ -1,6 +1,6 @@
-# data_val		data_err	data_spc	obs_type	obs_subtype	pixel_idx
-  0.69727900187682867 	0.25		'lin'		rm_observable 	rm_map 		1507
-  0.88823380072		0.3		'lin'		rm_observable 	rm_map 		1562
-  1.3957432986493528	0.1		'lin'		rm_observable 	rm_map 		1571
-  0			0.02		'lin'		rm_observable 	rm_map 		2617
-  0			0.02		'lin'		rm_observable 	rm_map 		3
+# obs_type		obs_subtype	pixel_idx	: data_val		data_err	data_spc
+  rm_observable 	rm_map 		1507		: 0.69727900187682867 	0.25		'lin'
+  rm_observable 	rm_map 		1562		: 0.88823380072		0.3		'lin'
+  rm_observable 	rm_map 		1571		: 1.3957432986493528	0.1		'lin'
+  rm_observable 	rm_map 		2617		: 0			0.02		'lin'
+  rm_observable 	rm_map 		3		: 0			0.02		'lin'

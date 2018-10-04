@@ -1,7 +1,6 @@
-# data_val	data_err	data_spc	x
-  1		0.005		'lin'		1
-  1		0.005		'lin'		2
-  1		0.005		'lin'		3
-  1		0.005		'lin'		4
-  1		0.005		'lin'		5
-
+# x	: data_val	data_err
+  1	: 1		0.05
+  2	: 2		0.05
+  3	: 3		0.05
+  4	: 4		0.05
+  5	: 5		0.05

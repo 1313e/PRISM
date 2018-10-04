@@ -70,7 +70,8 @@ class GaussianLink(ModelLink):
         super(GaussianLink, self).__init__(*args, **kwargs)
 
     def _get_str_repr(self):
-        return(['n_gaussians=%r' % (self._n_gaussians)])
+        return(['n_gaussians=%r' % (self._n_gaussians)] if(
+                self._n_gaussians != 1) else [])
 
     @property
     def _default_model_parameters(self):

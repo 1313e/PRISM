@@ -50,6 +50,11 @@ class InvalidEmulator(Emulator):
         pass
 
 
+# Custom Emulator class
+class CustomEmulator(Emulator):
+    pass
+
+
 # Custom invalid ModelLink class
 class InvalidModelLink(ModelLink):
     def __init__(self, *args, **kwargs):
@@ -138,7 +143,8 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if representation can be called
     def test_repr(self, pipe):
-        repr(pipe)
+        pipe2 = eval(repr(pipe))
+        assert pipe2._hdf5_file == pipe._hdf5_file
 
     # Check if first iteration can be constructed
     def test_construct(self, pipe):
@@ -212,6 +218,11 @@ class Test_Pipeline_Gaussian2D(object):
     def test_reconstruct_iteration_two(self, pipe):
         pipe.construct(2, 0, None, 1)
 
+    # Check if representation can be called
+    def test_repr2(self, pipe):
+        pipe2 = eval(repr(pipe))
+        assert pipe2._hdf5_file == pipe._hdf5_file
+
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model
 class Test_Pipeline_Gaussian3D(object):
@@ -228,7 +239,8 @@ class Test_Pipeline_Gaussian3D(object):
 
     # Check if representation can be called
     def test_repr(self, pipe):
-        repr(pipe)
+        pipe2 = eval(repr(pipe))
+        assert pipe2._hdf5_file == pipe._hdf5_file
 
     # Check if first iteration can be constructed
     def test_construct(self, pipe):
@@ -258,6 +270,11 @@ class Test_Pipeline_Gaussian3D(object):
     # Try to access all Emulator properties
     def test_access_emul_props(self, pipe):
         check_instance(pipe._emulator, Emulator)
+
+    # Check if representation can be called
+    def test_repr2(self, pipe):
+        pipe2 = eval(repr(pipe))
+        assert pipe2._hdf5_file == pipe._hdf5_file
 
 
 # Pytest for Pipeline class exception handling during initialization
@@ -742,8 +759,10 @@ class Test_Pipeline_Init_Versatility(object):
     def test_custom_Emulator(self, tmpdir, model_link):
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
-        Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
-                 prism_file=prism_file_default, emul_type=Emulator)
+        pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        hdf5_file='test.hdf5', prism_file=prism_file_default,
+                        emul_type=CustomEmulator)
+        repr(pipe)
 
     # Create a Pipeline object using custom pot_active_par
     def test_custom_pot_act_par(self, tmpdir, model_link):
@@ -756,7 +775,8 @@ class Test_Pipeline_Init_Versatility(object):
     # Create a Pipeline object using no defined paths
     def test_default_paths(self, tmpdir, model_link):
         with tmpdir.as_cwd():
-            Pipeline(model_link, emul_type='default')
+            pipe = Pipeline(model_link)
+            repr(pipe)
 
     # Create a Pipeline object using a non_existent root dir
     def test_non_existent_root_dir(self, tmpdir, model_link):
@@ -970,9 +990,9 @@ class Test_Pipeline_Emulator_Versatility(object):
     def test_data_idx_seq(self, tmpdir):
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
-        model_data = [[1, 0.05, 'lin', 1, 'A'],
-                      [2, 0.05, 'lin', 'A'],
-                      [3, 0.05, 'lin', 4.]]
+        model_data = {(1, 'A'): [1, 0.05, 'lin'],
+                      'A': [2, 0.05, 'lin'],
+                      4.: [3, 0.05, 'lin']}
         model_link = DoubleMdVarModelLink(model_parameters=model_parameters_3D,
                                           model_data=model_data)
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
@@ -991,10 +1011,10 @@ class Test_Pipeline_Emulator_Versatility(object):
         pipe.construct(1)
 
         # Change data for second iteration
-        model_data = [[1, 0.05, 'lin', 2],
-                      [2, 0.05, 'lin', 3],
-                      [3, 0.05, 'lin', 4],
-                      [3, 0.05, 'lin', 5]]
+        model_data = {2: [1, 0.05, 'lin'],
+                      3: [2, 0.05, 'lin'],
+                      4: [3, 0.05, 'lin'],
+                      5: [3, 0.05, 'lin']}
         model_link = GaussianLink3D(model_parameters=model_parameters_3D,
                                     model_data=model_data)
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,

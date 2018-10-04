@@ -14,7 +14,7 @@ Below is a list of general usage rules that apply to *PRISM*.
 
   - the names of model parameters also accept the internal indices of these model parameters.
     The index is the order in which the parameter names appear in the :attr:`~prism.modellink.modellink.ModelLink.par_name` list or as they appear in the output of the :meth:`~prism.pipeline.Pipeline.details` method;
-  - a sequence of integers, floats and/or strings will accept (almost) any formatting including most special characters as separators as long as they do not have any meaning (like a dot for floats or valid escape sequences for strings).
+  - a sequence of integers, floats and/or strings will accept (almost) any formatting including most special characters as separators as long as they do not have any meaning (like a dot for floats or valid escape sequences for strings);
 
     .. admonition:: Example
 
@@ -23,6 +23,7 @@ Below is a list of general usage rules that apply to *PRISM*.
          - ``[A,1,2.,B]``;
          - ``"A 1 2.0 B"``;
          - ``"'[" (A` / }| \n; <1{}) \,,">2.000000 !!: \t< )?%\B '``.
+  - the path to a data file (*PRISM* parameters, model parameters, model data) will read in all the data from that file as a Python dict, with a colon ``:`` acting as the separator between the key and value.
 
 
 - Depending on the used emulator type, state of loaded emulator and the *PRISM* parameter values, it is possible that providing values for certain *PRISM* parameters has no influence on the outcome of the pipeline.

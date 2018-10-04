@@ -1,4 +1,5 @@
-# name			lower_bndry		upper_bndry		estimate
-SnEjectionEff		0			1			0.5
-SnEjectionScaling	0			10			2.0
-SnEjectionNorm		0			100			70
+# name			: lower_bndry		upper_bndry		estimate
+SfEfficiency		: 0			1			0.9171082566108286
+SnEjectionEff		: 0			1			0.5202554699612938
+SnEjectionScaling	: 0			10			0.8528292793320347
+SnEjectionNorm		: 0			100			48.24390543933609
