@@ -210,8 +210,8 @@ class Test_Pipeline_Gaussian2D(object):
     # Try to reload and reanalyze the entire Pipeline using different impl_cut
     def test_reload_reanalyze_pipeline(self, pipe):
         pipe_reload = Pipeline(pipe._modellink, root_dir=pipe._root_dir,
-                               working_dir=pipe._working_dir,
                                prism_file=prism_file_impl, emul_type='default')
+        assert pipe_reload._working_dir == pipe._working_dir
         pipe_reload.analyze()
 
     # Check if second iteration can be reconstructed

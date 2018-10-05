@@ -8,11 +8,11 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
 	Number of model evaluation samples that is used to construct the first iteration of the emulator.
 	This value must be a positive integer.
 
-:attr:`~prism.projection.Projection.proj_res` (Default: 15)
+:attr:`~prism.projection.Projection.proj_res` (Default: 25)
 	Number of emulator evaluation samples that is used to generate the grid for the projection figures (it defines the resolution of the projection).
 	This value must be a positive integer.
 
-:attr:`~prism.projection.Projection.proj_depth` (Default: 150)
+:attr:`~prism.projection.Projection.proj_depth` (Default: 250)
 	Number of emulator evaluation samples that is used to generate the samples in every projected grid point (it defines the accuracy/depth of the projection).
 	This value must be a positive integer.
 

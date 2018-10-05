@@ -38,7 +38,7 @@ from ._docstrings import (def_par_doc, draw_proj_fig_doc, hcube_doc,
                           read_par_doc, save_data_doc_pr, user_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_val,
                         docstring_append, docstring_substitute, getCLogger,
-                        getRLogger, raise_error)
+                        raise_error)
 
 # All declaration
 __all__ = ['Projection']
@@ -300,10 +300,11 @@ class Projection(object):
         axarr[0].set_ylabel("Minimum Implausibility", fontsize='large')
 
         # Plot line-of-sight depth
-        axarr[1].plot(x, f_los(x), **self.__los_kwargs)
+        y_los = f_los(x)
+        axarr[1].plot(x, y_los, **self.__los_kwargs)
         axarr[1].axis([self._modellink._par_rng[par, 0],
                        self._modellink._par_rng[par, 1],
-                       0, min(1, np.max(impl_los))])
+                       0, min(1, np.max(y_los))])
         if self._modellink._par_est[par] is not None:
             draw_textline(r"", x=self._modellink._par_est[par], ax=axarr[1],
                           line_kwargs=self.__line_kwargs)
@@ -608,8 +609,8 @@ class Projection(object):
     @docstring_append(def_par_doc.format('projection'))
     def __get_default_parameters(self):
         # Create parameter dict with default parameters
-        par_dict = {'proj_res': '15',
-                    'proj_depth': '150'}
+        par_dict = {'proj_res': '25',
+                    'proj_depth': '250'}
 
         # Return it
         return(par_dict)

@@ -73,7 +73,7 @@ class Pipeline(Projection, object):
     """
 
     @docstring_substitute(paths=paths_doc_d)
-    def __init__(self, modellink, root_dir=None, working_dir=None,
+    def __init__(self, modellink_obj, root_dir=None, working_dir=None,
                  prefix=None, hdf5_file='prism.hdf5', prism_file=None,
                  emul_type='default'):
         """
@@ -81,7 +81,7 @@ class Pipeline(Projection, object):
 
         Parameters
         ----------
-        modellink : :obj:`~prism.modellink.modellink.ModelLink` object
+        modellink_obj : :obj:`~prism.modellink.modellink.ModelLink` object
             Instance of the :class:`~prism.modellink.modellink.ModelLink` class
             that links the emulated model to this :obj:`~Pipeline` instance.
 
@@ -141,7 +141,7 @@ class Pipeline(Projection, object):
         # If emul_type is a subclass of Emulator, try to initialize it
         if isclass(emul_type) and issubclass(emul_type, Emulator):
             try:
-                emul_type(self, modellink)
+                emul_type(self, modellink_obj)
                 self._emulator
             except Exception as error:
                 err_msg = ("Input argument 'emul_type' is invalid (%s)!"
@@ -150,7 +150,7 @@ class Pipeline(Projection, object):
 
         # If not, initialize a registered Emulator class
         elif(emul_type == 'default'):
-            Emulator(self, modellink)
+            Emulator(self, modellink_obj)
 
         # If anything else is given, it is invalid
         else:
@@ -169,7 +169,7 @@ class Pipeline(Projection, object):
 
     # Allows one to call one full loop of the PRISM pipeline
     @docstring_substitute(emul_i=call_emul_i_doc)
-    def __call__(self, emul_i=None):
+    def __call__(self, emul_i=None, force=False):
         """
         Calls the :meth:`~construct` method to start the construction of the
         given iteration of the emulator system and creates the projection
@@ -178,23 +178,25 @@ class Pipeline(Projection, object):
         Optional
         --------
         %(emul_i)s
+        force : bool. Default: False
+            Controls what to do if the specified emulator iteration `emul_i`
+            already (partly) exists.
+            If *False*, finish construction of the specified iteration or skip
+            it if already finished.
+            If *True*, reconstruct the specified iteration entirely.
 
         """
 
-        # Perform construction
+        # Try to do one cycle
         try:
-            self.construct(emul_i)
+            # Perform construction
+            self.construct(emul_i, force=force)
+
+            # Perform projection
+            self.project()
+        # Raise any error that occurs
         except Exception:
             raise
-        else:
-            try:
-                # Perform projection
-                self.project()
-
-                # Print details
-                self.details()
-            except Exception:
-                raise
 
     # Define the representation of a Pipeline object
     def __repr__(self):
@@ -776,10 +778,18 @@ class Pipeline(Projection, object):
                 # Check which directories in the root_dir satisfy the default
                 # naming scheme of the emulator directories
                 for dirname in dirnames:
+                    # If the prefix is the same as the scan prefix
                     if(dirname[0:prefix_len] == prefix_scan):
+                        # Obtain full path to this directory
                         dir_path = path.join(self._root_dir, dirname)
-                        ctime = path.getctime(dir_path)
-                        emul_dirs.append([dir_path, ctime])
+
+                        # Check if this directory contains a 'prism_log.log'
+                        if 'prism_log.log' in os.listdir(dir_path):
+                            # Obtain creation time and append to emul_dirs
+                            ctime = path.getctime(dir_path)
+                            emul_dirs.append([dir_path, ctime])
+
+                # Sort list of emul_dirs on creation time
                 emul_dirs.sort(key=lambda x: x[1], reverse=True)
 
                 # If no working directory exists, create a new one
@@ -2471,9 +2481,9 @@ class Pipeline(Projection, object):
                 max([len(str(i)) for i in self._modellink._par_rng[:, 0]])
             upper_len =\
                 max([len(str(i)) for i in self._modellink._par_rng[:, 1]])
-            est_len =\
-                max([len('%.5f' % (i)) for i in self._modellink._par_est
-                     if i is not None])
+            est_lengths = [len('%.5f' % (i)) for i in self._modellink._par_est
+                           if i is not None]
+            est_len = max(est_lengths) if len(est_lengths) else 0
 
             # Open hdf5-file
             with PRISM_File('r', None) as file:
@@ -2656,11 +2666,14 @@ class Pipeline(Projection, object):
             print("\nPARAMETER SPACE")
             print("-"*width)
 
-            # Define string format if par_est was provided
-            str_format1 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6: >{7}.5f})"
+            # Define string format if no par_ests are provided
+            str_format1 = "{6}{0: <{1}}: [{2: >{3}}, {4: >{5}}]"
 
-            # Define string format if par_est was not provided
-            str_format2 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6:->{7}})"
+            # Define string format if this par_est was provided
+            str_format2 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6: >{7}.5f})"
+
+            # Define string format if this par_est was not provided
+            str_format3 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6:->{7}})"
 
             # Print details about every model parameter in parameter space
             for i in range(n_par):
@@ -2673,14 +2686,20 @@ class Pipeline(Projection, object):
                     active_str = " "
 
                 # Check if par_est is given and use correct string formatting
-                if self._modellink._par_est[i] is not None:
+                if not est_len:
                     print(str_format1.format(
+                        self._modellink._par_name[i], name_len,
+                        self._modellink._par_rng[i, 0], lower_len,
+                        self._modellink._par_rng[i, 1], upper_len,
+                        active_str))
+                elif self._modellink._par_est[i] is not None:
+                    print(str_format2.format(
                         self._modellink._par_name[i], name_len,
                         self._modellink._par_rng[i, 0], lower_len,
                         self._modellink._par_rng[i, 1], upper_len,
                         self._modellink._par_est[i], est_len, active_str))
                 else:
-                    print(str_format2.format(
+                    print(str_format3.format(
                         self._modellink._par_name[i], name_len,
                         self._modellink._par_rng[i, 0], lower_len,
                         self._modellink._par_rng[i, 1], upper_len,
@@ -2874,5 +2893,5 @@ class Pipeline(Projection, object):
 
     # This function simply executes self.__call__
     @docstring_copy(__call__)
-    def run(self, emul_i=None):
-        self(emul_i)
+    def run(self, emul_i=None, force=False):
+        self(emul_i, force)
