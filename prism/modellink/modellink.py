@@ -282,8 +282,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             # Obtain absolute path to given file
             par_file = path.abspath(add_model_parameters)
 
-            # Read the parameter file and obtain parameter names, ranges
-            # (and estimates if provided)
+            # Read the parameter file in as a string
             pars = np.genfromtxt(par_file, dtype=(str), delimiter=':',
                                  autostrip=True)
 
@@ -323,31 +322,30 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         # Save model parameters as class properties
         for i, (name, values_str) in enumerate(model_parameters.items()):
-            # Convert values_str to values_seq
-            values_seq = convert_str_seq(values_str)
+            # Convert values_str to values
+            values = convert_str_seq(values_str)
 
             # Save parameter name and range
             self._par_name.append(check_val(name, 'par_name[%s]' % (i), 'str'))
             self._par_rng[i] = (
-                check_val(float(values_seq[0]), 'lower_bnd[%s]' % (name),
-                          'float'),
-                check_val(float(values_seq[1]), 'upper_bnd[%s]' % (name),
-                          'float'))
+                check_val(values[0], 'lower_bnd[%s]' % (name), 'float'),
+                check_val(values[1], 'upper_bnd[%s]' % (name), 'float'))
 
-            # Check if a parameter estimate was provided
+            # Check if a float parameter estimate was provided
             try:
-                values_seq[2]
-            # If not, save it as None
+                self._par_est.append(check_val(
+                    values[2], 'par_est[%s]' % (name), 'float'))
+            # If no estimate was provided, save it as None
             except IndexError:
                 self._par_est.append(None)
-            # If so, check if it is a float or None
-            else:
-                if(values_seq[2].lower() == 'none'):
+            # If no float was provided, check if it was None
+            except TypeError as error:
+                # If it is None, save it as such
+                if(values[2].lower() == 'none'):
                     self._par_est.append(None)
+                # If it is not None, reraise the previous error
                 else:
-                    self._par_est.append(
-                        check_val(float(values_seq[2]), 'par_est[%s]' % (name),
-                                  'float'))
+                    raise error
 
     @property
     def _default_model_data(self):
@@ -388,10 +386,10 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         """
 
-        # Obtain default data
+        # Obtain default model data
         model_data = dict(self._default_model_data)
 
-        # If no additional data information is given
+        # If no additional model data information is given
         if add_model_data is None:
             pass
 
@@ -400,7 +398,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             # Obtain absolute path to given file
             data_file = path.abspath(add_model_data)
 
-            # Read the data file and obtain data values and errors
+            # Read the data file in as a string
             data_points = np.genfromtxt(data_file, dtype=(str),
                                         delimiter=':', autostrip=True)
 
@@ -433,20 +431,6 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             # Convert key to an actual data_idx
             tmp_idx = convert_str_seq(key)
 
-            # Check if int, float or str was provided and save it
-            for i, idx in enumerate(tmp_idx):
-                # Try to convert to int or float
-                try:
-                    # If string contains a dot, check if it is a float
-                    if '.' in idx:
-                        tmp_idx[i] = float(idx)
-                    # If string contains no dot, check if it is an int
-                    else:
-                        tmp_idx[i] = int(idx)
-                # If cannot be converted to int or float, save as string
-                except ValueError:
-                    tmp_idx[i] = idx
-
             # Check if tmp_idx is not empty
             if not len(tmp_idx):
                 raise InputError("Model data contains a data point with no "
@@ -454,15 +438,6 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
             # Convert value to an actual data point
             tmp_point = convert_str_seq(value)
-
-            # Check if float or str was provided and save it
-            for i, point in enumerate(tmp_point):
-                # Try to convert float
-                try:
-                    tmp_point[i] = float(point)
-                # If cannot be converted to float, save as string
-                except ValueError:
-                    tmp_point[i] = point
 
             # Save data_idx with corresponding point to model_data_dict
             model_data_dict[tuple(tmp_idx)] = tmp_point
@@ -498,21 +473,21 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
             # If length is three, there are two possibilities
             elif(len(data) == 3):
-                # If the third column contains a float, error interval
-                if isinstance(data[2], float):
+                # If the third column contains a string, it is the data space
+                if isinstance(data[2], (str, unicode)):
+                    self._data_err.append(
+                        [check_val(data[1], 'data_err[%s]' % (idx), 'float'),
+                         check_val(data[1], 'data_err[%s]' % (idx), 'float')])
+                    spc = data[2]
+
+                # If the third column contains no string, it is error interval
+                else:
                     self._data_err.append(
                         [check_val(data[1], 'lower_data_err[%s]' % (idx),
                                    'float'),
                          check_val(data[2], 'upper_data_err[%s]' % (idx),
                                    'float')])
                     spc = 'lin'
-
-                # If the third column contains a string, it is the data space
-                elif isinstance(data[2], (str, unicode)):
-                    self._data_err.append(
-                        [check_val(data[1], 'data_err[%s]' % (idx), 'float'),
-                         check_val(data[1], 'data_err[%s]' % (idx), 'float')])
-                    spc = data[2]
 
             # If length is four+, error interval and data space were given
             else:

@@ -650,22 +650,18 @@ class Pipeline(Projection, object):
         par_seq = convert_str_seq(par_seq)
 
         # Check elements if they are ints or strings, and if they are valid
-        for i, string in enumerate(par_seq):
+        for i, par_idx in enumerate(par_seq):
             try:
-                # Try to convert string to an integer
-                try:
-                    par_idx = int(string)
-                # If that fails, it must be a parameter name
-                # Check if it exists
-                except ValueError:
-                    par_seq[i] = self._modellink._par_name.index(string)
-                # If it succeeds, try to access this parameter and save it
+                # If par_idx is a string, try to use it as a parameter name
+                if isinstance(par_idx, (str, unicode)):
+                    par_seq[i] = self._modellink._par_name.index(par_idx)
+                # If not, try to use it as a parameter index
                 else:
                     self._modellink._par_name[par_idx]
                     par_seq[i] = par_idx % self._modellink._n_par
             # If any operation above fails, raise error
             except Exception as error:
-                err_msg = "Input argument '%s' is invalid! (%s)" % (name,
+                err_msg = "Input argument '%s' is invalid (%s)!" % (name,
                                                                     error)
                 raise_error(InputError, err_msg, logger)
 
@@ -1581,7 +1577,8 @@ class Pipeline(Projection, object):
         # Complete the impl_cut list
         # Obtain the first impl_cut value
         try:
-            impl_cut[0] = check_val(impl_cut[0], 'impl_cut[0]', 'nneg')
+            impl_cut[0] = check_val(impl_cut[0], 'impl_cut[0]', 'float',
+                                    'nneg')
         except IndexError:
             err_msg = ("Provided implausibility cut-off list contains no "
                        "elements!")
@@ -1589,8 +1586,9 @@ class Pipeline(Projection, object):
 
         # Loop over the remaining values in impl_cut
         for i in range(1, len(impl_cut)):
-            # Check if provided value is non-negative
-            impl_cut[i] = check_val(impl_cut[i], 'impl_cut[%s]' % (i), 'nneg')
+            # Check if provided value is non-negative float
+            impl_cut[i] = check_val(impl_cut[i], 'impl_cut[%s]' % (i), 'float',
+                                    'nneg')
 
             # If the value is zero, take on the value of the previous cut-off
             if(impl_cut[i] == 0):
@@ -1669,12 +1667,8 @@ class Pipeline(Projection, object):
                         "analysis parameters.")
 
             # Implausibility cut-off
-            # Remove all unwanted characters from the string and split it up
-            impl_cut_str = convert_str_seq(par_dict['impl_cut'])
-
-            # Convert list of strings to list of floats and perform completion
-            self._get_impl_cut(
-                list(float(impl_cut) for impl_cut in impl_cut_str), temp)
+            # Remove all unwanted characters from the string and process it
+            self._get_impl_cut(convert_str_seq(par_dict['impl_cut']), temp)
 
             # Finish logging
             logger.info("Finished obtaining implausibility analysis "

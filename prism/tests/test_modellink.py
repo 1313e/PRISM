@@ -22,6 +22,8 @@ model_data_single = path.join(dirpath, 'data/data_gaussian_single.txt')
 model_data_double = path.join(dirpath, 'data/data_gaussian_double.txt')
 model_data_types = path.join(dirpath, 'data/data_gaussian_types.txt')
 model_parameters_3D = path.join(dirpath, 'data/parameters_gaussian_3D.txt')
+model_parameters_invalid_est = path.join(dirpath,
+                                         'data/parameters_invalid_est.txt')
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -37,6 +39,11 @@ class Test_ModelLink_Exceptions(object):
     def test_invalid_model_par(self):
         with pytest.raises(TypeError):
             GaussianLink2D(model_parameters=np.array([1]))
+
+    # Try to create a GaussianLink2D object with invalid parameter estimates
+    def test_invalid_model_par_est(self):
+        with pytest.raises(TypeError):
+            GaussianLink2D(model_parameters=model_parameters_invalid_est)
 
     # Try to create a GaussianLink3D object with not enough model data
     def test_n_model_data(self):

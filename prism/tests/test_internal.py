@@ -198,6 +198,18 @@ class TestDecorators(object):
         assert self.substitute_method3.__doc__ == "keyword"
 
 
+# Pytest for the check_compatibility function
+def test_check_compatibility():
+    # Check if current version is compatible (it should)
+    check_compatibility(prism_version)
+
+    # Check if providing too old or too new version raises an error
+    with pytest.raises(RequestError):
+        check_compatibility(compat_version[-1])
+    with pytest.raises(RequestError):
+        check_compatibility('999.999.999')
+
+
 # Pytest for check_val function
 class Test_check_val(object):
     # Check if all the type checks work correctly
@@ -224,6 +236,8 @@ class Test_check_val(object):
         assert check_val(1, 'float', 'float') == 1
         assert check_val(1., 'float', 'float') == 1.
         assert check_val(1.0, 'float', 'float') == 1.0
+        with pytest.raises(TypeError):
+            check_val('1', 'str', 'float')
 
         # Test for int
         assert check_val(1, 'int', 'int') == 1
@@ -279,22 +293,10 @@ class Test_check_val(object):
             check_val(1, 'int', 'invalid')
 
 
-# Pytest for the check_compatibility function
-def test_check_compatibility():
-    # Check if current version is compatible (it should)
-    check_compatibility(prism_version)
-
-    # Check if providing too old or too new version raises an error
-    with pytest.raises(RequestError):
-        check_compatibility(compat_version[-1])
-    with pytest.raises(RequestError):
-        check_compatibility('999.999.999')
-
-
 # Pytest for the convert_str_seq function
 def test_convert_str_seq():
     # Check if string sequence is converted correctly
-    assert convert_str_seq('[:[]]]1,\n8,A<{7)\B') == ['1', '8', 'A', '7', 'B']
+    assert convert_str_seq('[:[]]]1,\n8.,A<{7)\\B') == [1, 8.0, 'A', 7, 'B']
 
 
 # Pytest for the delist function

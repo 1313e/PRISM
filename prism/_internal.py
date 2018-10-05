@@ -430,25 +430,23 @@ def check_val(value, name, *args):
 
     # Check for floats
     elif 'float' in args:
-        # Remove 'float' from args and check it again
-        args.remove('float')
-        value = check_val(value, name, *args)
-
         # Check if float is provided and return if so
         if isinstance(value, (int, float, np.integer, np.floating)):
-            return(value)
+            # Remove 'float' from args and check it again
+            args.remove('float')
+            value = check_val(value, name, *args)
+            return(float(value))
         else:
             err_msg = "Input argument '%s' is not of type 'float'!" % (name)
             raise_error(TypeError, err_msg, logger)
 
     # Check for integers
     elif 'int' in args:
-        # Remove 'int' from args and check it again
-        args.remove('int')
-        value = check_val(value, name, *args)
-
         # Check if int is provided and return if so
         if isinstance(value, (int, np.integer)):
+            # Remove 'int' from args and check it again
+            args.remove('int')
+            value = check_val(value, name, *args)
             return(value)
         else:
             err_msg = "Input argument '%s' is not of type 'int'!" % (name)
@@ -456,12 +454,11 @@ def check_val(value, name, *args):
 
     # Check for negative values
     elif 'neg' in args:
-        # Remove 'neg' from args and check it again
-        args.remove('neg')
-        value = check_val(value, name, *args)
-
         # Check if value is negative and return if so
         if(value < 0):
+            # Remove 'neg' from args and check it again
+            args.remove('neg')
+            value = check_val(value, name, *args)
             return(value)
         else:
             err_msg = "Input argument '%s' is not negative!" % (name)
@@ -469,12 +466,11 @@ def check_val(value, name, *args):
 
     # Check for non-negative values
     elif 'nneg' in args:
-        # Remove 'nneg' from args and check it again
-        args.remove('nneg')
-        value = check_val(value, name, *args)
-
         # Check if value is non-negative and return if so
         if not(value < 0):
+            # Remove 'nneg' from args and check it again
+            args.remove('nneg')
+            value = check_val(value, name, *args)
             return(value)
         else:
             err_msg = "Input argument '%s' is not non-negative!" % (name)
@@ -482,12 +478,11 @@ def check_val(value, name, *args):
 
     # Check for non-positive values
     elif 'npos' in args:
-        # Remove 'npos' from args and check it again
-        args.remove('npos')
-        value = check_val(value, name, *args)
-
         # Check if value is non-positive and return if so
         if not(value > 0):
+            # Remove 'npos' from args and check it again
+            args.remove('npos')
+            value = check_val(value, name, *args)
             return(value)
         else:
             err_msg = "Input argument '%s' is not non-positive!" % (name)
@@ -495,12 +490,11 @@ def check_val(value, name, *args):
 
     # Check for non-zero values
     elif 'nzero' in args:
-        # Remove 'nzero' from args and check it again
-        args.remove('nzero')
-        value = check_val(value, name, *args)
-
         # Check if value is non-zero and return if so
         if not(value == 0):
+            # Remove 'nzero' from args and check it again
+            args.remove('nzero')
+            value = check_val(value, name, *args)
             return(value)
         else:
             err_msg = "Input argument '%s' is not non-zero!" % (name)
@@ -508,12 +502,11 @@ def check_val(value, name, *args):
 
     # Check for positive values
     elif 'pos' in args:
-        # Remove 'pos' from args and check it again
-        args.remove('pos')
-        value = check_val(value, name, *args)
-
         # Check if value is positive and return if so
         if(value > 0):
+            # Remove 'pos' from args and check it again
+            args.remove('pos')
+            value = check_val(value, name, *args)
             return(value)
         else:
             err_msg = "Input argument '%s' is not positive!" % (name)
@@ -540,7 +533,8 @@ def check_val(value, name, *args):
 def convert_str_seq(seq):
     """
     Converts a provided sequence to a string, removes all auxiliary characters
-    from it and splits it up into individual elements.
+    from it, splits it up into individual elements and converts all elements
+    back to integers, floats and/or strings.
 
     """
 
@@ -553,6 +547,20 @@ def convert_str_seq(seq):
 
     # Split sequence up into elements
     seq = seq.split()
+
+    # Loop over all elements in seq
+    for i, val in enumerate(seq):
+        # Try to convert to int or float
+        try:
+            # If string contains a dot, check if it is a float
+            if '.' in val:
+                seq[i] = float(val)
+            # If string contains no dot, check if it is an int
+            else:
+                seq[i] = int(val)
+        # If it cannot be converted to int or float, save as string
+        except ValueError:
+            seq[i] = val
 
     # Return it
     return(seq)
