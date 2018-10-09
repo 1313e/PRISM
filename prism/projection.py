@@ -23,9 +23,10 @@ from time import time
 
 # Package imports
 from e13tools.core import InputError
-from e13tools.pyplot import draw_textline, suplabel
+from e13tools.pyplot import draw_textline
 from e13tools.sampling import lhd
 import matplotlib.cm as cm
+import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import numpy as np
 # TODO: Do some research on scipy.interpolate.Rbf later
@@ -95,6 +96,12 @@ class Projection(object):
         show : bool. Default: False
             If `figure` is *True*, whether or not to show a figure after it has
             been created.
+        align : {'row'/'horizontal', 'col'/'column'/'vertical'}. Default: 'col'
+            If `figure` is *True*, string indicating how to position the two
+            subplots.
+            If 'row'/'horizontal', the subplots are positioned on a single row.
+            If 'col'/'column'/'vertical', the subplots are positioned on a
+            single column.
         force : bool. Default: False
             Controls what to do if a projection hypercube has been calculated
             at the emulator iteration `emul_i` before.
@@ -105,7 +112,7 @@ class Projection(object):
         fig_kwargs : dict. Default: {'figsize': (6.4, 4.8), 'dpi': 100}
             Dict of keyword arguments to be used when creating the subplots
             figure. It takes all arguments that can be provided to the
-            :func:`~matplotlib.pyplot.subplots` function.
+            :func:`~matplotlib.pyplot.figure` function.
         impl_kwargs : dict. Default: {} or {'cmap': 'rainforest_r'}
             Dict of keyword arguments to be used for making the minimum
             implausibility (top) plot. It takes all arguments that can be
@@ -282,35 +289,67 @@ class Projection(object):
         f_min = interp1d(proj_sam_set, impl_min, kind='cubic')
         f_los = interp1d(proj_sam_set, impl_los, kind='cubic')
 
-        # Do plotting
-        f, axarr = plt.subplots(2, **self.__fig_kwargs)
+        # Create figure object
+        if(self.__align == 'row'):
+            f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
+            w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
+
+            # Create GridSpec objects including a dummy Axes object
+            gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
+            ax0 = f.add_subplot(gsarr[0, 0])
+            ax1 = f.add_subplot(gsarr[0, 1])
+            label_ax = f.add_subplot(gsarr[1, :])
+
+            # Set padding to the bare minimum
+            f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
+                                          wspace=wspace, hspace=0)
+        else:
+            f, (ax0, ax1) = plt.subplots(2, constrained_layout=True,
+                                         **self.__fig_kwargs)
+            w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
+
+            # Set padding to the bare minimum
+            f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
+                                          wspace=0, hspace=hspace)
+
+        # Set super title
         f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
                    fontsize='xx-large')
 
         # Plot minimum implausibility
-        axarr[0].plot(x, f_min(x), **self.__impl_kwargs)
+        ax0.plot(x, f_min(x), **self.__impl_kwargs)
         draw_y = self._impl_cut[self.__emul_i][self._cut_idx[self.__emul_i]]
-        axarr[0].axis([self._modellink._par_rng[par, 0],
-                       self._modellink._par_rng[par, 1],
-                       0, 1.5*draw_y])
+        ax0.axis([self._modellink._par_rng[par, 0],
+                  self._modellink._par_rng[par, 1],
+                  0, 1.5*draw_y])
         if self._modellink._par_est[par] is not None:
-            draw_textline(r"", x=self._modellink._par_est[par], ax=axarr[0],
+            draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
                           line_kwargs=self.__line_kwargs)
-        draw_textline(r"", y=draw_y, ax=axarr[0], line_kwargs={'color': 'g'})
-        axarr[0].set_ylabel("Minimum Implausibility", fontsize='large')
+        draw_textline(r"", y=draw_y, ax=ax0, line_kwargs={'color': 'g'})
+        ax0.set_ylabel("Min. Implausibility", fontsize='large')
 
         # Plot line-of-sight depth
         y_los = f_los(x)
-        axarr[1].plot(x, y_los, **self.__los_kwargs)
-        axarr[1].axis([self._modellink._par_rng[par, 0],
-                       self._modellink._par_rng[par, 1],
-                       0, min(1, np.max(y_los))])
+        ax1.plot(x, y_los, **self.__los_kwargs)
+        ax1.axis([self._modellink._par_rng[par, 0],
+                  self._modellink._par_rng[par, 1],
+                  0, min(1, np.max(y_los))])
         if self._modellink._par_est[par] is not None:
-            draw_textline(r"", x=self._modellink._par_est[par], ax=axarr[1],
+            draw_textline(r"", x=self._modellink._par_est[par], ax=ax1,
                           line_kwargs=self.__line_kwargs)
-        axarr[1].set_xlabel("Input Parameter %s" % (par_name),
-                            fontsize='x-large')
-        axarr[1].set_ylabel("Line-of-Sight Depth", fontsize='large')
+        ax1.set_ylabel("Line-of-Sight Depth", fontsize='large')
+
+        # Make super axis label using the dummy Axes object as an empty plot
+        if(self.__align == 'row'):
+            label_ax.set_frame_on(False)
+            label_ax.get_xaxis().set_ticks([])
+            label_ax.get_yaxis().set_ticks([])
+            label_ax.autoscale(tight=True)
+            label_ax.set_xlabel("Model parameter %s" % (par_name),
+                                fontsize='x-large', labelpad=0)
+        else:
+            ax1.set_xlabel("Model parameter %s" % (par_name),
+                           fontsize='x-large')
 
         # Save the figure
         plt.savefig(self.__fig_path)
@@ -347,11 +386,14 @@ class Projection(object):
                                     self._modellink._par_rng[par2, 1],
                                     self.__res)
 
+        # Set the size of the hexbin grid
+        gridsize = 1000
+
         # Create parameter value array used in interpolation functions
         x = np.linspace(self._modellink._par_rng[par1, 0],
-                        self._modellink._par_rng[par1, 1], 1000)
+                        self._modellink._par_rng[par1, 1], gridsize)
         y = np.linspace(self._modellink._par_rng[par2, 0],
-                        self._modellink._par_rng[par2, 1], 1000)
+                        self._modellink._par_rng[par2, 1], gridsize)
 
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
@@ -370,50 +412,84 @@ class Projection(object):
         z_min = Z_min.ravel()
         z_los = Z_los.ravel()
 
-        # Set the size of the hexbin grid
-        gridsize = 1000
+        # Create figure object
+        f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
+        w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
 
-        # Do plotting
-        f, axarr = plt.subplots(2, **self.__fig_kwargs)
+        # Create GridSpec objects including a dummy Axes object
+        if(self.__align == 'row'):
+            gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
+            ax0 = f.add_subplot(gsarr[0, 0])
+            ax1 = f.add_subplot(gsarr[0, 1])
+            label_ax = f.add_subplot(gsarr[1, :])
+
+            # Set padding to the bare minimum
+            f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
+                                          wspace=wspace, hspace=0)
+        else:
+            gsarr = gs.GridSpec(2, 2, figure=f, width_ratios=[0.00001, 1])
+            label_ax = f.add_subplot(gsarr[:, 0])
+            ax0 = f.add_subplot(gsarr[0, 1])
+            ax1 = f.add_subplot(gsarr[1, 1])
+
+            # Set padding to the bare minimum
+            f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
+                                          wspace=0, hspace=hspace)
+
+        # Set super title
         f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
                    fontsize='xx-large')
 
         # Plot minimum implausibility
         vmax = self._impl_cut[self.__emul_i][self._cut_idx[self.__emul_i]]
-        fig1 = axarr[0].hexbin(x, y, z_min, gridsize, vmin=0, vmax=vmax,
-                               **self.__impl_kwargs)
+        fig1 = ax0.hexbin(x, y, z_min, gridsize, vmin=0, vmax=vmax,
+                          **self.__impl_kwargs)
         if self._modellink._par_est[par1] is not None:
-            draw_textline(r"", x=self._modellink._par_est[par1], ax=axarr[0],
+            draw_textline(r"", x=self._modellink._par_est[par1], ax=ax0,
                           line_kwargs=self.__line_kwargs)
         if self._modellink._par_est[par2] is not None:
-            draw_textline(r"", y=self._modellink._par_est[par2], ax=axarr[0],
+            draw_textline(r"", y=self._modellink._par_est[par2], ax=ax0,
                           line_kwargs=self.__line_kwargs)
-        axarr[0].axis([self._modellink._par_rng[par1, 0],
-                       self._modellink._par_rng[par1, 1],
-                       self._modellink._par_rng[par2, 0],
-                       self._modellink._par_rng[par2, 1]])
-        plt.colorbar(fig1, ax=axarr[0]).set_label("Minimum Implausibility",
-                                                  fontsize='large')
+        ax0.axis([self._modellink._par_rng[par1, 0],
+                  self._modellink._par_rng[par1, 1],
+                  self._modellink._par_rng[par2, 0],
+                  self._modellink._par_rng[par2, 1]])
+        plt.colorbar(fig1, ax=ax0).set_label("Min. Implausibility",
+                                             fontsize='large')
 
         # Plot line-of-sight depth
-        fig2 = axarr[1].hexbin(x, y, z_los, gridsize, vmin=0,
-                               vmax=min(1, np.max(z_los)), **self.__los_kwargs)
+        fig2 = ax1.hexbin(x, y, z_los, gridsize, vmin=0,
+                          vmax=min(1, np.max(z_los)), **self.__los_kwargs)
         if self._modellink._par_est[par1] is not None:
-            draw_textline(r"", x=self._modellink._par_est[par1], ax=axarr[1],
+            draw_textline(r"", x=self._modellink._par_est[par1], ax=ax1,
                           line_kwargs=self.__line_kwargs)
         if self._modellink._par_est[par2] is not None:
-            draw_textline(r"", y=self._modellink._par_est[par2], ax=axarr[1],
+            draw_textline(r"", y=self._modellink._par_est[par2], ax=ax1,
                           line_kwargs=self.__line_kwargs)
-        axarr[1].axis([self._modellink._par_rng[par1, 0],
-                       self._modellink._par_rng[par1, 1],
-                       self._modellink._par_rng[par2, 0],
-                       self._modellink._par_rng[par2, 1]])
-        plt.colorbar(fig2, ax=axarr[1]).set_label("Line-of-Sight Depth",
-                                                  fontsize='large')
+        ax1.axis([self._modellink._par_rng[par1, 0],
+                  self._modellink._par_rng[par1, 1],
+                  self._modellink._par_rng[par2, 0],
+                  self._modellink._par_rng[par2, 1]])
+        plt.colorbar(fig2, ax=ax1).set_label("Line-of-Sight Depth",
+                                             fontsize='large')
 
-        # Make super axis labels
-        axarr[1].set_xlabel("%s" % (par1_name), fontsize='x-large')
-        suplabel("%s" % (par2_name), axis='y', fig=f, fontsize='x-large')
+        # Make super axis labels using the dummy Axes object as an empty plot
+        if(self.__align == 'row'):
+            ax0.set_ylabel("%s" % (par2_name), fontsize='x-large')
+            label_ax.set_frame_on(False)
+            label_ax.get_xaxis().set_ticks([])
+            label_ax.get_yaxis().set_ticks([])
+            label_ax.autoscale(tight=True)
+            label_ax.set_xlabel("%s" % (par1_name), fontsize='x-large',
+                                labelpad=0)
+        else:
+            ax1.set_xlabel("%s" % (par1_name), fontsize='x-large')
+            label_ax.set_frame_on(False)
+            label_ax.get_xaxis().set_ticks([])
+            label_ax.get_yaxis().set_ticks([])
+            label_ax.autoscale(tight=True)
+            label_ax.set_ylabel("%s" % (par2_name), fontsize='x-large',
+                                labelpad=0)
 
         # Save the figure
         plt.savefig(self.__fig_path)
@@ -627,9 +703,12 @@ class Projection(object):
 
         """
 
+        # Define variable figsizes
+        figsize_c = (6.4, 4.8)
+        figsize_r = (12.8, 2.4)
+
         # Create input argument dicts with default figure parameters
-        fig_kwargs = {'figsize': (6.4, 4.8),
-                      'dpi': 100}
+        fig_kwargs = {'dpi': 100}
         impl_kwargs = {'cmap': 'rainforest_r'}
         los_kwargs = {'cmap': 'blaze'}
         line_kwargs = {'linestyle': '--',
@@ -640,11 +719,14 @@ class Projection(object):
                        'proj_par': None,
                        'figure': True,
                        'show': False,
+                       'align': 'col',
                        'force': False,
                        'fig_kwargs': fig_kwargs,
                        'impl_kwargs': impl_kwargs,
                        'los_kwargs': los_kwargs,
-                       'line_kwargs': line_kwargs}
+                       'line_kwargs': line_kwargs,
+                       'figsize_c': figsize_c,
+                       'figsize_r': figsize_r}
 
         # Return it
         return(kwargs_dict)
@@ -907,7 +989,8 @@ class Projection(object):
         kwargs_dict = self.__get_default_input_arguments()
 
         # Make list with forbidden figure and plot kwargs
-        pop_fig_kwargs = ['nrows', 'ncols', 'sharex', 'sharey']
+        pop_fig_kwargs = ['num', 'ncols', 'nrows', 'sharex', 'sharey',
+                          'constrained_layout', 'figsize_r', 'figsize_c']
         pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax']
 
         # Check if not more than two args have been provided
@@ -933,6 +1016,7 @@ class Projection(object):
                     raise_error(TypeError, err_msg, logger)
                 else:
                     kwargs_dict[key].update(value)
+
             else:
                 kwargs_dict[key] = value
         kwargs = kwargs_dict
@@ -946,6 +1030,20 @@ class Projection(object):
             self.__figure = check_val(kwargs['figure'], 'figure', 'bool')
             self.__show = check_val(kwargs['show'], 'show', 'bool')
             self.__force = check_val(kwargs['force'], 'force', 'bool')
+
+            # Check if align parameter is a valid string
+            if kwargs['align'].lower() in ('row', 'horizontal'):
+                self.__align = 'row'
+                kwargs['fig_kwargs']['figsize'] =\
+                    kwargs['fig_kwargs'].pop('figsize', kwargs['figsize_r'])
+            elif kwargs['align'].lower() in ('col', 'column', 'vertical'):
+                self.__align = 'col'
+                kwargs['fig_kwargs']['figsize'] =\
+                    kwargs['fig_kwargs'].pop('figsize', kwargs['figsize_c'])
+            else:
+                err_msg = ("Input argument 'align' is invalid (%s)!"
+                           % (kwargs['align']))
+                raise_error(InputError, err_msg, logger)
 
             # Pop all specific kwargs dicts from kwargs
             fig_kwargs = kwargs['fig_kwargs']

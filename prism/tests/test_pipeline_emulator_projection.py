@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function
 
 # Built-in imports
+import os
 from os import path
 import shutil
 
@@ -154,15 +155,11 @@ class Test_Pipeline_Gaussian2D(object):
     def test_reconstruct_no_force(self, pipe):
         pipe.construct(1, 0, None, 0)
 
-    # Check if first iteration can be reconstructed forced
-    def test_reconstruct_force(self, pipe):
-        pipe.construct(1, 0, None, 1)
-
     # Check if first iteration can be projected before analysis
     def test_project_pre_anal(self, pipe):
         with pytest_mpl.plugin.switch_backend('Agg'):
             pipe.project(proj_par=(0), figure=False)
-            pipe.project(proj_par=(1), figure=True)
+            pipe.project(proj_par=(1), figure=True, align='row')
 
     # Check if first iteration can be projected again (unforced)
     def test_reproject_unforced(self, pipe):
@@ -193,6 +190,10 @@ class Test_Pipeline_Gaussian2D(object):
     # Check if details overview of first iteration can be given
     def test_details(self, pipe):
         pipe.details()
+
+    # Check if first iteration can be reconstructed forced
+    def test_reconstruct_force(self, pipe):
+        pipe.construct(1, 0, None, 1)
 
     # Check if entire second iteration can be created
     def test_run(self, pipe):
@@ -257,7 +258,12 @@ class Test_Pipeline_Gaussian3D(object):
     # Check if first iteration can be projected
     def test_project(self, pipe):
         with pytest_mpl.plugin.switch_backend('Agg'):
-            pipe.project(1, (0, 1))
+            pipe.project(1, (0, 1), align='row')
+            hcube_name = pipe._Projection__get_hcube_name((0, 1))
+            os.remove("%s(%s).png"
+                      % (pipe._fig_prefix.format(pipe._working_dir, 1),
+                         hcube_name))
+            pipe.project(1, (0, 1), align='col')
 
     # Check if details overview of first iteration can be given
     def test_details(self, pipe):
@@ -603,6 +609,11 @@ class Test_Pipeline_User_Exceptions(object):
         with pytest.raises(InputError):
             pipe.project(1, 1, 1)
 
+    # Try to call project with incorrect align parameter
+    def test_invalid_align_val(self, pipe):
+        with pytest.raises(InputError):
+            pipe.project(align='test')
+
     # Try to call project with no dict as fig_kwargs
     def test_no_fig_kwargs_dict(self, pipe):
         with pytest.raises(TypeError):
@@ -873,10 +884,14 @@ class Test_Pipeline_ModelLink_Versatility(object):
         pipe2D._emulator._method = 'full'
 
         # Missing parameter estimates
-        temp = pipe2D._modellink._par_est[0]
+        temp0 = pipe2D._modellink._par_est[0]
         pipe2D._modellink._par_est[0] = None
         pipe2D.details()
-        pipe2D._modellink._par_est[0] = temp
+        temp1 = pipe2D._modellink._par_est[1]
+        pipe2D._modellink._par_est[1] = None
+        pipe2D.details()
+        pipe2D._modellink._par_est[0] = temp0
+        pipe2D._modellink._par_est[1] = temp1
 
         # Inactive parameters
         pipe2D._emulator._active_par[1][1] = 0

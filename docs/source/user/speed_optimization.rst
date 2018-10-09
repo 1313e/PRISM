@@ -31,7 +31,7 @@ Number of MPI processes
 Number of OpenMP threads
 	This is only important when one uses multiple MPI processes.
 	Many of the calculations in *PRISM* require NumPy's :mod:`~numpy.linalg` functions, which use OpenMP.
-	By default, these functions (like any OpenMP operation) will spawn as many OpenMP threads as there are cores available.
+	On many architectures, these functions (as any other OpenMP operation) will by default spawn as many OpenMP threads as there are cores available.
 	However, given that such operations do not know when they are called by an MPI process, every MPI process will attempt to use all cores (e.g., `16` MPI processes will each spawn `16` OpenMP threads, resulting in `16*16=256` OpenMP threads in total).
 	This will result in OpenMP operations 'fighting' for computation time, which reduces the overall computation speed dramatically.
 
