@@ -508,7 +508,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                 self._data_spc.append('ln')
             else:
                 raise ValueError("Input argument 'data_spc[%s]' is "
-                                 "invalid! ('%s')" % (idx, spc))
+                                 "invalid (%r)!" % (idx, spc))
 
             # Save data identifier
             self._data_idx.append(idx)

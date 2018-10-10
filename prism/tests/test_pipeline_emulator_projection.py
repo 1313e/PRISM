@@ -611,7 +611,7 @@ class Test_Pipeline_User_Exceptions(object):
 
     # Try to call project with incorrect align parameter
     def test_invalid_align_val(self, pipe):
-        with pytest.raises(InputError):
+        with pytest.raises(ValueError):
             pipe.project(align='test')
 
     # Try to call project with no dict as fig_kwargs
@@ -815,8 +815,9 @@ class Test_Pipeline_Init_Versatility(object):
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
         shutil.copy(prism_file_default, root_dir)
-        Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
-                 prism_file='prism_default.txt', emul_type='default')
+        pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file='prism_default.txt', emul_type='default')
+        repr(pipe)
 
     # Create a Pipeline object requesting a new working dir two times
     def test_new_working_dir(self, tmpdir, model_link):
@@ -905,11 +906,13 @@ class Test_Pipeline_ModelLink_Versatility(object):
 
     # Test if mock data takes log10 value spaces into account correctly
     def test_mock_data_spaces_log(self, pipe3D):
+        np.random.seed(0)
         pipe3D._modellink._data_spc = ['log10', 'log10', 'log10']
         pipe3D._emulator._create_new_emulator()
 
     # Test if mock data takes ln value spaces into account correctly
     def test_mock_data_spaces_ln(self, pipe3D):
+        np.random.seed(0)
         pipe3D._modellink._data_spc = ['ln', 'ln', 'ln']
         pipe3D._emulator._create_new_emulator()
 

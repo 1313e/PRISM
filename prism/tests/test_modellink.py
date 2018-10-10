@@ -55,20 +55,21 @@ class Test_ModelLink_Exceptions(object):
         with pytest.raises(TypeError):
             GaussianLink2D(model_data=np.array(1))
 
-    # Create a GaussianLink3D object with different data_idx and data_spc
-    # Also include an incorrect data_spc
-    # Also include a data_idx sequence
-    def test_data_input_types(self):
-        with pytest.raises(ValueError):
-            GaussianLink3D(model_parameters=model_parameters_3D,
-                           model_data=model_data_types)
-
     # Try to create a GaussianLink3D object with missing data_idx
     def test_missing_data_idx(self):
         with pytest.raises(InputError):
             model_data = {(): [1, 0.05],
                           3: [2, 0.05],
                           4: [3, 0.05]}
+            GaussianLink3D(model_parameters=model_parameters_3D,
+                           model_data=model_data)
+
+    # Try to create a GaussianLink3D object with invalid data_spc
+    def test_invalid_data_spc(self):
+        with pytest.raises(ValueError):
+            model_data = {1: [1, 0.05],
+                          3: [2, 0.05],
+                          4: [3, 0.05, 'A']}
             GaussianLink3D(model_parameters=model_parameters_3D,
                            model_data=model_data)
 
@@ -113,4 +114,11 @@ class Test_ModelLink_Versatility(object):
     def test_double_errors(self):
         model_link = GaussianLink3D(model_parameters=model_parameters_3D,
                                     model_data=model_data_double)
+        repr(model_link)
+
+    # Create a GaussianLink3D object with different data_idx and data_spc
+    # Also include a data_idx sequence
+    def test_data_input_types(self):
+        model_link = GaussianLink3D(model_parameters=model_parameters_3D,
+                                    model_data=model_data_types)
         repr(model_link)

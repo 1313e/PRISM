@@ -990,7 +990,7 @@ class Projection(object):
 
         # Make list with forbidden figure and plot kwargs
         pop_fig_kwargs = ['num', 'ncols', 'nrows', 'sharex', 'sharey',
-                          'constrained_layout', 'figsize_r', 'figsize_c']
+                          'constrained_layout']
         pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax']
 
         # Check if not more than two args have been provided
@@ -1032,18 +1032,19 @@ class Projection(object):
             self.__force = check_val(kwargs['force'], 'force', 'bool')
 
             # Check if align parameter is a valid string
-            if kwargs['align'].lower() in ('row', 'horizontal'):
+            align = str(kwargs['align'].replace("'", '').replace("'", ''))
+            if align.lower() in ('row', 'horizontal'):
                 self.__align = 'row'
                 kwargs['fig_kwargs']['figsize'] =\
                     kwargs['fig_kwargs'].pop('figsize', kwargs['figsize_r'])
-            elif kwargs['align'].lower() in ('col', 'column', 'vertical'):
+            elif align.lower() in ('col', 'column', 'vertical'):
                 self.__align = 'col'
                 kwargs['fig_kwargs']['figsize'] =\
                     kwargs['fig_kwargs'].pop('figsize', kwargs['figsize_c'])
             else:
-                err_msg = ("Input argument 'align' is invalid (%s)!"
-                           % (kwargs['align']))
-                raise_error(InputError, err_msg, logger)
+                err_msg = ("Input argument 'align' is invalid (%r)!"
+                           % (align))
+                raise_error(ValueError, err_msg, logger)
 
             # Pop all specific kwargs dicts from kwargs
             fig_kwargs = kwargs['fig_kwargs']
@@ -1063,7 +1064,7 @@ class Projection(object):
             try:
                 impl_kwargs['cmap'] = cm.get_cmap(impl_kwargs['cmap'])
             except Exception as error:
-                err_msg = ("Input argument 'impl_kwargs/cmap' is invalid (%s)!"
+                err_msg = ("Input argument 'impl_kwargs/cmap' is invalid! (%s)"
                            % (error))
                 raise_error(InputError, err_msg, logger)
 
@@ -1080,7 +1081,7 @@ class Projection(object):
             try:
                 los_kwargs['cmap'] = cm.get_cmap(los_kwargs['cmap'])
             except Exception as error:
-                err_msg = ("Input argument 'los_kwargs/cmap' is invalid (%s)!"
+                err_msg = ("Input argument 'los_kwargs/cmap' is invalid! (%s)"
                            % (error))
                 raise_error(InputError, err_msg, logger)
 

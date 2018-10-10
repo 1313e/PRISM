@@ -144,7 +144,7 @@ class Pipeline(Projection, object):
                 emul_type(self, modellink_obj)
                 self._emulator
             except Exception as error:
-                err_msg = ("Input argument 'emul_type' is invalid (%s)!"
+                err_msg = ("Input argument 'emul_type' is invalid! (%s)"
                            % (error))
                 raise_error(InputError, err_msg, logger)
 
@@ -210,7 +210,12 @@ class Pipeline(Projection, object):
         str_repr.append(repr(self._modellink))
 
         # Add the root_dir representation if it is not default
-        rel_root_path = path.relpath(self._root_dir, cwd)
+        if(path.splitdrive(self._root_dir)[0].lower() !=
+           path.splitdrive(cwd)[0].lower()):
+            rel_root_path = self._root_dir
+        else:
+            rel_root_path = path.relpath(self._root_dir, cwd)
+
         if(rel_root_path != '.'):
             str_repr.append("root_dir=%r" % (rel_root_path))
 
@@ -225,8 +230,12 @@ class Pipeline(Projection, object):
 
         # Add the prism_file representation if it is not default
         if self._prism_file is not None:
-            str_repr.append("prism_file=%r" % (path.relpath(self._prism_file,
-                                                            cwd)))
+            if(path.splitdrive(self._prism_file)[0].lower() !=
+               path.splitdrive(cwd)[0].lower()):
+                str_repr.append("prism_file=%r" % (self._prism_file))
+            else:
+                str_repr.append("prism_file=%r"
+                                % (path.relpath(self._prism_file, cwd)))
 
         # Add the emul_type representation if it is not default
         emul_repr = "%s.%s" % (self._emulator.__class__.__module__,
@@ -663,7 +672,7 @@ class Pipeline(Projection, object):
                     par_seq[i] = par_idx % self._modellink._n_par
             # If any operation above fails, raise error
             except Exception as error:
-                err_msg = "Input argument '%s' is invalid (%s)!" % (name,
+                err_msg = "Input argument '%s' is invalid! (%s)" % (name,
                                                                     error)
                 raise_error(InputError, err_msg, logger)
 
@@ -854,8 +863,7 @@ class Pipeline(Projection, object):
             # Obtain hdf5-file path
             if isinstance(hdf5_file, (str, unicode)):
                 # Check if provided filename has correct extension
-                ext_idx = hdf5_file.find('.')
-                if hdf5_file[ext_idx:] not in ('.hdf5', '.h5'):
+                if path.splitext(hdf5_file)[1] not in ('.hdf5', '.h5'):
                     err_msg = ("Input argument 'hdf5_file' has invalid HDF5 "
                                "extension!")
                     raise_error(ValueError, err_msg, logger)
@@ -885,7 +893,7 @@ class Pipeline(Projection, object):
                 # If not either, it is invalid
                 else:
                     err_msg = ("Input argument 'prism_file' is a non-existing "
-                               "path (%s)!" % (prism_file))
+                               "path (%r)!" % (prism_file))
                     raise_error(OSError, err_msg, logger)
                 logger.info("PRISM parameters file set to '%s'."
                             % (self._prism_file))
@@ -1606,7 +1614,7 @@ class Pipeline(Projection, object):
 
             # If the value is lower than the previous value, it is invalid
             elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
-                err_msg = ("Cut-off %s is higher than cut-off %s (%s > %s)"
+                err_msg = ("Cut-off %s is higher than cut-off %s (%s > %s)!"
                            % (i, i-1, impl_cut[i], impl_cut[i-1]))
                 raise_error(ValueError, err_msg, logger)
 

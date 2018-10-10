@@ -63,3 +63,6 @@ test_script:
   - "%CMD_IN_ENV% python setup.py check -m -r -s"
   - "%CMD_IN_ENV% python setup.py install"
   - "%CMD_IN_ENV% py.test prism"
+
+on_success:
+  - "%CMD_IN_ENV" coveralls

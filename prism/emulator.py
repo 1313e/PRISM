@@ -1475,8 +1475,10 @@ class Emulator(object):
                                     0, 0, 0)
 
             # Redetermine the active parameters, poly_powers and poly_idx
-            new_active_par = [np.any(powers) for powers in poly_powers.T]
-            poly_powers = poly_powers[:, new_active_par]
+            new_active_par_idx = [np.any(powers) for powers in poly_powers.T]
+            poly_powers = poly_powers[:, new_active_par_idx]
+            new_active_par =\
+                self._active_par_data[emul_i][emul_s][new_active_par_idx]
             new_pf_obj = PF(self._poly_order).fit([[0]*poly_powers.shape[1]])
             new_powers = new_pf_obj.powers_
             new_powers_list = new_powers.tolist()
@@ -2022,7 +2024,7 @@ class Emulator(object):
         try:
             # Check if modellink_obj was initialized properly
             if not check_instance(modellink_obj, ModelLink):
-                err_msg = ("Provided ModelLink subclass '%s' was not "
+                err_msg = ("Provided ModelLink subclass %r was not "
                            "initialized properly!"
                            % (modellink_obj.__class__.__name__))
                 raise_error(InputError, err_msg, logger)
@@ -2056,10 +2058,9 @@ class Emulator(object):
             # Set ModelLink object for Pipeline
             self._pipeline._modellink = self._modellink
         else:
-            err_msg = ("Provided ModelLink subclass '%s' does not match the "
-                       "ModelLink subclass '%s' used for emulator "
-                       "construction!" % (modellink_obj._name,
-                                          modellink_loaded))
+            err_msg = ("Provided ModelLink subclass %r does not match the "
+                       "ModelLink subclass %r used for emulator construction!"
+                       % (modellink_obj._name, modellink_loaded))
             raise_error(InputError, err_msg, logger)
 
         # Logging
@@ -2467,9 +2468,6 @@ class Emulator(object):
 
                 # REGRESSION
                 elif(keyword == 'regression'):
-                    # Determine the new array of active parameters
-                    data[0] = self._active_par_data[emul_i][lemul_s][data[0]]
-
                     # Determine the new active parameter names for this system
                     par_names = [self._modellink._par_name[i].encode(
                         'ascii', 'ignore') for i in data[0]]
@@ -2541,9 +2539,8 @@ class Emulator(object):
 
         # Check if provided emulator is the same as requested
         if(emul_type != self._emul_type):
-            err_msg = ("Provided emulator system type ('%s') does not match "
-                       "the requested type ('%s')!" % (emul_type,
-                                                       self._emul_type))
+            err_msg = ("Provided emulator system type (%r) does not match the "
+                       "requested type (%r)!" % (emul_type, self._emul_type))
             raise_error(RequestError, err_msg, logger)
 
         # Check if provided emul_version is compatible
@@ -2610,10 +2607,9 @@ class Emulator(object):
         elif(self._method.lower() == 'auto'):
             raise NotImplementedError
         else:
-            logger.error("Input argument 'method' is invalid! (%s)"
-                         % (self._method.lower()))
-            raise ValueError("Input argument 'method' is invalid! (%s)"
-                             % (self._method.lower()))
+            err_msg = ("Input argument 'method' is invalid (%r)!"
+                       % (self._method.lower()))
+            raise_error(ValueError, err_msg, logger)
 
         # Obtain the bool determining whether or not to use regr_cov
         self._use_regr_cov = check_val(par_dict['use_regr_cov'],
