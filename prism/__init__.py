@@ -32,6 +32,7 @@ from __future__ import absolute_import, division, print_function
 
 # Built-in imports
 import os
+from sys import platform
 import warnings
 
 # Import PRISM modules
@@ -61,8 +62,20 @@ else:
     # If so, raise warning if OMP_NUM_THREADS is not set to 1 with MPI_size > 1
     if(os.environ.get('OMP_NUM_THREADS') != '1' and
        MPI.COMM_WORLD.Get_size() > 1 and MPI.COMM_WORLD.Get_rank() == 0):
+        # Get platform-dependent string on how to set environment variable
+        # Windows
+        if platform.startswith('win'):
+            set_str = "\">set OMP_NUM_THREADS=1\""
+        # Linux/MacOS-X
+        elif platform.startswith(('linux', 'darwin')):
+            set_str = "\"$ export OMP_NUM_THREADS=1\""
+        # Anything else
+        else:
+            set_str = "N/A"
+
+        # Print warning message
         warn_msg = ("Environment variable 'OMP_NUM_THREADS' is currently not "
                     "set to 1 (%s), with MPI enabled. Unless this was "
-                    "intentional, it is advised to set 'OMP_NUM_THREADS' to 1."
-                    % (os.environ.get('OMP_NUM_THREADS')))
+                    "intentional, it is advised to set it to 1 (%s)."
+                    % (os.environ.get('OMP_NUM_THREADS'), set_str))
         warnings.warn(warn_msg, stacklevel=2)
