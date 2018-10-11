@@ -1008,7 +1008,6 @@ class Emulator(object):
             logger.info("Emulator iteration %s already exists." % (emul_i))
 
             # Check if repreparation was actually necessary
-            # TODO: Think about how to extend this check
             diff_flag = 1
             for i, idx in enumerate(self._modellink._data_idx):
                 try:
@@ -1051,6 +1050,9 @@ class Emulator(object):
 
         # Controller preparing the emulator iteration
         if self._is_controller:
+            # Assign data points to emulator systems
+            data_to_emul_s, n_emul_s = self._assign_data_idx(emul_i)
+
             # Open hdf5-file
             with PRISM_File('r+', None) as file:
                 # Make group for emulator iteration
@@ -1062,13 +1064,11 @@ class Emulator(object):
                 # Create an empty data set for statistics as attributes
                 group.create_dataset('statistics', data=h5py.Empty(float))
 
-                # Assign data points to emulator systems
-                data_to_emul_s, n_emul_s = self._assign_data_idx(emul_i)
-
                 # Save the total number of active and passive emulator systems
                 group.attrs['n_emul_s'] = n_emul_s
 
                 # Create groups for all data points
+                logger.info("Preparing emulator system files.")
                 for i, emul_s in enumerate(data_to_emul_s):
                     with PRISM_File('a', emul_s) as file_i:
                         # Make iteration group for this emulator system

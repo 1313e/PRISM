@@ -32,7 +32,6 @@ except ImportError:
     import mpi_dummy as MPI
 import numpy as np
 from numpy.random import normal, random
-from sortedcontainers import SortedSet
 
 # PRISM imports
 from ._docstrings import (call_emul_i_doc, call_model_doc_s, call_model_doc_m,
@@ -623,73 +622,11 @@ class Pipeline(Projection, object):
         # If anything else is given, it must be a sequence of model parameters
         else:
             # Convert the given sequence to an array of indices
-            self._pot_active_par = np.array(self._get_model_par_seq(
+            self._pot_active_par = np.array(self._modellink._get_model_par_seq(
                 par_dict['pot_active_par'], 'pot_active_par'))
 
         # Log that reading has been finished
         logger.info("Finished reading pipeline parameters.")
-
-    # This function converts a sequence of model parameter names/indices
-    def _get_model_par_seq(self, par_seq, name):
-        """
-        Converts a provided sequence `par_seq` of model parameter names and
-        indices to a list of indices, removes duplicates and checks if every
-        provided name/index is valid.
-
-        Parameters
-        ----------
-        par_seq : 1D array_like of {int, str}
-            A sequence of integers and strings determining which model
-            parameters need to be used for a certain operation.
-        name : str
-            A string stating the name of the variable the result of this method
-            will be stored in. Used for error messages.
-
-        Returns
-        -------
-        par_seq_conv : list of int
-            The provided sequence `par_seq` converted to a sorted list of
-            model parameter indices.
-
-        """
-
-        # Do some logging
-        logger = getCLogger('INIT')
-        logger.info("Converting sequence of model parameter names/indices.")
-
-        # Remove all unwanted characters from the string and split it up
-        par_seq = convert_str_seq(par_seq)
-
-        # Check elements if they are ints or strings, and if they are valid
-        for i, par_idx in enumerate(par_seq):
-            try:
-                # If par_idx is a string, try to use it as a parameter name
-                if isinstance(par_idx, (str, unicode)):
-                    par_seq[i] = self._modellink._par_name.index(par_idx)
-                # If not, try to use it as a parameter index
-                else:
-                    self._modellink._par_name[par_idx]
-                    par_seq[i] = par_idx % self._modellink._n_par
-            # If any operation above fails, raise error
-            except Exception as error:
-                err_msg = "Input argument '%s' is invalid! (%s)" % (name,
-                                                                    error)
-                raise_error(InputError, err_msg, logger)
-
-        # If everything went without exceptions, check if list is not empty and
-        # remove duplicates
-        if len(par_seq):
-            par_seq = list(SortedSet(par_seq))
-        else:
-            err_msg = "Input argument '%s' is empty!" % (name)
-            raise_error(ValueError, err_msg, logger)
-
-        # Log end
-        logger.info("Finished converting sequence of model parameter "
-                    "names/indices.")
-
-        # Return it
-        return(par_seq)
 
     # This function controls how n_eval_samples is calculated
     @docstring_substitute(emul_i=std_emul_i_doc)

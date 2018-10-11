@@ -428,7 +428,7 @@ def check_val(value, name, *args):
             err_msg = "Input argument '%s' is not of type 'str'!" % (name)
             raise_error(TypeError, err_msg, logger)
 
-    # Check for floats
+    # Check for float
     elif 'float' in args:
         # Check if float is provided and return if so
         if isinstance(value, (int, float, np.integer, np.floating)):
@@ -440,7 +440,7 @@ def check_val(value, name, *args):
             err_msg = "Input argument '%s' is not of type 'float'!" % (name)
             raise_error(TypeError, err_msg, logger)
 
-    # Check for integers
+    # Check for integer
     elif 'int' in args:
         # Check if int is provided and return if so
         if isinstance(value, (int, np.integer)):
@@ -452,7 +452,7 @@ def check_val(value, name, *args):
             err_msg = "Input argument '%s' is not of type 'int'!" % (name)
             raise_error(TypeError, err_msg, logger)
 
-    # Check for negative values
+    # Check for negative value
     elif 'neg' in args:
         # Check if value is negative and return if so
         if(value < 0):
@@ -464,7 +464,7 @@ def check_val(value, name, *args):
             err_msg = "Input argument '%s' is not negative!" % (name)
             raise_error(ValueError, err_msg, logger)
 
-    # Check for non-negative values
+    # Check for non-negative value
     elif 'nneg' in args:
         # Check if value is non-negative and return if so
         if not(value < 0):
@@ -476,7 +476,7 @@ def check_val(value, name, *args):
             err_msg = "Input argument '%s' is not non-negative!" % (name)
             raise_error(ValueError, err_msg, logger)
 
-    # Check for non-positive values
+    # Check for non-positive value
     elif 'npos' in args:
         # Check if value is non-positive and return if so
         if not(value > 0):
@@ -488,7 +488,7 @@ def check_val(value, name, *args):
             err_msg = "Input argument '%s' is not non-positive!" % (name)
             raise_error(ValueError, err_msg, logger)
 
-    # Check for non-zero values
+    # Check for non-zero value
     elif 'nzero' in args:
         # Check if value is non-zero and return if so
         if not(value == 0):
@@ -500,7 +500,7 @@ def check_val(value, name, *args):
             err_msg = "Input argument '%s' is not non-zero!" % (name)
             raise_error(ValueError, err_msg, logger)
 
-    # Check for positive values
+    # Check for positive value
     elif 'pos' in args:
         # Check if value is positive and return if so
         if(value > 0):

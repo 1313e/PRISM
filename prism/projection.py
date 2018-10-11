@@ -576,7 +576,8 @@ class Projection(object):
 
             # Else, a sequence of str/int must be provided
             else:
-                proj_par = self._get_model_par_seq(proj_par, 'proj_par')
+                proj_par = self._modellink._get_model_par_seq(proj_par,
+                                                              'proj_par')
 
                 # Check which values in proj_par are also in active_par
                 proj_par = np.array(
@@ -731,7 +732,7 @@ class Projection(object):
         # Return it
         return(kwargs_dict)
 
-    # This function reads in the impl_cut list from the PRISM parameters file
+    # Read in the parameters from the provided parameter file
     @docstring_append(read_par_doc.format("Projection"))
     def __read_parameters(self):
         # Log that the PRISM parameter file is being read

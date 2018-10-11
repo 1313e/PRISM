@@ -21,11 +21,12 @@ import sys
 from e13tools import InputError
 import numpy as np
 from six import with_metaclass
-from sortedcontainers import SortedDict
+from sortedcontainers import SortedDict, SortedSet
 
 # PRISM imports
 from .._docstrings import std_emul_i_doc
-from .._internal import check_val, convert_str_seq, docstring_substitute
+from .._internal import (check_val, convert_str_seq, docstring_substitute,
+                         getCLogger, raise_error)
 
 # All declaration
 __all__ = ['ModelLink']
@@ -64,10 +65,10 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     The model parameters and comparison data can be set in two different ways.
     They can be hard-coded into the :class:`~ModelLink` subclass by altering
-    the :attr:`~_default_model_parameters` and :attr:`~_default_model_data`
-    properties or set by providing them during class initialization. A
-    combination of both is also possible. More details on this can be found in
-    :meth:`~__init__`.
+    the :meth:`~get_default_model_parameters` and
+    :meth:`~get_default_model_data` methods or set by providing them during
+    class initialization. A combination of both is also possible. More details
+    on this can be found in :meth:`~__init__`.
 
     Note
     ----
@@ -86,9 +87,9 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             Default: None
             Anything that can be converted to a dict that provides non-default
             model parameters/data information or *None* if only default
-            information is used from :attr:`~_default_model_parameters` or
-            :attr:`~_default_model_data`. For more information on the lay-out
-            of these dicts, see ``Notes``.
+            information is used from :meth:`~get_default_model_parameters` or
+            :meth:`~get_default_model_data`. For more information on the
+            lay-out of these dicts, see ``Notes``.
 
             If array_like, dict(model_parameters/model_data) must generate a
             dict with the correct lay-out.
@@ -232,6 +233,68 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         return([])
 
+    # This function converts a sequence of model parameter names/indices
+    def _get_model_par_seq(self, par_seq, name):
+        """
+        Converts a provided sequence `par_seq` of model parameter names and
+        indices to a list of indices, removes duplicates and checks if every
+        provided name/index is valid.
+
+        Parameters
+        ----------
+        par_seq : 1D array_like of {int, str}
+            A sequence of integers and strings determining which model
+            parameters need to be used for a certain operation.
+        name : str
+            A string stating the name of the variable the result of this method
+            will be stored in. Used for error messages.
+
+        Returns
+        -------
+        par_seq_conv : list of int
+            The provided sequence `par_seq` converted to a sorted list of
+            model parameter indices.
+
+        """
+
+        # Do some logging
+        logger = getCLogger('INIT')
+        logger.info("Converting sequence of model parameter names/indices.")
+
+        # Remove all unwanted characters from the string and split it up
+        par_seq = convert_str_seq(par_seq)
+
+        # Check elements if they are ints or strings, and if they are valid
+        for i, par_idx in enumerate(par_seq):
+            try:
+                # If par_idx is a string, try to use it as a parameter name
+                if isinstance(par_idx, (str, unicode)):
+                    par_seq[i] = self._par_name.index(par_idx)
+                # If not, try to use it as a parameter index
+                else:
+                    self._par_name[par_idx]
+                    par_seq[i] = par_idx % self._n_par
+            # If any operation above fails, raise error
+            except Exception as error:
+                err_msg = "Input argument '%s' is invalid! (%s)" % (name,
+                                                                    error)
+                raise_error(InputError, err_msg, logger)
+
+        # If everything went without exceptions, check if list is not empty and
+        # remove duplicates
+        if len(par_seq):
+            par_seq = list(SortedSet(par_seq))
+        else:
+            err_msg = "Input argument '%s' is empty!" % (name)
+            raise_error(ValueError, err_msg, logger)
+
+        # Log end
+        logger.info("Finished converting sequence of model parameter "
+                    "names/indices.")
+
+        # Return it
+        return(par_seq)
+
     @property
     def _default_model_parameters(self):
         """
@@ -241,6 +304,16 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         """
 
         return(SortedDict())
+
+    def get_default_model_parameters(self):
+        """
+        Returns the default model parameters to use for every instance of this
+        :class:`~ModelLink` subclass. By default, returns
+        :attr:`~_default_model_parameters`.
+
+        """
+
+        return(self._default_model_parameters)
 
     def _set_model_parameters(self, add_model_parameters):
         """
@@ -252,7 +325,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         add_model_parameters : array_like, dict, str or None
             Anything that can be converted to a dict that provides non-default
             model parameters information or *None* if only default information
-            is used from :attr:`~_default_model_parameters`.
+            is used from :meth:`~get_default_model_parameters`.
 
         Generates
         ---------
@@ -271,7 +344,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         """
 
         # Obtain default model parameters
-        model_parameters = SortedDict(self._default_model_parameters)
+        model_parameters = SortedDict(self.get_default_model_parameters())
 
         # If no additional model parameters information is given
         if add_model_parameters is None:
@@ -357,6 +430,16 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         return(dict())
 
+    def get_default_model_data(self):
+        """
+        Returns the default model data to use for every instance of this
+        :class:`~ModelLink` subclass. By default, returns
+        :attr:`~_default_model_data`.
+
+        """
+
+        return(self._default_model_data)
+
     def _set_model_data(self, add_model_data):
         """
         Generates the model data properties from the default model data and the
@@ -367,7 +450,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         add_model_data : array_like, dict, str or None
             Anything that can be converted to a dict that provides non-default
             model data information or *None* if only default data is used from
-            :attr:`~_default_model_data`.
+            :meth:`~get_default_model_data`.
 
         Generates
         ---------
@@ -387,7 +470,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         """
 
         # Obtain default model data
-        model_data = dict(self._default_model_data)
+        model_data = dict(self.get_default_model_data())
 
         # If no additional model data information is given
         if add_model_data is None:
