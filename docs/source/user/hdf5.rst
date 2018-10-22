@@ -75,11 +75,11 @@ An emulator system data group (``'i/emul_n'``) contains:
 
 ----
 
-A projection data group (``'i/proj_hcube'``) contains:
-  - Attributes (4): List the general properties of the projections that were made, including:
+A projections data group (``'i/proj_hcube'``) contains individual projection data groups (``'i/proj_hcube/<name>'``), which contain:
+  - Attributes (4): List the general properties with which this projection was made, including:
 
     - Implausibility cut-off parameters (they can differ from the iteration itself);
     - Projection depth and resolution.
 
-  - Individual projection groups: Data groups that are named after the active parameters this specific projection is about (1 parameter for 2D models, 2 parameters for nD models), containing the ``'impl_los'`` and ``'impl_min'`` data sets.
-    These two data sets list the calculated line-of-sight depths and minimum implausibility values for all grid points in this projection.
+  - ``'impl_los'``: The calculated line-of-sight depth for all grid points in this projection;
+  - ``'impl_min'``: The calculated minimum implausibility values for all grid points in this projection.

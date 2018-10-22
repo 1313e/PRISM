@@ -28,7 +28,6 @@ import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
 from numpy.linalg import inv, norm
-# TODO: Do some research on sklearn.linear_model.SGDRegressor
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
@@ -1312,6 +1311,7 @@ class Emulator(object):
 
             # If requested, perform a sequential backward stepwise regression
             else:
+                # TODO: Find a consistent way to use cross-validation
                 # Create SequentialFeatureSelector object
                 sfs_obj = SFS(LR(), k_features='parsimonious', forward=False,
                               floating=False, scoring='r2',
@@ -1430,6 +1430,7 @@ class Emulator(object):
         logger = getRLogger('REGRESSION')
         logger.info("Performing regression.")
 
+        # TODO: Find a consistent way to use cross-validation
         # Create SequentialFeatureSelector object
         sfs_obj = SFS(LR(), k_features='best', forward=True, floating=False,
                       scoring='neg_mean_squared_error',
@@ -1627,7 +1628,7 @@ class Emulator(object):
                     "values.")
 
     # This function calculates the covariance between parameter sets
-    # This is function 'Cov(f(x), f(x'))' or 'k(x,x')
+    # This is function 'Cov(f(x), f(x'))' or 'c(x,x')
     @docstring_substitute(full_cov=full_cov_doc)
     def _get_cov(self, emul_i, emul_s_seq, par_set1, par_set2):
         """
@@ -1704,7 +1705,8 @@ class Emulator(object):
 
                     # Inactive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
-                        (par_set1 == self._sam_set[emul_i]).all(axis=-1)
+                        np.isclose(par_set1, self._sam_set[emul_i]).all(
+                            axis=-1)
 
             if(self._method.lower() in ('regression', 'full') and
                self._use_regr_cov):
@@ -1734,7 +1736,7 @@ class Emulator(object):
 
                     # Inactive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
-                        (par_set1 == par_set2).all()
+                        np.isclose(par_set1, par_set2).all()
             if(self._method.lower() in ('regression', 'full') and
                self._use_regr_cov):
                 # If regression needs to be taken into account

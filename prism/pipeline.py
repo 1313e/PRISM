@@ -2442,19 +2442,22 @@ class Pipeline(Projection, object):
                 # If projection data is available
                 else:
                     # Get the number of projections and used impl_cut-offs
+                    proj = 0
                     n_proj = len(data_set.keys())
-                    proj_impl_cut = data_set.attrs['impl_cut']
-                    proj_cut_idx = data_set.attrs['cut_idx']
+                    for hcube in data_set.values():
+                        p_impl_cut = hcube.attrs['impl_cut']
+                        p_cut_idx = hcube.attrs['cut_idx']
 
-                    # Check if projections were made with the same impl_cut
-                    if(len(proj_impl_cut) == len(self._impl_cut[emul_i]) and
-                       (proj_impl_cut == self._impl_cut[emul_i]).all() and
-                       proj_cut_idx == self._cut_idx[emul_i]):
-                        # If it was, projections are synced
-                        proj = 1
-                    else:
-                        # If not, projections are desynced
-                        proj = 2
+                        # Check if projections were made with the same impl_cut
+                        if(len(p_impl_cut) == len(self._impl_cut[emul_i]) and
+                           (p_impl_cut == self._impl_cut[emul_i]).all() and
+                           p_cut_idx == self._cut_idx[emul_i]):
+                            # If it was, projections are synced
+                            proj = 1
+                        else:
+                            # If not, projections are desynced
+                            proj = 2
+                            break
 
             # Log file being closed
             logger.info("Finished collecting details about current pipeline "
@@ -2534,10 +2537,10 @@ class Pipeline(Projection, object):
                     print("{0: <{1}}\t{2}".format("Projections available?",
                                                   width, "No"))
                 else:
-                    print("{0: <{1}}\t{2} ({3}/{4})".format(
+                    print("{0: <{1}}\t{2} ({3}/{4}){5}".format(
                         "Projections available?", width,
-                        "Yes%s" % ("" if proj == 1 else ", desynced"),
-                        n_proj, n_proj_max))
+                        "Yes", n_proj, n_proj_max,
+                        "" if proj == 1 else ", desynced"))
                 print("-"*width)
 
                 # Number details

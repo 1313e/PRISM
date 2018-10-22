@@ -111,6 +111,16 @@ class InvalidShapeMdVarModelLink(ModelLink):
 # Custom ModelLink class with double md_var values
 class DoubleMdVarModelLink(ModelLink):
     def call_model(self, data_idx, *args, **kwargs):
+        par = kwargs['model_parameters']
+        return(np.array(data_idx)*(par['A']+0.00000001*par['B']*par['C']**2))
+
+    def get_md_var(self, emul_i, data_idx):
+        return([[1, 1]]*len(data_idx))
+
+
+# Custom ModelLInk class
+class CustomModelLink(ModelLink):
+    def call_model(self, data_idx, *args, **kwargs):
         return(np.random.rand(len(data_idx)))
 
     def get_md_var(self, emul_i, data_idx):
@@ -968,7 +978,8 @@ class Test_Pipeline_ModelLink_Versatility(object):
         model_link = DoubleMdVarModelLink(model_parameters=model_parameters_3D,
                                           model_data=model_data_single)
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
-                        prism_file=prism_file_default, emul_type='default')
+                        prism_file=prism_file_impl, emul_type='default')
+        np.random.seed(0)
         pipe.construct(1, 0)
 
 
@@ -1011,8 +1022,8 @@ class Test_Pipeline_Emulator_Versatility(object):
         model_data = {(1, 'A'): [1, 0.05, 'lin'],
                       'A': [2, 0.05, 'lin'],
                       4.: [3, 0.05, 'lin']}
-        model_link = DoubleMdVarModelLink(model_parameters=model_parameters_3D,
-                                          model_data=model_data)
+        model_link = CustomModelLink(model_parameters=model_parameters_3D,
+                                     model_data=model_data)
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                         prism_file=prism_file_default, emul_type='default')
         pipe._emulator._create_new_emulator()

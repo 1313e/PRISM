@@ -37,6 +37,8 @@ if(sys.version_info.major >= 3):
 
 
 # %% MODELLINK CLASS DEFINITION
+# TODO: Allow for inter-process methods?
+# Like, having a method that is called before/after construction.
 class ModelLink(with_metaclass(abc.ABCMeta, object)):
     """
     Provides an abstract base class definition that allows the

@@ -757,17 +757,10 @@ class Projection(object):
         logger.info("Checking compatibility of provided projection "
                     "parameters.")
 
-        # Save impl_data to proj_hcube
-        self.__save_data({
-            'impl_cut': [self._impl_cut[self.__emul_i],
-                         self._cut_idx[self.__emul_i]]})
-
         # Number of samples used for implausibility evaluations
-        proj_res = int(par_dict['proj_res'])
-        proj_depth = int(par_dict['proj_depth'])
-        self.__save_data({
-            'proj_grid': [check_val(proj_res, 'proj_res', 'pos'),
-                          check_val(proj_depth, 'proj_depth', 'pos')]})
+        self.__res = check_val(int(par_dict['proj_res']), 'proj_res', 'pos')
+        self.__depth = check_val(int(par_dict['proj_depth']), 'proj_depth',
+                                 'pos')
 
         # Finish logging
         logger.info("Finished reading projection parameters.")
@@ -1181,8 +1174,8 @@ class Projection(object):
 
         # Open hdf5-file
         with PRISM_File('r+', None) as file:
-            # Obtain the dataset this data needs to be saved to
-            data_set = file['%s/proj_hcube' % (self.__emul_i)]
+            # Obtain the group this data needs to be saved to
+            group = file['%s/proj_hcube' % (self.__emul_i)]
 
             # Loop over entire provided data dict
             for keyword, data in data_dict.items():
@@ -1191,27 +1184,18 @@ class Projection(object):
                             % (keyword, self.__emul_i))
 
                 # Check what data keyword has been provided
-                # IMPL_CUT
-                if(keyword == 'impl_cut'):
-                    # Save the used implausibility parameters to file
-                    data_set.attrs['impl_cut'] = data[0]
-                    data_set.attrs['cut_idx'] = data[1]
-
-                # PROJ_GRID
-                elif(keyword == 'proj_grid'):
-                    # Save projection resolution and depth to file and memory
-                    self.__res = data[0]
-                    self.__depth = data[1]
-                    data_set.attrs['proj_res'] = data[0]
-                    data_set.attrs['proj_depth'] = data[1]
-
                 # ND_PROJ_HCUBE
-                elif(keyword == 'nD_proj_hcube'):
+                if(keyword == 'nD_proj_hcube'):
+                    # Get the data set of this projection hypercube
+                    data_set = group.create_group(data[0])
+
                     # Save the projection data to file
-                    data_set.create_dataset('%s/impl_min' % (data[0]),
-                                            data=data[1])
-                    data_set.create_dataset('%s/impl_los' % (data[0]),
-                                            data=data[2])
+                    data_set.create_dataset('impl_min', data=data[1])
+                    data_set.create_dataset('impl_los', data=data[2])
+                    data_set.attrs['impl_cut'] = self._impl_cut[self.__emul_i]
+                    data_set.attrs['cut_idx'] = self._cut_idx[self.__emul_i]
+                    data_set.attrs['proj_res'] = self.__res
+                    data_set.attrs['proj_depth'] = self.__depth
 
                 # INVALID KEYWORD
                 else:
