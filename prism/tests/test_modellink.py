@@ -92,6 +92,14 @@ class Test_ModelLink_Versatility(object):
         model_link = GaussianLink2D(model_parameters=par_list)
         repr(model_link)
 
+    # Create a GaussianLink2D object and test the value conversions
+    def test_convert_to_space(self):
+        model_link = GaussianLink2D()
+        assert np.isclose(model_link._to_par_space([0.2, 0.7]),
+                          [1.8, 2.4]).all()
+        assert np.isclose(model_link._to_unit_space([1.8, 2.4]),
+                          [0.2, 0.7]).all()
+
     # Create a GaussianLink3D object with externally defined mod_data dict
     def test_ext_mod_data_dict(self):
         data_dict = {(1, 2): [1, 0.05],

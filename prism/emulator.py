@@ -1705,8 +1705,7 @@ class Emulator(object):
 
                     # Inactive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
-                        np.isclose(par_set1, self._sam_set[emul_i]).all(
-                            axis=-1)
+                        (par_set1 == self._sam_set[emul_i]).all(axis=-1)
 
             if(self._method.lower() in ('regression', 'full') and
                self._use_regr_cov):
@@ -1736,7 +1735,7 @@ class Emulator(object):
 
                     # Inactive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
-                        np.isclose(par_set1, par_set2).all()
+                        (par_set1 == par_set2).all()
             if(self._method.lower() in ('regression', 'full') and
                self._use_regr_cov):
                 # If regression needs to be taken into account

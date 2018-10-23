@@ -235,6 +235,28 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         return([])
 
+    # This function converts values in unit space to parameter space
+    def _to_par_space(self, sam_set):
+        """
+        Converts provided `sam_set` from unit space ([0, 1]) to parameter space
+        ([lower_bnd, upper_bnd]).
+
+        """
+
+        return(self._par_rng[:, 0]+sam_set*(self._par_rng[:, 1] -
+                                            self._par_rng[:, 0]))
+
+    # This function converts values in parameter space to unit space
+    def _to_unit_space(self, sam_set):
+        """
+        Converts provided `sam_set` from parameter space ([lower_bnd,
+        upper_bnd]) to unit space ([0, 1]).
+
+        """
+
+        return((sam_set-self._par_rng[:, 0]) /
+               (self._par_rng[:, 1]-self._par_rng[:, 0]))
+
     # This function converts a sequence of model parameter names/indices
     def _get_model_par_seq(self, par_seq, name):
         """
