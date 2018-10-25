@@ -29,6 +29,7 @@ def test_GaussianLink():
 
     # Check if this instance is from a proper ModelLink subclass
     assert check_instance(model_link, ModelLink)
+    assert model_link.n_gaussians == 3
 
     # Call model
     par_set = [2.5, 2, 1, 2.5, 3, 1, 2.5, 4, 1]

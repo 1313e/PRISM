@@ -94,8 +94,8 @@ class MeraxesLink(ModelLink):
         # Save Meraxes input file
         self._input_file = path.abspath(input_file)
 
-        # Request multi model calls
-        self.multi_call = True
+        # Request only multi model calls
+        self.call_type = 'multi'
 
         # Request MPI calls
         self.MPI_call = True
@@ -160,8 +160,7 @@ class MeraxesLink(ModelLink):
     def get_md_var(self, emul_i, data_idx):
         super(MeraxesLink, self).get_md_var(emul_i=emul_i, data_idx=data_idx)
 
-
-# %% MERAXESLINK CLASS PROPERTIES
+    # %% MERAXESLINK CLASS PROPERTIES
     @property
     def input_file(self):
         """

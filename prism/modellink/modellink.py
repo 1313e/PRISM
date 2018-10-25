@@ -16,6 +16,7 @@ from __future__ import absolute_import, division, print_function
 import abc
 from os import path
 import sys
+import warnings
 
 # Package imports
 from e13tools import InputError
@@ -25,7 +26,7 @@ from sortedcontainers import SortedDict, SortedSet
 
 # PRISM imports
 from .._docstrings import std_emul_i_doc
-from .._internal import (check_val, convert_str_seq, docstring_substitute,
+from .._internal import (check_vals, convert_str_seq, docstring_substitute,
                          getCLogger, raise_error)
 
 # All declaration
@@ -56,10 +57,10 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     make this as versatile as possible.
 
     The :class:`~ModelLink` class uses three properties that define the way the
-    subclass will be used by *PRISM*: :attr:`~name`, :attr:`~multi_call` and
+    subclass will be used by *PRISM*: :attr:`~name`, :attr:`~call_type` and
     :attr:`~MPI_call`. The first defines what the name of the subclass is,
     which is used by *PRISM* to identify the subclass with and check if one did
-    not use a different subclass by accident. The other two are switches that
+    not use a different subclass by accident. The other two are flags that
     determine how the :meth:`~call_model` method should be used. These three
     properties can be set anywhere during the initialization of the
     :class:`~ModelLink` subclass, or are set to a default value if they are not
@@ -74,8 +75,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     Note
     ----
-    The :meth:`~__init__` method may be overridden by the :class:`~ModelLink`
-    subclass, but the inherited version must always be called.
+    The :meth:`~__init__` method may be extended by the :class:`~ModelLink`
+    subclass, but the superclass version must always be called.
 
     """
 
@@ -161,11 +162,11 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         except AttributeError:
             self.name = self.__class__.__name__
 
-        # Set multi_call to default (False) if not modified before
+        # Set call_type to default ('single') if not modified before
         try:
-            self._multi_call
+            self._call_type
         except AttributeError:
-            self.multi_call = False
+            self.call_type = 'single'
 
         # Set MPI_call to default (False) if not modified before
         try:
@@ -409,7 +410,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         if(n_par == 1):
             raise InputError("Number of model parameters must be at least 2!")
         else:
-            self._n_par = check_val(n_par, 'n_par', 'pos')
+            self._n_par = check_vals(n_par, 'n_par', 'pos')
 
         # Create empty parameter name, ranges and estimate lists/arrays
         self._par_name = []
@@ -423,14 +424,13 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             values = convert_str_seq(values_str)
 
             # Save parameter name and range
-            self._par_name.append(check_val(name, 'par_name[%s]' % (i), 'str'))
-            self._par_rng[i] = (
-                check_val(values[0], 'lower_bnd[%s]' % (name), 'float'),
-                check_val(values[1], 'upper_bnd[%s]' % (name), 'float'))
+            self._par_name.append(check_vals(name, 'par_name', 'str'))
+            self._par_rng[i] = check_vals(values[:2], 'par_rng[%s]' % (name),
+                                          'float')
 
             # Check if a float parameter estimate was provided
             try:
-                self._par_est.append(check_val(
+                self._par_est.append(check_vals(
                     values[2], 'par_est[%s]' % (name), 'float'))
             # If no estimate was provided, save it as None
             except IndexError:
@@ -550,7 +550,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             model_data_dict[tuple(tmp_idx)] = tmp_point
 
         # Determine the number of data points
-        self._n_data = check_val(len(model_data_dict), 'n_data', 'pos')
+        self._n_data = check_vals(len(model_data_dict), 'n_data', 'pos')
 
         # Create empty data value, error, space and identifier lists
         self._data_val = []
@@ -567,15 +567,14 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                 idx = list(idx)
 
             # Save data value
-            self._data_val.append(check_val(data[0], 'data_val[%s]' % (idx),
-                                            'float'))
+            self._data_val.append(check_vals(data[0], 'data_val[%s]' % (idx),
+                                             'float'))
 
             # Save data error and extract space
             # If length is two, centered error and no data space were given
             if(len(data) == 2):
                 self._data_err.append(
-                    [check_val(data[1], 'data_err[%s]' % (idx), 'float'),
-                     check_val(data[1], 'data_err[%s]' % (idx), 'float')])
+                    [check_vals(data[1], 'data_err[%s]' % (idx), 'float')]*2)
                 spc = 'lin'
 
             # If length is three, there are two possibilities
@@ -583,25 +582,20 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                 # If the third column contains a string, it is the data space
                 if isinstance(data[2], (str, unicode)):
                     self._data_err.append(
-                        [check_val(data[1], 'data_err[%s]' % (idx), 'float'),
-                         check_val(data[1], 'data_err[%s]' % (idx), 'float')])
+                        [check_vals(data[1], 'data_err[%s]' % (idx),
+                                    'float')]*2)
                     spc = data[2]
 
                 # If the third column contains no string, it is error interval
                 else:
                     self._data_err.append(
-                        [check_val(data[1], 'lower_data_err[%s]' % (idx),
-                                   'float'),
-                         check_val(data[2], 'upper_data_err[%s]' % (idx),
-                                   'float')])
+                        check_vals(data[1:3], 'data_err[%s]' % (idx), 'float'))
                     spc = 'lin'
 
             # If length is four+, error interval and data space were given
             else:
                 self._data_err.append(
-                    [check_val(data[1], 'lower_data_err[%s]' % (idx), 'float'),
-                     check_val(data[2], 'upper_data_err[%s]' % (idx), 'float')]
-                    )
+                    check_vals(data[1:3], 'data_err[%s]' % (idx), 'float'))
                 spc = data[3]
 
             # Save data space
@@ -637,9 +631,9 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         %(emul_i)s
         model_parameters : dict of :class:`~numpy.float64`
             Dict containing the values for all model parameters corresponding
-            to the requested model realization(s). If :attr:`~multi_call` is
-            *False*, dict is formatted as ``{par_name: par_val}``. If *True*,
-            it is formatted as ``{par_name: [par_val_1, par_val_2, ...,
+            to the requested model realization(s). If model is single-called,
+            dict is formatted as ``{par_name: par_val}``. If multi-called, it
+            is formatted as ``{par_name: [par_val_1, par_val_2, ...,
             par_val_n]}``.
         data_idx : list of lists
             List containing the user-defined data point identifiers
@@ -650,8 +644,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         data_val : 1D or 2D array_like
             Array containing the data values corresponding to the requested
             data points generated by the requested model realization(s). If
-            :attr:`~multi_call` is *True*, `data_val` is of shape
-            ``(n_sam, n_data)``.
+            model is multi-called, `data_val` is of shape ``(n_sam, n_data)``.
 
         """
 
@@ -713,13 +706,26 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     @name.setter
     def name(self, name):
-        self._name = check_val(name, 'name', 'str')
+        self._name = check_vals(name, 'name', 'str')
+
+    @property
+    def single_call(self):
+        """
+        bool: Whether :meth:`~call_model` can/should be supplied with a single
+        evaluation sample. At least one of :attr:`~single_call` and
+        :attr:`~multi_call` must be *True*.
+        By default, single model calls are requested (True).
+
+        """
+
+        return(bool(self._single_call))
 
     @property
     def multi_call(self):
         """
         bool: Whether :meth:`~call_model` can/should be supplied with a set of
-        evaluation samples instead of a single sample.
+        evaluation samples. At least one of :attr:`~single_call` and
+        :attr:`~multi_call` must be *True*.
         By default, single model calls are requested (False).
 
         """
@@ -728,7 +734,43 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     @multi_call.setter
     def multi_call(self, multi_call):
-        self._multi_call = check_val(multi_call, 'multi_call', 'bool')
+        warn_msg = ("Setting property 'multi_call' is deprecated since v0.5.3."
+                    "Use the 'call_type' property instead.")
+        warnings.warn(warn_msg, stacklevel=2)
+
+    @property
+    def call_type(self):
+        """
+        str: String indicating whether :meth:`call_model` should be supplied
+        with a single evaluation sample ('single') or a set of samples
+        ('multi'), or can be supplied with both ('hybrid').
+        By default, single model calls are requested ('single').
+
+        """
+
+        return(self._call_type)
+
+    @call_type.setter
+    def call_type(self, call_type):
+        # Check if call_type is a string
+        call_type = check_vals(call_type, 'call_type', 'str')
+
+        # Set single_call and multi_call appropriately
+        if call_type.lower() in ('single', 'one', '1d'):
+            self._single_call = 1
+            self._multi_call = 0
+            self._call_type = 'single'
+        elif call_type.lower() in ('multi', 'many', '2d'):
+            self._single_call = 0
+            self._multi_call = 1
+            self._call_type = 'multi'
+        elif call_type.lower() in ('hybrid', 'both', 'nd'):
+            self._single_call = 1
+            self._multi_call = 1
+            self._call_type = 'hybrid'
+        else:
+            raise ValueError("Input argument 'call_type' is invalid (%r)!"
+                             % (call_type))
 
     @property
     def MPI_call(self):
@@ -743,7 +785,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     @MPI_call.setter
     def MPI_call(self, MPI_call):
-        self._MPI_call = check_val(MPI_call, 'MPI_call', 'bool')
+        self._MPI_call = check_vals(MPI_call, 'MPI_call', 'bool')
 
     # Model Parameters
     @property

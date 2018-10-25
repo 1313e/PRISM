@@ -68,8 +68,8 @@ class ImagineLink(ModelLink):
         # Setting loaded ModelLink name to include hammu_model
         self.name = 'ImagineLink_%s' % (hammu_model)
 
-        # Request single model calls
-        self.multi_call = False
+        # Request only single model calls
+        self.call_type = 'single'
 
         # Request controller calls
         self.MPI_call = False

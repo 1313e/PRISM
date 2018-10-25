@@ -45,6 +45,16 @@ class Test_ModelLink_Exceptions(object):
         with pytest.raises(TypeError):
             GaussianLink2D(model_parameters=model_parameters_invalid_est)
 
+    # Try to create a GaussianLink2D object using different types of model call
+    # Also include an invalid call type
+    def test_invalid_call_type(self):
+        modellink_obj = GaussianLink2D()
+        modellink_obj.call_type = 'single'
+        modellink_obj.call_type = 'multi'
+        modellink_obj.call_type = 'hybrid'
+        with pytest.raises(ValueError):
+            modellink_obj.call_type = 'invalid'
+
     # Try to create a GaussianLink3D object with not enough model data
     def test_n_model_data(self):
         with pytest.raises(ValueError):

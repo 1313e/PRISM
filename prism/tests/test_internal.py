@@ -18,7 +18,7 @@ import pytest
 from prism._internal import (compat_version, prism_version, CLogger,
                              PRISM_File, RLogger, RequestError,
                              docstring_append, docstring_copy,
-                             docstring_substitute, check_val,
+                             docstring_substitute, check_vals,
                              check_compatibility, convert_str_seq, delist,
                              getCLogger, getRLogger, import_cmaps, move_logger,
                              raise_error, rprint, start_logger)
@@ -215,82 +215,117 @@ class Test_check_val(object):
     # Check if all the type checks work correctly
     def test_type(self):
         # Test for bool
-        assert check_val(0, 'bool', 'bool') == 0
-        assert check_val(1, 'bool', 'bool') == 1
-        assert check_val(False, 'bool', 'bool') == 0
-        assert check_val(True, 'bool', 'bool') == 1
-        assert check_val("0", 'bool', 'bool') == 0
-        assert check_val("1", 'bool', 'bool') == 1
-        assert check_val("False", 'bool', 'bool') == 0
-        assert check_val("True", 'bool', 'bool') == 1
+        assert check_vals(0, 'bool', 'bool') == 0
+        assert check_vals(1, 'bool', 'bool') == 1
+        assert check_vals(False, 'bool', 'bool') == 0
+        assert check_vals(True, 'bool', 'bool') == 1
+        assert check_vals("0", 'bool', 'bool') == 0
+        assert check_vals("1", 'bool', 'bool') == 1
+        assert check_vals("False", 'bool', 'bool') == 0
+        assert check_vals("True", 'bool', 'bool') == 1
         with pytest.raises(TypeError):
-            check_val(2, 'bool', 'bool')
+            check_vals(2, 'bool', 'bool')
 
         # Test for str
-        assert check_val('str', 'str', 'str') == 'str'
-        assert check_val(u'str', 'str', 'str') == u'str'
+        assert check_vals('str', 'str', 'str') == 'str'
+        assert check_vals(u'str', 'str', 'str') == u'str'
         with pytest.raises(TypeError):
-            check_val(1, 'str', 'str')
+            check_vals(1, 'str', 'str')
 
         # Test for float
-        assert check_val(1, 'float', 'float') == 1
-        assert check_val(1., 'float', 'float') == 1.
-        assert check_val(1.0, 'float', 'float') == 1.0
+        assert check_vals(1, 'float', 'float') == 1
+        assert check_vals(1., 'float', 'float') == 1.
+        assert check_vals(1.0, 'float', 'float') == 1.0
         with pytest.raises(TypeError):
-            check_val('1', 'str', 'float')
+            check_vals('1', 'str', 'float')
 
         # Test for int
-        assert check_val(1, 'int', 'int') == 1
-        assert check_val(int(1.0), 'int', 'int') == 1
+        assert check_vals(1, 'int', 'int') == 1
+        assert check_vals(int(1.0), 'int', 'int') == 1
         with pytest.raises(TypeError):
-            check_val(1.0, 'float', 'int')
+            check_vals(1.0, 'float', 'int')
 
     # Check if all the value checks work correctly
     def test_value(self):
         # Check for negative value
-        assert check_val(-1, 'neg', 'neg') == -1
+        assert check_vals(-1, 'neg', 'neg') == -1
         with pytest.raises(ValueError):
-            check_val(0, 'neg', 'neg')
+            check_vals(0, 'neg', 'neg')
         with pytest.raises(ValueError):
-            check_val(1, 'neg', 'neg')
+            check_vals(1, 'neg', 'neg')
 
         # Check for non-negative value
-        assert check_val(0, 'nneg', 'nneg') == 0
-        assert check_val(1, 'nneg', 'nneg') == 1
+        assert check_vals(0, 'nneg', 'nneg') == 0
+        assert check_vals(1, 'nneg', 'nneg') == 1
         with pytest.raises(ValueError):
-            check_val(-1, 'nneg', 'nneg')
+            check_vals(-1, 'nneg', 'nneg')
 
         # Check for positive value
-        assert check_val(1, 'pos', 'pos') == 1
+        assert check_vals(1, 'pos', 'pos') == 1
         with pytest.raises(ValueError):
-            check_val(0, 'pos', 'pos')
+            check_vals(0, 'pos', 'pos')
         with pytest.raises(ValueError):
-            check_val(-1, 'pos', 'pos')
+            check_vals(-1, 'pos', 'pos')
 
         # Check for non-positive value
-        assert check_val(0, 'npos', 'npos') == 0
-        assert check_val(-1, 'npos', 'npos') == -1
+        assert check_vals(0, 'npos', 'npos') == 0
+        assert check_vals(-1, 'npos', 'npos') == -1
         with pytest.raises(ValueError):
-            check_val(1, 'npos', 'npos')
+            check_vals(1, 'npos', 'npos')
 
         # Check for non-zero value
-        assert check_val(-1, 'nzero', 'nzero') == -1
-        assert check_val(1, 'nzero', 'nzero') == 1
+        assert check_vals(-1, 'nzero', 'nzero') == -1
+        assert check_vals(1, 'nzero', 'nzero') == 1
         with pytest.raises(ValueError):
-            check_val(0, 'nzero', 'nzero')
+            check_vals(0, 'nzero', 'nzero')
 
         # Check for infinite value
         with pytest.raises(ValueError):
-            check_val(np.infty, 'infty')
+            check_vals(np.infty, 'infty')
         with pytest.raises(ValueError):
-            check_val(np.NaN, 'nan')
+            check_vals(np.NaN, 'nan')
         with pytest.raises(ValueError):
-            check_val('str', 'str')
+            check_vals('str', 'str')
+
+    # Check if providing array_like as value works correctly
+    def test_array_like(self):
+        # Check for list
+        lst = [1, 2]
+        lst2 = check_vals(lst, 'list', 'float')
+        assert lst2 == [1.0, 2.0]
+        assert type(lst2[0]) == float
+
+        # Check for NumPy array
+        array = np.array([1, 2])
+        assert (check_vals(array, 'array', 'pos') == [1, 2]).all()
+
+        # Check for NumPy array of floats
+        array = np.array([1, 2])
+        array2 = check_vals(array, 'array', 'float')
+        assert (array2 == [1.0, 2.0]).all()
+        assert array2.dtype.name == 'float64'
+
+        # Check for NumPy array of bools
+        array = np.array([False, True])
+        array2 = check_vals(array, 'array', 'bool')
+        assert (array2 == [0, 1]).all()
+        assert array2.dtype.name == 'int64'
+
+        # Check for NumPy array of strings
+        array = np.array(['a', 'b'])
+        array2 = check_vals(array, 'array', 'str')
+        assert array2.dtype.name == 'str32'
+
+        # Check if providing a dict or tuple raises an error
+        with pytest.raises(TypeError):
+            check_vals({}, 'dict', 'float')
+        with pytest.raises(TypeError):
+            check_vals((1, 2), 'tuple', 'float')
 
     # Check if providing incorrect arguments raises an error
     def test_args(self):
         with pytest.raises(InputError):
-            check_val(1, 'int', 'invalid')
+            check_vals(1, 'int', 'invalid')
 
 
 # Pytest for the convert_str_seq function

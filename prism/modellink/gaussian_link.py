@@ -19,7 +19,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 # PRISM imports
-from .._internal import check_val
+from .._internal import check_vals
 from .modellink import ModelLink
 
 # All declaration
@@ -55,13 +55,14 @@ class GaussianLink(ModelLink):
         """
 
         # Set the number of Gaussians
-        self._n_gaussians = check_val(n_gaussians, 'n_gaussians', 'pos', 'int')
+        self._n_gaussians = check_vals(n_gaussians, 'n_gaussians', 'pos',
+                                       'int')
 
         # Set the name of this GaussianLink instance
         self.name = 'GaussianLink_n%i' % (self._n_gaussians)
 
-        # Request single model calls
-        self.multi_call = False
+        # Request single or multi model calls
+        self.call_type = 'hybrid'
 
         # Request only controller calls
         self.MPI_call = False
@@ -90,13 +91,24 @@ class GaussianLink(ModelLink):
 
     def call_model(self, emul_i, model_parameters, data_idx):
         par = model_parameters
-        mod_set = 0
-        for i in range(1, self._n_gaussians+1):
-            mod_set +=\
-                par['A%i' % (i)]*np.exp(-1*((data_idx-par['B%i' % (i)])**2 /
-                                            (2*par['C%i' % (i)]**2)))
+        mod_set = [0]*len(data_idx)
+        for i, idx in enumerate(data_idx):
+            for j in range(1, self._n_gaussians+1):
+                mod_set[i] +=\
+                    par['A%i' % (j)]*np.exp(-1*((idx-par['B%i' % (j)])**2 /
+                                                (2*par['C%i' % (j)]**2)))
 
-        return(mod_set)
+        return(np.array(mod_set).T)
 
     def get_md_var(self, emul_i, data_idx):
         return(pow(0.1*np.ones_like(data_idx), 2))
+
+    # %% GAUSSIANLINK CLASS PROPERTIES
+    @property
+    def n_gaussians(self):
+        """
+        int: Number of Gaussians used in this :obj:`~GaussianLink` instance.
+
+        """
+
+        return(self._n_gaussians)

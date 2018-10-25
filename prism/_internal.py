@@ -15,6 +15,7 @@ from __future__ import (absolute_import, division, print_function,
                         with_statement)
 
 # Built-in imports
+from copy import copy
 import logging
 import logging.config
 import os
@@ -39,16 +40,18 @@ from .__version__ import compat_version, prism_version
 
 # All declaration
 __all__ = ['CLogger', 'PRISM_File', 'RLogger', 'RequestError', 'aux_char_list',
-           'check_compatibility', 'check_instance', 'check_val',
+           'check_compatibility', 'check_instance', 'check_vals',
            'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
-           'docstring_substitute', 'getCLogger', 'getRLogger', 'import_cmaps',
-           'move_logger', 'raise_error', 'rprint', 'start_logger']
+           'docstring_substitute', 'exec_code_anal', 'getCLogger',
+           'getRLogger', 'import_cmaps', 'move_logger', 'raise_error',
+           'rprint', 'start_logger']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
     unicode = str
 
-# Determine MPI ranks
+# Determine MPI size and ranks
+size = MPI.COMM_WORLD.Get_size()
 rank = MPI.COMM_WORLD.Get_rank()
 
 
@@ -374,31 +377,38 @@ def check_instance(instance, cls):
         return(1)
 
 
-# This function checks if the input value meets all given criteria
-def check_val(value, name, *args):
+# This function checks if the input values meet all given criteria
+def check_vals(values, name, *args):
     """
-    Checks if provided input argument `name` of `value` meets all criteria
-    given in `args`. If no criteria are given, it is checked if `value` is
-    finite.
-    Returns `value` (0 or 1 in case of bool) if *True* and raises a
+    Checks if all values in provided input argument `values` with `name` meet
+    all criteria given in `args`. If no criteria are given, it is checked if
+    all values are finite.
+    Returns `values` (0 or 1 in case of bool) if *True* and raises a
     :class:`~ValueError` or :class:`~TypeError` if *False*.
 
     Parameters
     ----------
-    value : int, float, str, bool
-        The value to be checked against all given criteria in `args`.
+    values : array_like of {int, float, str, bool}
+        The values to be checked against all given criteria in `args`.
     name : str
         The name of the input argument, which is used in the error message if
         a criterion is not met.
     args : {'bool', 'float', 'int', 'neg', 'nneg', 'npos', 'nzero', 'pos',\
            'str'}
-        Sequence of strings determining the criteria that `value` must meet. If
-        `args` is empty, it is checked if `value` is finite.
+        Sequence of strings determining the criteria that `values` must meet.
+        If `args` is empty, it is checked if `values` are finite.
 
     Returns
     -------
-    return_value : int, float, str
-        If `args` contained 'bool', returns 0 or 1. Else, returns `value`.
+    return_values : array_like of {int, float, str}
+        If `args` contained 'bool', returns 0 or 1. Else, returns `values`.
+
+    Notes
+    -----
+    If `values` is array_like, every element is replaced by its checked values
+    (0s or 1s in case of bools, or ints converted to floats in case of floats).
+    Because of this, a copy will be made of `values`. If this is not possible,
+    `values` is adjusted in place.
 
     """
 
@@ -407,6 +417,40 @@ def check_val(value, name, *args):
 
     # Convert args to a list
     args = list(args)
+
+    # Check ndim of values and iterate over values if ndim > 0
+    if np.ndim(values):
+        # If values is a NumPy array, make empty copy and upcast if necessary
+        if isinstance(values, np.ndarray):
+            if 'bool' in args or 'int' in args:
+                values_copy = np.empty_like(values, dtype=int)
+            elif 'float' in args:
+                values_copy = np.empty_like(values, dtype=float)
+            elif 'str' in args:
+                values_copy = np.empty_like(values, dtype=str)
+            else:
+                values_copy = np.empty_like(values)
+
+        # If not a NumPy array, make a normal copy
+        else:
+            # Check if values has the copy()-method and use it if so
+            try:
+                values_copy = values.copy()
+            # Else, use the built-in copy() method
+            except AttributeError:
+                values_copy = copy(values)
+
+        # Iterate over first dimension of values
+        for idx, value in enumerate(values):
+            # Check value
+            values_copy[idx] = check_vals(value, '%s[%s]' % (name, idx), *args)
+
+        # Return values
+        return(values_copy)
+
+    # If ndim == 0, set value to values
+    else:
+        value = values
 
     # Check for bool
     if 'bool' in args:
@@ -434,7 +478,7 @@ def check_val(value, name, *args):
         if isinstance(value, (int, float, np.integer, np.floating)):
             # Remove 'float' from args and check it again
             args.remove('float')
-            value = check_val(value, name, *args)
+            value = check_vals(value, name, *args)
             return(float(value))
         else:
             err_msg = "Input argument '%s' is not of type 'float'!" % (name)
@@ -446,7 +490,7 @@ def check_val(value, name, *args):
         if isinstance(value, (int, np.integer)):
             # Remove 'int' from args and check it again
             args.remove('int')
-            value = check_val(value, name, *args)
+            value = check_vals(value, name, *args)
             return(value)
         else:
             err_msg = "Input argument '%s' is not of type 'int'!" % (name)
@@ -458,7 +502,7 @@ def check_val(value, name, *args):
         if(value < 0):
             # Remove 'neg' from args and check it again
             args.remove('neg')
-            value = check_val(value, name, *args)
+            value = check_vals(value, name, *args)
             return(value)
         else:
             err_msg = "Input argument '%s' is not negative!" % (name)
@@ -470,7 +514,7 @@ def check_val(value, name, *args):
         if not(value < 0):
             # Remove 'nneg' from args and check it again
             args.remove('nneg')
-            value = check_val(value, name, *args)
+            value = check_vals(value, name, *args)
             return(value)
         else:
             err_msg = "Input argument '%s' is not non-negative!" % (name)
@@ -482,7 +526,7 @@ def check_val(value, name, *args):
         if not(value > 0):
             # Remove 'npos' from args and check it again
             args.remove('npos')
-            value = check_val(value, name, *args)
+            value = check_vals(value, name, *args)
             return(value)
         else:
             err_msg = "Input argument '%s' is not non-positive!" % (name)
@@ -494,7 +538,7 @@ def check_val(value, name, *args):
         if not(value == 0):
             # Remove 'nzero' from args and check it again
             args.remove('nzero')
-            value = check_val(value, name, *args)
+            value = check_vals(value, name, *args)
             return(value)
         else:
             err_msg = "Input argument '%s' is not non-zero!" % (name)
@@ -506,7 +550,7 @@ def check_val(value, name, *args):
         if(value > 0):
             # Remove 'pos' from args and check it again
             args.remove('pos')
-            value = check_val(value, name, *args)
+            value = check_vals(value, name, *args)
             return(value)
         else:
             err_msg = "Input argument '%s' is not positive!" % (name)
@@ -755,11 +799,11 @@ def raise_error(err_type, err_msg, logger):
 
 
 # Redefine the print function to include the MPI rank if MPI is used
-def rprint(string):
-    if(MPI.__package__ == 'mpi4py'):
-        print("Rank %s: %s" % (rank, string))
-    else:
-        print(string)
+def rprint(*args, **kwargs):
+    if(MPI.__package__ == 'mpi4py' and size > 1):
+        args = list(args)
+        args.insert(0, "Rank %s:" % (rank))
+    print(*args, **kwargs)
 
 
 # Define function that can start the logging process of PRISM
@@ -821,3 +865,16 @@ def start_logger(filename=None, mode='w'):
 aux_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/', '{', '}', '<',
                  '>', '´', '¨', '`', '\\', '?', '!', '%', ':', ';', '+', '-',
                  '=', '$', '~', '#', '@', '^', '&', '*']
+
+
+# %% COMPILED CODE OBJECT DEFINITIONS
+# Code tuple for analyzing
+_pre_code_anal = compile("", '<string>', 'exec')
+_eval_code_anal = compile("", '<string>', 'exec')
+_anal_code_anal = compile("", '<string>', 'exec')
+_post_code_anal = compile("self.results = sam_set[sam_idx]", '<string>',
+                          'exec')
+_exit_code_anal = compile("", '<string>', 'exec')
+
+exec_code_anal = (_pre_code_anal, _eval_code_anal, _anal_code_anal,
+                  _post_code_anal, _exit_code_anal)

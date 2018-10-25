@@ -234,6 +234,12 @@ class Test_Pipeline_Gaussian2D(object):
         pipe2 = eval(repr(pipe))
         assert pipe2._hdf5_file == pipe._hdf5_file
 
+    # Check if the logging system can be disabled
+    def test_disable_logging(self, pipe):
+        pipe.do_logging = 0
+        pipe.do_logging = 0
+        pipe.do_logging = 1
+
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model
 class Test_Pipeline_Gaussian3D(object):
@@ -909,11 +915,6 @@ class Test_Pipeline_ModelLink_Versatility(object):
         pipe2D.details()
         pipe2D._emulator._active_par[1][1] = 1
 
-    # Test if multi_call can be used correctly
-    def test_multi_call(self, pipe2D):
-        pipe2D._modellink.multi_call = True
-        pipe2D.construct(1, 0)
-
     # Test if mock data takes log10 value spaces into account correctly
     def test_mock_data_spaces_log(self, pipe3D):
         np.random.seed(0)
@@ -928,9 +929,6 @@ class Test_Pipeline_ModelLink_Versatility(object):
 
     # Test if an ext_real_set bigger than n_sam_init can be provided
     def test_ext_real_set_large(self, pipe2D):
-        # Change the modellink in pipe to use multi_call
-        pipe2D._modellink.multi_call = True
-
         # Create ext_real_set larger than n_sam_init
         sam_set = lhd(pipe2D._n_sam_init*2, pipe2D._modellink._n_par,
                       pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
@@ -943,9 +941,6 @@ class Test_Pipeline_ModelLink_Versatility(object):
 
     # Test if an ext_real_set smaller than n_sam_init can be provided
     def test_ext_real_set_small(self, pipe2D):
-        # Change the modellink in pipe to use multi_call
-        pipe2D._modellink.multi_call = True
-
         # Create ext_real_set smaller than n_sam_init
         sam_set = lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
                       pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
@@ -958,9 +953,6 @@ class Test_Pipeline_ModelLink_Versatility(object):
 
     # Test if an ext_real_set dict can be provided
     def test_ext_real_set_dict(self, pipe2D):
-        # Change the modellink in pipe to use multi_call
-        pipe2D._modellink.multi_call = True
-
         # Create ext_real_set dict
         sam_set = lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
                       pipe2D._modellink._par_rng, 'center', pipe2D._criterion)

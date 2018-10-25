@@ -41,7 +41,7 @@ from ._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
                           get_emul_i_doc, read_par_doc, regr_cov_doc,
                           save_data_doc_e, std_emul_i_doc)
 from ._internal import (PRISM_File, RequestError, check_compatibility,
-                        check_instance, check_val, delist, docstring_append,
+                        check_instance, check_vals, delist, docstring_append,
                         docstring_substitute, getCLogger, getRLogger,
                         raise_error)
 from .modellink import ModelLink
@@ -455,7 +455,7 @@ class Emulator(object):
                            % (emul_i))
                 raise_error(RequestError, err_msg, logger)
             else:
-                emul_i = check_val(emul_i, 'emul_i', 'pos', 'int')
+                emul_i = check_vals(emul_i, 'emul_i', 'pos', 'int')
 
         # If the next iteration is requested
         else:
@@ -466,7 +466,7 @@ class Emulator(object):
                            "requested!" % (emul_i))
                 raise_error(RequestError, err_msg, logger)
             else:
-                emul_i = check_val(emul_i, 'emul_i', 'pos', 'int')
+                emul_i = check_vals(emul_i, 'emul_i', 'pos', 'int')
 
         # Do some logging
         logger.info("Requested emulator iteration set to %s." % (emul_i))
@@ -2032,8 +2032,8 @@ class Emulator(object):
 
         # If this fails, modellink_obj is not an instance of ModelLink
         except TypeError:
-            err_msg = ("Input argument 'modellink' must be an instance of the "
-                       "ModelLink class!")
+            err_msg = ("Input argument 'modellink_obj' must be an instance of "
+                       "the ModelLink class!")
             raise_error(TypeError, err_msg, logger)
 
         # If no existing emulator is loaded, pass
@@ -2594,11 +2594,12 @@ class Emulator(object):
 
         # GENERAL
         # Gaussian sigma
-        self._sigma = check_val(float(par_dict['sigma']), 'sigma', 'nzero')
+        self._sigma = check_vals(float(par_dict['sigma']), 'sigma', 'nzero')
 
         # Gaussian correlation length
-        self._l_corr = check_val(float(par_dict['l_corr']), 'l_corr', 'pos') *\
-            abs(self._modellink._par_rng[:, 1]-self._modellink._par_rng[:, 0])
+        l_corr = check_vals(float(par_dict['l_corr']), 'l_corr', 'pos')
+        self._l_corr = l_corr*abs(self._modellink._par_rng[:, 1] -
+                                  self._modellink._par_rng[:, 0])
 
         # Method used to calculate emulator functions
         # Future will include 'gaussian', 'regression', 'auto' and 'full'
@@ -2613,19 +2614,19 @@ class Emulator(object):
             raise_error(ValueError, err_msg, logger)
 
         # Obtain the bool determining whether or not to use regr_cov
-        self._use_regr_cov = check_val(par_dict['use_regr_cov'],
-                                       'use_regr_cov', 'bool')
+        self._use_regr_cov = check_vals(par_dict['use_regr_cov'],
+                                        'use_regr_cov', 'bool')
 
         # Check if method == 'regression' and set use_regr_cov to True if so
         if self._method.lower() == 'regression':
             self._use_regr_cov = 1
 
         # Obtain the polynomial order for the regression selection process
-        self._poly_order = check_val(int(par_dict['poly_order']), 'poly_order',
-                                     'pos')
+        self._poly_order = check_vals(int(par_dict['poly_order']),
+                                      'poly_order', 'pos')
 
         # Obtain the bool determining whether or not to use mock data
-        self._use_mock = check_val(par_dict['use_mock'], 'use_mock', 'bool')
+        self._use_mock = check_vals(par_dict['use_mock'], 'use_mock', 'bool')
 
         # Log that reading has been finished
         logger.info("Finished reading emulator parameters.")

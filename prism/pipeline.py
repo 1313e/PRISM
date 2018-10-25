@@ -16,6 +16,7 @@ from __future__ import (absolute_import, division, print_function,
 
 # Built-in imports
 from inspect import isclass
+import logging
 import os
 from os import path
 import sys
@@ -40,10 +41,10 @@ from ._docstrings import (call_emul_i_doc, call_model_doc_s, call_model_doc_m,
                           impl_temp_doc, paths_doc_d, paths_doc_s,
                           read_par_doc, save_data_doc_p, std_emul_i_doc,
                           user_emul_i_doc)
-from ._internal import (PRISM_File, RequestError, check_val, convert_str_seq,
+from ._internal import (PRISM_File, RequestError, check_vals, convert_str_seq,
                         delist, docstring_append, docstring_copy,
-                        docstring_substitute, getCLogger, getRLogger,
-                        move_logger, raise_error, start_logger)
+                        docstring_substitute, exec_code_anal, getCLogger,
+                        getRLogger, move_logger, raise_error, start_logger)
 from .emulator import Emulator
 from .projection import Projection
 
@@ -135,6 +136,9 @@ class Pipeline(Projection, object):
         # Start logger for workers as well
         if self._is_worker:
             start_logger(path.join(self._working_dir, 'prism_log.log'), 'a')
+
+        # Set do_logging property to True
+        self._do_logging = True
 
         # Initialize Emulator class
         # If emul_type is a subclass of Emulator, try to initialize it
@@ -298,6 +302,38 @@ class Pipeline(Projection, object):
         return(bool(self._is_worker))
 
     # Pipeline Settings/Attributes/Details
+    @property
+    def do_logging(self):
+        """
+        bool: Whether or not to save all logging messages. If *False*, all
+        logging messages of level :attr:`~logging.INFO` and below are ignored.
+
+        """
+
+        return(self._do_logging)
+
+    @do_logging.setter
+    def do_logging(self, flag):
+        # Make logger
+        logger = getRLogger('DO_LOGGING')
+
+        # Check if provided value is a bool
+        flag = check_vals(flag, 'do_logging', 'bool')
+
+        # If flag and do_logging are the same, skip
+        if flag is self._do_logging:
+            pass
+        # If logging is turned off, log this and turn off logging
+        elif not flag:
+            logging.disable(logging.INFO)
+            logger.warning("Logging messages of level %i (INFO) and below are "
+                           "now ignored." % (logging.INFO))
+        # If logging is turned on, turn it on and log this
+        else:
+            logging.disable(logging.NOTSET)
+            logger.warning("Logging messages are no longer ignored.")
+        self._do_logging = flag
+
     @property
     def root_dir(self):
         """
@@ -572,12 +608,12 @@ class Pipeline(Projection, object):
 
         # GENERAL
         # Number of starting samples
-        self._n_sam_init = check_val(int(par_dict['n_sam_init']), 'n_sam_init',
-                                     'pos')
+        self._n_sam_init = check_vals(int(par_dict['n_sam_init']),
+                                      'n_sam_init', 'pos')
 
         # Base number of emulator evaluation samples
-        self._base_eval_sam = check_val(int(par_dict['base_eval_sam']),
-                                        'base_eval_sam', 'pos')
+        self._base_eval_sam = check_vals(int(par_dict['base_eval_sam']),
+                                         'base_eval_sam', 'pos')
 
         # Criterion parameter used for Latin Hypercube Sampling
         # If criterion is None, save it as such
@@ -601,12 +637,12 @@ class Pipeline(Projection, object):
 
         # Obtain the bool determining whether to do an active parameters
         # analysis
-        self._do_active_anal = check_val(par_dict['do_active_anal'],
-                                         'do_active_anal', 'bool')
+        self._do_active_anal = check_vals(par_dict['do_active_anal'],
+                                          'do_active_anal', 'bool')
 
         # Obtain the bool determining whether active parameters stay active
-        self._freeze_active_par = check_val(par_dict['freeze_active_par'],
-                                            'freeze_active_par', 'bool')
+        self._freeze_active_par = check_vals(par_dict['freeze_active_par'],
+                                             'freeze_active_par', 'bool')
 
         # Check which parameters can potentially be active
         # If pot_active_par is None, save all model parameters
@@ -1260,11 +1296,11 @@ class Pipeline(Projection, object):
         if self._is_controller:
             # Log that this is finished
             eval_rate = end_time/n_sam if n_sam else 0
-            msg = ("Finished evaluating model samples in %.2f seconds, "
+            msg = ("Finished evaluating model samples in %.3g seconds, "
                    "averaging %.3g seconds per model evaluation."
                    % (end_time, eval_rate))
             self._save_statistics(emul_i, {
-                'tot_model_eval_time': ['%.2f' % (end_time), 's'],
+                'tot_model_eval_time': ['%.3g' % (end_time), 's'],
                 'avg_model_eval_time': ['%.3g' % (eval_rate), 's'],
                 'MPI_comm_size_model': ['%s' % (self._size), '']})
             logger.info(msg)
@@ -1493,9 +1529,7 @@ class Pipeline(Projection, object):
                 raise ShapeError(err_msg)
 
             # Check if all values are non-negative floats
-            for i, value in enumerate(md_var):
-                check_val(value[0], 'lower_md_var[%s]' % (i), 'nneg', 'float')
-                check_val(value[1], 'upper_md_var[%s]' % (i), 'nneg', 'float')
+            md_var = check_vals(md_var, 'md_var', 'nneg', 'float')
 
         # Return it
         return(md_var)
@@ -1532,8 +1566,8 @@ class Pipeline(Projection, object):
         # Complete the impl_cut list
         # Obtain the first impl_cut value
         try:
-            impl_cut[0] = check_val(impl_cut[0], 'impl_cut[0]', 'float',
-                                    'nneg')
+            impl_cut[0] = check_vals(impl_cut[0], 'impl_cut[0]', 'float',
+                                     'nneg')
         except IndexError:
             err_msg = ("Provided implausibility cut-off list contains no "
                        "elements!")
@@ -1542,8 +1576,8 @@ class Pipeline(Projection, object):
         # Loop over the remaining values in impl_cut
         for i in range(1, len(impl_cut)):
             # Check if provided value is non-negative float
-            impl_cut[i] = check_val(impl_cut[i], 'impl_cut[%s]' % (i), 'float',
-                                    'nneg')
+            impl_cut[i] = check_vals(impl_cut[i], 'impl_cut[%s]' % (i),
+                                     'float', 'nneg')
 
             # If the value is zero, take on the value of the previous cut-off
             if(impl_cut[i] == 0):
@@ -1733,10 +1767,8 @@ class Pipeline(Projection, object):
             raise_error(ShapeError, err_msg, logger)
 
         # Check if ext_sam_set and ext_mod_set solely contain floats
-        for i, (par_set, mod_out) in enumerate(zip(ext_sam_set, ext_mod_set)):
-            for j, (par, out) in enumerate(zip(par_set, mod_out)):
-                check_val(par, 'ext_sam_set[%s, %s]' % (i, j), 'float')
-                check_val(out, 'ext_mod_set[%s, %s]' % (i, j), 'float')
+        ext_sam_set = check_vals(ext_sam_set, 'ext_sam_set', 'float')
+        ext_mod_set = check_vals(ext_mod_set, 'ext_mod_set', 'float')
 
         # Check if all samples are within parameter space
         lower_bnd = self._modellink._par_rng[:, 0]
@@ -1794,7 +1826,8 @@ class Pipeline(Projection, object):
         results : object
             The object that is assigned to :attr:`~results`, which is defaulted
             to *None* if no code snippet changes it. Preferably, the execution
-            of `post_code` and/or `exit_code` modifies :attr:`~results`.
+            of `post_code` and/or `exit_code` modifies :attr:`~results`. All
+            MPI ranks return it.
 
         Notes
         -----
@@ -1891,9 +1924,8 @@ class Pipeline(Projection, object):
                 # MPI Barrier
                 self._comm.Barrier()
 
-                # Broadcast the updated sam_idx to the workers if not last i
-                if(i != emul_i):
-                    sam_idx = self._comm.bcast(sam_idx, 0)
+                # Broadcast the updated sam_idx to the workers
+                sam_idx = self._comm.bcast(sam_idx, 0)
 
                 # Check that sam_idx is still holding plausible samples
                 if not len(sam_idx):
@@ -1909,17 +1941,16 @@ class Pipeline(Projection, object):
         # Log that analysis is finished
         logger.info("Finished analyzing evaluation sample set.")
 
-        # Controller returning the results
+        # Execute the exit_code snippet on the controller
         if self._is_controller:
-            # Execute the exit_code snippet
             exec(exit_code)
 
-            # Retrieve the results and delete the attribute
-            results = self.results
-            del self.results
+        # Retrieve the results and delete the attribute
+        results = self.results
+        del self.results
 
-            # Return the results
-            return(results)
+        # Return the results
+        return(results)
 
     # %% VISIBLE CLASS METHODS
     # This function analyzes the emulator and determines the plausible regions
@@ -1986,21 +2017,11 @@ class Pipeline(Projection, object):
         # Broadcast eval_sam_set to workers
         eval_sam_set = self._comm.bcast(eval_sam_set, 0)
 
-        # Define the various code snippets
-        pre_code = compile("", '<string>', 'exec')
-        eval_code = compile("", '<string>', 'exec')
-        anal_code = compile("", '<string>', 'exec')
-        post_code = compile("", '<string>', 'exec')
-        exit_code = compile("self.results = impl_check", '<string>', 'exec')
-
-        # Combine code snippets into a tuple
-        exec_code = (pre_code, eval_code, anal_code, post_code, exit_code)
-
         # Save current time again
         start_time2 = time()
 
         # Analyze eval_sam_set
-        impl_check = self._analyze_sam_set(emul_i, eval_sam_set, *exec_code)
+        impl_sam = self._analyze_sam_set(emul_i, eval_sam_set, *exec_code_anal)
 
         # Controller finishing up
         if self._is_controller:
@@ -2011,12 +2032,12 @@ class Pipeline(Projection, object):
 
             # Save the results
             self._save_data({
-                'impl_sam': eval_sam_set[impl_check],
+                'impl_sam': impl_sam,
                 'n_eval_sam': n_eval_sam})
 
             # Save statistics about analyze time, evaluation speed, par_space
             avg_eval_rate = n_eval_sam/time_diff_eval
-            par_space_rem = (sum(impl_check)/n_eval_sam)*100
+            par_space_rem = (len(impl_sam)/n_eval_sam)*100
             self._save_statistics(emul_i, {
                 'tot_analyze_time': ['%.2f' % (time_diff_total), 's'],
                 'avg_emul_eval_rate': ['%.2f' % (avg_eval_rate), '1/s'],
@@ -2028,7 +2049,7 @@ class Pipeline(Projection, object):
                     "averaging %.2f emulator evaluations per second."
                     % (time_diff_total, n_eval_sam/time_diff_eval))
             msg2 = ("There is %.3g%% of parameter space remaining."
-                    % ((sum(impl_check)/n_eval_sam)*100))
+                    % ((len(impl_sam)/n_eval_sam)*100))
             logger.info(msg1)
             logger.info(msg2)
             print(msg1)
@@ -2097,7 +2118,7 @@ class Pipeline(Projection, object):
             start_time = time()
 
             # Check if force-parameter received a bool
-            force = check_val(force, 'force', 'bool')
+            force = check_vals(force, 'force', 'bool')
 
             # Check if iteration was interrupted or not, or if force is True
             logger.info("Checking state of emulator iteration %s." % (emul_i))
@@ -2142,7 +2163,7 @@ class Pipeline(Projection, object):
             c_from_start = None
 
         # Check if analyze-parameter received a bool
-        analyze = check_val(analyze, 'analyze', 'bool')
+        analyze = check_vals(analyze, 'analyze', 'bool')
 
         # Broadcast construct_emul_i to workers
         c_from_start = self._comm.bcast(c_from_start, 0)
@@ -2759,9 +2780,7 @@ class Pipeline(Projection, object):
                 raise_error(ShapeError, err_msg, logger)
 
             # Check if sam_set consists only out of floats
-            else:
-                for (i, j), par_val in np.ndenumerate(sam_set):
-                    check_val(par_val, 'sam_set[%s, %s]' % (i, j), 'float')
+            sam_set = check_vals(sam_set, 'sam_set', 'float')
 
         # The workers make sure that sam_set is also two-dimensional
         else:

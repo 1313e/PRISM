@@ -34,8 +34,8 @@ class GaussianLink2D(ModelLink):
     """
 
     def __init__(self, *args, **kwargs):
-        # Request single model calls
-        self.multi_call = False
+        # Request single or multi model calls
+        self.call_type = 'hybrid'
 
         # Request only controller calls
         self.MPI_call = False
@@ -57,21 +57,15 @@ class GaussianLink2D(ModelLink):
         return(model_data)
 
     def call_model(self, emul_i, model_parameters, data_idx):
-        if self._multi_call:
-            parsA = model_parameters['A']
-            parsB = model_parameters['B']
-            n_sam = len(parsA)
-            mod_set = np.zeros([n_sam, self._n_data])
-            for i, (parA, parB) in enumerate(zip(parsA, parsB)):
-                mod_set[i] = parA*np.exp(-1*((data_idx-parB)**2/(2)))
-        else:
-            par = model_parameters
-            mod_set = par['A']*np.exp(-1*((data_idx-par['B'])**2/(2)))
+        par = model_parameters
+        mod_set = [0]*len(data_idx)
+        for i, idx in enumerate(data_idx):
+            mod_set[i] += par['A']*np.exp(-1*((idx-par['B'])**2/(2)))
 
-        return(mod_set)
+        return(np.array(mod_set).T)
 
     def get_md_var(self, emul_i, data_idx):
-        return(pow(0.1*np.ones(len(data_idx)), 2))
+        return(pow(0.1*np.ones_like(data_idx), 2))
 
 
 class GaussianLink3D(ModelLink):

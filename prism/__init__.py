@@ -39,11 +39,12 @@ import warnings
 from .__version__ import prism_version as __version__
 from . import _internal
 from . import modellink
+from . import utils
 from .modellink import ModelLink
 from .pipeline import Pipeline
 
 # All declaration
-__all__ = ['modellink', 'ModelLink', 'Pipeline']
+__all__ = ['modellink', 'utils', 'ModelLink', 'Pipeline']
 
 # Author declaration
 __author__ = "Ellert van der Velden"

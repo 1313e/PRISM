@@ -40,8 +40,8 @@ class SineWaveLink(ModelLink):
     """
 
     def __init__(self, *args, **kwargs):
-        # Request single model calls
-        self.multi_call = False
+        # Request single or multi model calls
+        self.call_type = 'hybrid'
 
         # Request only controller calls
         self.MPI_call = False
@@ -59,10 +59,11 @@ class SineWaveLink(ModelLink):
 
     def call_model(self, emul_i, model_parameters, data_idx):
         par = model_parameters
-        mod_set =\
-            par['A']+0.1*par['B']*np.sin(par['C']*np.array(data_idx)+par['D'])
+        mod_set = [0]*len(data_idx)
+        for i, idx in enumerate(data_idx):
+            mod_set[i] = par['A']+0.1*par['B']*np.sin(par['C']*idx+par['D'])
 
-        return(mod_set)
+        return(np.array(mod_set).T)
 
     def get_md_var(self, emul_i, data_idx):
         return(pow(0.1*np.ones_like(data_idx), 2))

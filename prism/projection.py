@@ -37,7 +37,7 @@ from tqdm import tqdm
 from ._docstrings import (def_par_doc, draw_proj_fig_doc, hcube_doc,
                           proj_data_doc, proj_par_doc_d, proj_par_doc_s,
                           read_par_doc, save_data_doc_pr, user_emul_i_doc)
-from ._internal import (PRISM_File, RequestError, check_val,
+from ._internal import (PRISM_File, RequestError, check_vals,
                         docstring_append, docstring_substitute, getCLogger,
                         raise_error)
 
@@ -758,9 +758,9 @@ class Projection(object):
                     "parameters.")
 
         # Number of samples used for implausibility evaluations
-        self.__res = check_val(int(par_dict['proj_res']), 'proj_res', 'pos')
-        self.__depth = check_val(int(par_dict['proj_depth']), 'proj_depth',
-                                 'pos')
+        self.__res = check_vals(int(par_dict['proj_res']), 'proj_res', 'pos')
+        self.__depth = check_vals(int(par_dict['proj_depth']), 'proj_depth',
+                                  'pos')
 
         # Finish logging
         logger.info("Finished reading projection parameters.")
@@ -1021,9 +1021,9 @@ class Projection(object):
         # Controller checking all other kwargs
         if self._is_controller:
             # Check if figure, show and force-parameters are bools
-            self.__figure = check_val(kwargs['figure'], 'figure', 'bool')
-            self.__show = check_val(kwargs['show'], 'show', 'bool')
-            self.__force = check_val(kwargs['force'], 'force', 'bool')
+            self.__figure = check_vals(kwargs['figure'], 'figure', 'bool')
+            self.__show = check_vals(kwargs['show'], 'show', 'bool')
+            self.__force = check_vals(kwargs['force'], 'force', 'bool')
 
             # Check if align parameter is a valid string
             align = str(kwargs['align'].replace("'", '').replace("'", ''))
