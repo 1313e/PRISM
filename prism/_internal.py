@@ -78,9 +78,6 @@ class CLogger(logging.Logger):
 
     """
 
-    # Set the manager of this class to the default one
-    manager = logging.Logger.manager
-
     # Initialize Logger, adding the CFilter
     def __init__(self, *args, **kwargs):
         super(CLogger, self).__init__(*args, **kwargs)
@@ -194,9 +191,6 @@ class RLogger(logging.Logger):
     Custom :class:`~logging.Logger` class that uses the :class:`~RFilter`.
 
     """
-
-    # Set the manager of this class to the default one
-    manager = logging.Logger.manager
 
     # Initialize Logger, adding the RFilter
     def __init__(self, *args, **kwargs):
@@ -622,17 +616,17 @@ def delist(list_obj):
 
 # Define custom getLogger function that calls the custom CLogger instead
 def getCLogger(name=None):
-    CLogger.manager.loggerClass = CLogger
-    logger = CLogger.manager.getLogger(name)
-    CLogger.manager.loggerClass = None
+    logging.setLoggerClass(CLogger)
+    logger = logging.getLogger(name)
+    logging.setLoggerClass(logging.Logger)
     return(logger)
 
 
 # Define custom getLogger function that calls the custom RLogger instead
 def getRLogger(name=None):
-    RLogger.manager.loggerClass = RLogger
-    logger = RLogger.manager.getLogger(name)
-    RLogger.manager.loggerClass = None
+    logging.setLoggerClass(RLogger)
+    logger = logging.getLogger(name)
+    logging.setLoggerClass(logging.Logger)
     return(logger)
 
 

@@ -32,16 +32,6 @@ vmajor = version_info.major
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
-# Pytest for CLogger class
-class Test_CLogger(object):
-    # Initialize logger
-    logger = CLogger('TEST')
-
-    # Check if all overridden methods still work properly
-    def test_init(self):
-        assert isinstance(self.logger, logging.Logger)
-
-
 # Pytest for PRISM_File class
 class Test_PRISM_File(object):
     def test(self, tmpdir):
@@ -65,16 +55,6 @@ class Test_PRISM_File(object):
         with PRISM_File('w', filename=filename) as file:
             assert path.basename(file.filename) == 'test_test.hdf5'
         assert path.exists(filename)
-
-
-# Pytest for RLogger class
-class Test_RLogger(object):
-    # Initialize logger
-    logger = RLogger('TEST')
-
-    # Check if all overridden methods still work properly
-    def test_init(self):
-        assert isinstance(self.logger, logging.Logger)
 
 
 # Pytest for RequestError exception class
@@ -298,20 +278,26 @@ def test_delist():
 
 # Pytest for the getCLogger function
 def test_getCLogger():
-    # Check if getCLogger returns a Logger instance
-    assert isinstance(getCLogger('TEST'), logging.Logger)
+    # Check if getCLogger returns a CLogger instance
+    assert isinstance(getCLogger('C_TEST'), CLogger)
 
-    # CHeck if getCLogger returns the root logger if not specified
+    # Check if getCLogger returns the root logger if not specified
     assert getCLogger() == logging.root
+
+    # Check if LoggerClass is still default Logger
+    assert logging.getLoggerClass() == logging.Logger
 
 
 # Pytest for the getRLogger function
 def test_getRLogger():
-    # Check if getRLogger returns a Logger instance
-    assert isinstance(getRLogger('TEST'), logging.Logger)
+    # Check if getRLogger returns an RLogger instance
+    assert isinstance(getRLogger('R_TEST'), RLogger)
 
-    # CHeck if getRLogger returns the root logger if not specified
+    # Check if getRLogger returns the root logger if not specified
     assert getRLogger() == logging.root
+
+    # Check if LoggerClass is still default Logger
+    assert logging.getLoggerClass() == logging.Logger
 
 
 # Pytest for the import_cmaps function
