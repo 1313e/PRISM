@@ -8,6 +8,7 @@ from __future__ import (absolute_import, division, print_function,
 # Built-in imports
 import logging
 from os import path
+from sys import version_info
 
 # Package imports
 from e13tools.core import InputError
@@ -25,6 +26,9 @@ from prism._internal import (compat_version, prism_version, CLogger,
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
+
+# Save major version
+vmajor = version_info.major
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -314,7 +318,7 @@ class Test_check_val(object):
         # Check for NumPy array of strings
         array = np.array(['a', 'b'])
         array2 = check_vals(array, 'array', 'str')
-        assert array2.dtype.name == 'str32'
+        assert array2.dtype.name == 'str32' if vmajor >= 3 else 'string8'
 
         # Check if providing a dict or tuple raises an error
         with pytest.raises(TypeError):

@@ -14,10 +14,11 @@ MCMC routines.
 from __future__ import absolute_import, division, print_function
 
 # Built-in imports
+from inspect import isfunction
 import sys
 
 # Package imports
-from e13tools.core import ShapeError
+from e13tools.core import InputError, ShapeError
 import numpy as np
 
 # PRISM imports
@@ -27,7 +28,7 @@ from .._internal import (RequestError, check_vals, docstring_substitute,
 from ..pipeline import Pipeline
 
 # All declaration
-__all__ = ['get_walkers', 'lnpost']
+__all__ = ['get_lnpost_fn', 'get_walkers']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -35,11 +36,126 @@ if(sys.version_info.major >= 3):
 
 
 # %% FUNCTION DEFINITIONS
+# This function returns a specialized version of the lnpost function
+@docstring_substitute(emul_i=user_emul_i_doc)
+def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
+    """
+    Returns a function definition ``lnpost(par_set, *args, **kwargs)``.
+
+    This function can be used to calculate the natural logarithm of the
+    posterior probability, which analyzes a given `par_set` first in the
+    provided `pipeline_obj` at iteration `emul_i` and passes it to the
+    `ext_lnpost` function if it is plausible.
+
+    Parameters
+    ----------
+    ext_lnpost : function
+        Function definition that needs to be called if the provided `par_set`
+        is plausible in iteration `emul_i` of `pipeline_obj`. The used call
+        signature is ``ext_lnpost(par_set, *args, **kwargs)``. All MPI ranks
+        will call this function.
+    pipeline_obj : :obj:`~prism.pipeline.Pipeline` object
+        The instance of the :class:`~prism.pipeline.Pipeline` class that needs
+        to be used for determining the validity of the proposed sampling step.
+
+    Optional
+    --------
+    %(emul_i)s
+    unit_space : bool. Default: True
+        Bool determining whether or not the provided sample will be given in
+        unit space.
+
+    See also
+    --------
+    - :func:`~get_walkers`: Analyzes proposed `init_walkers` and returns \
+        valid `p0_walkers`.
+
+    """
+
+    # Check if ext_lnpost is a function
+    if not isfunction(ext_lnpost):
+        raise InputError("Input argument 'ext_lnpost' is not a callable "
+                         "function definition!")
+
+    # Make abbreviation for pipeline_obj
+    pipe = pipeline_obj
+
+    # Check if provided pipeline_obj is an instance of the Pipeline class
+    if not isinstance(pipe, Pipeline):
+        raise TypeError("Input argument 'pipeline_obj' must be an instance of "
+                        "the Pipeline class!")
+
+    # Get emulator iteration
+    emul_i = pipe._emulator._get_emul_i(emul_i, True)
+
+    # Check if unit_space is a bool
+    unit_space = check_vals(unit_space, 'unit_space', 'bool')
+
+    # Define lnpost function
+    def lnpost(par_set, *args, **kwargs):
+        """
+        Calculates the natural logarithm of the posterior probability of
+        `par_set` using the provided function `ext_lnpost`, in addition to
+        constraining it first with the emulator defined in the `pipeline_obj`.
+
+        This function needs to be called by all MPI ranks.
+
+        Parameters
+        ----------
+        par_set : 1D array_like
+            Sample to calculate the posterior probability for. This sample is
+            first analyzed in `pipeline_obj` and only given to `ext_lnpost` if
+            it is plausible.
+        args : list or tuple
+            Positional arguments that need to be passed to the `ext_lnpost`
+            function.
+        kwargs : dict
+            Keyword arguments that need to be passed to the `ext_lnpost`
+            function.
+
+        Returns
+        -------
+        lnp : float
+            The natural logarithm of the posterior probability of `par_set`, as
+            determined by the emulator in `pipeline_obj` and the `ext_lnpost`
+            function.
+
+        """
+
+        # If unit_space is True, convert par_set to par_space
+        if unit_space:
+            sam = pipe._modellink._to_par_space(par_set)
+        else:
+            sam = par_set
+
+        # Check if par_set is within parameter space and return -inf if not
+        par_rng = pipe._modellink._par_rng
+        if not ((par_rng[:, 0] <= sam)*(sam <= par_rng[:, 1])).all():
+            return(-np.infty)
+
+        # Analyze par_set
+        impl_sam = pipe._analyze_sam_set(emul_i, np.array(sam, ndmin=2),
+                                         *exec_code_anal)
+
+        # If par_set is plausible, call ext_lnpost
+        if impl_sam.size:
+            return(ext_lnpost(par_set, *args, **kwargs))
+
+        # If par_set is not plausible, return -inf
+        else:
+            return(-np.infty)
+
+    # Return lnpost function definition
+    return(lnpost)
+
+
 # This function returns a set of valid MCMC walkers
 @docstring_substitute(emul_i=user_emul_i_doc)
 def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
-                lnpost_fn=False):
+                lnpost_fn=None):
     """
+    Analyzes proposed `init_walkers` and returns valid `p0_walkers`.
+
     Analyzes sample set `init_walkers` in the provided `pipeline_obj` at
     iteration `emul_i` and returns all samples that are plausible to be used as
     MCMC walkers. The provided samples and returned walkers should be/are given
@@ -67,9 +183,11 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
     unit_space : bool. Default: True
         Bool determining whether or not the provided samples and returned
         walkers are given in unit space.
-    lnpost_fn : bool. Default: False
-        If *True*, a specialized version of the :func:`~lnpost` function is
-        returned as well.
+    lnpost_fn : function or None. Default: None
+        If function, call :func:`~get_lnpost_fn` function factory using
+        `lnpost_fn` as the `ext_lnpost` input argument and the same values for
+        `pipeline_obj`, `emul_i` and `unit_space` and return the resulting
+        function definition `lnpost`.
 
     Returns
     -------
@@ -77,10 +195,15 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         Number of returned MCMC walkers.
     p0_walkers : 2D :obj:`~numpy.ndarray` object
         Array containing starting positions of valid MCMC walkers.
-    lnpost_s (if `lnpost_fn` is *True*) : :func:`~lnpost`
-        A specialized version of the :func:`~lnpost` function that by default
-        uses the same values for `pipeline_obj`, `emul_i` and `unit_space` as
-        provided to this function.
+    lnpost (if `lnpost_fn` is a function) : :func:`~lnpost`
+        The function returned by :func:`~get_lnpost_fn` function factory using
+        `lnpost_fn`, `pipeline_obj`, `emul_i` and `unit_space` as the input
+        values.
+
+    See also
+    --------
+    - :func:`~get_lnpost_fn`: Returns a function definition \
+        ``lnpost(par_set, *args, **kwargs)``.
 
     Notes
     -----
@@ -103,8 +226,9 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
     # Check if unit_space is a bool
     unit_space = check_vals(unit_space, 'unit_space', 'bool')
 
-    # Check if lnpost_fn is a bool
-    lnpost_fn = check_vals(lnpost_fn, 'lnpost_fn', 'bool')
+    # Check if lnpost_fn is a function or None
+    if not isfunction(lnpost_fn) and lnpost_fn is not None:
+        raise InputError("Input argument 'lnpost_fn' is invalid!")
 
     # If init_walkers is None, use impl_sam of emul_i
     if init_walkers is None:
@@ -162,111 +286,8 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         p0_walkers = pipe._modellink._to_unit_space(p0_walkers)
 
     # Check if lnpost_fn was requested and return it as well if so
-    if lnpost_fn:
-        # Define specialized version of lnpost
-        def lnpost_s(par_set, ext_lnpost, pipeline_obj=pipe, emul_i=emul_i,
-                     unit_space=unit_space, **kwargs):
-            """
-            Calculates the natural logarithm of the posterior probability of
-            `par_set` using the provided function `ext_lnpost`, in addition to
-            constraining it first with the emulator defined in the
-            `pipeline_obj`.
-
-            This is a specialized version of :func:`~lnpost`, where
-            `pipeline_obj`, `emul_i` and `unit_space` are defaulted to the
-            values used in the call of :func:`~get_walkers` that created this
-            function. See the docs of :func:`~lnpost` for a more extensive
-            description.
-
-            """
-
-            # Call lnpost using specific default values
-            return(lnpost(par_set, ext_lnpost, pipeline_obj, emul_i,
-                          unit_space, **kwargs))
-
-        return(len(p0_walkers), p0_walkers, lnpost_s)
+    if lnpost_fn is not None:
+        return(len(p0_walkers), p0_walkers,
+               get_lnpost_fn(lnpost_fn, pipe, emul_i, unit_space))
     else:
         return(len(p0_walkers), p0_walkers)
-
-
-# This function constrains the default lnpost function by PRISM
-@docstring_substitute(emul_i=user_emul_i_doc)
-def lnpost(par_set, ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
-           **kwargs):
-    """
-    Calculates the natural logarithm of the posterior probability of `par_set`
-    using the provided function `ext_lnpost`, in addition to constraining it
-    first with the emulator defined in the `pipeline_obj`.
-
-    This function needs to be called by all MPI ranks.
-
-    Parameters
-    ----------
-    par_set : 1D array_like
-        Sample to calculate the posterior probability for. This sample is first
-        analyzed in `pipeline_obj` and only given to `ext_lnpost` if it is
-        plausible.
-    ext_lnpost : function
-        Function definition that needs to be called if the provided `par_set`
-        is plausible in iteration `emul_i` of `pipeline_obj`. The used call
-        signature is ``ext_lnpost(par_set, **kwargs)``. All MPI ranks will call
-        this function.
-    pipeline_obj : :obj:`~prism.pipeline.Pipeline` object
-        The instance of the :class:`~prism.pipeline.Pipeline` class that needs
-        to be used for determining the validity of the proposed sampling step.
-
-    Optional
-    --------
-    %(emul_i)s
-    unit_space : bool. Default: True
-        Bool determining whether or not the provided sample is given in unit
-        space.
-    kwargs : dict
-        Dict of keyword arguments that needs to be passed to the `ext_lnpost`
-        function.
-
-    Returns
-    -------
-    lnp : float
-        The natural logarithm of the posterior probability of `par_set`, as
-        determined by the emulator in `pipeline_obj` and the `ext_lnpost`
-        function.
-
-    Warning
-    -------
-    This function does not have any checks in place to see if the provided
-    input arguments are valid, as these checks would be performed many times
-    unnecessarily. Therefore, raised exceptions due to invalid input arguments
-    may be harder to track down.
-
-    """
-
-    # Make abbreviation for pipeline_obj
-    pipe = pipeline_obj
-
-    # Get emulator iteration
-    if emul_i is None:
-        emul_i = pipe._emulator._emul_i
-
-    # If unit_space is True, convert par_set to par_space
-    if unit_space:
-        sam = pipe._modellink._to_par_space(par_set)
-    else:
-        sam = par_set
-
-    # Check if par_set is within parameter space and return -inf if not
-    par_rng = pipe._modellink._par_rng
-    if not ((par_rng[:, 0] <= sam)*(sam <= par_rng[:, 1])).all():
-        return(-np.infty)
-
-    # Analyze par_set
-    impl_sam = pipe._analyze_sam_set(emul_i, np.array(sam, ndmin=2),
-                                     *exec_code_anal)
-
-    # If par_set is plausible, call ext_lnpost
-    if impl_sam.size:
-        return(ext_lnpost(par_set, **kwargs))
-
-    # If par_set is not plausible, return -inf
-    else:
-        return(-np.infty)
