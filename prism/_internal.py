@@ -39,7 +39,7 @@ import numpy as np
 from .__version__ import compat_version, prism_version
 
 # All declaration
-__all__ = ['CLogger', 'PRISM_File', 'RLogger', 'RequestError', 'aux_char_list',
+__all__ = ['PRISM_File', 'RequestError', 'aux_char_list',
            'check_compatibility', 'check_instance', 'check_vals',
            'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
            'docstring_substitute', 'exec_code_anal', 'getCLogger',
@@ -56,48 +56,35 @@ rank = MPI.COMM_WORLD.Get_rank()
 
 
 # %% CLASS DEFINITIONS
-# Define custom Logger class that only logs if the controller calls it
+# Make a custom Filter class that only allows the controller to log messages
+class CFilter(logging.Filter):
+    """
+    Custom :class:`~logging.Filter` class that only allows the controller rank
+    to log messages to the logfile. Calls from worker ranks are ignored.
+
+    """
+
+    def __init__(self, rank):
+        self.is_controller = 1 if not rank else 0
+
+    def filter(self, record):
+        return(self.is_controller)
+
+
+# Define custom Logger class that uses the CFilter filter
 class CLogger(logging.Logger):
     """
-    Custom :class:`~logging.Logger` class that only allows the controller rank
-    to log messages to the logfile. Calls from worker ranks are ignored.
+    Custom :class:`~logging.Logger` class that uses the :class:`~CFilter`.
 
     """
 
     # Set the manager of this class to the default one
     manager = logging.Logger.manager
 
+    # Initialize Logger, adding the CFilter
     def __init__(self, *args, **kwargs):
-        self.is_controller = 1 if not rank else 0
         super(CLogger, self).__init__(*args, **kwargs)
-
-    def debug(self, *args, **kwargs):
-        if self.is_controller:
-            super(CLogger, self).debug(*args, **kwargs)
-
-    def info(self, *args, **kwargs):
-        if self.is_controller:
-            super(CLogger, self).info(*args, **kwargs)
-
-    def warning(self, *args, **kwargs):
-        if self.is_controller:
-            super(CLogger, self).warning(*args, **kwargs)
-
-    def error(self, *args, **kwargs):
-        if self.is_controller:
-            super(CLogger, self).error(*args, **kwargs)
-
-    def exception(self, *args, **kwargs):
-        if self.is_controller:
-            super(CLogger, self).exception(*args, **kwargs)
-
-    def critical(self, *args, **kwargs):
-        if self.is_controller:
-            super(CLogger, self).critical(*args, **kwargs)
-
-    def log(self, *args, **kwargs):
-        if self.is_controller:
-            super(CLogger, self).log(*args, **kwargs)
+        self.addFilter(CFilter(rank))
 
 
 # Override h5py's File.__init__() and __exit__() methods
@@ -134,7 +121,7 @@ class PRISM_File(h5py.File):
             The name/path of the master HDF5-file that needs to be opened in
             `working_dir`. Default is to open the master HDF5-file that was
             provided during class initialization.
-        **kwargs : dict. Default: ``{'driver': None, 'libver': 'earliest'}``
+        kwargs : dict. Default: ``{'driver': None, 'libver': 'earliest'}``
             Other keyword arguments that need to be given to the
             :func:`~h5py.File` function.
 
@@ -160,7 +147,8 @@ class PRISM_File(h5py.File):
             pass
 
         # Add sub_str to filename
-        filename = filename.replace('.', '%s.' % (sub_str))
+        parts = path.splitext(filename)
+        filename = ''.join([parts[0], sub_str, parts[1]])
 
         # Update hdf5_kwargs with provided ones
         hdf5_kwargs.update(kwargs)
@@ -184,48 +172,36 @@ class PRISM_File(h5py.File):
         super(PRISM_File, self).__exit__(*args, **kwargs)
 
 
-# Define custom Logger class that logs the rank of process that calls it
+# Make a custom Filter class that logs the rank of the process that calls it
+class RFilter(logging.Filter):
+    """
+    Custom :class:`~logging.Filter` class that prepends the rank of the MPI
+    process that calls it to the logging message.
+
+    """
+
+    def __init__(self, rank):
+        self.prefix = "Rank %i:" % (rank)
+
+    def filter(self, record):
+        record.msg = " ".join([self.prefix, record.msg])
+        return(1)
+
+
+# Define custom Logger class that uses the RFilter filter
 class RLogger(logging.Logger):
     """
-    Custom :class:`~logging.Logger` class that prepends the rank of the MPI
-    process that calls it to the logging message.
+    Custom :class:`~logging.Logger` class that uses the :class:`~RFilter`.
 
     """
 
     # Set the manager of this class to the default one
     manager = logging.Logger.manager
 
+    # Initialize Logger, adding the RFilter
     def __init__(self, *args, **kwargs):
-        self.prefix = "Rank %i:" % (rank)
         super(RLogger, self).__init__(*args, **kwargs)
-
-    def debug(self, msg, *args, **kwargs):
-        msg = " ".join([self.prefix, msg])
-        super(RLogger, self).debug(msg, *args, **kwargs)
-
-    def info(self, msg, *args, **kwargs):
-        msg = " ".join([self.prefix, msg])
-        super(RLogger, self).info(msg, *args, **kwargs)
-
-    def warning(self, msg, *args, **kwargs):
-        msg = " ".join([self.prefix, msg])
-        super(RLogger, self).warning(msg, *args, **kwargs)
-
-    def error(self, msg, *args, **kwargs):
-        msg = " ".join([self.prefix, msg])
-        super(RLogger, self).error(msg, *args, **kwargs)
-
-    def exception(self, msg, *args, **kwargs):
-        msg = " ".join([self.prefix, msg])
-        super(RLogger, self).exception(msg, *args, **kwargs)
-
-    def critical(self, msg, *args, **kwargs):
-        msg = " ".join([self.prefix, msg])
-        super(RLogger, self).critical(msg, *args, **kwargs)
-
-    def log(self, level, msg, *args, **kwargs):
-        msg = " ".join([self.prefix, msg])
-        super(RLogger, self).log(level, msg, *args, **kwargs)
+        self.addFilter(RFilter(rank))
 
 
 # Define Exception class for when a requested action is not possible
@@ -286,8 +262,8 @@ def docstring_substitute(*args, **kwargs):
     """
 
     if len(args) and len(kwargs):
-        raise AssertionError("Either only positional or keyword arguments are "
-                             "allowed!")
+        raise InputError("Either only positional or keyword arguments are "
+                         "allowed!")
     else:
         params = args or kwargs
 
@@ -295,8 +271,8 @@ def docstring_substitute(*args, **kwargs):
         if target.__doc__:
             target.__doc__ = target.__doc__ % (params)
         else:
-            raise AssertionError("Target has no docstring available for "
-                                 "substitutions!")
+            raise InputError("Target has no docstring available for "
+                             "substitutions!")
         return(target)
     return(do_substitution)
 
@@ -393,8 +369,8 @@ def check_vals(values, name, *args):
     name : str
         The name of the input argument, which is used in the error message if
         a criterion is not met.
-    args : {'bool', 'float', 'int', 'neg', 'nneg', 'npos', 'nzero', 'pos',\
-           'str'}
+    args : tuple of {'bool', 'float', 'int', 'neg', 'nneg', 'npos', 'nzero', \
+        'pos', 'str'}
         Sequence of strings determining the criteria that `values` must meet.
         If `args` is empty, it is checked if `values` are finite.
 
@@ -646,24 +622,18 @@ def delist(list_obj):
 
 # Define custom getLogger function that calls the custom CLogger instead
 def getCLogger(name=None):
-    if name:
-        CLogger.manager.loggerClass = CLogger
-        logger = CLogger.manager.getLogger(name)
-        CLogger.manager.loggerClass = None
-        return(logger)
-    else:
-        return CLogger.root
+    CLogger.manager.loggerClass = CLogger
+    logger = CLogger.manager.getLogger(name)
+    CLogger.manager.loggerClass = None
+    return(logger)
 
 
 # Define custom getLogger function that calls the custom RLogger instead
 def getRLogger(name=None):
-    if name:
-        RLogger.manager.loggerClass = RLogger
-        logger = RLogger.manager.getLogger(name)
-        RLogger.manager.loggerClass = None
-        return(logger)
-    else:
-        return RLogger.root
+    RLogger.manager.loggerClass = RLogger
+    logger = RLogger.manager.getLogger(name)
+    RLogger.manager.loggerClass = None
+    return(logger)
 
 
 # Function to import all custom colormaps in a directory

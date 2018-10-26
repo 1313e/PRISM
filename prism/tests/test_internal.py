@@ -41,32 +41,6 @@ class Test_CLogger(object):
     def test_init(self):
         assert isinstance(self.logger, logging.Logger)
 
-    def test_debug(self):
-        assert self.logger.debug("Test") is None
-
-    def test_info(self):
-        assert self.logger.info("Test") is None
-
-    def test_warning(self):
-        assert self.logger.warning("Test") is None
-
-    def test_error(self):
-        assert self.logger.error("Test") is None
-
-    def test_exception(self):
-        assert self.logger.exception("Test") is None
-
-    def test_critical(self):
-        assert self.logger.critical("Test") is None
-
-    def test_log(self):
-        assert self.logger.log(logging.DEBUG, "Test") is None
-        assert self.logger.log(logging.INFO, "Test") is None
-        assert self.logger.log(logging.WARNING, "Test") is None
-        assert self.logger.log(logging.ERROR, "Test") is None
-        assert self.logger.log(logging.FATAL, "Test") is None
-        assert self.logger.log(logging.CRITICAL, "Test") is None
-
 
 # Pytest for PRISM_File class
 class Test_PRISM_File(object):
@@ -101,32 +75,6 @@ class Test_RLogger(object):
     # Check if all overridden methods still work properly
     def test_init(self):
         assert isinstance(self.logger, logging.Logger)
-
-    def test_debug(self):
-        assert self.logger.debug("Test") is None
-
-    def test_info(self):
-        assert self.logger.info("Test") is None
-
-    def test_warning(self):
-        assert self.logger.warning("Test") is None
-
-    def test_error(self):
-        assert self.logger.error("Test") is None
-
-    def test_exception(self):
-        assert self.logger.exception("Test") is None
-
-    def test_critical(self):
-        assert self.logger.critical("Test") is None
-
-    def test_log(self):
-        assert self.logger.log(logging.DEBUG, "Test") is None
-        assert self.logger.log(logging.INFO, "Test") is None
-        assert self.logger.log(logging.WARNING, "Test") is None
-        assert self.logger.log(logging.ERROR, "Test") is None
-        assert self.logger.log(logging.FATAL, "Test") is None
-        assert self.logger.log(logging.CRITICAL, "Test") is None
 
 
 # Pytest for RequestError exception class
@@ -175,7 +123,7 @@ class TestDecorators(object):
         assert self.copy_method2.__doc__ == self.append_method1.__doc__
 
     # Check if providing both args and kwargs raises an error
-    with pytest.raises(AssertionError):
+    with pytest.raises(InputError):
         @docstring_substitute("positional", x="keyword")
         def substitute_method1(self):
             pass
@@ -191,7 +139,7 @@ class TestDecorators(object):
         """%(x)s"""
 
     # Check if providing args to a method with no docstring raises an error
-    with pytest.raises(AssertionError):
+    with pytest.raises(InputError):
         @docstring_substitute("positional")
         def substitute_method4(self):
             pass

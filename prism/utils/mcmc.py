@@ -42,10 +42,12 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
     """
     Returns a function definition ``lnpost(par_set, *args, **kwargs)``.
 
-    This function can be used to calculate the natural logarithm of the
-    posterior probability, which analyzes a given `par_set` first in the
+    This ``lnpost`` function can be used to calculate the natural logarithm of
+    the posterior probability, which analyzes a given `par_set` first in the
     provided `pipeline_obj` at iteration `emul_i` and passes it to the
     `ext_lnpost` function if it is plausible.
+
+    This function needs to be called by all MPI ranks.
 
     Parameters
     ----------
@@ -65,10 +67,23 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
         Bool determining whether or not the provided sample will be given in
         unit space.
 
+    Returns
+    -------
+    :func:`~lnpost` : function
+        Definition of the function ``lnpost(par_set, *args, **kwargs)``.
+
+
     See also
     --------
     - :func:`~get_walkers`: Analyzes proposed `init_walkers` and returns \
         valid `p0_walkers`.
+
+    Warning
+    -------
+    Calling this function factory will disable all regular logging in
+    `pipeline_obj` (:attr:`~prism.pipeline.Pipeline.do_logging` set to
+    *False*), in order to avoid having the same message being logged every time
+    `lnpost` is called.
 
     """
 
@@ -91,6 +106,9 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
     # Check if unit_space is a bool
     unit_space = check_vals(unit_space, 'unit_space', 'bool')
 
+    # Disable PRISM logging
+    pipe.do_logging = False
+
     # Define lnpost function
     def lnpost(par_set, *args, **kwargs):
         """
@@ -106,7 +124,7 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
             Sample to calculate the posterior probability for. This sample is
             first analyzed in `pipeline_obj` and only given to `ext_lnpost` if
             it is plausible.
-        args : list or tuple
+        args : tuple
             Positional arguments that need to be passed to the `ext_lnpost`
             function.
         kwargs : dict
@@ -178,7 +196,7 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
     init_walkers : 2D array_like or None. Default: None
         Sample set of proposed initial MCMC walker positions. All plausible
         samples in `init_walkers` will be returned.
-        If *None*, return :attr:`~prism.pipeline.Pipeline.impl_sam
+        If *None*, return :attr:`~prism.pipeline.Pipeline.impl_sam`
         corresponding to iteration `emul_i` instead.
     unit_space : bool. Default: True
         Bool determining whether or not the provided samples and returned
@@ -186,7 +204,7 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
     lnpost_fn : function or None. Default: None
         If function, call :func:`~get_lnpost_fn` function factory using
         `lnpost_fn` as the `ext_lnpost` input argument and the same values for
-        `pipeline_obj`, `emul_i` and `unit_space` and return the resulting
+        `pipeline_obj`, `emul_i` and `unit_space`, and return the resulting
         function definition `lnpost`.
 
     Returns
@@ -195,7 +213,7 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         Number of returned MCMC walkers.
     p0_walkers : 2D :obj:`~numpy.ndarray` object
         Array containing starting positions of valid MCMC walkers.
-    lnpost (if `lnpost_fn` is a function) : :func:`~lnpost`
+    :func:`~lnpost` : function (if `lnpost_fn` is a function)
         The function returned by :func:`~get_lnpost_fn` function factory using
         `lnpost_fn`, `pipeline_obj`, `emul_i` and `unit_space` as the input
         values.
