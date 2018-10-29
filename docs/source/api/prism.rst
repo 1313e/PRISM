@@ -10,6 +10,7 @@ Subpackages
 .. toctree::
 
     prism.modellink
+    prism.utils
 
 Submodules
 ----------

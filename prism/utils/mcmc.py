@@ -16,9 +16,10 @@ from __future__ import absolute_import, division, print_function
 # Built-in imports
 from inspect import isfunction
 import sys
+import warnings
 
 # Package imports
-from e13tools.core import InputError, ShapeError
+from e13tools import InputError, ShapeError
 import numpy as np
 
 # PRISM imports
@@ -69,14 +70,14 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
 
     Returns
     -------
-    :func:`~lnpost` : function
+    lnpost : function
         Definition of the function ``lnpost(par_set, *args, **kwargs)``.
 
 
     See also
     --------
-    - :func:`~get_walkers`: Analyzes proposed `init_walkers` and returns \
-        valid `p0_walkers`.
+    :func:`~get_walkers`: Analyzes proposed `init_walkers` and returns valid \
+        `p0_walkers`.
 
     Warning
     -------
@@ -163,6 +164,12 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
         else:
             return(-np.infty)
 
+    # Check if model in ModelLink can be single-called, raise warning if not
+    if pipe._is_controller and not pipe._modellink._single_call:
+        warn_msg = ("ModelLink bound to provided Pipeline object solely "
+                    "requests multi-calls. Using MCMC may not be possible.")
+        warnings.warn(warn_msg, stacklevel=2)
+
     # Return lnpost function definition
     return(lnpost)
 
@@ -205,7 +212,7 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         If function, call :func:`~get_lnpost_fn` function factory using
         `lnpost_fn` as the `ext_lnpost` input argument and the same values for
         `pipeline_obj`, `emul_i` and `unit_space`, and return the resulting
-        function definition `lnpost`.
+        function definition ``lnpost``.
 
     Returns
     -------
@@ -213,14 +220,14 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         Number of returned MCMC walkers.
     p0_walkers : 2D :obj:`~numpy.ndarray` object
         Array containing starting positions of valid MCMC walkers.
-    :func:`~lnpost` : function (if `lnpost_fn` is a function)
+    lnpost : function (if `lnpost_fn` is a function)
         The function returned by :func:`~get_lnpost_fn` function factory using
         `lnpost_fn`, `pipeline_obj`, `emul_i` and `unit_space` as the input
         values.
 
     See also
     --------
-    - :func:`~get_lnpost_fn`: Returns a function definition \
+    :func:`~get_lnpost_fn`: Returns a function definition \
         ``lnpost(par_set, *args, **kwargs)``.
 
     Notes
@@ -254,7 +261,7 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         if pipe._is_controller:
             # If iteration has not been analyzed, raise error
             if not pipe._n_eval_sam[emul_i]:
-                raise RequestError("Emulator iteration %s has not been "
+                raise RequestError("Emulator iteration %i has not been "
                                    "analyzed yet!" % (emul_i))
             # If iteration is last iteration, init_walkers is current impl_sam
             elif(emul_i == pipe._emulator._emul_i):
@@ -276,12 +283,12 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
             # Check if init_walkers is two-dimensional
             if not(init_walkers.ndim == 2):
                 raise ShapeError("Input argument 'init_walkers' has more than "
-                                 "two dimensions (%s)!" % (init_walkers.ndim))
+                                 "two dimensions (%i)!" % (init_walkers.ndim))
 
             # Check if init_walkers has correct shape
             if not(init_walkers.shape[1] == pipe._modellink._n_par):
                 raise ShapeError("Input argument 'init_walkers' has incorrect "
-                                 "number of parameters (%s != %s)!"
+                                 "number of parameters (%i != %i)!"
                                  % (init_walkers.shape[1],
                                     pipe._modellink._n_par))
 

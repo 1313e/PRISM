@@ -37,22 +37,24 @@ import warnings
 
 # Import PRISM modules
 from .__version__ import prism_version as __version__
-from . import _internal
 from . import modellink
 from . import utils
+from ._internal import import_cmaps
+from .emulator import Emulator
 from .modellink import ModelLink
 from .pipeline import Pipeline
 
 # All declaration
-__all__ = ['modellink', 'utils', 'ModelLink', 'Pipeline']
+__all__ = ['modellink', 'utils', 'Emulator', 'ModelLink', 'Pipeline',
+           'import_cmaps']
 
 # Author declaration
-__author__ = "Ellert van der Velden"
+__author__ = "Ellert van der Velden (1313e)"
 
 
 # %% EXECUTE INITIALIZING CODE
 # Import PRISM's custom cmaps
-_internal.import_cmaps()
+import_cmaps(os.path.join(os.path.dirname(__file__), 'data'))
 
 # Check if MPI is being used
 try:

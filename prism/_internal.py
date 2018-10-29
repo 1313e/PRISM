@@ -25,7 +25,7 @@ import sys
 from tempfile import mkstemp
 
 # Package imports
-from e13tools.core import InputError, compare_versions
+from e13tools import InputError, compare_versions
 import h5py
 from matplotlib.cm import register_cmap
 from matplotlib.colors import LinearSegmentedColormap as LSC
@@ -151,7 +151,7 @@ class PRISM_File(h5py.File):
         hdf5_kwargs.update(kwargs)
 
         # Log that an HDF5-file is being opened
-        logger.info("Opening HDF5-file '%s' (mode: '%s')."
+        logger.info("Opening HDF5-file %r (mode: %r)."
                     % (path.basename(filename), mode))
 
         # Inheriting File __init__()
@@ -163,7 +163,7 @@ class PRISM_File(h5py.File):
         logger = getRLogger('HDF5-FILE')
 
         # Log about closing the file
-        logger.info("Closing HDF5-file '%s'." % (path.basename(self.filename)))
+        logger.info("Closing HDF5-file %r." % (path.basename(self.filename)))
 
         # Inheriting File __exit__()
         super(PRISM_File, self).__exit__(*args, **kwargs)
@@ -188,14 +188,16 @@ class RFilter(logging.Filter):
 # Define custom Logger class that uses the RFilter filter
 class RLogger(logging.Logger):
     """
-    Custom :class:`~logging.Logger` class that uses the :class:`~RFilter`.
+    Custom :class:`~logging.Logger` class that uses the :class:`~RFilter` if
+    the size of the communicator is more than 1.
 
     """
 
-    # Initialize Logger, adding the RFilter
+    # Initialize Logger, adding the RFilter if size > 1
     def __init__(self, *args, **kwargs):
         super(RLogger, self).__init__(*args, **kwargs)
-        self.addFilter(RFilter(rank))
+        if(MPI.__package__ == 'mpi4py' and size > 1):
+            self.addFilter(RFilter(rank))
 
 
 # Define Exception class for when a requested action is not possible
@@ -413,7 +415,7 @@ def check_vals(values, name, *args):
         # Iterate over first dimension of values
         for idx, value in enumerate(values):
             # Check value
-            values_copy[idx] = check_vals(value, '%s[%s]' % (name, idx), *args)
+            values_copy[idx] = check_vals(value, '%s[%i]' % (name, idx), *args)
 
         # Return values
         return(values_copy)
@@ -430,7 +432,7 @@ def check_vals(values, name, *args):
         elif(str(value).lower() in ('true', '1')):
             return(1)
         else:
-            err_msg = "Input argument '%s' is not of type 'bool'!" % (name)
+            err_msg = "Input argument %r is not of type 'bool'!" % (name)
             raise_error(TypeError, err_msg, logger)
 
     # Check for string
@@ -439,7 +441,7 @@ def check_vals(values, name, *args):
         if isinstance(value, (str, np.string_, unicode)):
             return(value)
         else:
-            err_msg = "Input argument '%s' is not of type 'str'!" % (name)
+            err_msg = "Input argument %r is not of type 'str'!" % (name)
             raise_error(TypeError, err_msg, logger)
 
     # Check for float
@@ -451,7 +453,7 @@ def check_vals(values, name, *args):
             value = check_vals(value, name, *args)
             return(float(value))
         else:
-            err_msg = "Input argument '%s' is not of type 'float'!" % (name)
+            err_msg = "Input argument %r is not of type 'float'!" % (name)
             raise_error(TypeError, err_msg, logger)
 
     # Check for integer
@@ -463,7 +465,7 @@ def check_vals(values, name, *args):
             value = check_vals(value, name, *args)
             return(value)
         else:
-            err_msg = "Input argument '%s' is not of type 'int'!" % (name)
+            err_msg = "Input argument %r is not of type 'int'!" % (name)
             raise_error(TypeError, err_msg, logger)
 
     # Check for negative value
@@ -475,7 +477,7 @@ def check_vals(values, name, *args):
             value = check_vals(value, name, *args)
             return(value)
         else:
-            err_msg = "Input argument '%s' is not negative!" % (name)
+            err_msg = "Input argument %r is not negative!" % (name)
             raise_error(ValueError, err_msg, logger)
 
     # Check for non-negative value
@@ -487,7 +489,7 @@ def check_vals(values, name, *args):
             value = check_vals(value, name, *args)
             return(value)
         else:
-            err_msg = "Input argument '%s' is not non-negative!" % (name)
+            err_msg = "Input argument %r is not non-negative!" % (name)
             raise_error(ValueError, err_msg, logger)
 
     # Check for non-positive value
@@ -499,7 +501,7 @@ def check_vals(values, name, *args):
             value = check_vals(value, name, *args)
             return(value)
         else:
-            err_msg = "Input argument '%s' is not non-positive!" % (name)
+            err_msg = "Input argument %r is not non-positive!" % (name)
             raise_error(ValueError, err_msg, logger)
 
     # Check for non-zero value
@@ -511,7 +513,7 @@ def check_vals(values, name, *args):
             value = check_vals(value, name, *args)
             return(value)
         else:
-            err_msg = "Input argument '%s' is not non-zero!" % (name)
+            err_msg = "Input argument %r is not non-zero!" % (name)
             raise_error(ValueError, err_msg, logger)
 
     # Check for positive value
@@ -523,7 +525,7 @@ def check_vals(values, name, *args):
             value = check_vals(value, name, *args)
             return(value)
         else:
-            err_msg = "Input argument '%s' is not positive!" % (name)
+            err_msg = "Input argument %r is not positive!" % (name)
             raise_error(ValueError, err_msg, logger)
 
     # If no criteria are given, it must be a finite value
@@ -534,7 +536,7 @@ def check_vals(values, name, *args):
                 return(value)
         except Exception:
             pass
-        err_msg = "Input argument '%s' is not finite!" % (name)
+        err_msg = "Input argument %r is not finite!" % (name)
         raise_error(ValueError, err_msg, logger)
 
     # If none of the criteria is found, the criteria are invalid
@@ -616,6 +618,12 @@ def delist(list_obj):
 
 # Define custom getLogger function that calls the custom CLogger instead
 def getCLogger(name=None):
+    """
+    Create a :class:`~CLogger` logger instance with `name` and return it.
+
+    """
+
+    # Temporarily set the default class to CLogger and return an instance of it
     logging.setLoggerClass(CLogger)
     logger = logging.getLogger(name)
     logging.setLoggerClass(logging.Logger)
@@ -624,6 +632,12 @@ def getCLogger(name=None):
 
 # Define custom getLogger function that calls the custom RLogger instead
 def getRLogger(name=None):
+    """
+    Create a :class:`~RLogger` logger instance with `name` and return it.
+
+    """
+
+    # Temporarily set the default class to RLogger and return an instance of it
     logging.setLoggerClass(RLogger)
     logger = logging.getLogger(name)
     logging.setLoggerClass(logging.Logger)
@@ -631,32 +645,36 @@ def getRLogger(name=None):
 
 
 # Function to import all custom colormaps in a directory
-def import_cmaps(cmap_dir=None):
+def import_cmaps(cmap_dir):
     """
     Reads in custom colormaps from a provided directory `cmap_dir`, transforms
     them into :obj:`~matplotlib.colors.LinearSegmentedColormap` objects and
     registers them in the :mod:`~matplotlib.cm` module. Both the imported
     colormap and its reversed version will be registered.
 
-    Optional
-    --------
-    cmap_dir : str or None. Default: None
+    This function is called automatically when *PRISM* is imported.
+
+    Parameters
+    ----------
+    cmap_dir : str
         If str, relative or absolute path to the directory that contains custom
-        colormap files. If *None*, read in colormap files from *PRISM*'s 'data'
-        directory.
+        colormap files.
 
     Notes
     -----
     All colormap files in `cmap_dir` must have names starting with 'cm_'. The
-    resulting colormaps will have the name of their file without the prefix.
+    resulting colormaps will have the name of their file without the prefix and
+    extension.
 
     """
 
     # Obtain path to directory with colormaps
-    if cmap_dir is None:
-        cmap_dir = path.join(path.dirname(__file__), 'data')
-    else:
-        cmap_dir = path.abspath(cmap_dir)
+    cmap_dir = path.abspath(cmap_dir)
+
+    # Check if provided directory exists
+    if not path.exists(cmap_dir):
+        raise OSError("Input argument 'cmap_dir' is a non-existing path (%r)!"
+                      % (cmap_dir))
 
     # Obtain the names of all files in cmap_dir
     filenames = next(os.walk(cmap_dir))[2]
@@ -664,20 +682,15 @@ def import_cmaps(cmap_dir=None):
 
     # Extract the files with defined colormaps
     for filename in filenames:
-        if(filename[0:3] == 'cm_'):
+        if(filename[:3] == 'cm_'):
             cm_files.append(filename)
     cm_files.sort()
 
     # Read in all the defined colormaps, transform and register them
     for cm_file in cm_files:
-        # Determine the index of the extension
-        ext_idx = cm_file.rfind('.')
-
-        # Extract name of colormap
-        if(ext_idx == -1):
-            cm_name = cm_file[3:]
-        else:
-            cm_name = cm_file[3:ext_idx]
+        # Split basename and extension
+        base_str, ext_str = path.splitext(cm_file)
+        cm_name = base_str[3:]
 
         # Process colormap files
         try:
@@ -685,7 +698,7 @@ def import_cmaps(cmap_dir=None):
             cm_file_path = path.join(cmap_dir, cm_file)
 
             # Read in colormap data
-            if(ext_idx != -1 and cm_file[ext_idx:] in ('.npy', '.npz')):
+            if ext_str in ('.npy', '.npz'):
                 # If file is a NumPy binary file
                 colorlist = np.load(cm_file_path).tolist()
             else:
@@ -701,7 +714,7 @@ def import_cmaps(cmap_dir=None):
             register_cmap(cmap=cmap)
             register_cmap(cmap=cmap_r)
         except Exception as error:
-            raise InputError("Provided colormap '%s' is invalid! (%s)"
+            raise InputError("Provided colormap %r is invalid! (%s)"
                              % (cm_name, error))
 
 
@@ -764,13 +777,25 @@ def raise_error(err_type, err_msg, logger):
 
 # Redefine the print function to include the MPI rank if MPI is used
 def rprint(*args, **kwargs):
+    """
+    Custom :class:`~logging.Filter` class that prepends the rank of the MPI
+    process that calls it to the logging message.
+    Custom :func:`~print` function that prepends the rank of the MPI process
+    that calls it to the message if the size of the communicator is more than
+    1.
+    Takes the same input arguments as the normal :func:`~print` function.
+
+    """
+
+    # If MPI is used and size > 1, prepend rank to message
     if(MPI.__package__ == 'mpi4py' and size > 1):
         args = list(args)
-        args.insert(0, "Rank %s:" % (rank))
+        args.insert(0, "Rank %i:" % (rank))
     print(*args, **kwargs)
 
 
 # Define function that can start the logging process of PRISM
+# TODO: Make a filter that only allows PRISM log messages to be logged to file
 def start_logger(filename=None, mode='w'):
     """
     Opens a logging file called `filename` in the current working directory,

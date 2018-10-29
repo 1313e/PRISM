@@ -451,7 +451,7 @@ class Emulator(object):
             elif emul_i is None:
                 emul_i = global_emul_i
             elif not(1 <= emul_i <= global_emul_i):
-                err_msg = ("Requested emulator iteration %s does not exist!"
+                err_msg = ("Requested emulator iteration %i does not exist!"
                            % (emul_i))
                 raise_error(RequestError, err_msg, logger)
             else:
@@ -462,14 +462,14 @@ class Emulator(object):
             if emul_i is None:
                 emul_i = global_emul_i+1
             elif not(1 <= emul_i <= global_emul_i+1):
-                err_msg = ("Requested emulator iteration %s cannot be "
+                err_msg = ("Requested emulator iteration %i cannot be "
                            "requested!" % (emul_i))
                 raise_error(RequestError, err_msg, logger)
             else:
                 emul_i = check_vals(emul_i, 'emul_i', 'pos', 'int')
 
         # Do some logging
-        logger.info("Requested emulator iteration set to %s." % (emul_i))
+        logger.info("Requested emulator iteration set to %i." % (emul_i))
 
         # Return correct emul_i
         return(emul_i)
@@ -492,7 +492,7 @@ class Emulator(object):
 
         # Start logger
         logger = getCLogger('INIT')
-        logger.info("Creating a new emulator in master HDF5-file '%s'."
+        logger.info("Creating a new emulator in master HDF5-file %r."
                     % (self._pipeline._hdf5_file))
 
         # Clean-up all emulator system files
@@ -561,7 +561,7 @@ class Emulator(object):
         # Do some logging
         logger = getCLogger('CLEAN-UP')
         logger.info("Cleaning up emulator HDF5-files, starting at emulator"
-                    " iteration %s." % (emul_i))
+                    " iteration %i." % (emul_i))
 
         # Workers wait for controller to finish clean-up
         if self._is_worker:
@@ -582,7 +582,7 @@ class Emulator(object):
                 for i in range(emul_i, self._emul_i+2):
                     # Try to remove it, skip if not possible
                     try:
-                        del file['%s' % (i)]
+                        del file['%i' % (i)]
                     except KeyError:
                         pass
 
@@ -597,12 +597,12 @@ class Emulator(object):
 
                     # Check if proj_hcube exists
                     try:
-                        file['%s/proj_hcube' % (i)]
+                        file['%i/proj_hcube' % (i)]
                     except KeyError:
                         pass
                     else:
                         # If so, get names of available hcubes
-                        hcube_names = list(file['%s/proj_hcube' % (i)].keys())
+                        hcube_names = list(file['%i/proj_hcube' % (i)].keys())
 
                         # Try to remove figures for which data is available
                         for hcube_name in hcube_names:
@@ -612,7 +612,7 @@ class Emulator(object):
 
                     # Try to remove the iteration, skip if not possible
                     try:
-                        del file['%s' % (i)]
+                        del file['%i' % (i)]
                     except KeyError:
                         pass
 
@@ -741,7 +741,7 @@ class Emulator(object):
         # Do some logging
         logger = getCLogger('INIT')
         logger.info("Assigning model comparison data points to emulator "
-                    "systems for emulator iteration %s." % (emul_i))
+                    "systems for emulator iteration %i." % (emul_i))
 
         # Create empty Counter for number of emulator system occurances
         emul_s_counter = Counter()
@@ -762,12 +762,12 @@ class Emulator(object):
             for i in range(1, emul_i):
                 # Obtain the active emulator systems for this iteration
                 active_emul_s_list.append(
-                        [int(key[5:]) for key in file['%s' % (i)].keys() if
+                        [int(key[5:]) for key in file['%i' % (i)].keys() if
                          key[:5] == 'emul_'])
 
             # Loop over all active emulator systems in the last iteration
             for emul_s in active_emul_s_list[-1]:
-                data_set = file['%s/emul_%s' % (emul_i-1, emul_s)]
+                data_set = file['%i/emul_%i' % (emul_i-1, emul_s)]
 
                 # Read in all data_idx parts and combine them
                 data_idx_list.append(self._read_data_idx(data_set))
@@ -848,7 +848,7 @@ class Emulator(object):
         # Start logging
         logger = getCLogger('INIT')
         logger.info("Determining emulator system assignments up to emulator "
-                    "iteration %s for available MPI ranks." % (emul_i))
+                    "iteration %i for available MPI ranks." % (emul_i))
 
         # Create empty list of active emulator systems
         active_emul_s_list = [[]]
@@ -861,7 +861,7 @@ class Emulator(object):
             # Determine the active emulator systems in every iteration
             for i in range(1, emul_i+1):
                 active_emul_s_list.append(
-                    [int(key[5:]) for key in file['%s' % (i)].keys() if
+                    [int(key[5:]) for key in file['%i' % (i)].keys() if
                      key[:5] == 'emul_'])
 
         # Determine number of active emulator systems in each iteration
@@ -988,7 +988,7 @@ class Emulator(object):
 
         # Logger
         logger = getCLogger('EMUL_PREP')
-        logger.info("Preparing emulator iteration %s for construction."
+        logger.info("Preparing emulator iteration %i for construction."
                     % (emul_i))
 
         # Check if new iteration can be constructed
@@ -997,14 +997,14 @@ class Emulator(object):
             # Set reload flag to 1
             reload = 1
         elif not(1 <= emul_i-1 <= self._emul_i):
-            err_msg = ("Preparation of emulator iteration %s is only available"
+            err_msg = ("Preparation of emulator iteration %i is only available"
                        " when all previous iterations exist!" % (emul_i))
             raise_error(RequestError, err_msg, logger)
         elif(emul_i-1 == self._emul_i):
             # Set reload flag to 0
             reload = 0
         else:
-            logger.info("Emulator iteration %s already exists." % (emul_i))
+            logger.info("Emulator iteration %i already exists." % (emul_i))
 
             # Check if repreparation was actually necessary
             diff_flag = 1
@@ -1055,7 +1055,7 @@ class Emulator(object):
             # Open hdf5-file
             with PRISM_File('r+', None) as file:
                 # Make group for emulator iteration
-                group = file.create_group('%s' % (emul_i))
+                group = file.create_group('%i' % (emul_i))
 
                 # Save the number of data points
                 group.attrs['n_data'] = self._modellink._n_data
@@ -1071,7 +1071,7 @@ class Emulator(object):
                 for i, emul_s in enumerate(data_to_emul_s):
                     with PRISM_File('a', emul_s) as file_i:
                         # Make iteration group for this emulator system
-                        data_set = file_i.create_group('%s' % (emul_i))
+                        data_set = file_i.create_group('%i' % (emul_i))
 
                         # Save data value, errors and space to this system
                         data_set.attrs['data_val'] =\
@@ -1091,11 +1091,11 @@ class Emulator(object):
                             for j, idx in enumerate(data_idx):
                                 # If part is a string, encode and save it
                                 if isinstance(idx, (str, unicode)):
-                                    data_set.attrs['data_idx_%s' % (j)] =\
+                                    data_set.attrs['data_idx_%i' % (j)] =\
                                         idx.encode('ascii', 'ignore')
                                 # Else, save it normally
                                 else:
-                                    data_set.attrs['data_idx_%s' % (j)] = idx
+                                    data_set.attrs['data_idx_%i' % (j)] = idx
 
                         # If data_idx contains a single part, save it
                         else:
@@ -1108,8 +1108,8 @@ class Emulator(object):
                                 data_set.attrs['data_idx'] = data_idx
 
                         # Create external link between file_i and master file
-                        group['emul_%s' % (emul_s)] = h5py.ExternalLink(
-                            path.basename(file_i.filename), '%s' % (emul_i))
+                        group['emul_%i' % (emul_s)] = h5py.ExternalLink(
+                            path.basename(file_i.filename), '%i' % (emul_i))
 
         # MPI Barrier
         self._comm.Barrier()
@@ -1202,7 +1202,7 @@ class Emulator(object):
             # Save time difference and communicator size
             self._pipeline._save_statistics(emul_i, {
                 'emul_construct_time': ['%.2f' % (time()-start_time), 's'],
-                'MPI_comm_size_cons': ['%s' % (self._size), '']})
+                'MPI_comm_size_cons': ['%i' % (self._size), '']})
 
         # MPI Barrier
         self._comm.Barrier()
@@ -1377,7 +1377,7 @@ class Emulator(object):
                 active_par_data.update(np.array(frz_pot_par)[act_idx])
 
             # Log the resulting active parameters
-            logger.info("Active parameters for emulator system %s: %s"
+            logger.info("Active parameters for emulator system %i: %s"
                         % (self._emul_s[emul_s],
                            [self._modellink._par_name[par]
                             for par in active_par_data]))
@@ -1468,7 +1468,7 @@ class Emulator(object):
             # Log the score of the regression process
             regr_score = pipe.named_steps['linear'].score(
                     sam_set_poly, self._mod_set[emul_i][emul_s])
-            logger.info("Regression score for emulator system %s: %s."
+            logger.info("Regression score for emulator system %i: %f."
                         % (self._emul_s[emul_s], regr_score))
 
             # Obtain polynomial powers and include intercept term
@@ -1610,7 +1610,7 @@ class Emulator(object):
         # Create logger
         logger = getRLogger('DOT_TERM')
         logger.info("Pre-calculating second expectation adjustment dot-term "
-                    "for known samples at emulator iteration %s." % (emul_i))
+                    "for known samples at emulator iteration %i." % (emul_i))
 
         # Obtain prior expectation value of sam_set
         prior_exp_sam_set = self._get_prior_exp(emul_i, emul_s_seq, None)
@@ -1865,7 +1865,7 @@ class Emulator(object):
 
         # Log the creation of the covariance matrix
         logger = getRLogger('COV_MAT')
-        logger.info("Calculating covariance matrix for emulator iteration %s."
+        logger.info("Calculating covariance matrix for emulator iteration %i."
                     % (emul_i))
 
         # Calculate covariance matrix
@@ -1896,7 +1896,7 @@ class Emulator(object):
             cov_mat[i] = nearest_PD(cov_mat[i])
 
             # Calculate the inverse of the covariance matrix
-            logger.info("Calculating inverse of covariance matrix %s."
+            logger.info("Calculating inverse of covariance matrix %i."
                         % (emul_s))
 
             # TODO: Maybe I should put an error catch for memory overflow here?
@@ -1954,7 +1954,7 @@ class Emulator(object):
 
         # Check if an existing hdf5-file is provided
         try:
-            logger.info("Checking if provided emulator file '%s' is a "
+            logger.info("Checking if provided emulator file %r is a "
                         "constructed emulator."
                         % (self._pipeline._hdf5_file))
             with PRISM_File('r', None) as file:
@@ -2065,7 +2065,7 @@ class Emulator(object):
             raise_error(InputError, err_msg, logger)
 
         # Logging
-        logger.info("ModelLink object set to '%s'." % (self._modellink._name))
+        logger.info("ModelLink object set to %r." % (self._modellink._name))
 
     # Function that loads in the emulator data
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -2126,7 +2126,7 @@ class Emulator(object):
 
         # Check if requested emulator iteration exists
         elif not(1 <= emul_i <= self._emul_i):
-            err_msg = ("Requested emulator iteration %s does not exist!"
+            err_msg = ("Requested emulator iteration %i does not exist!"
                        % (emul_i))
             raise_error(RequestError, err_msg, logger)
 
@@ -2144,7 +2144,7 @@ class Emulator(object):
             # Assign the emulator systems to the various MPI ranks
             for rank, emul_s_seq in enumerate(emul_s_to_core):
                 # Log which systems are assigned to which rank
-                logger.info("Assigning emulator systems %s to MPI rank %s."
+                logger.info("Assigning emulator systems %s to MPI rank %i."
                             % (emul_s_seq, rank))
 
                 # Update total number of emulator systems
@@ -2170,14 +2170,14 @@ class Emulator(object):
         self._n_emul_s = len(self._emul_s)
 
         # Load the corresponding sam_set, mod_set and cov_mat_inv
-        logger.info("Loading relevant emulator data up to iteration %s."
+        logger.info("Loading relevant emulator data up to iteration %i."
                     % (emul_i))
 
         # Open hdf5-file
         with PRISM_File('r', None) as file:
             # Read in the data
             for i in range(1, emul_i+1):
-                group = file['%s' % (i)]
+                group = file['%i' % (i)]
 
                 # Create empty construct check list
                 ccheck = []
@@ -2230,7 +2230,7 @@ class Emulator(object):
 
                     # Try to access the emulator system
                     try:
-                        data_set = group['emul_%s' % (emul_s)]
+                        data_set = group['emul_%i' % (emul_s)]
                     # If it does not exist, it was passive
                     except KeyError:
                         # Add empty lists for all emulator system data
@@ -2371,12 +2371,12 @@ class Emulator(object):
         # Open hdf5-file
         with PRISM_File('r+', emul_s) as file:
             # Obtain the dataset this data needs to be saved to
-            data_set = file['%s' % (emul_i)]
+            data_set = file['%i' % (emul_i)]
 
             # Loop over entire provided data dict
             for keyword, data in data_dict.items():
                 # Log what data is being saved
-                logger.info("Saving %s data at iteration %s to HDF5."
+                logger.info("Saving %r data at iteration %i to HDF5."
                             % (keyword, emul_i))
 
                 # Check what data keyword has been provided
@@ -2447,7 +2447,7 @@ class Emulator(object):
                         emul_s = self._emul_s[lemul_s]
 
                         # Save mod_set data to file and memory
-                        data_set_s = data_set['emul_%s' % (emul_s)]
+                        data_set_s = data_set['emul_%i' % (emul_s)]
                         data_set_s.create_dataset('mod_set', data=data[1][i])
                         self._mod_set[emul_i][lemul_s] = data[1][i]
 
@@ -2672,7 +2672,7 @@ class Emulator(object):
                 # Loop over all data points in the first iteration
                 for i in range(n_emul_s):
                     # Read in data values, errors and spaces
-                    data_set = group['emul_%s' % (i)]
+                    data_set = group['emul_%i' % (i)]
                     data_val.append(data_set.attrs['data_val'])
                     data_err.append(data_set.attrs['data_err'].tolist())
                     data_spc.append(data_set.attrs['data_spc'].decode('utf-8'))

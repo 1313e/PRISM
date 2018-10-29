@@ -22,7 +22,7 @@ from os import path
 from time import time
 
 # Package imports
-from e13tools.core import InputError
+from e13tools import InputError
 from e13tools.pyplot import draw_textline
 from e13tools.sampling import lhd
 import matplotlib.cm as cm
@@ -190,7 +190,7 @@ class Projection(object):
             # Analyze projection hypercube containing all samples if required
             if hcube in self.__create_hcubes:
                 # Log that projection data is being created
-                logger.info("Calculating projection data '%s'." % (hcube_name))
+                logger.info("Calculating projection data %r." % (hcube_name))
 
                 # Analyze this proj_hcube
                 impl_min, impl_los = self.__analyze_proj_hcube(hcube)
@@ -204,7 +204,7 @@ class Projection(object):
 
                 # Skip making figure if it already exists
                 if path.exists(self.__fig_path):
-                    logger.info("Projection figure '%s' already exists. "
+                    logger.info("Projection figure %r already exists. "
                                 "Skipping figure creation." % (hcube_name))
                     self._comm.Barrier()
                     continue
@@ -266,7 +266,7 @@ class Projection(object):
 
         # Start logger
         logger = getCLogger('PROJECTION')
-        logger.info("Drawing projection figure '%s'." % (hcube_name))
+        logger.info("Drawing projection figure %r." % (hcube_name))
 
         # Get the parameter this hypercube is about
         par = hcube[0]
@@ -358,7 +358,7 @@ class Projection(object):
         f.show() if self.__show else plt.close(f)
 
         # Log that this hypercube has been drawn
-        logger.info("Finished drawing projection figure '%s'." % (hcube_name))
+        logger.info("Finished drawing projection figure %r." % (hcube_name))
 
     # This function draws the 3D projection figure
     @docstring_append(draw_proj_fig_doc.format("3D", "2"))
@@ -368,7 +368,7 @@ class Projection(object):
 
         # Start logger
         logger = getCLogger('PROJECTION')
-        logger.info("Drawing projection figure '%s'." % (hcube_name))
+        logger.info("Drawing projection figure %r." % (hcube_name))
 
         # Get the parameter on x-axis and y-axis this hcube is about
         par1 = hcube[0]
@@ -498,7 +498,7 @@ class Projection(object):
         f.show() if self.__show else plt.close(f)
 
         # Log that this hypercube has been drawn
-        logger.info("Finished drawing projection figure '%s'." % (hcube_name))
+        logger.info("Finished drawing projection figure %r." % (hcube_name))
 
     # This function returns the projection data belonging to a proj_hcube
     @docstring_substitute(hcube=hcube_doc, proj_data=proj_data_doc)
@@ -526,15 +526,15 @@ class Projection(object):
         # Open hdf5-file
         with PRISM_File('r', None) as file:
             # Log that projection data is being obtained
-            logger.info("Obtaining projection data '%s'." % (hcube_name))
+            logger.info("Obtaining projection data %r." % (hcube_name))
 
             # Obtain data
-            data_set = file['%s/proj_hcube' % (self.__emul_i)]
+            data_set = file['%i/proj_hcube' % (self.__emul_i)]
             impl_min_hcube = data_set['%s/impl_min' % (hcube_name)][()]
             impl_los_hcube = data_set['%s/impl_los' % (hcube_name)][()]
 
             # Log that projection data was obtained successfully
-            logger.info("Finished obtaining projection data '%s'."
+            logger.info("Finished obtaining projection data %r."
                         % (hcube_name))
 
         # Return it
@@ -614,11 +614,11 @@ class Projection(object):
 
                     # Check if projection data already exists
                     try:
-                        file['%s/proj_hcube/%s' % (self.__emul_i, hcube_name)]
+                        file['%i/proj_hcube/%s' % (self.__emul_i, hcube_name)]
 
                     # If it does not exist, add it to the creation list
                     except KeyError:
-                        logger.info("Projection data '%s' not found. Will be "
+                        logger.info("Projection data %r not found. Will be "
                                     "created." % (hcube_name))
                         create_hcubes.append(hcube)
 
@@ -627,15 +627,15 @@ class Projection(object):
                         # If force is used, remove data and figure
                         if self.__force:
                             # Remove data
-                            del file['%s/proj_hcube/%s'
+                            del file['%i/proj_hcube/%s'
                                      % (self.__emul_i, hcube_name)]
-                            logger.info("Projection data '%s' already exists. "
+                            logger.info("Projection data %r already exists. "
                                         "Deleting." % (hcube_name))
 
                             # Try to remove figure as well
                             if path.exists('%s(%s).png'
                                            % (self.__fig_prefix, hcube_name)):
-                                logger.info("Projection figure '%s' already "
+                                logger.info("Projection figure %r already "
                                             "exists. Deleting." % (hcube_name))
                                 os.remove('%s(%s).png'
                                           % (self.__fig_prefix, hcube_name))
@@ -645,7 +645,7 @@ class Projection(object):
 
                         # If force is not used, skip creation
                         else:
-                            logger.info("Projection data '%s' already exists. "
+                            logger.info("Projection data %r already exists. "
                                         "Skipping data creation."
                                         % (hcube_name))
 
@@ -790,7 +790,7 @@ class Projection(object):
 
         # Log that projection hypercube is being created
         logger = getCLogger('PROJ_HCUBE')
-        logger.info("Creating projection hypercube '%s'." % (hcube_name))
+        logger.info("Creating projection hypercube %r." % (hcube_name))
 
         # If n_par is 2, make 2D projection hypercube on controller
         if(self._is_controller and self._modellink._n_par == 2):
@@ -860,7 +860,7 @@ class Projection(object):
         proj_hcube = self._comm.bcast(proj_hcube, 0)
 
         # Log that projection hypercube has been created
-        logger.info("Finished creating projection hypercube '%s'."
+        logger.info("Finished creating projection hypercube %r."
                     % (hcube_name))
 
         # Return proj_hcube
@@ -887,7 +887,7 @@ class Projection(object):
 
         # Log that a projection hypercube is being analyzed
         logger = getCLogger('ANALYSIS')
-        logger.info("Analyzing projection hypercube '%s'." % (hcube_name))
+        logger.info("Analyzing projection hypercube %r." % (hcube_name))
 
         # Obtain the corresponding hypercube
         proj_hcube = self.__get_proj_hcube(hcube)
@@ -945,7 +945,7 @@ class Projection(object):
                         "second." % (time_diff, total/(time_diff)))
 
             # Log that projection data has been created
-            logger.info("Finished calculating projection data '%s'."
+            logger.info("Finished calculating projection data %r."
                         % (hcube_name))
 
             # Save projection data to hdf5
@@ -990,7 +990,7 @@ class Projection(object):
         # Check if not more than two args have been provided
         if(len(args) > 2):
             err_msg = ("The project()-method takes a maximum of 2 positional "
-                       "arguments, but %s have been provided!" % (len(args)))
+                       "arguments, but %i have been provided!" % (len(args)))
             raise_error(InputError, err_msg, logger)
 
         # Update emul_i and proj_par by given args
@@ -1005,7 +1005,7 @@ class Projection(object):
             if key in ('fig_kwargs', 'impl_kwargs', 'los_kwargs',
                        'line_kwargs'):
                 if not isinstance(value, dict):
-                    err_msg = ("Input argument '%s' is not of type 'dict'!"
+                    err_msg = ("Input argument %r is not of type 'dict'!"
                                % (key))
                     raise_error(TypeError, err_msg, logger)
                 else:
@@ -1128,15 +1128,15 @@ class Projection(object):
             # Check if it makes sense to create a projection
             if(self.__emul_i == self._emulator._emul_i):
                 if not self._n_eval_sam[self.__emul_i]:
-                    msg = ("Requested emulator iteration %s has not been "
+                    msg = ("Requested emulator iteration %i has not been "
                            "analyzed yet. Creating projections may not be "
                            "useful." % (self.__emul_i))
-                    logger.info(msg)
+                    logger.warn(msg)
                     print(msg)
                 elif self._prc:
                     pass
                 else:
-                    err_msg = ("Requested emulator iteration %s has no "
+                    err_msg = ("Requested emulator iteration %i has no "
                                "plausible regions. Creating projections has no"
                                " use." % (self.__emul_i))
                     raise_error(RequestError, err_msg, logger)
@@ -1144,7 +1144,7 @@ class Projection(object):
             # Check if projection has been created before
             with PRISM_File('r+', None) as file:
                 try:
-                    file.create_group('%s/proj_hcube' % (self.__emul_i))
+                    file.create_group('%i/proj_hcube' % (self.__emul_i))
                 except ValueError:
                     pass
 
@@ -1175,12 +1175,12 @@ class Projection(object):
         # Open hdf5-file
         with PRISM_File('r+', None) as file:
             # Obtain the group this data needs to be saved to
-            group = file['%s/proj_hcube' % (self.__emul_i)]
+            group = file['%i/proj_hcube' % (self.__emul_i)]
 
             # Loop over entire provided data dict
             for keyword, data in data_dict.items():
                 # Log what data is being saved
-                logger.info("Saving %s data at iteration %s to HDF5."
+                logger.info("Saving %r data at iteration %i to HDF5."
                             % (keyword, self.__emul_i))
 
                 # Check what data keyword has been provided

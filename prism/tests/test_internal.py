@@ -302,8 +302,9 @@ def test_getRLogger():
 
 # Pytest for the import_cmaps function
 def test_import_cmaps():
-    # Check if PRISM's custom cmaps can be loaded imported correctly
-    import_cmaps()
+    # Check if providing a non-existing directory raises an error
+    with pytest.raises(OSError):
+        import_cmaps('./test')
 
     # Check if providing a custom directory with invalid cmaps raises an error
     with pytest.raises(InputError):

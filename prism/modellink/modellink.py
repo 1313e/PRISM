@@ -301,8 +301,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                     par_seq[i] = par_idx % self._n_par
             # If any operation above fails, raise error
             except Exception as error:
-                err_msg = "Input argument '%s' is invalid! (%s)" % (name,
-                                                                    error)
+                err_msg = "Input argument %r is invalid! (%s)" % (name, error)
                 raise_error(InputError, err_msg, logger)
 
         # If everything went without exceptions, check if list is not empty and
@@ -310,7 +309,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         if len(par_seq):
             par_seq = list(SortedSet(par_seq))
         else:
-            err_msg = "Input argument '%s' is empty!" % (name)
+            err_msg = "Input argument %r is empty!" % (name)
             raise_error(ValueError, err_msg, logger)
 
         # Log end

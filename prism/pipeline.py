@@ -312,6 +312,7 @@ class Pipeline(Projection, object):
 
         return(self._do_logging)
 
+    # TODO: Find a way to only turn off all regular logging done by PRISM
     @do_logging.setter
     def do_logging(self, flag):
         # Make logger
@@ -550,7 +551,7 @@ class Pipeline(Projection, object):
 
         # Log that model is being multi-called
         logger = getCLogger('CALL_MODEL')
-        logger.info("Multi-calling model for sample set of size %s."
+        logger.info("Multi-calling model for sample set of size %i."
                     % (np.shape(sam_set)[0]))
 
         # Create sam_dict
@@ -715,13 +716,13 @@ class Pipeline(Projection, object):
             # If one did not specify a root directory, set it to default
             if root_dir is None:
                 self._root_dir = path.abspath('.')
-                logger.info("No root directory specified, set to '%s'."
+                logger.info("No root directory specified, set to %r."
                             % (self._root_dir))
 
             # If one specified a root directory, use it
             elif isinstance(root_dir, (str, unicode)):
                 self._root_dir = path.abspath(root_dir)
-                logger.info("Root directory set to '%s'." % (self._root_dir))
+                logger.info("Root directory set to %r." % (self._root_dir))
 
                 # Check if this directory already exists and create it if not
                 try:
@@ -779,13 +780,13 @@ class Pipeline(Projection, object):
                     working_dir = ''.join([prefix_new, '0'])
                     self._working_dir = path.join(self._root_dir, working_dir)
                     os.mkdir(self._working_dir)
-                    logger.info("No working directories found, created '%s'."
+                    logger.info("No working directories found, created %r."
                                 % (working_dir))
 
                 # If working directories exist, load last one created
                 else:
                     self._working_dir = emul_dirs[0][0]
-                    logger.info("Working directories found, set to '%s'."
+                    logger.info("Working directories found, set to %r."
                                 % (path.basename(self._working_dir)))
 
             # If one requested a new working directory
@@ -812,13 +813,13 @@ class Pipeline(Projection, object):
 
                 # Save path to new working directory
                 self._working_dir = working_dir
-                logger.info("New working directory requested, created '%s'."
+                logger.info("New working directory requested, created %r."
                             % (path.basename(working_dir)))
 
             # If one specified a working directory, use it
             elif isinstance(working_dir, (str, unicode)):
                 self._working_dir = path.join(self._root_dir, working_dir)
-                logger.info("Working directory set to '%s'." % (working_dir))
+                logger.info("Working directory set to %r." % (working_dir))
 
                 # Check if this directory already exists and create it if not
                 try:
@@ -843,7 +844,7 @@ class Pipeline(Projection, object):
 
                 # Save hdf5-file absolute path
                 self._hdf5_file = path.join(self._working_dir, hdf5_file)
-                logger.info("Master HDF5-file set to '%s'." % (hdf5_file))
+                logger.info("Master HDF5-file set to %r." % (hdf5_file))
 
             # If no string is given, it is invalid
             else:
@@ -868,7 +869,7 @@ class Pipeline(Projection, object):
                     err_msg = ("Input argument 'prism_file' is a non-existing "
                                "path (%r)!" % (prism_file))
                     raise_error(OSError, err_msg, logger)
-                logger.info("PRISM parameters file set to '%s'."
+                logger.info("PRISM parameters file set to %r."
                             % (self._prism_file))
 
             # If anything else is given, it is invalid
@@ -1027,7 +1028,7 @@ class Pipeline(Projection, object):
                 # Read in the data up to the last emulator iteration
                 for i in range(1, self._emulator._emul_i+1):
                     # Get this emulator
-                    emul = file['%s' % (i)]
+                    emul = file['%i' % (i)]
 
                     # Check if analysis has been carried out (only if i=emul_i)
                     try:
@@ -1070,12 +1071,12 @@ class Pipeline(Projection, object):
         # Open hdf5-file
         with PRISM_File('r+', None) as file:
             # Obtain the dataset this data needs to be saved to
-            data_set = file['%s' % (emul_i)]
+            data_set = file['%i' % (emul_i)]
 
             # Loop over entire provided data dict
             for keyword, data in data_dict.items():
                 # Log what data is being saved
-                logger.info("Saving %s data at iteration %s to HDF5."
+                logger.info("Saving %r data at iteration %i to HDF5."
                             % (keyword, emul_i))
 
                 # Check what data keyword has been provided
@@ -1165,7 +1166,7 @@ class Pipeline(Projection, object):
         with PRISM_File('r+', None) as file:
             # Loop over all statistics in stat_dict and save them
             for keyword, (value, unit) in stat_dict.items():
-                file['%s/statistics' % (emul_i)].attrs[keyword] =\
+                file['%i/statistics' % (emul_i)].attrs[keyword] =\
                     [str(value).encode('ascii', 'ignore'),
                      unit.encode('ascii', 'ignore')]
 
@@ -1302,7 +1303,7 @@ class Pipeline(Projection, object):
             self._save_statistics(emul_i, {
                 'tot_model_eval_time': ['%.3g' % (end_time), 's'],
                 'avg_model_eval_time': ['%.3g' % (eval_rate), 's'],
-                'MPI_comm_size_model': ['%s' % (self._size), '']})
+                'MPI_comm_size_model': ['%i' % (self._size), '']})
             logger.info(msg)
             print(msg)
 
@@ -1336,7 +1337,7 @@ class Pipeline(Projection, object):
         n_eval_sam = self._get_n_eval_sam(emul_i)
 
         # Create array containing all samples for analyzing the emulator
-        logger.info("Creating emulator evaluation sample set with size %s."
+        logger.info("Creating emulator evaluation sample set with size %i."
                     % (n_eval_sam))
         eval_sam_set = lhd(n_eval_sam, self._modellink._n_par,
                            self._modellink._par_rng, 'center',
@@ -1512,8 +1513,8 @@ class Pipeline(Projection, object):
             # Check if md_var contains n_data values
             if not(md_var.shape[0] == self._emulator._n_data[emul_i]):
                 err_msg = ("Received array of model discrepancy variances "
-                           "'md_var' has incorrect number of data points (%s "
-                           "!= %s)!"
+                           "'md_var' has incorrect number of data points (%i "
+                           "!= %i)!"
                            % (md_var.shape[0], self._emulator._n_data[emul_i]))
                 raise ShapeError(err_msg)
 
@@ -1524,7 +1525,7 @@ class Pipeline(Projection, object):
                 pass
             else:
                 err_msg = ("Received array of model discrepancy variances "
-                           "'md_var' has incorrect number of values (%s != 2)!"
+                           "'md_var' has incorrect number of values (%i != 2)!"
                            % (md_var.shape[1]))
                 raise ShapeError(err_msg)
 
@@ -1576,7 +1577,7 @@ class Pipeline(Projection, object):
         # Loop over the remaining values in impl_cut
         for i in range(1, len(impl_cut)):
             # Check if provided value is non-negative float
-            impl_cut[i] = check_vals(impl_cut[i], 'impl_cut[%s]' % (i),
+            impl_cut[i] = check_vals(impl_cut[i], 'impl_cut[%i]' % (i),
                                      'float', 'nneg')
 
             # If the value is zero, take on the value of the previous cut-off
@@ -1585,7 +1586,7 @@ class Pipeline(Projection, object):
 
             # If the value is lower than the previous value, it is invalid
             elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
-                err_msg = ("Cut-off %s is higher than cut-off %s (%s > %s)!"
+                err_msg = ("Cut-off %i is higher than cut-off %i (%i > %i)!"
                            % (i, i-1, impl_cut[i], impl_cut[i-1]))
                 raise_error(ValueError, err_msg, logger)
 
@@ -1740,29 +1741,29 @@ class Pipeline(Projection, object):
 
         # Check if both arrays are two-dimensional
         if not(ext_sam_set.ndim == 2):
-            err_msg = ("External sample set has more than two dimensions (%s)!"
+            err_msg = ("External sample set has more than two dimensions (%i)!"
                        % (ext_sam_set.ndim))
             raise_error(ShapeError, err_msg, logger)
         if not(ext_mod_set.ndim == 2):
             err_msg = ("External model output set has more than two dimensions"
-                       " (%s)!" % (ext_mod_set.ndim))
+                       " (%i)!" % (ext_mod_set.ndim))
             raise_error(ShapeError, err_msg, logger)
 
         # Check if ext_sam_set and ext_mod_set have correct shapes and raise
         # error if not
         if not(ext_sam_set.shape[1] == self._modellink._n_par):
             err_msg = ("External sample set has incorrect number of parameters"
-                       " (%s != %s)!"
+                       " (%i != %i)!"
                        % (ext_sam_set.shape[1], self._modellink._n_par))
             raise_error(ShapeError, err_msg, logger)
         if not(ext_mod_set.shape[1] == self._modellink._n_data):
             err_msg = ("External model output set has incorrect number of data"
-                       " values (%s != %s)!"
+                       " values (%i != %i)!"
                        % (ext_mod_set.shape[1], self._modellink._n_data))
             raise_error(ShapeError, err_msg, logger)
         if not(ext_sam_set.shape[0] == ext_mod_set.shape[0]):
             err_msg = ("External sample and model output sets do not contain "
-                       "the same number of samples (%s != %s)!"
+                       "the same number of samples (%i != %i)!"
                        % (ext_sam_set.shape[0], ext_mod_set.shape[0]))
             raise_error(ShapeError, err_msg, logger)
 
@@ -1777,12 +1778,12 @@ class Pipeline(Projection, object):
             # If not, raise an error
             if not(((lower_bnd <= par_set)*(par_set <= upper_bnd)).all()):
                 err_msg = ("External sample set contains a sample outside of "
-                           "parameter space at index %s!" % (i))
+                           "parameter space at index %i!" % (i))
                 raise_error(ValueError, err_msg, logger)
 
         # Log that processing has been finished
         logger.info("Finished processing externally provided model realization"
-                    " set of size %s." % (ext_sam_set.shape[0]))
+                    " set of size %i." % (ext_sam_set.shape[0]))
 
         # If all checks are passed, return ext_sam_set and ext_mod_set
         return(ext_sam_set, ext_mod_set.T)
@@ -1843,7 +1844,7 @@ class Pipeline(Projection, object):
 
         # Start logging
         logger = getCLogger('ANALYZE_SS')
-        logger.info("Starting analysis of evaluation sample set of size %s."
+        logger.info("Starting analysis of evaluation sample set of size %i."
                     % (n_sam))
 
         # Make a filled bool list containing which samples are plausible
@@ -1867,8 +1868,8 @@ class Pipeline(Projection, object):
                 n_sam = len(sam_idx)
 
                 # Log that this iteration is being evaluated
-                logger.info("Analyzing evaluation sample set of size %s in "
-                            "emulator iteration %s." % (n_sam, i))
+                logger.info("Analyzing evaluation sample set of size %i in "
+                            "emulator iteration %i." % (n_sam, i))
 
                 # Determine which samples are still plausible in this iteration
                 eval_sam_set = sam_set[sam_idx]
@@ -1978,7 +1979,7 @@ class Pipeline(Projection, object):
 
         # Begin logging
         logger = getCLogger('ANALYZE')
-        logger.info("Analyzing emulator iteration %s." % (emul_i))
+        logger.info("Analyzing emulator iteration %i." % (emul_i))
 
         # Controller checking whether this iteration can still be (re)analyzed
         if self._is_controller:
@@ -1993,7 +1994,7 @@ class Pipeline(Projection, object):
                 # If it has been evaluated, reanalysis is not possible
                 if 'mod_real_set' not in self._emulator._ccheck[emul_i+1]:
                         err_msg = ("Construction of next emulator iteration "
-                                   "(%s) has already been started. Reanalysis "
+                                   "(%i) has already been started. Reanalysis "
                                    "of the current iteration is not possible."
                                    % (emul_i+1))
                         raise_error(RequestError, err_msg, logger)
@@ -2042,7 +2043,7 @@ class Pipeline(Projection, object):
                 'tot_analyze_time': ['%.2f' % (time_diff_total), 's'],
                 'avg_emul_eval_rate': ['%.2f' % (avg_eval_rate), '1/s'],
                 'par_space_remaining': ['%.3g' % (par_space_rem), '%'],
-                'MPI_comm_size_anal': ['%s' % (self._size), '']})
+                'MPI_comm_size_anal': ['%i' % (self._size), '']})
 
             # Log that analysis has been finished
             msg1 = ("Finished analysis of emulator iteration in %.2f seconds, "
@@ -2121,24 +2122,24 @@ class Pipeline(Projection, object):
             force = check_vals(force, 'force', 'bool')
 
             # Check if iteration was interrupted or not, or if force is True
-            logger.info("Checking state of emulator iteration %s." % (emul_i))
+            logger.info("Checking state of emulator iteration %i." % (emul_i))
             try:
                 # If force is True, reconstruct full iteration
                 if force:
-                    logger.info("Emulator iteration %s has been requested to "
+                    logger.info("Emulator iteration %i has been requested to "
                                 "be (re)constructed." % (emul_i))
                     c_from_start = 1
 
                 # If interrupted at start, reconstruct full iteration
                 elif('mod_real_set' in self._emulator._ccheck[emul_i]):
-                    logger.info("Emulator iteration %s does not contain "
+                    logger.info("Emulator iteration %i does not contain "
                                 "evaluated model realization data. Will be "
                                 "constructed from start." % (emul_i))
                     c_from_start = 1
 
                 # If already finished, skip everything
                 elif(emul_i <= self._emulator._emul_i):
-                    msg = ("Emulator iteration %s has already been fully "
+                    msg = ("Emulator iteration %i has already been fully "
                            "constructed. Skipping construction process."
                            % (emul_i))
                     logger.info(msg)
@@ -2147,14 +2148,14 @@ class Pipeline(Projection, object):
 
                 # If interrupted midway, do not reconstruct full iteration
                 else:
-                    logger.info("Construction of emulator iteration %s was "
+                    logger.info("Construction of emulator iteration %i was "
                                 "interrupted. Continuing from point of "
                                 "interruption." % (emul_i))
                     c_from_start = 0
 
             # If never constructed before, construct full iteration
             except IndexError:
-                logger.info("Emulator iteration %s has not been constructed."
+                logger.info("Emulator iteration %i has not been constructed."
                             % (emul_i))
                 c_from_start = 1
 
@@ -2174,7 +2175,7 @@ class Pipeline(Projection, object):
             return
 
         # Log that construction of emulator iteration is being started
-        logger.info("Starting construction of emulator iteration %s."
+        logger.info("Starting construction of emulator iteration %i."
                     % (emul_i))
 
         # If iteration needs to be constructed from the beginning
@@ -2205,7 +2206,7 @@ class Pipeline(Projection, object):
                     n_sam_init = max(0, self._n_sam_init-n_ext_sam)
                     if n_sam_init:
                         logger.info("Creating initial model evaluation sample "
-                                    "set of size %s." % (n_sam_init))
+                                    "set of size %i." % (n_sam_init))
                         add_sam_set = lhd(n_sam_init, self._modellink._n_par,
                                           self._modellink._par_rng, 'center',
                                           self._criterion,
@@ -2455,7 +2456,7 @@ class Pipeline(Projection, object):
             with PRISM_File('r', None) as file:
                 # Check if projection data is available by trying to access it
                 try:
-                    data_set = file['%s/proj_hcube' % (emul_i)]
+                    data_set = file['%i/proj_hcube' % (emul_i)]
                 except KeyError:
                     proj = 0
                     n_proj = 0
@@ -2751,7 +2752,7 @@ class Pipeline(Projection, object):
 
         # Do some logging
         logger = getCLogger('EVALUATE')
-        logger.info("Evaluating emulator iteration %s for provided set of "
+        logger.info("Evaluating emulator iteration %i for provided set of "
                     "model parameter samples." % (emul_i))
 
         # Make sure that sam_set is a NumPy array
@@ -2775,7 +2776,7 @@ class Pipeline(Projection, object):
             # Check if sam_set has n_par parameter values, raise error if not
             if not(sam_set.shape[1] == self._modellink._n_par):
                 err_msg = ("Input argument 'sam_set' has incorrect number of "
-                           "parameters (%s != %s)!"
+                           "parameters (%i != %i)!"
                            % (sam_set.shape[1], self._modellink._n_par))
                 raise_error(ShapeError, err_msg, logger)
 
