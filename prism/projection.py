@@ -1131,7 +1131,7 @@ class Projection(object):
                     msg = ("Requested emulator iteration %i has not been "
                            "analyzed yet. Creating projections may not be "
                            "useful." % (self.__emul_i))
-                    logger.warn(msg)
+                    logger.warning(msg)
                     print(msg)
                 elif self._prc:
                     pass
