@@ -808,6 +808,7 @@ def rprint(*args, **kwargs):
 
 # Define function that can start the logging process of PRISM
 # TODO: Make a filter that only allows PRISM log messages to be logged to file
+# TODO: Find a way to bind the logging file to the Pipeline instance
 def start_logger(filename=None, mode='w'):
     """
     Opens a logging file called `filename` in the current working directory,
@@ -864,8 +865,8 @@ def start_logger(filename=None, mode='w'):
 
 # %% LIST DEFINITIONS
 aux_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/', '{', '}', '<',
-                 '>', '´', '¨', '`', '\\', '?', '!', '%', ':', ';', '+', '-',
-                 '=', '$', '~', '#', '@', '^', '&', '*']
+                 '>', '´', '¨', '`', '\\', '?', '!', '%', ':', ';', '=', '$',
+                 '~', '#', '@', '^', '&', '*']
 
 
 # %% COMPILED CODE OBJECT DEFINITIONS

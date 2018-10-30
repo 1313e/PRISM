@@ -157,6 +157,11 @@ class Test_Pipeline_Gaussian2D(object):
         pipe2 = eval(repr(pipe))
         assert pipe2._hdf5_file == pipe._hdf5_file
 
+    # Check if proj_res and proj_depth can be called
+    def test_proj_par_props(self, pipe):
+        assert pipe.proj_res is None
+        assert pipe.proj_depth is None
+
     # Check if first iteration can be constructed
     def test_construct(self, pipe):
         pipe.construct(1, 0)

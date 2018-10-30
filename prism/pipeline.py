@@ -263,7 +263,9 @@ class Pipeline(Projection, object):
     @property
     def comm(self):
         """
-        :obj:`~mpi4py.MPI.Intracomm`: The global MPI intra-communicator.
+        :obj:`~mpi4py.MPI.Intracomm`: The global MPI intra-communicator to use
+        in this :obj:`~Pipeline` instance. By default, this is
+        :obj:`MPI.COMM_WORLD`.
 
         """
 
@@ -909,7 +911,7 @@ class Pipeline(Projection, object):
         self._hdf5_file = self._comm.bcast(self._hdf5_file, 0)
         self._prism_file = self._comm.bcast(self._prism_file, 0)
 
-        # Save PRISM_File as an instance attribute and add hdf5_file to it
+        # Generate custom File class using the path to the master HDF5-file
         self._File = get_PRISM_File(self._hdf5_file)
 
     # This function generates mock data and loads it into ModelLink

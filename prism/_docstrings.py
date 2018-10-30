@@ -227,13 +227,16 @@ draw_proj_fig_doc =\
         hcube : 1D array_like of int of length {1}
             Array containing the internal integer identifiers of the main model
             parameters that require a projection figure.
-        impl_min : 1D list
+        impl_min : 1D :obj:`~numpy.ndarray` object
             List containing the lowest implausibility value that can be reached
             in every single grid point on the given hypercube.
-        impl_los : 1D list
+        impl_los : 1D :obj:`~numpy.ndarray` object
             List containing the fraction of the total amount of evaluated
             samples in every single grid point on the given hypercube, that
-            still satisfied the implausibility cut-off criterion."""
+            still satisfied the implausibility cut-off criterion.
+        proj_res : int
+            Number of emulator evaluations used to generate the grid for the
+            given hypercube."""
 
 # Description of hcube
 hcube_doc =\
@@ -243,10 +246,10 @@ hcube_doc =\
 
 # Descriptions of proj_data
 proj_data_doc =\
-        """impl_min_hcube : 1D list
+        """impl_min_hcube : 1D :obj:`~numpy.ndarray` object
             List containing the lowest implausibility value that can be reached
             in every single grid point on the given hypercube.
-        impl_los_hcube : 1D list
+        impl_los_hcube : 1D :obj:`~numpy.ndarray` object
             List containing the fraction of the total amount of evaluated
             samples in every single grid point on the given hypercube, that
             still satisfied the implausibility cut-off criterion."""

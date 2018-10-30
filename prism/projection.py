@@ -29,8 +29,7 @@ import matplotlib.cm as cm
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import numpy as np
-# TODO: Do some research on scipy.interpolate.Rbf later
-from scipy.interpolate import interp1d, interp2d
+from scipy.interpolate import Rbf
 from tqdm import tqdm
 
 # PRISM imports
@@ -210,13 +209,19 @@ class Projection(object):
 
                 # If projection data is not already loaded, load it
                 if impl_min is None and impl_los is None:
-                    impl_min, impl_los = self.__get_proj_data(hcube)
+                    impl_min, impl_los, proj_res, _ =\
+                        self.__get_proj_data(hcube)
+                # Otherwise, the used resolution is the current resolution
+                else:
+                    proj_res = self.__res
 
                 # Draw projection figure
                 if(self._modellink._n_par == 2):
-                    self.__draw_2D_proj_fig(hcube, impl_min, impl_los)
+                    self.__draw_2D_proj_fig(hcube, impl_min, impl_los,
+                                            proj_res)
                 else:
-                    self.__draw_3D_proj_fig(hcube, impl_min, impl_los)
+                    self.__draw_3D_proj_fig(hcube, impl_min, impl_los,
+                                            proj_res)
 
             # MPI Barrier
             self._comm.Barrier()
@@ -240,26 +245,32 @@ class Projection(object):
     def proj_res(self):
         """
         int: Number of emulator evaluations used to generate the grid for the
-        projection figures.
+        last created projection figures.
 
         """
 
-        return(self.__res)
+        try:
+            return(self.__res)
+        except AttributeError:
+            return(None)
 
     @property
     def proj_depth(self):
         """
         int: Number of emulator evaluations used to generate the samples in
-        every grid point for the projection figures.
+        every grid point for the last created projection figures.
 
         """
 
-        return(self.__depth)
+        try:
+            return(self.__depth)
+        except AttributeError:
+            return(None)
 
     # %% HIDDEN CLASS METHODS
     # This function draws the 2D projection figure
     @docstring_append(draw_proj_fig_doc.format("2D", "1"))
-    def __draw_2D_proj_fig(self, hcube, impl_min, impl_los):
+    def __draw_2D_proj_fig(self, hcube, impl_min, impl_los, proj_res):
         # Obtain name of this projection hypercube
         hcube_name = self.__get_hcube_name(hcube)
 
@@ -274,19 +285,21 @@ class Projection(object):
         par_name = self._modellink._par_name[par]
 
         # Recreate the parameter value array used to create the hcube
-        proj_sam_set = np.linspace(self._modellink._par_rng[par, 0],
-                                   self._modellink._par_rng[par, 1],
-                                   self.__res)
-
-        # Create parameter value array used in interpolation functions
-        x = np.linspace(self._modellink._par_rng[par, 0],
-                        self._modellink._par_rng[par, 1], 1000)
+        x_proj = np.linspace(self._modellink._par_rng[par, 0],
+                             self._modellink._par_rng[par, 1], proj_res)
 
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # point
-        f_min = interp1d(proj_sam_set, impl_min, kind='cubic')
-        f_los = interp1d(proj_sam_set, impl_los, kind='cubic')
+        f_min = Rbf(x_proj, impl_min)
+        f_los = Rbf(x_proj, impl_los)
+
+        # Set the size of the hexbin grid
+        gridsize = 1000
+
+        # Create parameter value array used in interpolation functions
+        x = np.linspace(self._modellink._par_rng[par, 0],
+                        self._modellink._par_rng[par, 1], gridsize)
 
         # Create figure object
         if(self.__align == 'row'):
@@ -361,7 +374,7 @@ class Projection(object):
 
     # This function draws the 3D projection figure
     @docstring_append(draw_proj_fig_doc.format("3D", "2"))
-    def __draw_3D_proj_fig(self, hcube, impl_min, impl_los):
+    def __draw_3D_proj_fig(self, hcube, impl_min, impl_los, proj_res):
         # Obtain name of this projection hypercube
         hcube_name = self.__get_hcube_name(hcube)
 
@@ -377,35 +390,39 @@ class Projection(object):
         par1_name = self._modellink._par_name[par1]
         par2_name = self._modellink._par_name[par2]
 
-        # Recreate the parameter value arrays used to create the hcube
-        proj_sam_set1 = np.linspace(self._modellink._par_rng[par1, 0],
-                                    self._modellink._par_rng[par1, 1],
-                                    self.__res)
-        proj_sam_set2 = np.linspace(self._modellink._par_rng[par2, 0],
-                                    self._modellink._par_rng[par2, 1],
-                                    self.__res)
-
-        # Set the size of the hexbin grid
-        gridsize = 1000
-
-        # Create parameter value array used in interpolation functions
-        x = np.linspace(self._modellink._par_rng[par1, 0],
-                        self._modellink._par_rng[par1, 1], gridsize)
-        y = np.linspace(self._modellink._par_rng[par2, 0],
-                        self._modellink._par_rng[par2, 1], gridsize)
+        # Recreate the parameter value grid used to create the hcube
+        x_proj = np.linspace(self._modellink._par_rng[par1, 0],
+                             self._modellink._par_rng[par1, 1], proj_res)
+        y_proj = np.linspace(self._modellink._par_rng[par2, 0],
+                             self._modellink._par_rng[par2, 1], proj_res)
+        X_proj, Y_proj = np.meshgrid(x_proj, y_proj)
+        x_proj = X_proj.ravel()
+        y_proj = Y_proj.ravel()
 
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # grid point
-        f_min = interp2d(proj_sam_set1, proj_sam_set2, impl_min,
-                         kind='quintic')
-        f_los = interp2d(proj_sam_set1, proj_sam_set2, impl_los,
-                         kind='quintic')
+        f_min = Rbf(x_proj, y_proj, impl_min)
+        f_los = Rbf(x_proj, y_proj, impl_los)
 
-        # Create 3D grid to be used in the hexbin plotting routine
+        # Set the size of the hexbin grid
+        gridsize = 1000
+
+        # Create parameter value grid used in interpolation functions
+        x = np.linspace(self._modellink._par_rng[par1, 0],
+                        self._modellink._par_rng[par1, 1], gridsize)
+        y = np.linspace(self._modellink._par_rng[par2, 0],
+                        self._modellink._par_rng[par2, 1], gridsize)
         X, Y = np.meshgrid(x, y)
-        Z_min = f_min(x, y)
-        Z_los = f_los(x, y)
+
+        # Calculate impl_min and impl_los for X, Y
+        Z_min = np.zeros([gridsize, gridsize])
+        Z_los = np.zeros([gridsize, gridsize])
+        for i, (xi, yi) in enumerate(zip(X, Y)):
+            Z_min[i] = f_min(xi, yi)
+            Z_los[i] = f_los(xi, yi)
+
+        # Flatten the mesh grids
         x = X.ravel()
         y = Y.ravel()
         z_min = Z_min.ravel()
@@ -513,6 +530,12 @@ class Projection(object):
         Returns
         -------
         %(proj_data)s
+        proj_res : int
+            Number of emulator evaluations used to generate the grid for the
+            given hypercube.
+        proj_depth : int
+            Number of emulator evaluations used to generate the samples in
+            every grid point for the given hypercube.
 
         """
 
@@ -528,16 +551,18 @@ class Projection(object):
             logger.info("Obtaining projection data %r." % (hcube_name))
 
             # Obtain data
-            data_set = file['%i/proj_hcube' % (self.__emul_i)]
-            impl_min_hcube = data_set['%s/impl_min' % (hcube_name)][()]
-            impl_los_hcube = data_set['%s/impl_los' % (hcube_name)][()]
+            data_set = file['%i/proj_hcube/%s' % (self.__emul_i, hcube_name)]
+            impl_min_hcube = data_set['impl_min'][()]
+            impl_los_hcube = data_set['impl_los'][()]
+            res_hcube = data_set.attrs['proj_res']
+            depth_hcube = data_set.attrs['proj_depth']
 
             # Log that projection data was obtained successfully
             logger.info("Finished obtaining projection data %r."
                         % (hcube_name))
 
         # Return it
-        return(impl_min_hcube, impl_los_hcube)
+        return(impl_min_hcube, impl_los_hcube, res_hcube, depth_hcube)
 
     # This function determines the projection hypercubes to be analyzed
     @docstring_substitute(proj_par=proj_par_doc_s)
@@ -847,8 +872,8 @@ class Projection(object):
             # Fill every cell in the projection hypercube accordingly
             for i in range(self.__res):
                 for j in range(self.__res):
-                    proj_hcube[i*self.__res+j, :, par1] = proj_sam_set1[i]
-                    proj_hcube[i*self.__res+j, :, par2] = proj_sam_set2[j]
+                    proj_hcube[i*self.__res+j, :, par1] = proj_sam_set1[j]
+                    proj_hcube[i*self.__res+j, :, par2] = proj_sam_set2[i]
                     proj_hcube[i*self.__res+j, :, par_hid] = hidden_sam_set.T
 
         # Workers get dummy proj_hcube
@@ -952,7 +977,7 @@ class Projection(object):
                 'nD_proj_hcube': [hcube_name, impl_min_hcube, impl_los_hcube]})
 
         # Return the results for this proj_hcube
-        return(impl_min_hcube, impl_los_hcube)
+        return(np.array(impl_min_hcube), np.array(impl_los_hcube))
 
     # This function processes the input arguments of project
     def __process_input_arguments(self, *args, **kwargs):
