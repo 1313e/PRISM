@@ -429,8 +429,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
             # Check if a float parameter estimate was provided
             try:
-                self._par_est.append(check_vals(
-                    values[2], 'par_est[%s]' % (name), 'float'))
+                est = check_vals(values[2], 'par_est[%s]' % (name), 'float')
             # If no estimate was provided, save it as None
             except IndexError:
                 self._par_est.append(None)
@@ -442,6 +441,13 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                 # If it is not None, reraise the previous error
                 else:
                     raise error
+            # If a float was provided, check if it is within parameter range
+            else:
+                if(values[0] <= est <= values[1]):
+                    self._par_est.append(est)
+                else:
+                    raise ValueError("Input argument 'par_est[%s]' is outside "
+                                     "of defined parameter range!" % (name))
 
     @property
     def _default_model_data(self):
@@ -818,13 +824,13 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def par_est(self):
         """
-        list of float or None: The user-defined estimated values of the model
+        dict of {float, None}: The user-defined estimated values of the model
         parameters. Contains *None* in places where estimates were not
         provided.
 
         """
 
-        return(self._par_est)
+        return(dict(zip(self._par_name, self._par_est)))
 
     # Model Data
     @property

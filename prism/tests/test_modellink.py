@@ -24,6 +24,8 @@ model_data_types = path.join(dirpath, 'data/data_gaussian_types.txt')
 model_parameters_3D = path.join(dirpath, 'data/parameters_gaussian_3D.txt')
 model_parameters_invalid_est = path.join(dirpath,
                                          'data/parameters_invalid_est.txt')
+model_parameters_outside_est = path.join(dirpath,
+                                         'data/parameters_outside_est.txt')
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -44,6 +46,11 @@ class Test_ModelLink_Exceptions(object):
     def test_invalid_model_par_est(self):
         with pytest.raises(TypeError):
             GaussianLink2D(model_parameters=model_parameters_invalid_est)
+
+    # Try to create a GaussianLink2D object with an estimate outside par_rng
+    def test_outside_model_par_est(self):
+        with pytest.raises(ValueError):
+            GaussianLink2D(model_parameters=model_parameters_outside_est)
 
     # Try to create a GaussianLink2D object using different types of model call
     # Also include an invalid call type
@@ -92,7 +99,7 @@ class Test_ModelLink_Versatility(object):
         par_dict = {'A': [1, 5, None],
                     'B': [1, 3]}
         model_link = GaussianLink2D(model_parameters=par_dict)
-        assert model_link.par_est == [None, None]
+        assert model_link._par_est == [None, None]
         repr(model_link)
 
     # Create a GaussianLink2D object with externally defined mod_par list
