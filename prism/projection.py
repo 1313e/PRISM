@@ -37,9 +37,8 @@ from tqdm import tqdm
 from ._docstrings import (def_par_doc, draw_proj_fig_doc, hcube_doc,
                           proj_data_doc, proj_par_doc_d, proj_par_doc_s,
                           read_par_doc, save_data_doc_pr, user_emul_i_doc)
-from ._internal import (PRISM_File, RequestError, check_vals,
-                        docstring_append, docstring_substitute, getCLogger,
-                        raise_error)
+from ._internal import (RequestError, check_vals, docstring_append,
+                        docstring_substitute, getCLogger, raise_error)
 
 # All declaration
 __all__ = ['Projection']
@@ -524,7 +523,7 @@ class Projection(object):
         hcube_name = self.__get_hcube_name(hcube)
 
         # Open hdf5-file
-        with PRISM_File('r', None) as file:
+        with self._File('r', None) as file:
             # Log that projection data is being obtained
             logger.info("Obtaining projection data %r." % (hcube_name))
 
@@ -606,7 +605,7 @@ class Projection(object):
 
             # Open hdf5-file
             logger.info("Checking if projection data already exists.")
-            with PRISM_File('r+', None) as file:
+            with self._File('r+', None) as file:
                 # Check if data is already there and act accordingly
                 for hcube in hcubes:
                     # Obtain name of this hypercube
@@ -1142,7 +1141,7 @@ class Projection(object):
                     raise_error(RequestError, err_msg, logger)
 
             # Check if projection has been created before
-            with PRISM_File('r+', None) as file:
+            with self._File('r+', None) as file:
                 try:
                     file.create_group('%i/proj_hcube' % (self.__emul_i))
                 except ValueError:
@@ -1173,7 +1172,7 @@ class Projection(object):
         logger = getCLogger('SAVE_DATA')
 
         # Open hdf5-file
-        with PRISM_File('r+', None) as file:
+        with self._File('r+', None) as file:
             # Obtain the group this data needs to be saved to
             group = file['%i/proj_hcube' % (self.__emul_i)]
 

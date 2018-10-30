@@ -40,8 +40,8 @@ from ._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
                           emul_s_seq_doc, eval_doc, full_cov_doc,
                           get_emul_i_doc, read_par_doc, regr_cov_doc,
                           save_data_doc_e, std_emul_i_doc)
-from ._internal import (PRISM_File, RequestError, check_compatibility,
-                        check_instance, check_vals, delist, docstring_append,
+from ._internal import (RequestError, check_compatibility, check_instance,
+                        check_vals, delist, docstring_append,
                         docstring_substitute, getCLogger, getRLogger,
                         raise_error)
 from .modellink import ModelLink
@@ -100,12 +100,15 @@ class Emulator(object):
         # Save the provided Pipeline object
         self._pipeline = pipeline_obj
 
-        # Copy MPI properties to this instance
+        # Make pointers to MPI properties
         self._comm = self._pipeline._comm
         self._size = self._pipeline._size
         self._rank = self._pipeline._rank
         self._is_controller = self._pipeline._is_controller
         self._is_worker = self._pipeline._is_worker
+
+        # Make pointer to File property
+        self._File = self._pipeline._File
 
         # Load the emulator and data
         self._load_emulator(modellink_obj)
@@ -504,7 +507,7 @@ class Emulator(object):
         # Controller creating the master file
         if self._is_controller:
             # Create master hdf5-file
-            with PRISM_File('w', None) as file:
+            with self._File('w', None) as file:
                 # Save all relevant emulator parameters to hdf5
                 file.attrs['sigma'] = self._sigma
                 file.attrs['l_corr'] = self._l_corr
@@ -535,7 +538,7 @@ class Emulator(object):
             # Controller only
             if self._is_controller:
                 # Open master hdf5-file
-                with PRISM_File('r+', None) as file:
+                with self._File('r+', None) as file:
                     # Save mock_data to hdf5
                     file.attrs['mock_par'] = self._modellink._par_est
 
@@ -577,7 +580,7 @@ class Emulator(object):
         # Loop over all emulator system HDF5-files
         for s in range(0, self._n_emul_s_tot):
             # Open emulator system HDF5-file
-            with PRISM_File('r+', s) as file:
+            with self._File('r+', s) as file:
                 # Loop over all requested iterations to be removed
                 for i in range(emul_i, self._emul_i+2):
                     # Try to remove it, skip if not possible
@@ -588,7 +591,7 @@ class Emulator(object):
 
         # Open emulator master HDF5-file if it exists
         if self._n_emul_s_tot:
-            with PRISM_File('r+', None) as file:
+            with self._File('r+', None) as file:
                 # Loop over all requested iterations to be removed
                 for i in range(emul_i, self._emul_i+2):
                     # Determine the figure name prefix
@@ -757,7 +760,7 @@ class Emulator(object):
         data_idx_list = []
 
         # Open hdf5-file
-        with PRISM_File('r', None) as file:
+        with self._File('r', None) as file:
             # Loop over all previous iterations
             for i in range(1, emul_i):
                 # Obtain the active emulator systems for this iteration
@@ -854,7 +857,7 @@ class Emulator(object):
         active_emul_s_list = [[]]
 
         # Open hdf5-file
-        with PRISM_File('r', None) as file:
+        with self._File('r', None) as file:
             logger.info("Determining active emulator systems in every "
                         "emulator iteration.")
 
@@ -1053,7 +1056,7 @@ class Emulator(object):
             data_to_emul_s, n_emul_s = self._assign_data_idx(emul_i)
 
             # Open hdf5-file
-            with PRISM_File('r+', None) as file:
+            with self._File('r+', None) as file:
                 # Make group for emulator iteration
                 group = file.create_group('%i' % (emul_i))
 
@@ -1069,7 +1072,7 @@ class Emulator(object):
                 # Create groups for all data points
                 logger.info("Preparing emulator system files.")
                 for i, emul_s in enumerate(data_to_emul_s):
-                    with PRISM_File('a', emul_s) as file_i:
+                    with self._File('a', emul_s) as file_i:
                         # Make iteration group for this emulator system
                         data_set = file_i.create_group('%i' % (emul_i))
 
@@ -1957,7 +1960,7 @@ class Emulator(object):
             logger.info("Checking if provided emulator file %r is a "
                         "constructed emulator."
                         % (self._pipeline._hdf5_file))
-            with PRISM_File('r', None) as file:
+            with self._File('r', None) as file:
                 # Existing emulator was provided
                 logger.info("Constructed emulator HDF5-file provided.")
                 self._emul_load = 1
@@ -2174,7 +2177,7 @@ class Emulator(object):
                     % (emul_i))
 
         # Open hdf5-file
-        with PRISM_File('r', None) as file:
+        with self._File('r', None) as file:
             # Read in the data
             for i in range(1, emul_i+1):
                 group = file['%i' % (i)]
@@ -2369,7 +2372,7 @@ class Emulator(object):
             emul_s = self._emul_s[lemul_s]
 
         # Open hdf5-file
-        with PRISM_File('r+', emul_s) as file:
+        with self._File('r+', emul_s) as file:
             # Obtain the dataset this data needs to be saved to
             data_set = file['%i' % (emul_i)]
 
@@ -2524,7 +2527,7 @@ class Emulator(object):
         logger.info("Retrieving emulator parameters from provided HDF5-file.")
 
         # Open hdf5-file
-        with PRISM_File('r', None) as file:
+        with self._File('r', None) as file:
             # Read in all the emulator parameters
             self._sigma = file.attrs['sigma']
             self._l_corr = file.attrs['l_corr']
@@ -2658,7 +2661,7 @@ class Emulator(object):
         # Controller only
         if self._is_controller:
             # Open hdf5-file
-            with PRISM_File('r', None) as file:
+            with self._File('r', None) as file:
                 # Get the number of emulator systems in the first iteration
                 group = file['1']
                 n_emul_s = group.attrs['n_emul_s']

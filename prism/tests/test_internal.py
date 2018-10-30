@@ -16,13 +16,13 @@ import numpy as np
 import pytest
 
 # PRISM imports
-from prism._internal import (compat_version, prism_version, CLogger,
-                             PRISM_File, RLogger, RequestError,
-                             docstring_append, docstring_copy,
+from prism._internal import (compat_version, prism_version, CLogger, RLogger,
+                             RequestError, docstring_append, docstring_copy,
                              docstring_substitute, check_vals,
                              check_compatibility, convert_str_seq, delist,
-                             getCLogger, getRLogger, import_cmaps, move_logger,
-                             raise_error, rprint, start_logger)
+                             getCLogger, get_PRISM_File, getRLogger,
+                             import_cmaps, move_logger, raise_error, rprint,
+                             start_logger)
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
@@ -36,24 +36,18 @@ vmajor = version_info.major
 class Test_PRISM_File(object):
     def test(self, tmpdir):
         # Set _hdf5_file property to something default
-        PRISM_File._hdf5_file = path.join(tmpdir.strpath, 'test.hdf5')
+        File = get_PRISM_File(path.join(tmpdir.strpath, 'test.hdf5'))
 
         # Check if opening master file works
         filename = path.join(tmpdir.strpath, 'test.hdf5')
-        with PRISM_File('w') as file:
+        with File('w') as file:
             assert path.basename(file.filename) == 'test.hdf5'
         assert path.exists(filename)
 
         # Check if opening emulator system file works
         filename = path.join(tmpdir.strpath, 'test_0.hdf5')
-        with PRISM_File('w', emul_s=0) as file:
+        with File('w', emul_s=0) as file:
             assert path.basename(file.filename) == 'test_0.hdf5'
-        assert path.exists(filename)
-
-        # Check if opening custom defined file works
-        filename = path.join(tmpdir.strpath, 'test_test.hdf5')
-        with PRISM_File('w', filename=filename) as file:
-            assert path.basename(file.filename) == 'test_test.hdf5'
         assert path.exists(filename)
 
 

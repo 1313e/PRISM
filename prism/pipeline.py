@@ -41,10 +41,10 @@ from ._docstrings import (call_emul_i_doc, call_model_doc_s, call_model_doc_m,
                           impl_temp_doc, paths_doc_d, paths_doc_s,
                           read_par_doc, save_data_doc_p, std_emul_i_doc,
                           user_emul_i_doc)
-from ._internal import (PRISM_File, RequestError, check_vals, convert_str_seq,
-                        delist, docstring_append, docstring_copy,
-                        docstring_substitute, exec_code_anal, getCLogger,
-                        getRLogger, move_logger, raise_error, start_logger)
+from ._internal import (RequestError, check_vals, convert_str_seq, delist,
+                        docstring_append, docstring_copy, docstring_substitute,
+                        exec_code_anal, getCLogger, get_PRISM_File, getRLogger,
+                        move_logger, raise_error, start_logger)
 from .emulator import Emulator
 from .projection import Projection
 
@@ -75,7 +75,7 @@ class Pipeline(Projection, object):
     @docstring_substitute(paths=paths_doc_d)
     def __init__(self, modellink_obj, root_dir=None, working_dir=None,
                  prefix=None, hdf5_file='prism.hdf5', prism_file=None,
-                 emul_type='default'):
+                 emul_type='default', comm=MPI.COMM_WORLD):
         """
         Initialize an instance of the :class:`~Pipeline` class.
 
@@ -94,13 +94,21 @@ class Pipeline(Projection, object):
             :class:`~Pipeline` base class, only 'default' is supported.
             If :class:`~prism.emulator.Emulator` subclass, the supplied
             :class:`~prism.emulator.Emulator` subclass will be used instead.
+        comm : :obj:`~MPI.Intracomm` object. Default: :obj:`MPI.COMM_WORLD`
+            The MPI intra-communicator to use in this :class:`~Pipeline`
+            instance.
+            If ``mpi4py`` is not installed, ``mpi_dummy`` is used instead.
 
         """
 
         # Obtain MPI communicator, ranks and sizes
-        self._comm = MPI.COMM_WORLD
-        self._rank = self._comm.Get_rank()
-        self._size = self._comm.Get_size()
+        if(isinstance(comm, MPI.Comm)):
+            self._comm = comm
+            self._rank = self._comm.Get_rank()
+            self._size = self._comm.Get_size()
+        else:
+            raise TypeError("Input argument 'comm' must be an instance of the "
+                            "MPI.Intracomm class!")
 
         # Set statuses
         self._is_controller = 1 if not self._rank else 0
@@ -202,6 +210,7 @@ class Pipeline(Projection, object):
             raise
 
     # Define the representation of a Pipeline object
+    # TODO: Find out if there is a way to represent an MPI intra-communicator
     def __repr__(self):
         # Get path to current working directory, make all paths relative to it
         cwd = os.getcwd()
@@ -254,8 +263,7 @@ class Pipeline(Projection, object):
     @property
     def comm(self):
         """
-        :obj:`~mpi4py.MPI.Intracomm`: The global MPI world communicator.
-        Currently always :obj:`~mpi4py.MPI.COMM_WORLD`.
+        :obj:`~mpi4py.MPI.Intracomm`: The global MPI intra-communicator.
 
         """
 
@@ -371,6 +379,17 @@ class Pipeline(Projection, object):
         """
 
         return(self._prism_file)
+
+    @property
+    def File(self):
+        """
+        :class:`~h5py.File`: Custom :class:`~h5py.File` class that has added
+        logging and automatically uses :attr:`~hdf5_file` as the HDF5-file to
+        open.
+
+        """
+
+        return(self._File)
 
     @property
     def modellink(self):
@@ -890,8 +909,8 @@ class Pipeline(Projection, object):
         self._hdf5_file = self._comm.bcast(self._hdf5_file, 0)
         self._prism_file = self._comm.bcast(self._prism_file, 0)
 
-        # Save hdf5-file path as a PRISM_File class attribute
-        PRISM_File._hdf5_file = self._hdf5_file
+        # Save PRISM_File as an instance attribute and add hdf5_file to it
+        self._File = get_PRISM_File(self._hdf5_file)
 
     # This function generates mock data and loads it into ModelLink
     def _get_mock_data(self):
@@ -1024,7 +1043,7 @@ class Pipeline(Projection, object):
         # If an emulator system currently exists, load in all data
         if self._emulator._emul_i:
             # Open hdf5-file
-            with PRISM_File('r', None) as file:
+            with self._File('r', None) as file:
                 # Read in the data up to the last emulator iteration
                 for i in range(1, self._emulator._emul_i+1):
                     # Get this emulator
@@ -1069,7 +1088,7 @@ class Pipeline(Projection, object):
         emul_i = self._emulator._emul_i
 
         # Open hdf5-file
-        with PRISM_File('r+', None) as file:
+        with self._File('r+', None) as file:
             # Obtain the dataset this data needs to be saved to
             data_set = file['%i' % (emul_i)]
 
@@ -1163,7 +1182,7 @@ class Pipeline(Projection, object):
         logger.info("Saving statistics to HDF5.")
 
         # Open hdf5-file
-        with PRISM_File('r+', None) as file:
+        with self._File('r+', None) as file:
             # Loop over all statistics in stat_dict and save them
             for keyword, (value, unit) in stat_dict.items():
                 file['%i/statistics' % (emul_i)].attrs[keyword] =\
@@ -2453,7 +2472,7 @@ class Pipeline(Projection, object):
             est_len = max(est_lengths) if len(est_lengths) else 0
 
             # Open hdf5-file
-            with PRISM_File('r', None) as file:
+            with self._File('r', None) as file:
                 # Check if projection data is available by trying to access it
                 try:
                     data_set = file['%i/proj_hcube' % (emul_i)]

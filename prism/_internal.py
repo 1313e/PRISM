@@ -39,12 +39,12 @@ import numpy as np
 from .__version__ import compat_version, prism_version
 
 # All declaration
-__all__ = ['PRISM_File', 'RequestError', 'aux_char_list',
-           'check_compatibility', 'check_instance', 'check_vals',
-           'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
-           'docstring_substitute', 'exec_code_anal', 'getCLogger',
-           'getRLogger', 'import_cmaps', 'move_logger', 'raise_error',
-           'rprint', 'start_logger']
+__all__ = ['RequestError', 'aux_char_list', 'check_compatibility',
+           'check_instance', 'check_vals', 'convert_str_seq', 'delist',
+           'docstring_append', 'docstring_copy', 'docstring_substitute',
+           'exec_code_anal', 'getCLogger', 'get_PRISM_File', 'getRLogger',
+           'import_cmaps', 'move_logger', 'raise_error', 'rprint',
+           'start_logger']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -84,91 +84,6 @@ class CLogger(logging.Logger):
         self.addFilter(CFilter(rank))
 
 
-# Override h5py's File.__init__() and __exit__() methods
-class PRISM_File(h5py.File):
-    """
-    Custom :class:`~h5py.File` class that automatically knows where all *PRISM*
-    HDF5-files are located if it is initialized by a :obj:`~Pipeline` object.
-    Additionally, certain keyword arguments have default values and the
-    opening/closing of an HDF5-file is logged.
-
-    """
-
-    # Add hdf5_file attribute
-    _hdf5_file = None
-
-    # Override __init__() to include default settings and logging
-    def __init__(self, mode, emul_s=None, filename=None, **kwargs):
-        """
-        Opens the master HDF5-file `filename` in `mode` according to some set
-        of default parameters.
-
-        Parameters
-        ----------
-        mode : {'r', 'r+', 'w', 'w-'/'x', 'a'}
-            String indicating how the HDF5-file needs to be opened.
-
-        Optional
-        --------
-        emul_s : int or None. Default: None
-            If int, number indicating the requested emulator system file to
-            open.
-            If *None*, the master HDF5-file itself is opened.
-        filename : str. Default: None
-            The name/path of the master HDF5-file that needs to be opened in
-            `working_dir`. Default is to open the master HDF5-file that was
-            provided during class initialization.
-        kwargs : dict. Default: ``{'driver': None, 'libver': 'earliest'}``
-            Other keyword arguments that need to be given to the
-            :func:`~h5py.File` function.
-
-        """
-
-        # Log that an HDF5-file is being opened
-        logger = getRLogger('HDF5-FILE')
-
-        # Set default settings
-        hdf5_kwargs = {'driver': None,
-                       'libver': 'earliest'}
-
-        # Check emul_s
-        if emul_s is None:
-            sub_str = ''
-        else:
-            sub_str = '_%i' % (emul_s)
-
-        # Check filename
-        if filename is None:
-            filename = self._hdf5_file
-        else:
-            pass
-
-        # Add sub_str to filename
-        parts = path.splitext(filename)
-        filename = ''.join([parts[0], sub_str, parts[1]])
-
-        # Update hdf5_kwargs with provided ones
-        hdf5_kwargs.update(kwargs)
-
-        # Log that an HDF5-file is being opened
-        logger.info("Opening HDF5-file %r (mode: %r)."
-                    % (path.basename(filename), mode))
-
-        # Inheriting File __init__()
-        super(PRISM_File, self).__init__(filename, mode, **hdf5_kwargs)
-
-    # Override __exit__() to include logging
-    def __exit__(self, *args, **kwargs):
-        # Log that an HDF5-file will be closed
-        logger = getRLogger('HDF5-FILE')
-
-        # Log about closing the file
-        logger.info("Closing HDF5-file %r." % (path.basename(self.filename)))
-
-        # Inheriting File __exit__()
-        super(PRISM_File, self).__exit__(*args, **kwargs)
-
-
 # Make a custom Filter class that logs the rank of the process that calls it
 class RFilter(logging.Filter):
     """
@@ -189,7 +104,7 @@ class RFilter(logging.Filter):
 class RLogger(logging.Logger):
     """
     Custom :class:`~logging.Logger` class that uses the :class:`~RFilter` if
-    the size of the communicator is more than 1.
+    the size of the intra-communicator is more than 1.
 
     """
 
@@ -630,6 +545,105 @@ def getCLogger(name=None):
     return(logger)
 
 
+# Define class factory that returns a specialized h5py.File class
+def get_PRISM_File(prism_hdf5_file):
+    """
+    Returns a class definition ``PRISM_File(mode, emul_s=None, **kwargs)``.
+
+    This class definition is a specialized version of the :class:`~h5py.File`
+    class with the filename automatically set to `prism_hdf5_file` and added
+    logging to the constructor and destructor methods.
+
+    Parameters
+    ----------
+    prism_hdf5_file : str
+        Absolute path to the master HDF5-file that is used in a
+        :obj:`~prism.pipeline.Pipeline` instance.
+
+    Returns
+    -------
+    PRISM_File : class
+        Definition of the class ``PRISM_File(mode, emul_s=None, **kwargs)``.
+
+    """
+
+    # Override h5py's File.__init__() and __exit__() methods
+    class PRISM_File(h5py.File):
+        """
+        Custom :class:`~h5py.File` class that automatically knows where all
+        *PRISM* HDF5-files are located when created by the
+        :func:`~get_PRISM_File` class factory. Additionally, certain keyword
+        arguments have default values and the opening/closing of an HDF5-file
+        is logged.
+
+        """
+
+        # Override __init__() to include default settings and logging
+        def __init__(self, mode, emul_s=None, **kwargs):
+            """
+            Opens the master HDF5-file `prism_hdf5_file` in `mode` according to
+            some set of default parameters.
+
+            Parameters
+            ----------
+            mode : {'r', 'r+', 'w', 'w-'/'x', 'a'}
+                String indicating how the HDF5-file needs to be opened.
+
+            Optional
+            --------
+            emul_s : int or None. Default: None
+                If int, number indicating the requested emulator system file to
+                open.
+                If *None*, the master HDF5-file itself is opened.
+            kwargs : dict. Default: ``{'driver': None, 'libver': 'earliest'}``
+                Other keyword arguments that need to be given to the
+                :func:`~h5py.File` function.
+
+            """
+
+            # Log that an HDF5-file is being opened
+            logger = getRLogger('HDF5-FILE')
+
+            # Set default settings
+            hdf5_kwargs = {'driver': None,
+                           'libver': 'earliest'}
+
+            # Check emul_s
+            if emul_s is None:
+                sub_str = ''
+            else:
+                sub_str = '_%i' % (emul_s)
+
+            # Add sub_str to filename
+            parts = path.splitext(prism_hdf5_file)
+            filename = ''.join([parts[0], sub_str, parts[1]])
+
+            # Update hdf5_kwargs with provided ones
+            hdf5_kwargs.update(kwargs)
+
+            # Log that an HDF5-file is being opened
+            logger.info("Opening HDF5-file %r (mode: %r)."
+                        % (path.basename(filename), mode))
+
+            # Inheriting File __init__()
+            super(PRISM_File, self).__init__(filename, mode, **hdf5_kwargs)
+
+        # Override __exit__() to include logging
+        def __exit__(self, *args, **kwargs):
+            # Log that an HDF5-file will be closed
+            logger = getRLogger('HDF5-FILE')
+
+            # Log about closing the file
+            logger.info("Closing HDF5-file %r."
+                        % (path.basename(self.filename)))
+
+            # Inheriting File __exit__()
+            super(PRISM_File, self).__exit__(*args, **kwargs)
+
+    # Return PRISM_File class definition
+    return(PRISM_File)
+
+
 # Define custom getLogger function that calls the custom RLogger instead
 def getRLogger(name=None):
     """
@@ -778,11 +792,9 @@ def raise_error(err_type, err_msg, logger):
 # Redefine the print function to include the MPI rank if MPI is used
 def rprint(*args, **kwargs):
     """
-    Custom :class:`~logging.Filter` class that prepends the rank of the MPI
-    process that calls it to the logging message.
     Custom :func:`~print` function that prepends the rank of the MPI process
-    that calls it to the message if the size of the communicator is more than
-    1.
+    that calls it to the message if the size of the intra-communicator is more
+    than 1.
     Takes the same input arguments as the normal :func:`~print` function.
 
     """
