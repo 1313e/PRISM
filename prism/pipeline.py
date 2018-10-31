@@ -37,10 +37,10 @@ from numpy.random import normal, random
 # PRISM imports
 from ._docstrings import (call_emul_i_doc, call_model_doc_s, call_model_doc_m,
                           def_par_doc, emul_s_seq_doc, ext_mod_set_doc,
-                          ext_real_set_doc, ext_sam_set_doc, impl_cut_doc,
-                          impl_temp_doc, paths_doc_d, paths_doc_s,
-                          read_par_doc, save_data_doc_p, std_emul_i_doc,
-                          user_emul_i_doc)
+                          ext_real_set_doc_d, ext_real_set_doc_s,
+                          ext_sam_set_doc, impl_cut_doc, impl_temp_doc,
+                          paths_doc_d, paths_doc_s, read_par_doc,
+                          save_data_doc_p, std_emul_i_doc, user_emul_i_doc)
 from ._internal import (RequestError, check_vals, convert_str_seq, delist,
                         docstring_append, docstring_copy, docstring_substitute,
                         exec_code_anal, getCLogger, get_PRISM_File, getRLogger,
@@ -491,8 +491,8 @@ class Pipeline(Projection, object):
     @property
     def impl_cut(self):
         """
-        list of int: The univariate implausibility cut-off values for an
-        emulator iteration. A zero indicates a wildcard.
+        list of int: The non-wildcard univariate implausibility cut-off values
+        for an emulator iteration.
 
         """
 
@@ -501,8 +501,9 @@ class Pipeline(Projection, object):
     @property
     def cut_idx(self):
         """
-        int: The list index of the first non-wildcard cut-off in
-        :attr:`~impl_cut`.
+        int: The index of the first non-wildcard in a list of implausibility
+        values. This is equivalent to the number of wildcards leading the
+        cut-off values in :attr:`~impl_cut`.
 
         """
 
@@ -1394,15 +1395,16 @@ class Pipeline(Projection, object):
         """
 
         # Sort impl_val to compare with the impl_cut list
-        sorted_impl_val = np.flip(np.sort(uni_impl_val, axis=-1), axis=-1)
+        sorted_impl_val = np.flip(np.sort(
+            uni_impl_val, axis=-1), axis=-1)[self._cut_idx[emul_i]:]
 
         # Save the implausibility value at the first real cut-off
-        impl_cut_val = sorted_impl_val[self._cut_idx[emul_i]]
+        impl_cut_val = sorted_impl_val[0]
 
         # Scan over all data points in this sample
         for impl_val, cut_val in zip(sorted_impl_val, self._impl_cut[emul_i]):
-            # If impl_cut is not 0 and impl_val is not below impl_cut, break
-            if(cut_val != 0 and impl_val > cut_val):
+            # If impl_val is not below impl_cut, break
+            if(impl_val > cut_val):
                 return(0, impl_cut_val)
         else:
             # If for-loop ended in a normal way, the check was successful
@@ -1607,7 +1609,7 @@ class Pipeline(Projection, object):
 
             # If the value is lower than the previous value, it is invalid
             elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
-                err_msg = ("Cut-off %i is higher than cut-off %i (%i > %i)!"
+                err_msg = ("Cut-off %i is higher than cut-off %i (%f > %f)!"
                            % (i, i-1, impl_cut[i], impl_cut[i-1]))
                 raise_error(ValueError, err_msg, logger)
 
@@ -1616,20 +1618,21 @@ class Pipeline(Projection, object):
             if(impl != 0):
                 cut_idx = i
                 break
-        # If the loop ends normally, there were no wildcards
+        # If the loop ends normally, there were only wildcards
         else:
-            err_msg = "No non-wildcard implausibility cut-off is provided!"
+            err_msg = "No non-wildcard implausibility cut-off was provided!"
             raise_error(ValueError, err_msg, logger)
 
         # Save both impl_cut and cut_idx
+        impl_cut = np.array(impl_cut)[cut_idx:]
         if temp:
             # If they need to be stored temporarily
-            self._impl_cut.append(np.array(impl_cut))
+            self._impl_cut.append(impl_cut)
             self._cut_idx.append(cut_idx)
         else:
             # If they need to be stored to file
             self._save_data({
-                'impl_cut': [np.array(impl_cut), cut_idx]})
+                'impl_cut': [impl_cut, cut_idx]})
 
         # Log end of process
         logger.info("Finished generating implausibility cut-off list.")
@@ -1687,7 +1690,7 @@ class Pipeline(Projection, object):
 
     # This function processes an externally provided real_set
     # TODO: Additionally allow for an old PRISM master file to be provided
-    @docstring_substitute(ext_set=ext_real_set_doc, ext_sam=ext_sam_set_doc,
+    @docstring_substitute(ext_set=ext_real_set_doc_s, ext_sam=ext_sam_set_doc,
                           ext_mod=ext_mod_set_doc)
     def _get_ext_real_set(self, ext_real_set):
         """
@@ -2083,7 +2086,7 @@ class Pipeline(Projection, object):
     # This function constructs a specified iteration of the emulator system
     # TODO: Make time and RAM cost plots
     # TODO: Fix the timers for interrupted constructs
-    @docstring_substitute(emul_i=call_emul_i_doc, ext_set=ext_real_set_doc)
+    @docstring_substitute(emul_i=call_emul_i_doc, ext_set=ext_real_set_doc_d)
     def construct(self, emul_i=None, analyze=True, ext_real_set=None,
                   force=False):
         """

@@ -790,7 +790,7 @@ class Emulator(object):
         for i, data_idx in enumerate(self._modellink._data_idx):
             # Check for every data_idx if it existed in the previous iteration
             try:
-                emul_s = data_idx_list.index(data_idx)
+                emul_s = active_emul_s_list[-1][data_idx_list.index(data_idx)]
             except ValueError:
                 pass
             else:
@@ -1314,12 +1314,6 @@ class Emulator(object):
 
             # If requested, perform a sequential backward stepwise regression
             else:
-                # TODO: Find a consistent way to use cross-validation
-                # Create SequentialFeatureSelector object
-                sfs_obj = SFS(LR(), k_features='parsimonious', forward=False,
-                              floating=False, scoring='r2',
-                              cv=min(5, self._n_sam[emul_i]))
-
                 # Obtain frozen+potentially active parameters list
                 frz_pot_par = SortedSet(active_par_data)
                 frz_pot_par.update(self._pipeline._pot_active_par)
@@ -1331,53 +1325,64 @@ class Emulator(object):
                                if par not in active_par_data]
                 non_frz_idx = [frz_pot_par.index(par) for par in non_frz_par]
 
-                # Obtain sam_set of frz_pot_act_par
-                frz_pot_sam_set = self._sam_set[emul_i][:, frz_pot_par]
+                # If non_frz_par has at least 1 element, carry out analysis
+                if len(non_frz_par):
+                    # TODO: Find a consistent way to use cross-validation
+                    # Create SequentialFeatureSelector object
+                    sfs_obj = SFS(LR(), k_features='parsimonious',
+                                  forward=False, floating=False, scoring='r2',
+                                  cv=min(5, self._n_sam[emul_i]))
 
-                # Obtain polynomial terms of frz_pot_act_sam_set
-                pf_obj = PF(self._poly_order, include_bias=False)
-                frz_pot_poly_terms = pf_obj.fit_transform(frz_pot_sam_set)
+                    # Obtain sam_set of frz_pot_par
+                    frz_pot_sam_set = self._sam_set[emul_i][:, frz_pot_par]
 
-                # Perform linear regression with linear terms only
-                sfs_obj.fit(frz_pot_sam_set, self._mod_set[emul_i][emul_s])
+                    # Obtain polynomial terms of frz_pot_sam_set
+                    pf_obj = PF(self._poly_order, include_bias=False)
+                    frz_pot_poly_terms = pf_obj.fit_transform(frz_pot_sam_set)
 
-                # Extract active parameters due to linear significance
-                act_idx_lin = list(sfs_obj.k_feature_idx_)
+                    # Perform linear regression with linear terms only
+                    sfs_obj.fit(frz_pot_sam_set, self._mod_set[emul_i][emul_s])
 
-                # Get passive non-frozen parameters in linear significance
-                pas_idx_lin = [i for i in non_frz_idx if i not in act_idx_lin]
+                    # Extract active parameters due to linear significance
+                    act_idx_lin = list(sfs_obj.k_feature_idx_)
 
-                # Make sure frozen parameters are considered active
-                act_idx_lin = [i for i in frz_pot_idx if i not in pas_idx_lin]
-                act_idx = list(act_idx_lin)
+                    # Get passive non-frozen parameters in linear significance
+                    pas_idx_lin = [i for i in non_frz_idx if
+                                   i not in act_idx_lin]
 
-                # Perform n-order polynomial regression for every passive par
-                for i in pas_idx_lin:
-                    # Determine which polynomial terms involve this passive par
-                    poly_idx = pf_obj.powers_[:, i] != 0
+                    # Make sure frozen parameters are considered active
+                    act_idx_lin = [i for i in frz_pot_idx if
+                                   i not in pas_idx_lin]
+                    act_idx = list(act_idx_lin)
 
-                    # Add the active linear terms as well
-                    poly_idx[act_idx_lin] = 1
+                    # Do n-order polynomial regression for every passive par
+                    for i in pas_idx_lin:
+                        # Check which polynomial terms involve this passive par
+                        poly_idx = pf_obj.powers_[:, i] != 0
 
-                    # Convert poly_idx to an array of indices
-                    poly_idx = np.arange(len(poly_idx))[poly_idx]
+                        # Add the active linear terms as well
+                        poly_idx[act_idx_lin] = 1
 
-                    # Obtain polynomial terms for this passive parameter
-                    poly_terms = frz_pot_poly_terms[:, poly_idx]
+                        # Convert poly_idx to an array of indices
+                        poly_idx = np.arange(len(poly_idx))[poly_idx]
 
-                    # Perform linear regression with addition of poly terms
-                    sfs_obj.fit(poly_terms, self._mod_set[emul_i][emul_s])
+                        # Obtain polynomial terms for this passive parameter
+                        poly_terms = frz_pot_poly_terms[:, poly_idx]
 
-                    # Extract indices of active polynomial terms
-                    act_idx_poly = poly_idx[list(sfs_obj.k_feature_idx_)]
+                        # Perform linear regression with addition of poly terms
+                        sfs_obj.fit(poly_terms, self._mod_set[emul_i][emul_s])
 
-                    # Check if any additional polynomial terms survived
-                    # Add i to act_idx if this is the case
-                    if np.any([j not in act_idx_lin for j in act_idx_poly]):
-                        act_idx.append(i)
+                        # Extract indices of active polynomial terms
+                        act_idx_poly = poly_idx[list(sfs_obj.k_feature_idx_)]
 
-                # Update the active parameters for this emulator system
-                active_par_data.update(np.array(frz_pot_par)[act_idx])
+                        # Check if any additional polynomial terms survived
+                        # Add i to act_idx if this is the case
+                        if np.any([j not in act_idx_lin for
+                                   j in act_idx_poly]):
+                            act_idx.append(i)
+
+                    # Update the active parameters for this emulator system
+                    active_par_data.update(np.array(frz_pot_par)[act_idx])
 
             # Log the resulting active parameters
             logger.info("Active parameters for emulator system %i: %s"
