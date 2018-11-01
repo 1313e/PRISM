@@ -173,7 +173,7 @@ class Projection(object):
         # Loop over all requested projection hypercubes
         if self._is_controller:
             hcubes_bar = tqdm(self.__hcubes, desc="Creating projections",
-                              unit='hcube')
+                              unit='hcube', dynamic_ncols=True)
         else:
             hcubes_bar = self.__hcubes
         for hcube in hcubes_bar:
@@ -330,7 +330,7 @@ class Projection(object):
 
         # Plot minimum implausibility
         ax0.plot(x, f_min(x), **self.__impl_kwargs)
-        draw_y = self._impl_cut[self.__emul_i][self._cut_idx[self.__emul_i]]
+        draw_y = self._impl_cut[self.__emul_i][0]
         ax0.axis([self._modellink._par_rng[par, 0],
                   self._modellink._par_rng[par, 1],
                   0, 1.5*draw_y])
@@ -457,7 +457,7 @@ class Projection(object):
                    fontsize='xx-large')
 
         # Plot minimum implausibility
-        vmax = self._impl_cut[self.__emul_i][self._cut_idx[self.__emul_i]]
+        vmax = self._impl_cut[self.__emul_i][0]
         fig1 = ax0.hexbin(x, y, z_min, gridsize, vmin=0, vmax=vmax,
                           **self.__impl_kwargs)
         if self._modellink._par_est[par1] is not None:

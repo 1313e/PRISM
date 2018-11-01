@@ -653,10 +653,18 @@ class Pipeline(Projection, object):
         else:
             # Try to convert value to float
             try:
-                self._criterion = float(par_dict['criterion'])
+                criterion = float(par_dict['criterion'])
             # If it fails, it must be a string
             except ValueError:
-                self._criterion = par_dict['criterion'].replace("'", '')
+                criterion = par_dict['criterion'].replace("'", '')
+
+            # Try to use criterion to check validity
+            try:
+                lhd(3, 2, criterion=criterion)
+            except Exception as error:
+                raise error
+            else:
+                self._criterion = criterion
 
         # Obtain the bool determining whether to do an active parameters
         # analysis
@@ -942,11 +950,8 @@ class Pipeline(Projection, object):
         # Controller only
         if self._is_controller:
             # Set non-default parameter estimate
-            self._modellink._par_est =\
-                (self._modellink._par_rng[:, 0] +
-                 random(self._modellink._n_par) *
-                 (self._modellink._par_rng[:, 1] -
-                  self._modellink._par_rng[:, 0])).tolist()
+            self._modellink._par_est = self._modellink._to_par_space(
+                random(self._modellink._n_par)).tolist()
 
         # Controller broadcasting new parameter estimates to workers
         self._modellink._par_est = self._comm.bcast(self._modellink._par_est,
@@ -1194,6 +1199,8 @@ class Pipeline(Projection, object):
 
     # This function evaluates the model for a given set of evaluation samples
     # This is function 'k'
+    # TODO: If not MPI_call, all ranks evaluate part of sam_set simultaneously?
+    # Requires check/flag that model can be evaluated in multiple instances
     @docstring_substitute(emul_i=std_emul_i_doc, ext_sam=ext_sam_set_doc,
                           ext_mod=ext_mod_set_doc)
     def _evaluate_model(self, emul_i, sam_set, ext_sam_set, ext_mod_set):
@@ -1690,6 +1697,7 @@ class Pipeline(Projection, object):
 
     # This function processes an externally provided real_set
     # TODO: Additionally allow for an old PRISM master file to be provided
+    # TODO: This part may be outdated due to the made data_idx changes
     @docstring_substitute(ext_set=ext_real_set_doc_s, ext_sam=ext_sam_set_doc,
                           ext_mod=ext_mod_set_doc)
     def _get_ext_real_set(self, ext_real_set):

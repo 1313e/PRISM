@@ -280,8 +280,8 @@ def check_vals(values, name, *args):
     name : str
         The name of the input argument, which is used in the error message if
         a criterion is not met.
-    args : tuple of {'bool', 'float', 'int', 'neg', 'nneg', 'npos', 'nzero', \
-        'pos', 'str'}
+    args : tuple of {'bool', 'float', 'int', 'neg', 'nneg', 'normal', 'npos', \
+        'nzero', 'pos', 'str'}
         Sequence of strings determining the criteria that `values` must meet.
         If `args` is empty, it is checked if `values` are finite.
 
@@ -405,6 +405,18 @@ def check_vals(values, name, *args):
             return(value)
         else:
             err_msg = "Input argument %r is not non-negative!" % (name)
+            raise_error(ValueError, err_msg, logger)
+
+    # Check for normalized value [-1, 1]
+    elif 'normal' in args:
+        # Check if value is normalized and return if so
+        if(-1 <= value <= 1):
+            # Remove 'normal' from args and check it again
+            args.remove('normal')
+            value = check_vals(value, name, *args)
+            return(value)
+        else:
+            err_msg = "Input argument %r is not normalized!" % (name)
             raise_error(ValueError, err_msg, logger)
 
     # Check for non-positive value
@@ -865,8 +877,8 @@ def start_logger(filename=None, mode='w'):
 
 # %% LIST DEFINITIONS
 aux_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/', '{', '}', '<',
-                 '>', '´', '¨', '`', '\\', '?', '!', '%', ':', ';', '=', '$',
-                 '~', '#', '@', '^', '&', '*']
+                 '>', '´', '¨', '`', '\\', '?', '!', '%', ';', '=', '$', '~',
+                 '#', '@', '^', '&', '*']
 
 
 # %% COMPILED CODE OBJECT DEFINITIONS

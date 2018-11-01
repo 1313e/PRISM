@@ -401,6 +401,13 @@ class Test_Pipeline_Init_Exceptions(object):
             Pipeline(model_link, *root_working_dir,
                      prism_file=prism_file, emul_type='default')
 
+    # Create a Pipeline object using an invalid string for criterion
+    def test_nnormal_criterion(self, root_working_dir, model_link):
+        prism_file = path.join(dirpath, 'data/prism_invalid_str_criterion.txt')
+        with pytest.raises(Exception):
+            Pipeline(model_link, *root_working_dir,
+                     prism_file=prism_file, emul_type='default')
+
     # Create a Pipeline object using an invalid value for pot_active_par (bool)
     def test_bool_pot_act_par(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_bool_pot_act_par.txt')
