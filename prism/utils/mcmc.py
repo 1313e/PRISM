@@ -19,7 +19,7 @@ import sys
 import warnings
 
 # Package imports
-from e13tools import InputError, ShapeError
+from e13tools import InputError
 import numpy as np
 
 # PRISM imports
@@ -280,24 +280,13 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
             # Make sure that init_walkers is a NumPy array
             init_walkers = np.array(init_walkers, ndmin=2)
 
-            # Check if init_walkers is two-dimensional
-            if not(init_walkers.ndim == 2):
-                raise ShapeError("Input argument 'init_walkers' has more than "
-                                 "two dimensions (%i)!" % (init_walkers.ndim))
-
-            # Check if init_walkers has correct shape
-            if not(init_walkers.shape[1] == pipe._modellink._n_par):
-                raise ShapeError("Input argument 'init_walkers' has incorrect "
-                                 "number of parameters (%i != %i)!"
-                                 % (init_walkers.shape[1],
-                                    pipe._modellink._n_par))
-
-            # Check if init_walkers solely contains floats
-            init_walkers = check_vals(init_walkers, 'init_walkers', 'float')
-
             # If unit_space is True, convert init_walkers to par_space
             if unit_space:
                 init_walkers = pipe._modellink._to_par_space(init_walkers)
+
+            # Check if init_walkers is valid
+            init_walkers = pipe._modellink._check_sam_set(init_walkers,
+                                                          'init_walkers')
 
         # Broadcast init_walkers to workers
         init_walkers = pipe._comm.bcast(init_walkers, 0)

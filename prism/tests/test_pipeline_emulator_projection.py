@@ -585,30 +585,32 @@ class Test_Pipeline_User_Exceptions(object):
     # Try using a 3D ext_sam_set
     def test_3D_ext_sam_set(self, pipe):
         with pytest.raises(ShapeError):
-            pipe.construct(1, 0, [np.zeros([1, 1, 1]), [1]])
+            pipe.construct(1, 0, [np.zeros([1, 1, 1]),
+                                  np.ones([1, pipe._modellink._n_data])])
 
     # Try using a 3D ext_mod_set
     def test_3D_ext_mod_set(self, pipe):
         with pytest.raises(ShapeError):
-            pipe.construct(1, 0, [[1], np.zeros([1, 1, 1])])
+            pipe.construct(1, 0, [np.ones([1, pipe._modellink._n_par]),
+                                  np.zeros([1, 1, 1])])
 
     # Try using an ext_sam_set with wrong n_par
     def test_ext_sam_set_n_par(self, pipe):
         with pytest.raises(ShapeError):
-            pipe.construct(1, 0, [np.zeros([1, pipe._modellink._n_par+1]),
-                                  np.zeros([1, pipe._modellink._n_data])])
+            pipe.construct(1, 0, [np.ones([1, pipe._modellink._n_par+1]),
+                                  np.ones([1, pipe._modellink._n_data])])
 
     # Try using an ext_mod_set with wrong n_data
     def test_ext_mod_set_n_data(self, pipe):
         with pytest.raises(ShapeError):
-            pipe.construct(1, 0, [np.zeros([1, pipe._modellink._n_par]),
-                                  np.zeros([1, pipe._modellink._n_data+1])])
+            pipe.construct(1, 0, [np.ones([1, pipe._modellink._n_par]),
+                                  np.ones([1, pipe._modellink._n_data+1])])
 
     # Try using an ext_real_set with inconsistent n_sam
     def test_ext_real_set_n_sam(self, pipe):
         with pytest.raises(ShapeError):
-            pipe.construct(1, 0, [np.zeros([2, pipe._modellink._n_par]),
-                                  np.zeros([1, pipe._modellink._n_data])])
+            pipe.construct(1, 0, [np.ones([2, pipe._modellink._n_par]),
+                                  np.ones([1, pipe._modellink._n_data])])
 
     # Try using an ext_sam_set outside of par_space
     def test_ext_sam_set_par_space(self, pipe):

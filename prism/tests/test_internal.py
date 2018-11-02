@@ -205,6 +205,13 @@ class Test_check_val(object):
         with pytest.raises(ValueError):
             check_vals(0, 'nzero', 'nzero')
 
+        # Check for normalized value
+        assert check_vals(1, 'normal', 'normal') == 1
+        assert check_vals(0, 'normal', 'normal') == 0
+        assert check_vals(0.5, 'normal', 'normal') == 0.5
+        with pytest.raises(ValueError):
+            check_vals(-0.5, 'normal', 'normal')
+
         # Check for infinite value
         with pytest.raises(ValueError):
             check_vals(np.infty, 'infty')
@@ -257,7 +264,7 @@ class Test_check_val(object):
 # Pytest for the convert_str_seq function
 def test_convert_str_seq():
     # Check if string sequence is converted correctly
-    assert convert_str_seq('[:[]]]1,\n8.,A<{7)\\B') == [1, 8.0, 'A', 7, 'B']
+    assert convert_str_seq('[[]]]1,\n8.,A<{7)\\B') == [1, 8.0, 'A', 7, 'B']
 
 
 # Pytest for the delist function

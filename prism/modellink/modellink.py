@@ -19,7 +19,7 @@ import sys
 import warnings
 
 # Package imports
-from e13tools import InputError
+from e13tools import InputError, ShapeError
 import numpy as np
 from six import with_metaclass
 from sortedcontainers import SortedDict, SortedSet
@@ -227,6 +227,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         # Return representation
         return("%s(%s)" % (self.__class__.__name__, ", ".join(str_repr)))
 
+    # This function returns non-default string representations of input args
     def _get_str_repr(self):
         """
         Returns a list of string representations of all additional input
@@ -318,6 +319,114 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         # Return it
         return(par_seq)
+
+    # This function checks if a provided mod_set is valid
+    def _check_mod_set(self, mod_set, name):
+        """
+        Checks validity of provided set of model outputs `mod_set` in this
+        :obj:`~ModelLink` instance.
+
+        Parameters
+        ----------
+        mod_set : 1D or 2D array_like
+            Model output (set) to validate in this :obj:`~ModelLink` instance.
+        name : str
+            The name of the model output (set), which is used in the error
+            message if the validation fails.
+
+        Returns
+        -------
+        mod_set : 1D or 2D :obj:`~numpy.ndarray` object
+            The provided `mod_set` if the validation was successful.
+
+        """
+
+        # Make logger
+        logger = getCLogger('CHECK')
+        logger.info("Validating provided set of model outputs %r." % (name))
+
+        # Make sure that mod_set is a NumPy array
+        mod_set = np.array(mod_set)
+
+        # Raise error if mod_set is not 1D or 2D
+        if not(mod_set.ndim == 1 or mod_set.ndim == 2):
+            err_msg = ("Input argument %r is not one-dimensional or "
+                       "two-dimensional!" % (name))
+            raise_error(ShapeError, err_msg, logger)
+
+        # Raise error if mod_set does not have n_data data values
+        if not(mod_set.shape[-1] == self._n_data):
+            err_msg = ("Input argument %r has incorrect number of data values "
+                       "(%i != %i)!"
+                       % (name, mod_set.shape[-1], self._n_data))
+            raise_error(ShapeError, err_msg, logger)
+
+        # Check if mod_set solely consists out of floats
+        mod_set = check_vals(mod_set, name, 'float')
+
+        # Log again and return mod_set
+        logger.info("Finished validating provided set of model outputs %r."
+                    % (name))
+        return(mod_set)
+
+    # This function checks if a provided sam_set is valid
+    def _check_sam_set(self, sam_set, name):
+        """
+        Checks validity of provided set of model parameter samples `sam_set` in
+        this :obj:`~ModelLink` instance.
+
+        Parameters
+        ----------
+        sam_set : 1D or 2D array_like
+            Parameter/sample set to validate in this :obj:`~ModelLink`
+            instance.
+        name : str
+            The name of the parameter/sample set, which is used in the error
+            message if the validation fails.
+
+        Returns
+        -------
+        sam_set : 1D or 2D :obj:`~numpy.ndarray` object
+            The provided `sam_set` if the validation was successful.
+
+        """
+
+        # Make logger
+        logger = getCLogger('CHECK')
+        logger.info("Validating provided set of model parameter samples %r."
+                    % (name))
+
+        # Make sure that sam_set is a NumPy array
+        sam_set = np.array(sam_set)
+
+        # Raise error if sam_set is not 1D or 2D
+        if not(sam_set.ndim == 1 or sam_set.ndim == 2):
+            err_msg = ("Input argument %r is not one-dimensional or "
+                       "two-dimensional!" % (name))
+            raise_error(ShapeError, err_msg, logger)
+
+        # Raise error if sam_set does not have n_par parameter values
+        if not(sam_set.shape[-1] == self._n_par):
+            err_msg = ("Input argument %r has incorrect number of parameters "
+                       "(%i != %i)!"
+                       % (name, sam_set.shape[-1], self._n_par))
+            raise_error(ShapeError, err_msg, logger)
+
+        # Check if sam_set solely consists out of floats
+        sam_set = check_vals(sam_set, name, 'float')
+
+        # Check if all samples are within parameter space
+        for i, par_set in enumerate(self._to_unit_space(sam_set)):
+            # If not, raise an error
+            if not ((0 <= par_set)*(par_set <= 1)).all():
+                err_msg = ("Input argument %r contains a sample outside of "
+                           "parameter space at index %i!" % (name, i))
+                raise_error(ValueError, err_msg, logger)
+
+        # Log again and return sam_set
+        logger.info("Finished validating provided set of model parameter "
+                    "samples %r." % (name))
+        return(sam_set)
 
     @property
     def _default_model_parameters(self):

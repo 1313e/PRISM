@@ -407,10 +407,10 @@ def check_vals(values, name, *args):
             err_msg = "Input argument %r is not non-negative!" % (name)
             raise_error(ValueError, err_msg, logger)
 
-    # Check for normalized value [-1, 1]
+    # Check for normalized value [0, 1]
     elif 'normal' in args:
         # Check if value is normalized and return if so
-        if(-1 <= value <= 1):
+        if(0 <= value <= 1):
             # Remove 'normal' from args and check it again
             args.remove('normal')
             value = check_vals(value, name, *args)

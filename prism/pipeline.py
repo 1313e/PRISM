@@ -825,9 +825,15 @@ class Pipeline(Projection, object):
                 dirnames = next(os.walk(self._root_dir))[1]
                 n_dirs = 0
 
+                # Check if there are any directories with the same prefix
                 for dirname in dirnames:
                     if(dirname[0:prefix_len] == prefix_scan):
-                        n_dirs += 1
+                        # Obtain full path to this directory
+                        dir_path = path.join(self._root_dir, dirname)
+
+                        # Check if this directory contains a 'prism_log.log'
+                        if 'prism_log.log' in os.listdir(dir_path):
+                            n_dirs += 1
 
                 # Check if working directories already exist with the same
                 # prefix and append a number to the name if this is the case
@@ -1767,51 +1773,22 @@ class Pipeline(Projection, object):
             err_msg = "Input argument 'ext_real_set' is invalid!"
             raise_error(InputError, err_msg, logger)
 
-        # Convert ext_sam_set and ext_mod_set to NumPy arrays
+        # Check ext_sam_set and ext_mod_set
+        ext_sam_set = self._modellink._check_sam_set(ext_sam_set,
+                                                     'ext_sam_set')
+        ext_mod_set = self._modellink._check_mod_set(ext_mod_set,
+                                                     'ext_mod_set')
+
+        # Make sure that ext_sam_set and ext_mod_set are 2D
         ext_sam_set = np.array(ext_sam_set, ndmin=2)
         ext_mod_set = np.array(ext_mod_set, ndmin=2)
 
-        # Check if both arrays are two-dimensional
-        if not(ext_sam_set.ndim == 2):
-            err_msg = ("External sample set has more than two dimensions (%i)!"
-                       % (ext_sam_set.ndim))
-            raise_error(ShapeError, err_msg, logger)
-        if not(ext_mod_set.ndim == 2):
-            err_msg = ("External model output set has more than two dimensions"
-                       " (%i)!" % (ext_mod_set.ndim))
-            raise_error(ShapeError, err_msg, logger)
-
-        # Check if ext_sam_set and ext_mod_set have correct shapes and raise
-        # error if not
-        if not(ext_sam_set.shape[1] == self._modellink._n_par):
-            err_msg = ("External sample set has incorrect number of parameters"
-                       " (%i != %i)!"
-                       % (ext_sam_set.shape[1], self._modellink._n_par))
-            raise_error(ShapeError, err_msg, logger)
-        if not(ext_mod_set.shape[1] == self._modellink._n_data):
-            err_msg = ("External model output set has incorrect number of data"
-                       " values (%i != %i)!"
-                       % (ext_mod_set.shape[1], self._modellink._n_data))
-            raise_error(ShapeError, err_msg, logger)
+        # Check if both arrays contain the same number of samples
         if not(ext_sam_set.shape[0] == ext_mod_set.shape[0]):
             err_msg = ("External sample and model output sets do not contain "
                        "the same number of samples (%i != %i)!"
                        % (ext_sam_set.shape[0], ext_mod_set.shape[0]))
             raise_error(ShapeError, err_msg, logger)
-
-        # Check if ext_sam_set and ext_mod_set solely contain floats
-        ext_sam_set = check_vals(ext_sam_set, 'ext_sam_set', 'float')
-        ext_mod_set = check_vals(ext_mod_set, 'ext_mod_set', 'float')
-
-        # Check if all samples are within parameter space
-        lower_bnd = self._modellink._par_rng[:, 0]
-        upper_bnd = self._modellink._par_rng[:, 1]
-        for i, par_set in enumerate(ext_sam_set):
-            # If not, raise an error
-            if not(((lower_bnd <= par_set)*(par_set <= upper_bnd)).all()):
-                err_msg = ("External sample set contains a sample outside of "
-                           "parameter space at index %i!" % (i))
-                raise_error(ValueError, err_msg, logger)
 
         # Log that processing has been finished
         logger.info("Finished processing externally provided model realization"
@@ -2787,33 +2764,18 @@ class Pipeline(Projection, object):
         logger.info("Evaluating emulator iteration %i for provided set of "
                     "model parameter samples." % (emul_i))
 
-        # Make sure that sam_set is a NumPy array
-        sam_set = np.array(sam_set)
-
         # Controller checking the contents of sam_set
         if self._is_controller:
+            # Check sam_set
+            sam_set = self._modellink._check_sam_set(sam_set, 'sam_set')
+
             # If ndim == 1, convert to 2D array and print output later
             if(sam_set.ndim == 1):
                 sam_set = np.array(sam_set, ndmin=2)
                 print_output = 1
             # If ndim == 2, return output later
-            elif(sam_set.ndim == 2):
-                print_output = 0
-            # If ndim is anything else, it is invalid
             else:
-                err_msg = ("Input argument 'sam_set' is not one-dimensional or"
-                           " two-dimensional!")
-                raise_error(ShapeError, err_msg, logger)
-
-            # Check if sam_set has n_par parameter values, raise error if not
-            if not(sam_set.shape[1] == self._modellink._n_par):
-                err_msg = ("Input argument 'sam_set' has incorrect number of "
-                           "parameters (%i != %i)!"
-                           % (sam_set.shape[1], self._modellink._n_par))
-                raise_error(ShapeError, err_msg, logger)
-
-            # Check if sam_set consists only out of floats
-            sam_set = check_vals(sam_set, 'sam_set', 'float')
+                print_output = 0
 
         # The workers make sure that sam_set is also two-dimensional
         else:
@@ -2867,12 +2829,13 @@ class Pipeline(Projection, object):
             # If print_output is True, print the results
             if print_output:
                 # Print results
+                pr_str = "Evaluation results of %s" % (sam_set[0])
+                print(pr_str)
+                print("-"*len(pr_str))
                 if impl_check[0]:
                     print("Plausible? Yes")
-                    print("-"*14)
                 else:
                     print("Plausible? No")
-                    print("-"*13)
                 print("emul_i_stop = %s" % (emul_i_stop[0]))
                 print("adj_exp_val = %s" % (adj_exp_val[0]))
                 print("adj_var_val = %s" % (adj_var_val[0]))
