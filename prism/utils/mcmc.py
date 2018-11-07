@@ -24,8 +24,7 @@ import numpy as np
 
 # PRISM imports
 from .._docstrings import user_emul_i_doc
-from .._internal import (RequestError, check_vals, docstring_substitute,
-                         exec_code_anal)
+from .._internal import (RequestError, check_vals, docstring_substitute)
 from ..pipeline import Pipeline
 
 # All declaration
@@ -56,7 +55,8 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
         Function definition that needs to be called if the provided `par_set`
         is plausible in iteration `emul_i` of `pipeline_obj`. The used call
         signature is ``ext_lnpost(par_set, *args, **kwargs)``. All MPI ranks
-        will call this function.
+        will call this function unless
+        :attr:`~prism.pipeline.Pipeline.is_listening` is *True*.
     pipeline_obj : :obj:`~prism.pipeline.Pipeline` object
         The instance of the :class:`~prism.pipeline.Pipeline` class that needs
         to be used for determining the validity of the proposed sampling step.
@@ -117,7 +117,8 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
         `par_set` using the provided function `ext_lnpost`, in addition to
         constraining it first with the emulator defined in the `pipeline_obj`.
 
-        This function needs to be called by all MPI ranks.
+        This function needs to be called by all MPI ranks if
+        :attr:`~prism.pipeline.Pipeline.is_listening` is *False*.
 
         Parameters
         ----------
@@ -153,8 +154,8 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
             return(-np.infty)
 
         # Analyze par_set
-        impl_sam = pipe._analyze_sam_set(emul_i, np.array(sam, ndmin=2),
-                                         *exec_code_anal)
+        impl_sam = pipe._make_call('_get_impl_sam', emul_i,
+                                   np.array(sam, ndmin=2))
 
         # If par_set is plausible, call ext_lnpost
         if impl_sam.size:
@@ -292,8 +293,7 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         init_walkers = pipe._comm.bcast(init_walkers, 0)
 
         # Analyze init_walkers and save them as p0_walkers
-        p0_walkers = pipe._analyze_sam_set(emul_i, init_walkers,
-                                           *exec_code_anal)
+        p0_walkers = pipe._get_impl_sam(emul_i, init_walkers)
 
     # Check if p0_walkers needs to be converted
     if unit_space:

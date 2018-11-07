@@ -245,6 +245,14 @@ class Test_Pipeline_Gaussian2D(object):
         pipe.do_logging = 0
         pipe.do_logging = 1
 
+    # Check if the workers can start listening
+    def test_workers_listening(self, pipe):
+        pipe.is_listening = False
+        pipe._make_call('details')
+        pipe.is_listening = True
+        pipe._make_call(np.array, [1])
+        pipe.is_listening = False
+
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model
 class Test_Pipeline_Gaussian3D(object):
@@ -324,7 +332,7 @@ class Test_Pipeline_Init_Exceptions(object):
 
     # Create a Pipeline object using not an Emulator class
     def test_no_Emulator(self, root_working_dir, model_link):
-        with pytest.raises(RequestError):
+        with pytest.raises(InputError):
             Pipeline(model_link, *root_working_dir,
                      prism_file=prism_file_default, emul_type=Pipeline)
 

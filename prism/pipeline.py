@@ -113,6 +113,7 @@ class Pipeline(Projection, object):
         # Set statuses
         self._is_controller = 1 if not self._rank else 0
         self._is_worker = 1 if self._rank else 0
+        self._is_listening = 0
 
         # Controller obtaining paths and preparing logging system
         if self._is_controller:
@@ -165,8 +166,9 @@ class Pipeline(Projection, object):
 
         # If anything else is given, it is invalid
         else:
-            err_msg = "Input argument 'emul_type' is invalid!"
-            raise_error(RequestError, err_msg, logger)
+            err_msg = ("Input argument 'emul_type' is invalid (%r)!"
+                       % (emul_type))
+            raise_error(InputError, err_msg, logger)
 
         # Let everybody read in the pipeline parameters
         self._read_parameters()
@@ -311,6 +313,50 @@ class Pipeline(Projection, object):
 
         return(bool(self._is_worker))
 
+    @property
+    def is_listening(self):
+        """
+        bool: Whether or not all worker ranks are listening for calls from the
+        controller rank. If *True*, all workers are continuously listening for
+        calls made with :meth:`~_make_call` until set to *False*.
+        By default, this is *False*.
+
+        Setting this value to *True* allows for easier use of *PRISM* in
+        combination with serial/OpenMP codes (like MCMC methods).
+
+        """
+
+        return(bool(self._is_listening))
+
+    @is_listening.setter
+    def is_listening(self, flag):
+        # Make logger
+        logger = getCLogger('LISTENING')
+
+        # Check if provided value is a bool
+        flag = check_vals(flag, 'is_listening', 'bool')
+
+        # If flag and is_listening are the same, skip
+        if flag is self._is_listening:
+            pass
+        # If listening is turned off, turn it on
+        elif flag:
+            # Set is_listening to 1
+            self._is_listening = 1
+
+            # Workers start listening for calls
+            self._listen_for_calls()
+
+            # Log that workers are now listening
+            logger.info("Workers are now listening for calls.")
+        # If listening is turned on, turn it off
+        else:
+            # Make workers stop listening for calls
+            self._make_call(None)
+
+            # Log that workers are no longer listening for calls
+            logger.info("Workers are no longer listening for calls.")
+
     # Pipeline Settings/Attributes/Details
     @property
     def do_logging(self):
@@ -334,12 +380,12 @@ class Pipeline(Projection, object):
         # If flag and do_logging are the same, skip
         if flag is self._do_logging:
             pass
-        # If logging is turned off, log this and turn off logging
+        # If logging is turned on, log this and turn off logging
         elif not flag:
             logging.disable(logging.INFO)
             logger.warning("Logging messages of level %i (INFO) and below are "
                            "now ignored." % (logging.INFO))
-        # If logging is turned on, turn it on and log this
+        # If logging is turned off, turn it on and log this
         else:
             logging.disable(logging.NOTSET)
             logger.warning("Logging messages are no longer ignored.")
@@ -541,6 +587,67 @@ class Pipeline(Projection, object):
         return(self._impl_sam)
 
     # %% GENERAL CLASS METHODS
+    # Function that locks workers into listening for controller calls
+    def _listen_for_calls(self):
+        """
+        All worker ranks in the :attr:`~comm` communicator start listening for
+        calls from the corresponding controller rank and will attempt to
+        execute the received message. Listening for calls continues until
+        :attr:`~is_listening` is set to *False*.
+
+        """
+
+        # All workers start listening for calls
+        if self._is_worker:
+            while self._is_listening:
+                exec_fn, args, kwargs = self._comm.recv(source=0,
+                                                        tag=9999+self._rank)
+                if exec_fn is None:
+                    self._is_listening = 0
+                elif isinstance(exec_fn, (str, unicode)):
+                    getattr(self, exec_fn)(*args, **kwargs)
+                else:
+                    exec_fn(*args, **kwargs)
+
+    # Function that sends a code string to all workers and executes it
+    def _make_call(self, exec_fn, *args, **kwargs):
+        """
+        Send the provided `exec_fn` to all worker ranks, if they are
+        listening for calls, and tell them to execute it using the provided
+        `args` and `kwargs`. All ranks that call this function will execute
+        `exec_fn` as well.
+
+        If :attr:`~is_listening` is *True*, this function should only be
+        called by the controller. If it is *False*, it should be called by all
+        ranks that must execute `exec_fn`.
+
+        Parameters
+        ----------
+        exec_fn : str, callable or None
+            If string, a callable attribute of this :obj:`~Pipeline` instance
+            or a callable object that the workers should execute if not.
+            If *None*, the workers stop listening for calls.
+        args : tuple
+            Positional arguments that need to be provided to `exec_fn`.
+        kwargs : dict
+            Keyword arguments that need to be provided to `exec_fn`.
+
+        """
+
+        # Send received exec_code to all workers if they are listening
+        if self._is_listening and self._is_controller:
+            for rank in range(1, self._size):
+                self._comm.send([exec_fn, args, kwargs], dest=rank,
+                                tag=9999+rank)
+
+        # Execute exec_fn as well
+        if exec_fn is None:
+            self._is_listening = 0
+        elif isinstance(exec_fn, (str, unicode)):
+            return(getattr(self, exec_fn)(*args, **kwargs))
+        else:
+            return(exec_fn(*args, **kwargs))
+
     # Function obtaining the model output for a given set of parameter values
     @docstring_append(call_model_doc_s)
     def _call_model(self, emul_i, par_set, data_idx):
@@ -661,8 +768,8 @@ class Pipeline(Projection, object):
             # Try to use criterion to check validity
             try:
                 lhd(3, 2, criterion=criterion)
-            except Exception as error:
-                raise error
+            except Exception:
+                raise
             else:
                 self._criterion = criterion
 
@@ -1797,13 +1904,39 @@ class Pipeline(Projection, object):
         # If all checks are passed, return ext_sam_set and ext_mod_set
         return(ext_sam_set, ext_mod_set.T)
 
-    # This function analyzes the emulator for given sam_set using code snippets
-    # TODO: Determine whether using arrays or lists is faster
+    # This function evaluates sam_set using the default exec_code_anal
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def _analyze_sam_set(self, emul_i, sam_set, pre_code, eval_code,
-                         anal_code, post_code, exit_code):
+    def _get_impl_sam(self, emul_i, sam_set):
         """
         Analyzes a provided set of emulator evaluation samples `sam_set` at a
+        given emulator iteration `emul_i` and returns the samples that pass the
+        implausibility cut-off check.
+
+        Parameters
+        ----------
+        %(emul_i)s
+        sam_set : 2D :obj:`~numpy.ndarray` object
+            Array containing model parameter value sets to be analyzed in all
+            emulator systems in emulator iteration `emul_i`.
+
+        Returns
+        -------
+        impl_sam : 2D :obj:`~numpy.ndarray` object
+            Array containing all samples from `sam_set` that survived the
+            implausibility cut-off check.
+
+        """
+
+        # Call evaluate_sam_set with correct parameters
+        return(self._evaluate_sam_set(emul_i, sam_set, *exec_code_anal))
+
+    # This function evaluates given sam_set in the emulator using code snippets
+    # TODO: Determine whether using arrays or lists is faster
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _evaluate_sam_set(self, emul_i, sam_set, pre_code, eval_code,
+                          anal_code, post_code, exit_code):
+        """
+        Evaluates a provided set of emulator evaluation samples `sam_set` at a
         given emulator iteration `emul_i`.
         The provided code snippets `pre_code`; `eval_code`; `anal_code`;
         `post_code` and `exit_code` are executed using Python's :func:`~exec`
@@ -1816,19 +1949,19 @@ class Pipeline(Projection, object):
             Array containing model parameter value sets to be evaluated in all
             emulator systems in emulator iteration `emul_i`.
         pre_code : str or code object
-            Code snippet to be executed before the analysis of `sam_set`
+            Code snippet to be executed before the evaluation of `sam_set`
             starts.
         eval_code : str or code object
             Code snippet to be executed after the evaluation of each sample in
             `sam_set`.
         anal_code : str or code object
-            Code snippet to be executed after the analysis of each sample in
+            Code snippet to be executed after the evaluation of each sample in
             `sam_set`.
         post_code : str or code object
-            Code snippet to be executed after the analysis of `sam_set` ends.
+            Code snippet to be executed after the evaluation of `sam_set` ends.
         exit_code : str or code object
             Code snippet to be executed before returning the results of the
-            analysis of `sam_set`. This code snippet is only executed by the
+            evaluation of `sam_set`. This code snippet is only executed by the
             controller.
 
         Returns
@@ -1847,6 +1980,9 @@ class Pipeline(Projection, object):
         snippet to be executed without any compilations.
 
         """
+
+        # Broadcast sam_set to workers to allow for more versatility
+        sam_set = self._comm.bcast(sam_set, 0)
 
         # Determine number of samples
         n_sam = sam_set.shape[0]
@@ -2031,7 +2167,7 @@ class Pipeline(Projection, object):
         start_time2 = time()
 
         # Analyze eval_sam_set
-        impl_sam = self._analyze_sam_set(emul_i, eval_sam_set, *exec_code_anal)
+        impl_sam = self._get_impl_sam(emul_i, eval_sam_set)
 
         # Controller finishing up
         if self._is_controller:
@@ -2815,7 +2951,7 @@ class Pipeline(Projection, object):
         exec_code = (pre_code, eval_code, anal_code, post_code, exit_code)
 
         # Analyze sam_set
-        results = self._analyze_sam_set(emul_i, sam_set, *exec_code)
+        results = self._evaluate_sam_set(emul_i, sam_set, *exec_code)
 
         # Do more logging
         logger.info("Finished evaluating emulator.")

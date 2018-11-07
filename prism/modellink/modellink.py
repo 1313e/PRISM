@@ -939,7 +939,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         """
 
-        return(dict(zip(self._par_name, self._par_est)))
+        return(SortedDict(zip(self._par_name, self._par_est)))
 
     # Model Data
     @property

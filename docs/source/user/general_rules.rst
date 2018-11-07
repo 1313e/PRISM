@@ -22,7 +22,7 @@ Below is a list of general usage rules that apply to *PRISM*.
          - ``A, 1, 2.0, B``;
          - ``[A,1,2.,B]``;
          - ``"A 1 2.0 B"``;
-         - ``"'[" (A` / }| \n; <1{}) \,,">2.000000 !!: \t< )?%\B '``.
+         - ``"'[" (A` / }| \n; <1{}) \,,">2.000000 !! \t< )?%\B '``.
   - the path to a data file (*PRISM* parameters, model parameters, model data) will read in all the data from that file as a Python dict, with a colon ``:`` acting as the separator between the key and value.
 
 

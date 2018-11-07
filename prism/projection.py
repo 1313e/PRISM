@@ -942,7 +942,7 @@ class Projection(object):
         start_time = time()
 
         # Analyze all samples in proj_hcube
-        results = self._analyze_sam_set(self.__emul_i, proj_hcube, *exec_code)
+        results = self._evaluate_sam_set(self.__emul_i, proj_hcube, *exec_code)
 
         # Controller only
         if self._is_controller:
@@ -1051,11 +1051,11 @@ class Projection(object):
 
             # Check if align parameter is a valid string
             align = str(kwargs['align'].replace("'", '').replace("'", ''))
-            if align.lower() in ('row', 'horizontal'):
+            if align.lower() in ('r', 'row', 'h', 'horizontal'):
                 self.__align = 'row'
                 kwargs['fig_kwargs']['figsize'] =\
                     kwargs['fig_kwargs'].pop('figsize', kwargs['figsize_r'])
-            elif align.lower() in ('col', 'column', 'vertical'):
+            elif align.lower() in ('c', 'col', 'column', 'v', 'vertical'):
                 self.__align = 'col'
                 kwargs['fig_kwargs']['figsize'] =\
                     kwargs['fig_kwargs'].pop('figsize', kwargs['figsize_c'])
