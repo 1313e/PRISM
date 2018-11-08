@@ -495,12 +495,18 @@ def convert_str_seq(seq):
     for i, val in enumerate(seq):
         # Try to convert to int or float
         try:
+            # If string contains an E or e, try to convert to float first
+            if 'e' in val.lower():
+                tmp_val = float(val)
+            else:
+                tmp_val = val
+
             # If string contains a dot, check if it is a float
             if '.' in val:
-                seq[i] = float(val)
+                seq[i] = float(tmp_val)
             # If string contains no dot, check if it is an int
             else:
-                seq[i] = int(val)
+                seq[i] = int(tmp_val)
         # If it cannot be converted to int or float, save as string
         except ValueError:
             seq[i] = val

@@ -295,7 +295,7 @@ class Projection(object):
         f_los = Rbf(x_proj, impl_los)
 
         # Set the size of the hexbin grid
-        gridsize = 1000
+        gridsize = max(1000, self.__res)
 
         # Create parameter value array used in interpolation functions
         x = np.linspace(self._modellink._par_rng[par, 0],
@@ -406,7 +406,7 @@ class Projection(object):
         f_los = Rbf(x_proj, y_proj, impl_los)
 
         # Set the size of the hexbin grid
-        gridsize = 1000
+        gridsize = max(1000, self.__res)
 
         # Create parameter value grid used in interpolation functions
         x = np.linspace(self._modellink._par_rng[par1, 0],
