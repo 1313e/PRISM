@@ -100,6 +100,15 @@ class Projection(object):
             If 'row'/'horizontal', the subplots are positioned on a single row.
             If 'col'/'column'/'vertical', the subplots are positioned on a
             single column.
+        smooth : bool. Default: False
+            Controls what to do if a grid point contains no plausible samples,
+            but does contain a minimum implausibility value below the first
+            cut-off.
+            If *False*, these values are kept, which can show up as
+            artifact-like features in the projection figure.
+            If *True*, these values are set to the first cut-off, removing them
+            from the projection figure. Doing this may also remove interesting
+            features. This does not affect the projection data saved to HDF5.
         force : bool. Default: False
             Controls what to do if a projection hypercube has been calculated
             at the emulator iteration `emul_i` before.
@@ -238,7 +247,7 @@ class Projection(object):
             print("")
 
         # Show details
-        self.details()
+        self.details(self.__emul_i)
 
     # %% CLASS PROPERTIES
     @property
@@ -301,6 +310,17 @@ class Projection(object):
         x = np.linspace(self._modellink._par_rng[par, 0],
                         self._modellink._par_rng[par, 1], gridsize)
 
+        # Calculate y_min and y_los
+        y_min = f_min(x)
+        y_los = f_los(x)
+
+        # Check if y_min is requested to be smoothed
+        if self.__smooth:
+            # Loop over all grid points
+            for i, (min_i, los_i) in enumerate(zip(y_min, y_los)):
+                if(min_i < self._impl_cut[self.__emul_i][0] and los_i <= 0):
+                    y_min[i] = self._impl_cut[self.__emul_i][0]
+
         # Create figure object
         if(self.__align == 'row'):
             f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
@@ -329,7 +349,7 @@ class Projection(object):
                    fontsize='xx-large')
 
         # Plot minimum implausibility
-        ax0.plot(x, f_min(x), **self.__impl_kwargs)
+        ax0.plot(x, y_min, **self.__impl_kwargs)
         draw_y = self._impl_cut[self.__emul_i][0]
         ax0.axis([self._modellink._par_rng[par, 0],
                   self._modellink._par_rng[par, 1],
@@ -341,7 +361,6 @@ class Projection(object):
         ax0.set_ylabel("Min. Implausibility", fontsize='large')
 
         # Plot line-of-sight depth
-        y_los = f_los(x)
         ax1.plot(x, y_los, **self.__los_kwargs)
         ax1.axis([self._modellink._par_rng[par, 0],
                   self._modellink._par_rng[par, 1],
@@ -427,6 +446,19 @@ class Projection(object):
         y = Y.ravel()
         z_min = Z_min.ravel()
         z_los = Z_los.ravel()
+
+        # Check if z_min is requested to be smoothed
+        if self.__smooth:
+            # Calculate the highest z_los that corresponds to 0 in color
+            # Matplotlib uses 256 segments in every colormap
+            # Therefore, max(z_los)/256 gives the color for 0
+            min_los = np.max(z_los)/256
+
+            # Loop over all grid points
+            for i, (min_i, los_i) in enumerate(zip(z_min, z_los)):
+                if(min_i < self._impl_cut[self.__emul_i][0] and
+                   los_i <= min_los):
+                    z_min[i] = self._impl_cut[self.__emul_i][0]
 
         # Create figure object
         f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
@@ -745,6 +777,7 @@ class Projection(object):
                        'figure': True,
                        'show': False,
                        'align': 'col',
+                       'smooth': False,
                        'force': False,
                        'fig_kwargs': fig_kwargs,
                        'impl_kwargs': impl_kwargs,
@@ -1047,6 +1080,7 @@ class Projection(object):
             # Check if figure, show and force-parameters are bools
             self.__figure = check_vals(kwargs['figure'], 'figure', 'bool')
             self.__show = check_vals(kwargs['show'], 'show', 'bool')
+            self.__smooth = check_vals(kwargs['smooth'], 'smooth', 'bool')
             self.__force = check_vals(kwargs['force'], 'force', 'bool')
 
             # Check if align parameter is a valid string
