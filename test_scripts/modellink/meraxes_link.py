@@ -157,8 +157,8 @@ class MeraxesLink(ModelLink):
         else:
             return(0)
 
-    def get_md_var(self, emul_i, data_idx):
-        super(MeraxesLink, self).get_md_var(emul_i=emul_i, data_idx=data_idx)
+    def get_md_var(self, *args, **kwargs):
+        super(MeraxesLink, self).get_md_var(*args, **kwargs)
 
     # %% MERAXESLINK CLASS PROPERTIES
     @property

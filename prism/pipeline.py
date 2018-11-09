@@ -658,13 +658,11 @@ class Pipeline(Projection, object):
         logger = getCLogger('CALL_MODEL')
         logger.info("Calling model at parameters %s." % (sam))
 
-        # Create par_dict
-        par_dict = dict(zip(self._modellink._par_name, sam))
-
         # Obtain model output
-        mod_out = self._modellink.call_model(emul_i=emul_i,
-                                             model_parameters=par_dict,
-                                             data_idx=data_idx)
+        mod_out = self._modellink.call_model(
+            emul_i=emul_i,
+            model_parameters=dict(zip(self._modellink._par_name, sam)),
+            data_idx=data_idx)
 
         # Log that calling model has been finished
         logger.info("Model returned %s." % (mod_out))
@@ -681,15 +679,13 @@ class Pipeline(Projection, object):
         # Log that model is being multi-called
         logger = getCLogger('CALL_MODEL')
         logger.info("Multi-calling model for sample set of size %i."
-                    % (np.shape(sam_set)[0]))
-
-        # Create sam_dict
-        sam_dict = dict(zip(self._modellink._par_name, sam_set.T))
+                    % (sam_set.shape[0]))
 
         # Obtain set of model outputs
-        mod_set = self._modellink.call_model(emul_i=emul_i,
-                                             model_parameters=sam_dict,
-                                             data_idx=data_idx)
+        mod_set = self._modellink.call_model(
+            emul_i=emul_i,
+            model_parameters=dict(zip(self._modellink._par_name, sam_set.T)),
+            data_idx=data_idx)
 
         # Log that multi-calling model has been finished
         logger.info("Finished model multi-call.")
@@ -1091,7 +1087,8 @@ class Pipeline(Projection, object):
         # Controller only
         if self._is_controller:
             # Use model discrepancy variance as model data errors
-            md_var = self._get_md_var(0, np.arange(self._modellink._n_data))
+            md_var = self._get_md_var(0, np.arange(self._modellink._n_data),
+                                      self._modellink._par_est)
             err = np.sqrt(md_var).tolist()
             self._modellink._data_err = err
 
@@ -1535,19 +1532,24 @@ class Pipeline(Projection, object):
     # TODO: Introduce check if emulator variance is much lower than other two
     # TODO: Alternatively, remove covariance calculations when this happens
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _get_uni_impl(self, emul_i, emul_s_seq, adj_exp_val, adj_var_val):
+    def _get_uni_impl(self, emul_i, emul_s_seq, par_set, adj_exp_val,
+                      adj_var_val):
         """
         Calculates the univariate implausibility values at a given emulator
         iteration `emul_i` for specified expectation and variance values
-        `adj_exp_val` and `adj_var_val`.
+        `adj_exp_val` and `adj_var_val`, corresponding to given `par_set`.
 
         Parameters
         ----------
         %(emul_i)s
         %(emul_s_seq)s
+        par_set : 1D :obj:`~numpy.ndarray` object
+            Model parameter value set to calculate the univariate
+            implausibility values for. Only used to pass to the
+            :meth:`~prism.modellink.modellink.ModelLink.get_md_var` method.
         adj_exp_val, adj_var_val : 1D array_like
             The adjusted expectation and variance values to calculate the
-            univeriate implausibility for.
+            univariate implausibility for.
 
         Returns
         -------
@@ -1557,7 +1559,7 @@ class Pipeline(Projection, object):
         """
 
         # Obtain model discrepancy variance
-        md_var = self._get_md_var(emul_i, emul_s_seq)
+        md_var = self._get_md_var(emul_i, emul_s_seq, par_set)
 
         # Initialize empty univariate implausibility
         uni_impl_val_sq = np.zeros(len(emul_s_seq))
@@ -1586,9 +1588,9 @@ class Pipeline(Projection, object):
 
     # This function calculates the model discrepancy variance
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _get_md_var(self, emul_i, emul_s_seq):
+    def _get_md_var(self, emul_i, emul_s_seq, par_set):
         """
-        Retrieves the model discrepancy variance, which includes all variances
+        Retrieves the model discrepancy variances, which includes all variances
         that are created by the model provided by the
         :obj:`~prism.modellink.modellink.ModelLink` instance. This method tries
         to call the :meth:`~prism.modellink.modellink.ModelLink.get_md_var`
@@ -1600,6 +1602,9 @@ class Pipeline(Projection, object):
         ----------
         %(emul_i)s
         %(emul_s_seq)s
+        par_set : 1D :obj:`~numpy.ndarray` object
+            Model parameter value set to calculate the model discrepancy
+            variances for.
 
         Returns
         -------
@@ -1613,6 +1618,7 @@ class Pipeline(Projection, object):
         try:
             md_var = self._modellink.get_md_var(
                 emul_i=emul_i,
+                model_parameters=dict(zip(self._modellink._par_name, par_set)),
                 data_idx=delist(self._emulator._data_idx[emul_i]))
 
         # If it was not user-defined, use a default value
@@ -2034,9 +2040,9 @@ class Pipeline(Projection, object):
 
                     # Calculate univariate implausibility value
 #                    uni_impl_val[j] = self._get_uni_impl(i, active_emul_s,
-#                                                         *adj_val)
+#                                                         par_set, *adj_val)
                     uni_impl_val = self._get_uni_impl(i, active_emul_s,
-                                                      *adj_val)
+                                                      par_set, *adj_val)
                     uni_impl_vals.append(uni_impl_val)
 
                     # Execute the eval_code snippet

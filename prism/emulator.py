@@ -595,10 +595,6 @@ class Emulator(object):
             with self._File('r+', None) as file:
                 # Loop over all requested iterations to be removed
                 for i in range(emul_i, self._emul_i+2):
-                    # Determine the figure name prefix
-                    fig_prefix = self._pipeline._fig_prefix.format(
-                        self._pipeline._working_dir, i)
-
                     # Check if proj_hcube exists
                     try:
                         file['%i/proj_hcube' % (i)]
@@ -609,10 +605,14 @@ class Emulator(object):
                         hcube_names = list(file['%i/proj_hcube' % (i)].keys())
 
                         # Try to remove figures for which data is available
-                        for hcube_name in hcube_names:
-                            fig_path = '%s(%s).png' % (fig_prefix, hcube_name)
+                        for hcube in hcube_names:
+                            fig_path, fig_path_s =\
+                                self._pipeline._Projection__get_fig_path(hcube,
+                                                                         i)
                             if path.exists(fig_path):
                                 os.remove(fig_path)
+                            if path.exists(fig_path_s):
+                                os.remove(fig_path_s)
 
                     # Try to remove the iteration, skip if not possible
                     try:

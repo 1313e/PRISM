@@ -64,7 +64,7 @@ class GaussianLink2D(ModelLink):
 
         return(np.array(mod_set).T)
 
-    def get_md_var(self, emul_i, data_idx):
+    def get_md_var(self, emul_i, model_parameters, data_idx):
         return(pow(0.1*np.ones_like(data_idx), 2))
 
 

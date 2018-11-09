@@ -40,5 +40,5 @@ def test_SineWaveLink():
                       exp_mod_out).all()
 
     # Retrieve model discrepancy variance
-    assert np.isclose(model_link.get_md_var(1, model_link._data_idx),
+    assert np.isclose(model_link.get_md_var(1, par_set, model_link._data_idx),
                       [0.01, 0.01, 0.01, 0.01, 0.01]).all()

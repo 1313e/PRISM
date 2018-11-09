@@ -125,8 +125,8 @@ class ImagineLink(ModelLink):
         # Return it
         return(obs_data)
 
-    def get_md_var(self, emul_i, data_idx):
-        super(ImagineLink, self).get_md_var(emul_i=emul_i, data_idx=data_idx)
+    def get_md_var(self, *args, **kwargs):
+        super(ImagineLink, self).get_md_var(*args, **kwargs)
 
 
 class Hammurapy_model(observables_generator, Hammurapy):

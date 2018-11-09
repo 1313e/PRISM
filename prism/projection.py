@@ -20,6 +20,7 @@ from itertools import chain, combinations
 import os
 from os import path
 from time import time
+import sys
 
 # Package imports
 from e13tools import InputError
@@ -41,6 +42,10 @@ from ._internal import (RequestError, check_vals, docstring_append,
 
 # All declaration
 __all__ = ['Projection']
+
+# Python2/Python3 compatibility
+if(sys.version_info.major >= 3):
+    unicode = str
 
 
 # %% PROJECTION CLASS DEFINITION
@@ -109,6 +114,7 @@ class Projection(object):
             If *True*, these values are set to the first cut-off, removing them
             from the projection figure. Doing this may also remove interesting
             features. This does not affect the projection data saved to HDF5.
+            Smoothed figures have an '_s' string appended to their filenames.
         force : bool. Default: False
             Controls what to do if a projection hypercube has been calculated
             at the emulator iteration `emul_i` before.
@@ -205,12 +211,8 @@ class Projection(object):
             # PLOTTING (CONTROLLER ONLY)
             # Draw projection figure if requested
             if self._is_controller and self.__figure:
-                # Determine the path of this figure
-                self.__fig_path = '%s(%s).png' % (self.__fig_prefix,
-                                                  hcube_name)
-
                 # Skip making figure if it already exists
-                if path.exists(self.__fig_path):
+                if path.exists(self.__get_fig_path(hcube)[self.__smooth]):
                     logger.info("Projection figure %r already exists. "
                                 "Skipping figure creation." % (hcube_name))
                     self._comm.Barrier()
@@ -383,7 +385,7 @@ class Projection(object):
                            fontsize='x-large')
 
         # Save the figure
-        plt.savefig(self.__fig_path)
+        plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
 
         # If show is set to True, show the figure
         f.show() if self.__show else plt.close(f)
@@ -540,7 +542,7 @@ class Projection(object):
                                 labelpad=0)
 
         # Save the figure
-        plt.savefig(self.__fig_path)
+        plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
 
         # If show is set to True, show the figure
         f.show() if self.__show else plt.close(f)
@@ -688,13 +690,16 @@ class Projection(object):
                             logger.info("Projection data %r already exists. "
                                         "Deleting." % (hcube_name))
 
-                            # Try to remove figure as well
-                            if path.exists('%s(%s).png'
-                                           % (self.__fig_prefix, hcube_name)):
+                            # Try to remove figures as well
+                            fig_path, fig_path_s = self.__get_fig_path(hcube)
+                            if path.exists(fig_path):
                                 logger.info("Projection figure %r already "
                                             "exists. Deleting." % (hcube_name))
-                                os.remove('%s(%s).png'
-                                          % (self.__fig_prefix, hcube_name))
+                                os.remove(fig_path)
+                            if path.exists(fig_path_s):
+                                logger.info("Projection figure %r already "
+                                            "exists. Deleting." % (hcube_name))
+                                os.remove(fig_path_s)
 
                             # Add this hypercube to creation list
                             create_hcubes.append(hcube)
@@ -737,6 +742,55 @@ class Projection(object):
         else:
             return('%s-%s' % (self._modellink._par_name[hcube[0]],
                               self._modellink._par_name[hcube[1]]))
+
+    # This function returns the full path of a figure when given a hcube
+    @docstring_substitute(hcube=hcube_doc, emul_i=user_emul_i_doc)
+    def __get_fig_path(self, hcube, emul_i=None):
+        """
+        Determines the absolute path of a projection figure corresponding to a
+        provided projection hypercube `hcube` in emulator iteration `emul_i`
+        and returns it.
+
+        Parameters
+        ----------
+        hcube : 1D array_like of int of length {1, 2} or str
+            Array containing the internal integer identifiers of the main model
+            parameters that require a projection hypercube.
+            If str, the name of `hcube` instead (:meth:`~__get_hcube_name`).
+
+        Optional
+        --------
+        %(emul_i)s
+
+        Returns
+        -------
+        fig_path : str
+            The absolute path to the requested projection figure.
+        fig_path_s : str
+            The absolute path to the smoothed version.
+
+        """
+
+        # If emul_i is None, set it to default
+        if emul_i is None:
+            emul_i = self.__emul_i
+
+        # Determine the fig prefix
+        fig_prefix = '%i_proj_' % (emul_i)
+        fig_prefix = path.join(self._working_dir, fig_prefix)
+
+        # Obtain name of this projection hypercube
+        if isinstance(hcube, (str, unicode)):
+            hcube_name = hcube
+        else:
+            hcube_name = self.__get_hcube_name(hcube)
+
+        # Determine fig_path and fig_path_s
+        fig_path = '%s(%s).png' % (fig_prefix, hcube_name)
+        fig_path_s = '%s(%s)_s.png' % (fig_prefix, hcube_name)
+
+        # Return both
+        return(fig_path, fig_path_s)
 
     # This function returns default projection parameters
     @docstring_append(def_par_doc.format('projection'))
@@ -1205,10 +1259,6 @@ class Projection(object):
                     file.create_group('%i/proj_hcube' % (self.__emul_i))
                 except ValueError:
                     pass
-
-            # Obtain figure name prefix
-            self.__fig_prefix = self._fig_prefix.format(self._working_dir,
-                                                        self.__emul_i)
 
             # Read in projection parameters
             self.__read_parameters()

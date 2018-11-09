@@ -73,6 +73,13 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     class initialization. A combination of both is also possible. More details
     on this can be found in :meth:`~__init__`.
 
+    The :class:`~ModelLink` class has two abstract methods that must be
+    overridden before the subclass can be initialized.
+    The :meth:`~call_model` method is the most important method, as it provides
+    *PRISM* with a way of calling the model wrapped in the :class:`~ModelLink`
+    subclass. The :meth:`~get_md_var` method allows for *PRISM* to calculate
+    the model discrepancy variance.
+
     Note
     ----
     The :meth:`~__init__` method may be extended by the :class:`~ModelLink`
@@ -767,11 +774,12 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     @abc.abstractmethod
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def get_md_var(self, emul_i, data_idx):
+    def get_md_var(self, emul_i, model_parameters, data_idx):
         """
         Calculates the linear model discrepancy variance at a given emulator
-        iteration `emul_i` for given data points `data_idx` for the model
-        wrapped in this :class:`~ModelLink` subclass.
+        iteration `emul_i` for model parameter values `model_parameters` and
+        given data points `data_idx` for the model wrapped in this
+        :class:`~ModelLink` subclass. This method is always single-called.
 
         This is an abstract method and must be overridden by the
         :class:`~ModelLink` subclass.
@@ -779,6 +787,9 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         Parameters
         ----------
         %(emul_i)s
+        model_parameters : dict of :class:`~numpy.float64`
+            Dict containing the values for all model parameters corresponding
+            to the requested model realization.
         data_idx : list of lists
             List containing the user-defined data point identifiers
             corresponding to the requested data points.

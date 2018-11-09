@@ -104,7 +104,7 @@ class InvalidShapeMdVarModelLink(ModelLink):
     def call_model(self, data_idx, *args, **kwargs):
         return([1]*len(data_idx))
 
-    def get_md_var(self, emul_i, data_idx):
+    def get_md_var(self, data_idx, *args, **kwargs):
         return([[1, 1, 1]]*len(data_idx))
 
 
@@ -114,7 +114,7 @@ class DoubleMdVarModelLink(ModelLink):
         par = kwargs['model_parameters']
         return(np.array(data_idx)*(par['A']+0.00000001*par['B']*par['C']**2))
 
-    def get_md_var(self, emul_i, data_idx):
+    def get_md_var(self, data_idx, *args, **kwargs):
         return([[1, 1]]*len(data_idx))
 
 
@@ -123,7 +123,7 @@ class CustomModelLink(ModelLink):
     def call_model(self, data_idx, *args, **kwargs):
         return(np.random.rand(len(data_idx)))
 
-    def get_md_var(self, emul_i, data_idx):
+    def get_md_var(self, data_idx, *args, **kwargs):
         return([[1, 1]]*len(data_idx))
 
 
@@ -174,6 +174,7 @@ class Test_Pipeline_Gaussian2D(object):
     def test_project_pre_anal(self, pipe):
         with pytest_mpl.plugin.switch_backend('Agg'):
             pipe.project(proj_par=(0), figure=False)
+            pipe.project(proj_par=(0), figure=True)
             pipe.project(proj_par=(1), figure=True, align='row', smooth=True)
 
     # Check if first iteration can be projected again (unforced)
@@ -200,7 +201,7 @@ class Test_Pipeline_Gaussian2D(object):
     # Check if first iteration can be reprojected (forced)
     def test_reproject_forced(self, pipe):
         with pytest_mpl.plugin.switch_backend('Agg'):
-            pipe.project(force=True)
+            pipe.project(force=True, smooth=True)
 
     # Check if details overview of first iteration can be given
     def test_details(self, pipe):
@@ -287,11 +288,8 @@ class Test_Pipeline_Gaussian3D(object):
     # Check if first iteration can be projected
     def test_project(self, pipe):
         with pytest_mpl.plugin.switch_backend('Agg'):
-            pipe.project(1, (0, 1), align='row')
-            hcube_name = pipe._Projection__get_hcube_name((0, 1))
-            os.remove("%s(%s).png"
-                      % (pipe._fig_prefix.format(pipe._working_dir, 1),
-                         hcube_name))
+            pipe.project(1, (0, 1), align='row', smooth=True)
+            os.remove(pipe._Projection__get_fig_path((0, 1))[1])
             pipe.project(1, (0, 1), align='col')
 
     # Check if details overview of first iteration can be given
