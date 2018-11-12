@@ -113,7 +113,7 @@ class Pipeline(Projection, object):
         # Set statuses
         self._is_controller = 1 if not self._rank else 0
         self._is_worker = 1 if self._rank else 0
-        self._is_listening = 0
+        self._worker_mode = 0
 
         # Controller obtaining paths and preparing logging system
         if self._is_controller:
@@ -314,11 +314,12 @@ class Pipeline(Projection, object):
         return(bool(self._is_worker))
 
     @property
-    def is_listening(self):
+    def worker_mode(self):
         """
-        bool: Whether or not all worker ranks are listening for calls from the
-        controller rank. If *True*, all workers are continuously listening for
-        calls made with :meth:`~_make_call` until set to *False*.
+        bool: Whether or not all MPI ranks are in worker mode, in which all
+        worker ranks are listening for calls from the controller rank. If
+        *True*, all workers are continuously listening for calls made with
+        :meth:`~_make_call` until set to *False*.
         By default, this is *False*.
 
         Setting this value to *True* allows for easier use of *PRISM* in
@@ -326,30 +327,30 @@ class Pipeline(Projection, object):
 
         """
 
-        return(bool(self._is_listening))
+        return(bool(self._worker_mode))
 
-    @is_listening.setter
-    def is_listening(self, flag):
+    @worker_mode.setter
+    def worker_mode(self, flag):
         # Make logger
-        logger = getCLogger('LISTENING')
+        logger = getCLogger('WORKER_M')
 
         # Check if provided value is a bool
-        flag = check_vals(flag, 'is_listening', 'bool')
+        flag = check_vals(flag, 'worker_mode', 'bool')
 
-        # If flag and is_listening are the same, skip
-        if flag is self._is_listening:
+        # If flag and worker_mode are the same, skip
+        if flag is self._worker_mode:
             pass
-        # If listening is turned off, turn it on
+        # If worker mode is turned off, turn it on
         elif flag:
-            # Set is_listening to 1
-            self._is_listening = 1
+            # Set worker_mode to 1
+            self._worker_mode = 1
 
             # Workers start listening for calls
             self._listen_for_calls()
 
             # Log that workers are now listening
             logger.info("Workers are now listening for calls.")
-        # If listening is turned on, turn it off
+        # If worker mode is turned on, turn it off
         else:
             # Make workers stop listening for calls
             self._make_call(None)
@@ -593,17 +594,17 @@ class Pipeline(Projection, object):
         All worker ranks in the :attr:`~comm` communicator start listening for
         calls from the corresponding controller rank and will attempt to
         execute the received message. Listening for calls continues until
-        :attr:`~is_listening` is set to *False*.
+        :attr:`~worker_mode` is set to *False*.
 
         """
 
         # All workers start listening for calls
         if self._is_worker:
-            while self._is_listening:
+            while self._worker_mode:
                 exec_fn, args, kwargs = self._comm.recv(source=0,
                                                         tag=9999+self._rank)
                 if exec_fn is None:
-                    self._is_listening = 0
+                    self._worker_mode = 0
                 elif isinstance(exec_fn, (str, unicode)):
                     getattr(self, exec_fn)(*args, **kwargs)
                 else:
@@ -617,7 +618,7 @@ class Pipeline(Projection, object):
         `args` and `kwargs`. All ranks that call this function will execute
         `exec_fn` as well.
 
-        If :attr:`~is_listening` is *True*, this function should only be
+        If :attr:`~worker_mode` is *True*, this function should only be
         called by the controller. If it is *False*, it should be called by all
         ranks that must execute `exec_fn`.
 
@@ -635,14 +636,14 @@ class Pipeline(Projection, object):
         """
 
         # Send received exec_code to all workers if they are listening
-        if self._is_listening and self._is_controller:
+        if self._worker_mode and self._is_controller:
             for rank in range(1, self._size):
                 self._comm.send([exec_fn, args, kwargs], dest=rank,
                                 tag=9999+rank)
 
         # Execute exec_fn as well
         if exec_fn is None:
-            self._is_listening = 0
+            self._worker_mode = 0
         elif isinstance(exec_fn, (str, unicode)):
             return(getattr(self, exec_fn)(*args, **kwargs))
         else:
@@ -2187,7 +2188,7 @@ class Pipeline(Projection, object):
                 'impl_sam': impl_sam,
                 'n_eval_sam': n_eval_sam})
 
-            # Save statistics about analyze time, evaluation speed, par_space
+            # Save statistics about analyze time, evaluation rate, par_space
             avg_eval_rate = n_eval_sam/time_diff_eval
             par_space_rem = (len(impl_sam)/n_eval_sam)*100
             self._save_statistics(emul_i, {

@@ -247,12 +247,12 @@ class Test_Pipeline_Gaussian2D(object):
         pipe.do_logging = 1
 
     # Check if the workers can start listening
-    def test_workers_listening(self, pipe):
-        pipe.is_listening = False
+    def test_worker_mode(self, pipe):
+        pipe.worker_mode = False
         pipe._make_call('details')
-        pipe.is_listening = True
+        pipe.worker_mode = True
         pipe._make_call(np.array, [1])
-        pipe.is_listening = False
+        pipe.worker_mode = False
 
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model

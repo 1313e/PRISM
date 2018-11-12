@@ -106,7 +106,7 @@ class Emulator(object):
         self._rank = self._pipeline._rank
         self._is_controller = self._pipeline._is_controller
         self._is_worker = self._pipeline._is_worker
-        self._is_listening = self._pipeline._is_listening
+        self._worker_mode = self._pipeline._worker_mode
 
         # Make pointer to File property
         self._File = self._pipeline._File

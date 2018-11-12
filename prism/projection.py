@@ -108,7 +108,7 @@ class Projection(object):
         smooth : bool. Default: False
             Controls what to do if a grid point contains no plausible samples,
             but does contain a minimum implausibility value below the first
-            cut-off.
+            non-wildcard cut-off.
             If *False*, these values are kept, which can show up as
             artifact-like features in the projection figure.
             If *True*, these values are set to the first cut-off, removing them
@@ -150,9 +150,9 @@ class Projection(object):
             will feature two figures for the two model parameters with two
             subplots each. Every figure gives details about the behavior of the
             corresponding model parameter, by showing the minimum
-            implausibility value (top) and the line-of-sight depth (bottom)
-            obtained at the specified parameter value, independent of the value
-            of the other parameter.
+            implausibility value (top/left) and the line-of-sight depth
+            (bottom/right) obtained at the specified parameter value,
+            independent of the value of the other parameter.
 
             :attr:`~prism.modellink.modellink.ModelLink.n_par` > 2: The output
             will feature a figure with two subplots for every combination of
@@ -160,9 +160,9 @@ class Projection(object):
             (``n_par*(n_par-1)/2``). Every figure gives details about the
             behavior of the corresponding model parameters, as well as their
             dependency on each other. This is done by showing the minimum
-            implausibility (top) and the line-of-sight depth (bottom) obtained
-            at the specified parameter values, independent of the values of the
-            remaining model parameters.
+            implausibility (top/left) and the line-of-sight depth
+            (bottom/right) obtained at the specified parameter values,
+            independent of the values of the remaining model parameters.
 
         Notes
         -----
@@ -359,7 +359,7 @@ class Projection(object):
         if self._modellink._par_est[par] is not None:
             draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
                           line_kwargs=self.__line_kwargs)
-        draw_textline(r"", y=draw_y, ax=ax0, line_kwargs={'color': 'g'})
+        draw_textline(r"", y=draw_y, ax=ax0, line_kwargs={'color': 'r'})
         ax0.set_ylabel("Min. Implausibility", fontsize='large')
 
         # Plot line-of-sight depth

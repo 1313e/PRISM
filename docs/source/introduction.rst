@@ -19,7 +19,7 @@ What can *PRISM* do for your model?
 - Analyze and map out its physical behavior;
 - Detect inaccuracies and flaws;
 - Advise on important missing constraining data;
-- Massively reduce relevant parameter space by factors over 10,000, allowing existing MCMC methods to explore and obtain the optimal model realizations much faster.
+- Massively reduce relevant parameter space by factors up to 100,000, allowing existing MCMC methods to explore and obtain the optimal model realizations much faster.
 
 What characterizes *PRISM*?
 ---------------------------

@@ -8,7 +8,7 @@ from __future__ import (absolute_import, division, print_function,
 # Built-in imports
 import logging
 from os import path
-from sys import version_info
+from sys import platform, version_info
 
 # Package imports
 from e13tools.core import InputError
@@ -29,6 +29,9 @@ dirpath = path.dirname(__file__)
 
 # Save major version
 vmajor = version_info.major
+
+# Save if this platform is Windows
+win32 = platform.startswith('win')
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -242,7 +245,7 @@ class Test_check_val(object):
         array = np.array([False, True])
         array2 = check_vals(array, 'array', 'bool')
         assert (array2 == [0, 1]).all()
-        assert array2.dtype.name == 'int64'
+        assert array2.dtype.name == 'int64' if not win32 else 'int32'
 
         # Check for NumPy array of strings
         array = np.array(['a', 'b'])
