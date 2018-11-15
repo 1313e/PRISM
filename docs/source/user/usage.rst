@@ -1,3 +1,5 @@
+.. _usage:
+
 Usage
 =====
 .. include:: usage_modellink.rst

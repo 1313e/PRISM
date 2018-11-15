@@ -1,3 +1,5 @@
+.. _hdf5:
+
 HDF5
 ----
 Whenever *PRISM* constructs an emulator, it automatically stores all the calculated data for it in an `HDF5-file`_ named ``'prism.hdf5'`` (default) in the designated working directory.
@@ -63,7 +65,7 @@ An emulator system data group (``'i/emul_n'``) contains:
   - ``'cov_mat'``: The pre-calculated covariance matrix of all model evaluation samples in this emulator system.
     This data set is never used in *PRISM* and stored solely for user-convenience;
   - ``'cov_mat_inv'``: The pre-calculated inverse of ``'cov_mat'``;
-  - ``'exp_dot_term'``: The pre-calculated second expectation adjustment dot-term (:math:`Var\left(D\right)^{-1}\cdot\left(D-E(D)\right)`) of all model evaluation samples in this emulator system.
+  - ``'exp_dot_term'``: The pre-calculated second expectation adjustment dot-term (:math:`\mathrm{Var}\left(D\right)^{-1}\cdot\left(D-\mathrm{E}(D)\right)`) of all model evaluation samples in this emulator system.
   - ``'mod_set'``: The model outputs for the data point in this emulator system corresponding to the ``'sam_set'`` used in this iteration;
   - ``'poly_coef'`` (if regression is used): The non-zero coefficients for the polynomial terms in the regression function in this emulator system;
   - ``'poly_coef_cov'`` (if regression and regr_cov are used): The covariances for all polynomial coefficients ``'poly_coef'``;

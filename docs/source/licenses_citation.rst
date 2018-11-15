@@ -1,3 +1,5 @@
+.. _licenses_citation:
+
 Licenses & Citation
 ===================
 Copyright Notice

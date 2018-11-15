@@ -24,6 +24,7 @@ The documentation of *PRISM* is spread out over several sections:
    introduction
    user/getting_started
    user/usage
+   user/prism_pipeline
    user/descriptions
    user/terminology
    user/tips_tricks

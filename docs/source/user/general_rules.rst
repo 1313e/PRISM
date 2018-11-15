@@ -1,3 +1,5 @@
+.. _general_rules:
+
 General usage rules
 -------------------
 Below is a list of general usage rules that apply to *PRISM*.
