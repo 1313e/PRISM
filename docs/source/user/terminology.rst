@@ -39,7 +39,7 @@ Construction check [`ccheck`]
 
 Controller (rank)
 	An MPI process that controls the flow of operations in *PRISM* and distributes work to all workers and itself.
-	Currently, a controller also behaves like a worker, although is not identified as such.
+	By default, a controller also behaves like a worker, although is not identified as such.
 
 (Inverted) Covariance matrix [`cov_mat`/`cov_mat_inv`]
 	The (inverted) matrix of prior covariances between all model realization samples and itself.
@@ -116,6 +116,10 @@ Implausibility cut-offs [`impl_cut`]
 (Univariate) Implausibility value [`uni_impl_val`]
 	The number of sigmas an emulator system expects the (real) model output corresponding to a given parameter set, to be away from the data point it is compared against, given its adjusted values.
 
+Implausibility wildcard
+	A maximum implausibility value, preceding the implausibility cut-offs, that is not taken into account during the implausibility cut-off check.
+	It is denoted as :math:`0` in provided implausibility cut-off lists.
+
 LHD
 	Abbreviation of *Latin-hypercube design*.
 
@@ -162,6 +166,9 @@ Model realizations (set) [`mod_real_set`]
 
 MPI
 	Abbreviation of *Message Passing Interface*.
+
+MPI rank
+	An MPI process that is used by any *PRISM* operation, either being a controller or a worker.
 
 MSE
 	Abbreviation of *mean squared error*.
@@ -216,7 +223,7 @@ Projection figure
 	The visual representation of a projection.
 
 Regression
-	The process of determining the important polynomial terms of the active parameters and their coefficients, by using a least-squares fitting.
+	The process of determining the important polynomial terms of the active parameters and their coefficients, by using an FSLR algorithm.
 
 Regression covariance(s) [`poly_coef_cov`]
 	The covariances between all polynomial coefficients of the regression function.
@@ -238,6 +245,12 @@ Sample set [`sam_set`]
 
 Worker (rank)
 	An MPI process that receives its calls/orders from a controller and performs the heavy-duty operations in *PRISM*.
+	By default, workers are not in worker mode.
 
 Working directory [`working_dir`]
 	(Path to) The directory/folder on the current machine in which the *PRISM* master file and logfile of the currently loaded emulator are stored.
+
+Worker mode [`worker_mode`]
+	A mode initialized by :attr:`~prism.pipeline.Pipeline.worker_mode`, where all workers are continuously listening for calls made by the controller rank and execute the received messages.
+	This allows for serial codes to be combined more easily with *PRISM*.
+	By default, it is turned off, requiring all MPI ranks to call most functions.

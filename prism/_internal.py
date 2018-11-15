@@ -515,20 +515,21 @@ def convert_str_seq(seq):
     return(seq)
 
 
-# Function that returns a copy of a list with all empty lists removed
+# Function that returns a copy of a list with all empty lists/tuples removed
 def delist(list_obj):
     """
-    Returns a copy of `list_obj` with all empty lists removed.
+    Returns a copy of `list_obj` with all empty lists and tuples removed.
 
     Parameters
     ----------
     list_obj : list
-        A list object that requires its empty list elements to be removed.
+        A list object that requires its empty list/tuple elements to be
+        removed.
 
     Returns
     -------
     delisted_copy : list
-        Copy of `list_obj` with all empty lists removed.
+        Copy of `list_obj` with all empty lists/tuples removed.
 
     """
 
@@ -539,10 +540,14 @@ def delist(list_obj):
     # Make a copy of itself
     delisted_copy = list(list_obj)
 
-    # Remove all empty lists from this copy
+    # Remove all empty lists/tuples from this copy
     off_dex = len(delisted_copy)-1
     for i, element in enumerate(reversed(delisted_copy)):
+        # Remove empty lists
         if(isinstance(element, list) and element == []):
+            delisted_copy.pop(off_dex-i)
+        # Remove empty tuples
+        elif(isinstance(element, tuple) and element == ()):
             delisted_copy.pop(off_dex-i)
 
     # Return the copy

@@ -277,7 +277,7 @@ def test_delist():
         delist(np.array([1]))
 
     # Check if provided list is delisted correctly
-    assert delist([[], [], [np.array(1)], [7], 8]) == [[np.array(1)], [7], 8]
+    assert delist([[], (), [np.array(1)], [7], 8]) == [[np.array(1)], [7], 8]
 
 
 # Pytest for the getCLogger function

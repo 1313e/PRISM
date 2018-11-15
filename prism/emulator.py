@@ -643,7 +643,7 @@ class Emulator(object):
 
         Returns
         -------
-        data_idx : list of {int, float, str}
+        data_idx : tuple of {int, float, str}
             The combined data point identifier.
 
         """
@@ -655,7 +655,7 @@ class Emulator(object):
         # Determine the number of parts
         idx_len = len(idx_keys)
 
-        # If there is a single part, save it instead of a list
+        # If there is a single part, save it instead of a tuple
         if(idx_len == 1):
             # If part is an encoded string, decode and save it
             if isinstance(emul_s_group.attrs['data_idx'], bytes):
@@ -678,6 +678,9 @@ class Emulator(object):
                 # Else, save it normally
                 else:
                     data_idx.append(emul_s_group.attrs[key])
+
+            # Convert data_idx from list to tuple
+            data_idx = tuple(data_idx)
 
         # Return data_idx
         return(data_idx)
@@ -1090,7 +1093,7 @@ class Emulator(object):
                         data_idx = self._modellink._data_idx[i]
 
                         # If data_idx contains multiple parts
-                        if isinstance(data_idx, list):
+                        if isinstance(data_idx, tuple):
                             # Loop over all parts
                             for j, idx in enumerate(data_idx):
                                 # If part is a string, encode and save it

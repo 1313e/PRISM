@@ -145,7 +145,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         itself can use it as a description of the operations required to
         extract the data point from the model output. It can be provided as any
         sequence of any length for any data point. If any sequence contains a
-        single element, it is replaced by just that element instead of a list.
+        single element, it is replaced by just that element instead of a tuple.
 
         A simple example of a data identifier is :math:`f(\\text{data_idx}) =
         \\text{data_val}`, where the output of the model is given by
@@ -221,9 +221,6 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         # Combine data points with data identifiers
         for idx, point in zip(self._data_idx, data_points):
-            # Make sure that if idx is a list, it is returned as a tuple key
-            if isinstance(idx, list):
-                idx = tuple(idx)
             data_repr.append("%r: %r" % (idx, point))
         data_repr = "model_data={%s}" % (", ".join(map(str, data_repr)))
 
@@ -603,13 +600,13 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             Number of provided data points.
         data_val : list
             List with values of provided data points.
-        data_err : list
+        data_err : list of lists
             List with lower and upper :math:`1\\sigma`-confidence levels of
             provided data points.
         data_spc : list
             List with types of value space ({'lin', 'log', 'ln'}) of provided
             data points.
-        data_idx : list
+        data_idx : list of tuples
             List with user-defined data point identifiers.
 
         """
@@ -681,11 +678,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         # Save model data as class properties
         for idx, data in model_data_dict.items():
-            # Convert idx from tuple to a list or element
-            if(len(idx) == 1):
-                idx = idx[0]
-            else:
-                idx = list(idx)
+            # Convert idx to list for error messages
+            idx = list(idx)
 
             # Save data value
             self._data_val.append(check_vals(data[0], 'data_val[%s]' % (idx),
@@ -732,8 +726,11 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                 raise ValueError("Input argument 'data_spc[%s]' is "
                                  "invalid (%r)!" % (idx, spc))
 
-            # Save data identifier
-            self._data_idx.append(idx)
+            # Save data identifier as tuple or single element
+            if(len(idx) == 1):
+                self._data_idx.append(idx[0])
+            else:
+                self._data_idx.append(tuple(idx))
 
     @abc.abstractmethod
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -756,7 +753,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             dict is formatted as ``{par_name: par_val}``. If multi-called, it
             is formatted as ``{par_name: [par_val_1, par_val_2, ...,
             par_val_n]}``.
-        data_idx : list of lists
+        data_idx : list of tuples
             List containing the user-defined data point identifiers
             corresponding to the requested data points.
 
@@ -790,7 +787,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         model_parameters : dict of :class:`~numpy.float64`
             Dict containing the values for all model parameters corresponding
             to the requested model realization.
-        data_idx : list of lists
+        data_idx : list of tuples
             List containing the user-defined data point identifiers
             corresponding to the requested data points.
 
@@ -994,7 +991,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def data_idx(self):
         """
-        list of lists: The user-defined data point identifiers.
+        list of tuples: The user-defined data point identifiers.
 
         """
 
