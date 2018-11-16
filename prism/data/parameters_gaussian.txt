@@ -1,5 +1,5 @@
 # name			: lower_bndry		upper_bndry		estimate
-A1			: 1			5			2.5
-B1			: 1			3			2
-C1			: 0			2			1
+A1			: 1			10			5
+B1			: -10			20			5
+C1			: 0			5			2
 

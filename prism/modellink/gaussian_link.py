@@ -78,7 +78,7 @@ class GaussianLink(ModelLink):
     def _default_model_parameters(self):
         # Set default parameters for every Gaussian
         A = [1, 10, 5]
-        B = [0, 10, 5]
+        B = [-10, 20, 5]
         C = [0, 5, 2]
 
         # Create default parameters dict and return it
