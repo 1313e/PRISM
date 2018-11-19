@@ -56,15 +56,15 @@ class GaussianLink2D(ModelLink):
                       4: [3, 0.05]}
         return(model_data)
 
-    def call_model(self, emul_i, model_parameters, data_idx):
-        par = model_parameters
+    def call_model(self, emul_i, par_set, data_idx):
+        par = par_set
         mod_set = [0]*len(data_idx)
         for i, idx in enumerate(data_idx):
             mod_set[i] += par['A']*np.exp(-1*((idx-par['B'])**2/(2)))
 
         return(np.array(mod_set).T)
 
-    def get_md_var(self, emul_i, model_parameters, data_idx):
+    def get_md_var(self, emul_i, par_set, data_idx):
         return(pow(0.1*np.ones_like(data_idx), 2))
 
 
@@ -87,8 +87,8 @@ class GaussianLink3D(ModelLink):
         # Inheriting ModelLink __init__()
         super(GaussianLink3D, self).__init__(*args, **kwargs)
 
-    def call_model(self, emul_i, model_parameters, data_idx):
-        par = model_parameters
+    def call_model(self, emul_i, par_set, data_idx):
+        par = par_set
         mod_set = par['A']*np.exp(-1*((data_idx-par['B'])**2/(2*par['C']**2)))
 
         return(mod_set)

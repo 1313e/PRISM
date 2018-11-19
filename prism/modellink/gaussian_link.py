@@ -89,8 +89,8 @@ class GaussianLink(ModelLink):
             par_dict['C%i' % (i)] = list(C)
         return(par_dict)
 
-    def call_model(self, emul_i, model_parameters, data_idx):
-        par = model_parameters
+    def call_model(self, emul_i, par_set, data_idx):
+        par = par_set
         mod_set = [0]*len(data_idx)
         for i, idx in enumerate(data_idx):
             for j in range(1, self._n_gaussians+1):
@@ -100,8 +100,8 @@ class GaussianLink(ModelLink):
 
         return(np.array(mod_set).T)
 
-    def get_md_var(self, emul_i, model_parameters, data_idx):
-        return(pow(0.1*np.ones_like(data_idx), 2))
+    def get_md_var(self, *args, **kwargs):
+        super(GaussianLink, self).get_md_var(*args, **kwargs)
 
     # %% GAUSSIANLINK CLASS PROPERTIES
     @property

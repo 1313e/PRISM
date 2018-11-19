@@ -111,7 +111,7 @@ class MeraxesLink(ModelLink):
         par_dict = {'SfEfficiency': [0, 1, 0.05]}
         return(par_dict)
 
-    def call_model(self, emul_i, model_parameters, data_idx):
+    def call_model(self, emul_i, par_set, data_idx):
         # Initialize PrismMhysa object
         with PrismMhysa(n_comm=1, input_file=self._input_file,
                         data_idx=data_idx) as mhysa:
@@ -120,7 +120,7 @@ class MeraxesLink(ModelLink):
 
         # Get sam_set
         if mhysa.is_controller:
-            sam_set = map(lambda *args: args, *model_parameters.values())
+            sam_set = map(lambda *args: args, *par_set.values())
         else:
             sam_set = None
 

@@ -111,7 +111,7 @@ class InvalidShapeMdVarModelLink(ModelLink):
 # Custom ModelLink class with double md_var values
 class DoubleMdVarModelLink(ModelLink):
     def call_model(self, data_idx, *args, **kwargs):
-        par = kwargs['model_parameters']
+        par = kwargs['par_set']
         return(np.array(data_idx)*(par['A']+0.00000001*par['B']*par['C']**2))
 
     def get_md_var(self, data_idx, *args, **kwargs):

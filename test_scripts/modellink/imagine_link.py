@@ -83,7 +83,7 @@ class ImagineLink(ModelLink):
 
         return(par_dict)
 
-    def call_model(self, emul_i, model_parameters, data_idx):
+    def call_model(self, emul_i, par_set, data_idx):
         logger.info("Starting to observe parameters")
 
         # Create a temp working directory
@@ -91,7 +91,7 @@ class ImagineLink(ModelLink):
         logger.info('Using %s', temp_folder)
 
         # Create the parameter file in the temporary directory
-        self._hammu._make_parameter_file(temp_folder, model_parameters)
+        self._hammu._make_parameter_file(temp_folder, par_set)
         logger.info('Stored parameter file')
 
         # Call Hammurabi

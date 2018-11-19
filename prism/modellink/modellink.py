@@ -734,12 +734,13 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     @abc.abstractmethod
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def call_model(self, emul_i, model_parameters, data_idx):
+    def call_model(self, emul_i, par_set, data_idx):
         """
         Calls the model wrapped in this :class:`~ModelLink` subclass at
-        emulator iteration `emul_i` for model parameter values
-        `model_parameters` and returns the data points corresponding to
-        `data_idx`.
+        emulator iteration `emul_i` for model parameter values `par_set` and
+        returns the data points corresponding to `data_idx`.
+
+        This method is called with solely keyword arguments.
 
         This is an abstract method and must be overridden by the
         :class:`~ModelLink` subclass.
@@ -747,7 +748,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         Parameters
         ----------
         %(emul_i)s
-        model_parameters : dict of :class:`~numpy.float64`
+        par_set : dict of :class:`~numpy.float64`
             Dict containing the values for all model parameters corresponding
             to the requested model realization(s). If model is single-called,
             dict is formatted as ``{par_name: par_val}``. If multi-called, it
@@ -771,12 +772,14 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     @abc.abstractmethod
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def get_md_var(self, emul_i, model_parameters, data_idx):
+    def get_md_var(self, emul_i, par_set, data_idx):
         """
         Calculates the linear model discrepancy variance at a given emulator
-        iteration `emul_i` for model parameter values `model_parameters` and
-        given data points `data_idx` for the model wrapped in this
-        :class:`~ModelLink` subclass. This method is always single-called.
+        iteration `emul_i` for model parameter values `par_set` and given data
+        points `data_idx` for the model wrapped in this :class:`~ModelLink`
+        subclass.
+
+        This method is always single-called with solely keyword arguments.
 
         This is an abstract method and must be overridden by the
         :class:`~ModelLink` subclass.
@@ -784,7 +787,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         Parameters
         ----------
         %(emul_i)s
-        model_parameters : dict of :class:`~numpy.float64`
+        par_set : dict of :class:`~numpy.float64`
             Dict containing the values for all model parameters corresponding
             to the requested model realization.
         data_idx : list of tuples

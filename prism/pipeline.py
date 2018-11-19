@@ -662,7 +662,7 @@ class Pipeline(Projection, object):
         # Obtain model output
         mod_out = self._modellink.call_model(
             emul_i=emul_i,
-            model_parameters=dict(zip(self._modellink._par_name, sam)),
+            par_set=dict(zip(self._modellink._par_name, sam)),
             data_idx=data_idx)
 
         # Log that calling model has been finished
@@ -685,7 +685,7 @@ class Pipeline(Projection, object):
         # Obtain set of model outputs
         mod_set = self._modellink.call_model(
             emul_i=emul_i,
-            model_parameters=dict(zip(self._modellink._par_name, sam_set.T)),
+            par_set=dict(zip(self._modellink._par_name, sam_set.T)),
             data_idx=data_idx)
 
         # Log that multi-calling model has been finished
@@ -1619,7 +1619,7 @@ class Pipeline(Projection, object):
         try:
             md_var = self._modellink.get_md_var(
                 emul_i=emul_i,
-                model_parameters=dict(zip(self._modellink._par_name, par_set)),
+                par_set=dict(zip(self._modellink._par_name, par_set)),
                 data_idx=delist(self._emulator._data_idx[emul_i]))
 
         # If it was not user-defined, use a default value

@@ -57,13 +57,13 @@ class SineWaveLink(ModelLink):
                     'D': [1.5, 5, 4.6]}
         return(par_dict)
 
-    def call_model(self, emul_i, model_parameters, data_idx):
-        par = model_parameters
+    def call_model(self, emul_i, par_set, data_idx):
+        par = par_set
         mod_set = [0]*len(data_idx)
         for i, idx in enumerate(data_idx):
             mod_set[i] = par['A']+0.1*par['B']*np.sin(par['C']*idx+par['D'])
 
         return(np.array(mod_set).T)
 
-    def get_md_var(self, emul_i, model_parameters, data_idx):
+    def get_md_var(self, emul_i, par_set, data_idx):
         return(pow(0.1*np.ones_like(data_idx), 2))
