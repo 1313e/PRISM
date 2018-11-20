@@ -252,6 +252,7 @@ class Test_Pipeline_Gaussian2D(object):
         pipe._make_call('details')
         pipe.worker_mode = True
         pipe._make_call(np.array, [1])
+        assert pipe._make_call('_emulator._get_emul_i', 1, 0) == 1
         pipe.worker_mode = False
 
 

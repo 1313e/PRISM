@@ -606,12 +606,15 @@ class Pipeline(Projection, object):
                 if exec_fn is None:
                     self._worker_mode = 0
                 elif isinstance(exec_fn, (str, unicode)):
-                    getattr(self, exec_fn)(*args, **kwargs)
+                    obj = self
+                    attrs = exec_fn.split('.')
+                    for attr in attrs:
+                        obj = getattr(obj, attr)
+                    obj(*args, **kwargs)
                 else:
                     exec_fn(*args, **kwargs)
 
     # Function that sends a code string to all workers and executes it
-    # TODO: Allow calling of attributes of objects bound to the Pipeline object
     def _make_call(self, exec_fn, *args, **kwargs):
         """
         Send the provided `exec_fn` to all worker ranks, if they are
@@ -646,7 +649,11 @@ class Pipeline(Projection, object):
         if exec_fn is None:
             self._worker_mode = 0
         elif isinstance(exec_fn, (str, unicode)):
-            return(getattr(self, exec_fn)(*args, **kwargs))
+            obj = self
+            attrs = exec_fn.split('.')
+            for attr in attrs:
+                obj = getattr(obj, attr)
+            return(obj(*args, **kwargs))
         else:
             return(exec_fn(*args, **kwargs))
 
