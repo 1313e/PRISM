@@ -611,6 +611,7 @@ class Pipeline(Projection, object):
                     exec_fn(*args, **kwargs)
 
     # Function that sends a code string to all workers and executes it
+    # TODO: Allow calling of attributes of objects bound to the Pipeline object
     def _make_call(self, exec_fn, *args, **kwargs):
         """
         Send the provided `exec_fn` to all worker ranks, if they are
@@ -924,7 +925,7 @@ class Pipeline(Projection, object):
                                 % (path.basename(self._working_dir)))
 
             # If one requested a new working directory
-            elif isinstance(working_dir, int):
+            elif isinstance(working_dir, (int, np.integer)):
                 # Obtain list of working directories that satisfy naming scheme
                 dirnames = next(os.walk(self._root_dir))[1]
                 n_dirs = 0
@@ -1088,8 +1089,7 @@ class Pipeline(Projection, object):
         # Controller only
         if self._is_controller:
             # Use model discrepancy variance as model data errors
-            md_var = self._get_md_var(0, np.arange(self._modellink._n_data),
-                                      self._modellink._par_est)
+            md_var = self._get_md_var(0, self._modellink._par_est)
             err = np.sqrt(md_var).tolist()
             self._modellink._data_err = err
 
@@ -1560,7 +1560,7 @@ class Pipeline(Projection, object):
         """
 
         # Obtain model discrepancy variance
-        md_var = self._get_md_var(emul_i, emul_s_seq, par_set)
+        md_var = self._get_md_var(emul_i, par_set)
 
         # Initialize empty univariate implausibility
         uni_impl_val_sq = np.zeros(len(emul_s_seq))
@@ -1588,8 +1588,8 @@ class Pipeline(Projection, object):
         return(uni_impl_val)
 
     # This function calculates the model discrepancy variance
-    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _get_md_var(self, emul_i, emul_s_seq, par_set):
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _get_md_var(self, emul_i, par_set):
         """
         Retrieves the model discrepancy variances, which includes all variances
         that are created by the model provided by the
@@ -1602,7 +1602,6 @@ class Pipeline(Projection, object):
         Parameters
         ----------
         %(emul_i)s
-        %(emul_s_seq)s
         par_set : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the model discrepancy
             variances for.

@@ -100,8 +100,8 @@ class GaussianLink(ModelLink):
 
         return(np.array(mod_set).T)
 
-    def get_md_var(self, *args, **kwargs):
-        super(GaussianLink, self).get_md_var(*args, **kwargs)
+    def get_md_var(self, emul_i, par_set, data_idx):
+        return(pow(0.1*np.ones_like(data_idx), 2))
 
     # %% GAUSSIANLINK CLASS PROPERTIES
     @property

@@ -20,6 +20,7 @@ import warnings
 
 # Package imports
 from e13tools import InputError
+from e13tools.sampling import lhd
 import numpy as np
 
 # PRISM imports
@@ -201,9 +202,11 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
     Optional
     --------
     %(emul_i)s
-    init_walkers : 2D array_like or None. Default: None
+    init_walkers : 2D array_like, int or None. Default: None
         Sample set of proposed initial MCMC walker positions. All plausible
         samples in `init_walkers` will be returned.
+        If int, generate an LHD of provided size and return all plausible
+        samples.
         If *None*, return :attr:`~prism.pipeline.Pipeline.impl_sam`
         corresponding to iteration `emul_i` instead.
     unit_space : bool. Default: True
@@ -274,20 +277,32 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         # Broadcast init_walkers to workers as p0_walkers
         p0_walkers = pipe._comm.bcast(init_walkers, 0)
 
-    # If init_walkers is not None, use provided samples
+    # If init_walkers is not None, use provided samples or LHD size
     else:
         # Controller checking if init_walkers is valid
         if pipe._is_controller:
-            # Make sure that init_walkers is a NumPy array
-            init_walkers = np.array(init_walkers, ndmin=2)
+            # If init_walkers is an int, create LHD of provided size
+            if isinstance(init_walkers, (int, np.integer)):
+                # Check if provided integer is positive
+                n_sam = check_vals(init_walkers, 'init_walkers', 'pos')
 
-            # If unit_space is True, convert init_walkers to par_space
-            if unit_space:
-                init_walkers = pipe._modellink._to_par_space(init_walkers)
+                # Create LHD of provided size
+                init_walkers = lhd(n_sam, pipe._modellink._n_par,
+                                   pipe._modellink._par_rng, 'center',
+                                   pipe._criterion, 100)
 
-            # Check if init_walkers is valid
-            init_walkers = pipe._modellink._check_sam_set(init_walkers,
-                                                          'init_walkers')
+            # If init_walkers is not an int, it must be array_like
+            else:
+                # Make sure that init_walkers is a NumPy array
+                init_walkers = np.array(init_walkers, ndmin=2)
+
+                # If unit_space is True, convert init_walkers to par_space
+                if unit_space:
+                    init_walkers = pipe._modellink._to_par_space(init_walkers)
+
+                # Check if init_walkers is valid
+                init_walkers = pipe._modellink._check_sam_set(init_walkers,
+                                                              'init_walkers')
 
         # Broadcast init_walkers to workers
         init_walkers = pipe._comm.bcast(init_walkers, 0)
@@ -295,13 +310,21 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         # Analyze init_walkers and save them as p0_walkers
         p0_walkers = pipe._get_impl_sam(emul_i, init_walkers)
 
+    # Calculate n_walkers
+    n_walkers = len(p0_walkers)
+
+    # Check if p0_walkers is not empty
+    if not n_walkers:
+        raise InputError("Input argument 'init_walkers' contains no plausible "
+                         "samples!")
+
     # Check if p0_walkers needs to be converted
     if unit_space:
         p0_walkers = pipe._modellink._to_unit_space(p0_walkers)
 
     # Check if lnpost_fn was requested and return it as well if so
     if lnpost_fn is not None:
-        return(len(p0_walkers), p0_walkers,
+        return(n_walkers, p0_walkers,
                get_lnpost_fn(lnpost_fn, pipe, emul_i, unit_space))
     else:
-        return(len(p0_walkers), p0_walkers)
+        return(n_walkers, p0_walkers)

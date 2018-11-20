@@ -8,7 +8,6 @@ from os import path
 
 # Package imports
 import numpy as np
-import pytest
 
 # PRISM imports
 from prism._internal import check_instance
@@ -40,6 +39,6 @@ def test_GaussianLink():
                                             sorted(model_link._data_idx)),
                       exp_mod_out).all()
 
-    # Try to retrieve model discrepancy variance
-    with pytest.raises(NotImplementedError):
-        model_link.get_md_var(1, par_set, model_link._data_idx)
+    # Retrieve model discrepancy variance
+    assert np.isclose(model_link.get_md_var(1, par_dict, model_link._data_idx),
+                      [0.01, 0.01, 0.01]).all()
