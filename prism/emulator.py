@@ -505,6 +505,9 @@ class Emulator(object):
         # Read in parameters from provided parameter file
         self._read_parameters()
 
+        # Set emul_load to 0
+        self._emul_load = 0
+
         # Controller creating the master file
         if self._is_controller:
             # Create master hdf5-file
@@ -547,14 +550,16 @@ class Emulator(object):
         self._prepare_new_iteration(1)
 
         # Logging again
-        logger.info("Finished creating new emulator system.")
+        logger.info("Finished creating new emulator.")
 
     # This function cleans up all the emulator files
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _cleanup_emul_files(self, emul_i):
         """
         Opens all emulator HDF5-files and removes the provided emulator
-        iteration `emul_i` and subsequent iterations from them.
+        iteration `emul_i` and subsequent iterations from them. Also removes
+        any related projection figures that have default names.
+        If `emul_i` == 1, all emulator HDF5-files are removed instead.
 
         Parameters
         ----------
@@ -582,6 +587,9 @@ class Emulator(object):
         for s in range(0, self._n_emul_s_tot):
             # Open emulator system HDF5-file
             with self._File('r+', s) as file:
+                # Save filename
+                filename = file.filename
+
                 # Loop over all requested iterations to be removed
                 for i in range(emul_i, self._emul_i+2):
                     # Try to remove it, skip if not possible
@@ -589,6 +597,10 @@ class Emulator(object):
                         del file['%i' % (i)]
                     except KeyError:
                         pass
+
+            # If emul_i is 1, remove the entire emulator system HDF5-file
+            if(emul_i == 1):
+                os.remove(filename)
 
         # Open emulator master HDF5-file if it exists
         if self._n_emul_s_tot:
@@ -620,6 +632,10 @@ class Emulator(object):
                     except KeyError:
                         pass
 
+            # If emul_i is 1, remove the entire emulator master HDF5-file
+            if(emul_i == 1):
+                os.remove(self._pipeline._hdf5_file)
+
         # MPI Barrier
         self._comm.Barrier()
 
@@ -627,7 +643,10 @@ class Emulator(object):
         self._emul_i = emul_i-1
 
         # Do more logging
-        logger.info("Finished cleaning up emulator HDF5-files.")
+        if(emul_i == 1):
+            logger.info("Finished removing emulator files.")
+        else:
+            logger.info("Finished cleaning up emulator files.")
 
     # This function reads in data_idx parts, combines them and returns it
     def _read_data_idx(self, emul_s_group):
@@ -2638,13 +2657,26 @@ class Emulator(object):
                                       'poly_order', 'pos')
 
         # Obtain the bool determining whether or not to use mock data
-        self._use_mock = check_vals(par_dict['use_mock'], 'use_mock', 'bool')
+        use_mock = check_vals(par_dict['use_mock'], 'use_mock', 'bool')
+
+        # If a currently loaded emulator used mock data and use_mock is False
+        # TODO: Becomes obsolete when mock data does not change ModelLink props
+        if self._emul_load and self._use_mock and not use_mock:
+            # Raise error that ModelLink object needs to be reinitialized
+            err_msg = ("Currently loaded emulator uses mock data, while none "
+                       "has been requested for new emulator. Reinitialize the "
+                       "ModelLink and Pipeline classes to accommodate for this"
+                       " change.")
+            raise_error(RequestError, err_msg, logger)
+        else:
+            self._use_mock = use_mock
 
         # Log that reading has been finished
         logger.info("Finished reading emulator parameters.")
 
     # This function loads previously generated mock data into ModelLink
     # TODO: Allow user to add/remove mock data? Requires consistency check
+    # TODO: Find a way to use mock data without changing ModelLink properties
     def _set_mock_data(self):
         """
         Loads previously used mock data into the
@@ -2700,8 +2732,19 @@ class Emulator(object):
                 self._modellink._data_spc = data_spc
                 self._modellink._data_idx = data_idx
 
-        # Broadcast updated ModelLink object to workers
-        self._modellink = self._comm.bcast(self._modellink, 0)
+        # Broadcast updated modellink properties to workers
+        # TODO: Find a cleaner way to write this without bcasting ModelLink obj
+        self._modellink._par_est = self._comm.bcast(self._modellink._par_est,
+                                                    0)
+        self._modellink._n_data = self._comm.bcast(self._modellink._n_data, 0)
+        self._modellink._data_val = self._comm.bcast(self._modellink._data_val,
+                                                     0)
+        self._modellink._data_err = self._comm.bcast(self._modellink._data_err,
+                                                     0)
+        self._modellink._data_spc = self._comm.bcast(self._modellink._data_spc,
+                                                     0)
+        self._modellink._data_idx = self._comm.bcast(self._modellink._data_idx,
+                                                     0)
 
         # Log end
         logger.info("Loaded mock data.")

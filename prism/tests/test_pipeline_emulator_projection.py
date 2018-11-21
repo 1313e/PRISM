@@ -216,6 +216,11 @@ class Test_Pipeline_Gaussian2D(object):
         with pytest_mpl.plugin.switch_backend('Agg'):
             pipe.run(2)
 
+#    # Check if second iteration can be reprojected (forced)
+#    def test_reproject_forced2(self, pipe):
+#        with pytest_mpl.plugin.switch_backend('Agg'):
+#            pipe.project(force=True, smooth=True)
+
     # Try to access all Pipeline properties
     def test_access_pipe_props(self, pipe):
         check_instance(pipe, Pipeline)
@@ -232,7 +237,7 @@ class Test_Pipeline_Gaussian2D(object):
         pipe_reload.analyze()
 
     # Check if second iteration can be reconstructed
-    def test_reconstruct_iteration_two(self, pipe):
+    def test_reconstruct_iteration2(self, pipe):
         pipe.construct(2, 0, None, 1)
 
     # Check if representation can be called
@@ -730,6 +735,21 @@ class Test_Pipeline_Request_Exceptions(object):
         with pytest.raises(RequestError):
             pipe_default.project(1, (0))
         pipe_default._emulator._active_par[1][0] = 0
+
+    # Try to reconstruct entire emulator requesting no mock data
+    def test_no_mock_reconstruct(self, pipe_default):
+        prism_file = path.join(dirpath, 'data/prism_no_mock.txt')
+        root_dir = pipe_default._root_dir
+        working_dir = pipe_default._working_dir
+        model_link = GaussianLink2D()
+        pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file, emul_type='default')
+        with pytest.raises(RequestError):
+            pipe.construct(1, force=True)
+        model_link = GaussianLink2D()
+        pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file, emul_type='default')
+        pipe.construct(1, force=True)
 
     # Try to load an emulator with invalid emulator iteration groups
     def test_invalid_iteration_groups(self, pipe_default):

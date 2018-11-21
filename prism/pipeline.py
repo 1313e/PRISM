@@ -1042,6 +1042,7 @@ class Pipeline(Projection, object):
         self._File = get_PRISM_File(self._hdf5_file)
 
     # This function generates mock data and loads it into ModelLink
+    # TODO: Find a way to use mock data without changing ModelLink properties
     def _get_mock_data(self):
         """
         Generates mock data and loads it into the
@@ -1137,8 +1138,11 @@ class Pipeline(Projection, object):
         # Logger
         logger.info("Generated mock data.")
 
-        # Broadcast updated modellink object to workers
-        self._modellink = self._comm.bcast(self._modellink, 0)
+        # Broadcast updated modellink properties to workers
+        self._modellink._data_val = self._comm.bcast(self._modellink._data_val,
+                                                     0)
+        self._modellink._data_err = self._comm.bcast(self._modellink._data_err,
+                                                     0)
 
     # This function loads pipeline data
     def _load_data(self):
