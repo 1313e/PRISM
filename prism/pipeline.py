@@ -41,10 +41,11 @@ from ._docstrings import (call_emul_i_doc, call_model_doc_s, call_model_doc_m,
                           ext_sam_set_doc, impl_cut_doc, impl_temp_doc,
                           paths_doc_d, paths_doc_s, read_par_doc,
                           save_data_doc_p, std_emul_i_doc, user_emul_i_doc)
-from ._internal import (RequestError, check_vals, convert_str_seq, delist,
-                        docstring_append, docstring_copy, docstring_substitute,
-                        exec_code_anal, getCLogger, get_PRISM_File, getRLogger,
-                        move_logger, raise_error, start_logger)
+from ._internal import (PRISM_Comm, RequestError, check_vals, convert_str_seq,
+                        delist, docstring_append, docstring_copy,
+                        docstring_substitute, exec_code_anal, getCLogger,
+                        get_PRISM_File, getRLogger, move_logger, raise_error,
+                        start_logger)
 from .emulator import Emulator
 from .projection import Projection
 
@@ -102,13 +103,9 @@ class Pipeline(Projection, object):
         """
 
         # Obtain MPI communicator, ranks and sizes
-        if(isinstance(comm, MPI.Comm)):
-            self._comm = comm
-            self._rank = self._comm.Get_rank()
-            self._size = self._comm.Get_size()
-        else:
-            raise TypeError("Input argument 'comm' must be an instance of the "
-                            "MPI.Intracomm class!")
+        self._comm = PRISM_Comm(comm)
+        self._rank = self._comm.Get_rank()
+        self._size = self._comm.Get_size()
 
         # Set statuses
         self._is_controller = 1 if not self._rank else 0
@@ -601,8 +598,7 @@ class Pipeline(Projection, object):
         # All workers start listening for calls
         if self._is_worker:
             while self._worker_mode:
-                exec_fn, args, kwargs = self._comm.recv(source=0,
-                                                        tag=9999+self._rank)
+                exec_fn, args, kwargs = self._comm.bcast([], 0)
                 if exec_fn is None:
                     self._worker_mode = 0
                 elif isinstance(exec_fn, (str, unicode)):
@@ -641,9 +637,7 @@ class Pipeline(Projection, object):
 
         # Send received exec_code to all workers if they are listening
         if self._worker_mode and self._is_controller:
-            for rank in range(1, self._size):
-                self._comm.send([exec_fn, args, kwargs], dest=rank,
-                                tag=9999+rank)
+            self._comm.bcast([exec_fn, args, kwargs], 0)
 
         # Execute exec_fn as well
         if exec_fn is None:
@@ -1998,9 +1992,6 @@ class Pipeline(Projection, object):
 
         """
 
-        # Broadcast sam_set to workers to allow for more versatility
-        sam_set = self._comm.bcast(sam_set, 0)
-
         # Determine number of samples
         n_sam = sam_set.shape[0]
 
@@ -2392,8 +2383,7 @@ class Pipeline(Projection, object):
                     # Check if previous iteration was analyzed, do so if not
                     if not self._n_eval_sam[emul_i-1]:
                         # Let workers know that emulator needs analyzing
-                        for rank in range(1, self._size):
-                            self._comm.send(1, dest=rank, tag=999+rank)
+                        self._comm.bcast(1, 0)
 
                         # Analyze previous iteration
                         logger.info("Previous emulator iteration has not been "
@@ -2401,8 +2391,7 @@ class Pipeline(Projection, object):
                         self.analyze()
                     else:
                         # If not, let workers know
-                        for rank in range(1, self._size):
-                            self._comm.send(0, dest=rank, tag=999+rank)
+                        self._comm.bcast(0, 0)
 
                     # Check if a new emulator iteration can be constructed
                     if(not self._prc and self._emulator._emul_i != emul_i):
@@ -2424,7 +2413,7 @@ class Pipeline(Projection, object):
                 # Remaining workers
                 else:
                     # Listen for calls from controller for analysis
-                    do_analyze = self._comm.recv(source=0, tag=999+self._rank)
+                    do_analyze = self._comm.bcast(0, 0)
 
                     # If previous iteration needs analyzing, call analyze()
                     if do_analyze:

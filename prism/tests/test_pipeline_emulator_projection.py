@@ -216,14 +216,10 @@ class Test_Pipeline_Gaussian2D(object):
         with pytest_mpl.plugin.switch_backend('Agg'):
             pipe.run(2)
 
-#    # Check if second iteration can be reprojected (forced)
-#    def test_reproject_forced2(self, pipe):
-#        with pytest_mpl.plugin.switch_backend('Agg'):
-#            pipe.project(force=True, smooth=True)
-
     # Try to access all Pipeline properties
     def test_access_pipe_props(self, pipe):
         check_instance(pipe, Pipeline)
+        pipe._comm.__dir__()
 
     # Try to access all Emulator properties
     def test_access_emul_props(self, pipe):

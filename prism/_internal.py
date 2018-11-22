@@ -39,12 +39,12 @@ import numpy as np
 from .__version__ import compat_version, prism_version
 
 # All declaration
-__all__ = ['RequestError', 'aux_char_list', 'check_compatibility',
-           'check_instance', 'check_vals', 'convert_str_seq', 'delist',
-           'docstring_append', 'docstring_copy', 'docstring_substitute',
-           'exec_code_anal', 'getCLogger', 'get_PRISM_File', 'getRLogger',
-           'import_cmaps', 'move_logger', 'raise_error', 'rprint',
-           'start_logger']
+__all__ = ['PRISM_Comm', 'RequestError', 'aux_char_list',
+           'check_compatibility', 'check_instance', 'check_vals',
+           'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
+           'docstring_substitute', 'exec_code_anal', 'getCLogger',
+           'get_PRISM_File', 'getRLogger', 'import_cmaps', 'move_logger',
+           'raise_error', 'rprint', 'start_logger']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -82,6 +82,89 @@ class CLogger(logging.Logger):
     def __init__(self, *args, **kwargs):
         super(CLogger, self).__init__(*args, **kwargs)
         self.addFilter(CFilter(rank))
+
+
+# Make a custom MPI.Comm class that uses a special broadcast method
+class PRISM_Comm(object):
+    """
+    Custom :class:`~MPI.COMM_WORLD.Intracomm` class that automatically makes
+    use of NumPy array buffers when broadcasting them. Is functionally the same
+    as the provided `comm` for everything else.
+
+    Parameters
+    ----------
+    comm : :obj:`~MPI.Intracomm` object
+        The MPI intra-communicator to use in this :class:`~PRISM_Comm`
+        instance.
+
+    """
+
+    def __init__(self, comm):
+        # Raise error if provided comm is not an MPI intra-communicator
+        if not isinstance(comm, MPI.Comm):
+            raise TypeError("Input argument 'comm' must be an instance of the "
+                            "MPI.Intracomm class!")
+        else:
+            self._comm = comm
+
+    # Override getattr property to use self._comm attributes if necessary
+    def __getattribute__(self, name):
+        try:
+            return(super(PRISM_Comm, self).__getattribute__(name))
+        except AttributeError:
+            return(getattr(self._comm, name))
+
+    # Override __dir__ attribute to use the one from self._comm
+    def __dir__(self):
+        return(self._comm.__dir__())
+
+    # Specialized bcast function that automatically makes use of NumPy buffers
+    def bcast(self, obj, root):
+        """
+        Special broadcast method that automatically uses the appropriate method
+        (:meth:`~MPI.COMM_WORLD.bcast` or :meth:`~MPI.COMM_WORLD.Bcast`)
+        depending on the type of the provided `obj`.
+
+        """
+
+        # Sender
+        if(self._comm.Get_rank() == root):
+            # Check if provided object is a NumPy array
+            if isinstance(obj, np.ndarray):
+                # If so, send shape and dtype of the NumPy array
+                self._comm.bcast(['ndarray', [obj.shape, obj.dtype]],
+                                 root=root)
+
+                # Then send the NumPy array as a buffer object
+                self._comm.Bcast(obj, root=root)
+
+            # If not, send obj the normal way
+            else:
+                # Try to send object
+                try:
+                    self._comm.bcast([obj.__class__.__name__, obj], root=root)
+                # If this fails, raise error about byte size
+                except OverflowError:
+                    raise InputError("Input argument `obj` has a byte size "
+                                     "that cannot be stored in a 32-bit int "
+                                     "(%i > %i)!"
+                                     % (obj.__sizeof__(), 2**31-1))
+
+        # Receivers wait for instructions
+        else:
+            # Receive object
+            obj_type, obj = self._comm.bcast(obj, root=root)
+
+            # If obj_type is ndarray, obj contains shape and dtype
+            if(obj_type == 'ndarray'):
+                # Create empty NumPy array with given shape and dtype
+                obj = np.empty(*obj)
+
+                # Receive NumPy array
+                self._comm.Bcast(obj, root=root)
+
+        # Return obj
+        return(obj)
 
 
 # Make a custom Filter class that logs the rank of the process that calls it
