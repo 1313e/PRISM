@@ -19,7 +19,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 # PRISM imports
-from .modellink import ModelLink
+from ._modellink import ModelLink
 
 # All declaration
 __all__ = ['SineWaveLink']

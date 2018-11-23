@@ -20,7 +20,7 @@ import numpy as np
 
 # PRISM imports
 from .._internal import check_vals
-from .modellink import ModelLink
+from ._modellink import ModelLink
 
 # All declaration
 __all__ = ['GaussianLink']

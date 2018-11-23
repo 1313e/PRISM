@@ -14,9 +14,9 @@ and various default/example :class:`~ModelLink` subclasses.
 from __future__ import absolute_import, division, print_function
 
 # Import modellink modules
-from .gaussian_link import GaussianLink
-from .modellink import ModelLink
-from .sine_wave_link import SineWaveLink
+from ._gaussian_link import GaussianLink
+from ._modellink import ModelLink
+from ._sine_wave_link import SineWaveLink
 
 # All declaration
 __all__ = ['GaussianLink', 'ModelLink', 'SineWaveLink']
