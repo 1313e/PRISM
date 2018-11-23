@@ -4,7 +4,7 @@
 Projection
 ==========
 Provides the definition of *PRISM*'s :class:`~Projection` class, a
-:class:`~prism.pipeline.Pipeline` base class that allows for projection figures
+:class:`~prism.Pipeline` base class that allows for projection figures
 detailing a model's behavior to be created.
 
 """
@@ -57,10 +57,10 @@ class Projection(object):
     Description
     -----------
     The :class:`~Projection` class holds all specific methods that the
-    :class:`~prism.pipeline.Pipeline` class needs in order to create
+    :class:`~prism.Pipeline` class needs in order to create
     projections of the model.
 
-    This is a base class for the :class:`~prism.pipeline.Pipeline` class and
+    This is a base class for the :class:`~prism.Pipeline` class and
     cannot be used on its own.
 
     """
@@ -83,7 +83,7 @@ class Projection(object):
         projection figures detailing the behavior of the model parameters
         corresponding to the given `proj_par`.
         The input and output depend on the number of model parameters
-        :attr:`~prism.modellink.modellink.ModelLink.n_par`.
+        :attr:`~prism.modellink.ModelLink.n_par`.
 
         Arguments
         ---------
@@ -145,8 +145,8 @@ class Projection(object):
         ---------
         A series of projection figures detailing the behavior of the model.
         The lay-out and output of the projection figures depend on the number
-        of model parameters :attr:`~prism.modellink.modellink.ModelLink.n_par`:
-            :attr:`~prism.modellink.modellink.ModelLink.n_par` == 2: The output
+        of model parameters :attr:`~prism.modellink.ModelLink.n_par`:
+            :attr:`~prism.modellink.ModelLink.n_par` == 2: The output
             will feature two figures for the two model parameters with two
             subplots each. Every figure gives details about the behavior of the
             corresponding model parameter, by showing the minimum
@@ -154,7 +154,7 @@ class Projection(object):
             (bottom/right) obtained at the specified parameter value,
             independent of the value of the other parameter.
 
-            :attr:`~prism.modellink.modellink.ModelLink.n_par` > 2: The output
+            :attr:`~prism.modellink.ModelLink.n_par` > 2: The output
             will feature a figure with two subplots for every combination of
             two active model parameters that can be made
             (``n_par*(n_par-1)/2``). Every figure gives details about the

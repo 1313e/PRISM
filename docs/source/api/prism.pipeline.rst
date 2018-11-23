@@ -1,2 +1,4 @@
-.. automodule:: prism.pipeline
+Pipeline
+========
+.. autoclass:: prism.Pipeline
     :members:

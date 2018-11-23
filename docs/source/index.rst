@@ -37,4 +37,6 @@ The documentation of *PRISM* is spread out over several sections:
    :maxdepth: 4
    :caption: API Reference
    
-   api/prism
+   api/classes
+   api/subpackages
+   api/submodules

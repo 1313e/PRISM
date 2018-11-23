@@ -39,14 +39,12 @@ import warnings
 from .__version__ import prism_version as __version__
 from . import modellink
 from . import utils
+from ._emulator import Emulator
 from ._internal import import_cmaps
-from .emulator import Emulator
-from .modellink import ModelLink
-from .pipeline import Pipeline
+from ._pipeline import Pipeline
 
 # All declaration
-__all__ = ['modellink', 'utils', 'Emulator', 'ModelLink', 'Pipeline',
-           'import_cmaps']
+__all__ = ['modellink', 'utils', 'Emulator', 'Pipeline', 'import_cmaps']
 
 # Author declaration
 __author__ = "Ellert van der Velden (1313e)"
@@ -58,13 +56,13 @@ import_cmaps(os.path.join(os.path.dirname(__file__), 'data'))
 
 # Check if MPI is being used
 try:
-    from mpi4py import MPI
+    from mpi4py import MPI as _MPI
 except ImportError:
     pass
 else:
     # If so, raise warning if OMP_NUM_THREADS is not set to 1 with MPI_size > 1
     if(os.environ.get('OMP_NUM_THREADS') != '1' and
-       MPI.COMM_WORLD.Get_size() > 1 and MPI.COMM_WORLD.Get_rank() == 0):
+       _MPI.COMM_WORLD.Get_size() > 1 and _MPI.COMM_WORLD.Get_rank() == 0):
         # Get platform-dependent string on how to set environment variable
         # Windows
         if platform.startswith('win'):

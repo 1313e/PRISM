@@ -4,7 +4,7 @@ HDF5
 ----
 Whenever *PRISM* constructs an emulator, it automatically stores all the calculated data for it in an `HDF5-file`_ named ``'prism.hdf5'`` (default) in the designated working directory.
 This file contains all the data that is required in order to recreate all emulator systems that have been constructed for the emulator belonging to this run.
-If the :class:`~prism.pipeline.Pipeline` class is initialized by using an HDF5-file made by *PRISM*, it will load in this data and return a :obj:`~prism.pipeline.Pipeline` object in the same state as described in the file.
+If the :class:`~prism.Pipeline` class is initialized by using an HDF5-file made by *PRISM*, it will load in this data and return a :obj:`~prism.Pipeline` object in the same state as described in the file.
 
 Below is a short overview of all the data that can be found inside a *PRISM* master HDF5-file.
 HDF5-files can be viewed freely by the user using the `HDFView`_ application made available by `The HDFGroup`_.
@@ -20,7 +20,7 @@ The general file contains:
 
     - Emulator type and method;
     - Gaussian parameters;
-    - Name of used :class:`~prism.modellink.modellink.ModelLink` subclass;
+    - Name of used :class:`~prism.modellink.ModelLink` subclass;
     - Used *PRISM* version;
     - Polynomial order;
     - Bools for using mock data or regression covariance;

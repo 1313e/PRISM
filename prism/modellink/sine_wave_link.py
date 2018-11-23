@@ -28,8 +28,8 @@ __all__ = ['SineWaveLink']
 # %% CLASS DEFINITION
 class SineWaveLink(ModelLink):
     """
-    :class:`~ModelLink` class wrapper for a simple sine wave model, used for
-    testing the functionality of the *PRISM* pipeline in unittests.
+    :class:`~prism.modellink.ModelLink` class wrapper for a simple sine wave
+    model, used for testing the functionality of the *PRISM* pipeline.
 
     Formatting data_idx
     -------------------

@@ -41,13 +41,13 @@ from ._docstrings import (call_emul_i_doc, call_model_doc_s, call_model_doc_m,
                           ext_sam_set_doc, impl_cut_doc, impl_temp_doc,
                           paths_doc_d, paths_doc_s, read_par_doc,
                           save_data_doc_p, std_emul_i_doc, user_emul_i_doc)
+from ._emulator import Emulator
 from ._internal import (PRISM_Comm, RequestError, check_vals, convert_str_seq,
                         delist, docstring_append, docstring_copy,
                         docstring_substitute, exec_code_anal, getCLogger,
                         get_PRISM_File, getRLogger, move_logger, raise_error,
                         start_logger)
-from .emulator import Emulator
-from .projection import Projection
+from ._projection import Projection
 
 # All declaration
 __all__ = ['Pipeline']
@@ -82,19 +82,19 @@ class Pipeline(Projection, object):
 
         Parameters
         ----------
-        modellink_obj : :obj:`~prism.modellink.modellink.ModelLink` object
-            Instance of the :class:`~prism.modellink.modellink.ModelLink` class
+        modellink_obj : :obj:`~prism.modellink.ModelLink` object
+            Instance of the :class:`~prism.modellink.ModelLink` class
             that links the emulated model to this :obj:`~Pipeline` instance.
 
         Optional
         --------
         %(paths)s
-        emul_type : {'default'} or :class:`~prism.emulator.Emulator` subclass.\
+        emul_type : {'default'} or :class:`~prism.Emulator` subclass.\
             Default: 'default'
             String indicating which emulator type to use. In the
             :class:`~Pipeline` base class, only 'default' is supported.
-            If :class:`~prism.emulator.Emulator` subclass, the supplied
-            :class:`~prism.emulator.Emulator` subclass will be used instead.
+            If :class:`~prism.Emulator` subclass, the supplied
+            :class:`~prism.Emulator` subclass will be used instead.
         comm : :obj:`~MPI.Intracomm` object. Default: :obj:`MPI.COMM_WORLD`
             The MPI intra-communicator to use in this :class:`~Pipeline`
             instance.
@@ -251,7 +251,7 @@ class Pipeline(Projection, object):
         # Add the emul_type representation if it is not default
         emul_repr = "%s.%s" % (self._emulator.__class__.__module__,
                                self._emulator.__class__.__name__)
-        if(emul_repr != 'prism.emulator.Emulator'):
+        if(emul_repr != 'prism._emulator.Emulator'):
             str_repr.append("emul_type=%s" % (emul_repr))
 
         # Return representation
@@ -440,8 +440,8 @@ class Pipeline(Projection, object):
     @property
     def modellink(self):
         """
-        :obj:`~prism.modellink.modellink.ModelLink`: The
-        :obj:`~prism.modellink.modellink.ModelLink` instance provided during
+        :obj:`~prism.modellink.ModelLink`: The
+        :obj:`~prism.modellink.ModelLink` instance provided during
         :class:`~Pipeline` initialization.
 
         """
@@ -451,7 +451,7 @@ class Pipeline(Projection, object):
     @property
     def emulator(self):
         """
-        :obj:`~prism.emulator.Emulator`: The :obj:`~prism.emulator.Emulator`
+        :obj:`~prism.Emulator`: The :obj:`~prism.Emulator`
         instance created during :class:`~Pipeline` initialization.
 
         """
@@ -1040,16 +1040,16 @@ class Pipeline(Projection, object):
     def _get_mock_data(self):
         """
         Generates mock data and loads it into the
-        :obj:`~prism.modellink.modellink.ModelLink` object that was provided
+        :obj:`~prism.modellink.ModelLink` object that was provided
         during class initialization.
         This function overwrites the
-        :class:`~prism.modellink.modellink.ModelLink` properties holding the
+        :class:`~prism.modellink.ModelLink` properties holding the
         parameter estimates, data values and data errors.
 
         Generates
         ---------
         Overwrites the corresponding
-        :class:`~prism.modellink.modellink.ModelLink` class properties with the
+        :class:`~prism.modellink.ModelLink` class properties with the
         generated values.
 
         """
@@ -1552,7 +1552,7 @@ class Pipeline(Projection, object):
         par_set : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the univariate
             implausibility values for. Only used to pass to the
-            :meth:`~prism.modellink.modellink.ModelLink.get_md_var` method.
+            :meth:`~prism.modellink.ModelLink.get_md_var` method.
         adj_exp_val, adj_var_val : 1D array_like
             The adjusted expectation and variance values to calculate the
             univariate implausibility for.
@@ -1598,8 +1598,8 @@ class Pipeline(Projection, object):
         """
         Retrieves the model discrepancy variances, which includes all variances
         that are created by the model provided by the
-        :obj:`~prism.modellink.modellink.ModelLink` instance. This method tries
-        to call the :meth:`~prism.modellink.modellink.ModelLink.get_md_var`
+        :obj:`~prism.modellink.ModelLink` instance. This method tries
+        to call the :meth:`~prism.modellink.ModelLink.get_md_var`
         method, and assumes a default model discrepancy variance of ``1/6th``
         the data value if it cannot be called. If the data value space is not
         linear, then this default value is calculated such to reflect that.
@@ -2480,7 +2480,7 @@ class Pipeline(Projection, object):
             The type of this emulator, corresponding to the provided
             `emul_type` during :class:`~Pipeline` initialization.
         ModelLink subclass
-            Name of the :class:`~prism.modellink.modellink.ModelLink` subclass
+            Name of the :class:`~prism.modellink.ModelLink` subclass
             used to construct this emulator.
         Emulation method
             Indicates the combination of regression and Gaussian emulation

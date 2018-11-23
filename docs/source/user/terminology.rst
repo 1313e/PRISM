@@ -66,7 +66,7 @@ Emulation method [`method`]
 	The specific method (Gaussian, regression or both) that needs to be used to construct an emulator.
 
 Emulator [`emul`/`emulator`]
-	The collection of all emulator systems together, provided by an :obj:`~prism.emulator.Emulator` object.
+	The collection of all emulator systems together, provided by an :obj:`~prism.Emulator` object.
 
 Emulator evaluation samples [`eval_sam_set`]
 	The sample set (to be) used for evaluating the emulator.
@@ -146,7 +146,7 @@ Model
 	A model that has/takes more than 2 model parameters.
 
 ModelLink (subclass) [`modellink`]
-	The user-provided wrapper around the model that needs to be emulated, provided by a :obj:`~prism.modellink.modellink.ModelLink` object.
+	The user-provided wrapper around the model that needs to be emulated, provided by a :obj:`~prism.modellink.ModelLink` object.
 
 Model discrepancy variance [`md_var`]
 	A user-defined value that includes all contributions to the overall variance on a model output that is created/caused by the model itself.
@@ -183,7 +183,7 @@ Passive parameters
 	The set of model parameters that are not considered active, and therefore are considered to not have a significant influence on the output of the model.
 
 (PRISM) Pipeline [`pipe`/`pipeline`]
-	The main *PRISM* framework that orchestrates all operations, provided by a :obj:`~prism.pipeline.Pipeline` object.
+	The main *PRISM* framework that orchestrates all operations, provided by a :obj:`~prism.Pipeline` object.
 
 Plausible region
 	The region of model parameter space that still contains plausible samples.	
@@ -251,6 +251,6 @@ Working directory [`working_dir`]
 	(Path to) The directory/folder on the current machine in which the *PRISM* master file and logfile of the currently loaded emulator are stored.
 
 Worker mode [`worker_mode`]
-	A mode initialized by :attr:`~prism.pipeline.Pipeline.worker_mode`, where all workers are continuously listening for calls made by the controller rank and execute the received messages.
+	A mode initialized by :attr:`~prism.Pipeline.worker_mode`, where all workers are continuously listening for calls made by the controller rank and execute the received messages.
 	This allows for serial codes to be combined more easily with *PRISM*.
 	By default, it is turned off, requiring all MPI ranks to call most functions.

@@ -43,9 +43,9 @@ if(sys.version_info.major >= 3):
 class ModelLink(with_metaclass(abc.ABCMeta, object)):
     """
     Provides an abstract base class definition that allows the
-    :class:`~prism.pipeline.Pipeline` class to be linked to any model/test
+    :class:`~prism.Pipeline` class to be linked to any model/test
     object of choice. Every model wrapper used in the
-    :class:`~prism.pipeline.Pipeline` class must be an instance of the
+    :class:`~prism.Pipeline` class must be an instance of the
     :class:`~ModelLink` class.
 
     Description

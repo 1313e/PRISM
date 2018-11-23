@@ -8,7 +8,7 @@ Below is an overview of the most important aspects.
 ----
 
 Number of samples
-	The number of samples (:attr:`~prism.emulator.Emulator.n_sam`) that makes up an emulator system heavily influences both the construction speed and the evaluation rate of that system, which is (in)directly controlled by :attr:`~prism.pipeline.Pipeline.n_sam_init` and :attr:`~prism.pipeline.Pipeline.base_eval_sam`.
+	The number of samples (:attr:`~prism.Emulator.n_sam`) that makes up an emulator system heavily influences both the construction speed and the evaluation rate of that system, which is (in)directly controlled by :attr:`~prism.Pipeline.n_sam_init` and :attr:`~prism.Pipeline.base_eval_sam`.
 	Decreasing their values will have a positive effect on the construction speed and the evaluation rate of an emulator system and thus the emulator iteration it belongs to as a whole, but will naturally decrease its accuracy.
 	Additionally, it is worth noting that earlier emulator iterations are evaluated much more than later ones, given that a parameter set is only evaluated in an iteration if it was found plausible in all previous ones.
 

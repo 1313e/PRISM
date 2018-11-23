@@ -64,22 +64,22 @@ class Emulator(object):
     The :class:`~Emulator` class is the backbone of the *PRISM* package,
     holding all tools necessary to construct, load, save and evaluate the
     emulator of a model. It performs many checks to see if the provided
-    :obj:`~prism.modellink.modellink.ModelLink` object is compatible with the
+    :obj:`~prism.modellink.ModelLink` object is compatible with the
     current emulator, advises the user on alternatives when certain operations
     are requested, automatically takes care of distributing emulator systems
     over MPI ranks and more.
 
     Even though the purpose of the :class:`~Emulator` class is to hold only
     information about the emulator and therefore does not require any details
-    about the provided :obj:`~prism.modellink.modellink.ModelLink` object, it
+    about the provided :obj:`~prism.modellink.ModelLink` object, it
     will keep track of changes made to it. This is to allow the user to modify
-    the properties of the :class:`~prism.modellink.modellink.ModelLink`
+    the properties of the :class:`~prism.modellink.ModelLink`
     subclass without causing any desynchronization problems by accident.
 
     The :class:`~Emulator` class requires to be linked to an instance of the
-    :class:`~prism.pipeline.Pipeline` class and will automatically attempt to
+    :class:`~prism.Pipeline` class and will automatically attempt to
     do so when initialized. By default, this class should only be initialized
-    from within a :obj:`~prism.pipeline.Pipeline` object.
+    from within a :obj:`~prism.Pipeline` object.
 
     """
 
@@ -92,8 +92,8 @@ class Emulator(object):
 
         Parameters
         ----------
-        pipeline_obj : :obj:`~prism.pipeline.Pipeline` object
-        modellink_obj : :obj:`~prism.modellink.modellink.ModelLink` object
+        pipeline_obj : :obj:`~prism.Pipeline` object
+        modellink_obj : :obj:`~prism.modellink.ModelLink` object
 
         """
 
@@ -204,7 +204,7 @@ class Emulator(object):
         """
         bool: Whether or not mock data has been used for the construction of
         this emulator instead of actual data. If *True*, changes made to the
-        data in the provided :obj:`~prism.modellink.modellink.ModelLink` object
+        data in the provided :obj:`~prism.modellink.ModelLink` object
         are ignored.
 
         """
@@ -229,7 +229,7 @@ class Emulator(object):
         """
         int: Polynomial order that is considered for the regression process.
         If :attr:`~method` == 'gaussian' and
-        :attr:`~prism.pipeline.Pipeline.do_active_anal` is *False*, this number
+        :attr:`~prism.Pipeline.do_active_anal` is *False*, this number
         is not required.
 
         """
@@ -489,7 +489,7 @@ class Emulator(object):
         Generates
         ---------
         A new master HDF5-file contained in the working directory specified in
-        the :obj:`~prism.pipeline.Pipeline` instance, holding all information
+        the :obj:`~prism.Pipeline` instance, holding all information
         required to construct the first iteration of the emulator.
 
         """
@@ -995,7 +995,7 @@ class Emulator(object):
         -------
         reload : bool
             Bool indicating whether or not the controller rank of the
-            :obj:`~prism.pipeline.Pipeline` instance needs to reload its data.
+            :obj:`~prism.Pipeline` instance needs to reload its data.
 
         Generates
         ---------
@@ -1972,10 +1972,9 @@ class Emulator(object):
 
         Parameters
         ----------
-        modellink_obj : :obj:`~prism.modellink.modellink.ModelLink` object
-            Instance of the :class:`~prism.modellink.modellink.ModelLink` class
-            that links the emulated model to this
-            :obj:`~prism.pipeline.Pipeline` object.
+        modellink_obj : :obj:`~prism.modellink.ModelLink` object
+            Instance of the :class:`~prism.modellink.ModelLink` class that
+            links the emulated model to this :obj:`~prism.Pipeline` object.
 
         """
 
@@ -2026,23 +2025,23 @@ class Emulator(object):
     # This function connects the provided ModelLink class to the pipeline
     def _set_modellink(self, modellink_obj, modellink_loaded):
         """
-        Sets the :obj:`~prism.modellink.modellink.ModelLink` object that will
+        Sets the :obj:`~prism.modellink.ModelLink` object that will
         be used for constructing this emulator. If a constructed emulator is
         present, checks if provided `modellink` argument matches the
-        :class:`~prism.modellink.modellink.ModelLink` subclass used to
+        :class:`~prism.modellink.ModelLink` subclass used to
         construct it.
 
         Parameters
         ----------
-        modellink_obj : :obj:`~prism.modellink.modellink.ModelLink` object
-            Instance of the :class:`~prism.modellink.modellink.ModelLink` class
+        modellink_obj : :obj:`~prism.modellink.ModelLink` object
+            Instance of the :class:`~prism.modellink.ModelLink` class
             that links the emulated model to this
-            :obj:`~prism.pipeline.Pipeline` object.
-            The provided :obj:`~prism.modellink.modellink.ModelLink` object
+            :obj:`~prism.Pipeline` object.
+            The provided :obj:`~prism.modellink.ModelLink` object
             must match the one used to construct the loaded emulator.
         modellink_loaded : str or None
             If str, the name of the
-            :class:`~prism.modellink.modellink.ModelLink` subclass that was
+            :class:`~prism.modellink.ModelLink` subclass that was
             used to construct the loaded emulator.
             If *None*, no emulator is loaded.
 
@@ -2680,14 +2679,14 @@ class Emulator(object):
     def _set_mock_data(self):
         """
         Loads previously used mock data into the
-        :class:`~prism.modellink.modellink.ModelLink` object, overwriting the
+        :class:`~prism.modellink.ModelLink` object, overwriting the
         parameter estimates, data values, data errors, data spaces and data
         identifiers with their mock equivalents.
 
         Generates
         ---------
         Overwrites the corresponding
-        :class:`~prism.modellink.modellink.ModelLink` class properties with the
+        :class:`~prism.modellink.ModelLink` class properties with the
         previously used values (taken from the first emulator iteration).
 
         """

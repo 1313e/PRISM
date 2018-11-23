@@ -26,7 +26,7 @@ import numpy as np
 # PRISM imports
 from .._docstrings import user_emul_i_doc
 from .._internal import (RequestError, check_vals, docstring_substitute)
-from ..pipeline import Pipeline
+from .._pipeline import Pipeline
 
 # All declaration
 __all__ = ['get_lnpost_fn', 'get_walkers']
@@ -57,9 +57,9 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
         is plausible in iteration `emul_i` of `pipeline_obj`. The used call
         signature is ``ext_lnpost(par_set, *args, **kwargs)``. All MPI ranks
         will call this function unless
-        :attr:`~prism.pipeline.Pipeline.is_listening` is *True*.
-    pipeline_obj : :obj:`~prism.pipeline.Pipeline` object
-        The instance of the :class:`~prism.pipeline.Pipeline` class that needs
+        :attr:`~prism.Pipeline.is_listening` is *True*.
+    pipeline_obj : :obj:`~prism.Pipeline` object
+        The instance of the :class:`~prism.Pipeline` class that needs
         to be used for determining the validity of the proposed sampling step.
 
     Optional
@@ -83,7 +83,7 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
     Warning
     -------
     Calling this function factory will disable all regular logging in
-    `pipeline_obj` (:attr:`~prism.pipeline.Pipeline.do_logging` set to
+    `pipeline_obj` (:attr:`~prism.Pipeline.do_logging` set to
     *False*), in order to avoid having the same message being logged every time
     `lnpost` is called.
 
@@ -119,7 +119,7 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
         constraining it first with the emulator defined in the `pipeline_obj`.
 
         This function needs to be called by all MPI ranks if
-        :attr:`~prism.pipeline.Pipeline.is_listening` is *False*.
+        :attr:`~prism.Pipeline.is_listening` is *False*.
 
         Parameters
         ----------
@@ -189,14 +189,14 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
     in unit space if `unit_space` is *True*.
 
     If `init_walkers` is *None*, returns
-    :attr:`~prism.pipeline.Pipeline.impl_sam` instead if it is available.
+    :attr:`~prism.Pipeline.impl_sam` instead if it is available.
 
     This function needs to be called by all MPI ranks.
 
     Parameters
     ----------
-    pipeline_obj : :obj:`~prism.pipeline.Pipeline` object
-        The instance of the :class:`~prism.pipeline.Pipeline` class that needs
+    pipeline_obj : :obj:`~prism.Pipeline` object
+        The instance of the :class:`~prism.Pipeline` class that needs
         to be used for determining the validity of the proposed walkers.
 
     Optional
@@ -207,7 +207,7 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         samples in `init_walkers` will be returned.
         If int, generate an LHD of provided size and return all plausible
         samples.
-        If *None*, return :attr:`~prism.pipeline.Pipeline.impl_sam`
+        If *None*, return :attr:`~prism.Pipeline.impl_sam`
         corresponding to iteration `emul_i` instead.
     unit_space : bool. Default: True
         Bool determining whether or not the provided samples and returned

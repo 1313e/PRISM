@@ -39,12 +39,13 @@ import numpy as np
 from .__version__ import compat_version, prism_version
 
 # All declaration
-__all__ = ['PRISM_Comm', 'RequestError', 'aux_char_list',
-           'check_compatibility', 'check_instance', 'check_vals',
-           'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
-           'docstring_substitute', 'exec_code_anal', 'getCLogger',
-           'get_PRISM_File', 'getRLogger', 'import_cmaps', 'move_logger',
-           'raise_error', 'rprint', 'start_logger']
+__all__ = ['CFilter', 'CLogger', 'PRISM_Comm', 'RFilter', 'RLogger',
+           'RequestError', 'aux_char_list', 'check_compatibility',
+           'check_instance', 'check_vals', 'convert_str_seq', 'delist',
+           'docstring_append', 'docstring_copy', 'docstring_substitute',
+           'exec_code_anal', 'getCLogger', 'get_PRISM_File', 'getRLogger',
+           'import_cmaps', 'move_logger', 'raise_error', 'rprint',
+           'start_logger']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -87,9 +88,9 @@ class CLogger(logging.Logger):
 # Make a custom MPI.Comm class that uses a special broadcast method
 class PRISM_Comm(object):
     """
-    Custom :class:`~MPI.Intracomm` class that automatically makes use of NumPy
-    array buffers when broadcasting them. Is functionally the same as the
-    provided `comm` for everything else.
+    Custom :class:`~MPI.Intracomm` class that automatically makes use of the
+    :class:`~numpy.ndarray` buffers when broadcasting them. Is functionally the
+    same as the provided `comm` for everything else.
 
     Parameters
     ----------
@@ -155,7 +156,7 @@ class PRISM_Comm(object):
             # Receive object
             obj_type, obj = self._comm.bcast(obj, root=root)
 
-            # If obj_type is ndarray, obj contains shape and dtype
+            # If obj_type is NumPy ndarray, obj contains shape and dtype
             if(obj_type == 'NumPy ndarray'):
                 # Create empty NumPy array with given shape and dtype
                 obj = np.empty(*obj)
@@ -206,7 +207,7 @@ class RequestError(Exception):
 
     General purpose exception class, raised whenever a requested action cannot
     be executed due to it not being allowed or possible in the current state of
-    the :obj:`~Pipeline` instance.
+    the :obj:`~prism.Pipeline` instance.
 
     """
 
@@ -640,7 +641,7 @@ def delist(list_obj):
 # Define custom getLogger function that calls the custom CLogger instead
 def getCLogger(name=None):
     """
-    Create a :class:`~CLogger` logger instance with `name` and return it.
+    Create a :class:`~CLogger` instance with `name` and return it.
 
     """
 
@@ -664,7 +665,7 @@ def get_PRISM_File(prism_hdf5_file):
     ----------
     prism_hdf5_file : str
         Absolute path to the master HDF5-file that is used in a
-        :obj:`~prism.pipeline.Pipeline` instance.
+        :obj:`~prism.Pipeline` instance.
 
     Returns
     -------
@@ -753,7 +754,7 @@ def get_PRISM_File(prism_hdf5_file):
 # Define custom getLogger function that calls the custom RLogger instead
 def getRLogger(name=None):
     """
-    Create a :class:`~RLogger` logger instance with `name` and return it.
+    Create a :class:`~RLogger` instance with `name` and return it.
 
     """
 

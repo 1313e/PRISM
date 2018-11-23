@@ -3,7 +3,7 @@
 """
 Utilities
 =========
-Provides a collection of modules useful for using/mixing *PRISM* with other
+Provides a collection of functions useful for using/mixing *PRISM* with other
 applications.
 
 """

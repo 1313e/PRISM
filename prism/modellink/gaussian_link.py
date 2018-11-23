@@ -29,8 +29,8 @@ __all__ = ['GaussianLink']
 # %% CLASS DEFINITION
 class GaussianLink(ModelLink):
     """
-    :class:`~ModelLink` class wrapper for a simple Gaussian model, used for
-    testing the functionality of the *PRISM* pipeline in unittests.
+    :class:`~prism.modellink.ModelLink` class wrapper for a simple Gaussian
+    model, used for testing the functionality of the *PRISM* pipeline.
 
     Formatting data_idx
     -------------------
@@ -49,8 +49,9 @@ class GaussianLink(ModelLink):
         --------
         n_gaussians : int. Default: 1
             The number of Gaussians to use for the Gaussian model in this
-            instance. The resulting number of model parameters :attr:`~n_par`
-            will be :math:`3*n_{gaussians}`.
+            instance. The resulting number of model parameters
+            :attr:`~prism.modellink.ModelLink.n_par` will be
+            :math:`3*n_{gaussians}`.
 
         """
 

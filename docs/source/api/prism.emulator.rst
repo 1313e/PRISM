@@ -1,2 +1,4 @@
-.. automodule:: prism.emulator
+Emulator
+========
+.. autoclass:: prism.Emulator
     :members:

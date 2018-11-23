@@ -1,2 +1,4 @@
-.. automodule:: prism.modellink.modellink
+ModelLink
+=========
+.. autoclass:: prism.modellink.ModelLink
     :members:
