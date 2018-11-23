@@ -87,9 +87,9 @@ class CLogger(logging.Logger):
 # Make a custom MPI.Comm class that uses a special broadcast method
 class PRISM_Comm(object):
     """
-    Custom :class:`~MPI.COMM_WORLD.Intracomm` class that automatically makes
-    use of NumPy array buffers when broadcasting them. Is functionally the same
-    as the provided `comm` for everything else.
+    Custom :class:`~MPI.Intracomm` class that automatically makes use of NumPy
+    array buffers when broadcasting them. Is functionally the same as the
+    provided `comm` for everything else.
 
     Parameters
     ----------
@@ -101,7 +101,7 @@ class PRISM_Comm(object):
 
     def __init__(self, comm):
         # Raise error if provided comm is not an MPI intra-communicator
-        if not isinstance(comm, MPI.Comm):
+        if not isinstance(comm, MPI.Intracomm):
             raise TypeError("Input argument 'comm' must be an instance of the "
                             "MPI.Intracomm class!")
         else:
@@ -116,13 +116,13 @@ class PRISM_Comm(object):
 
     # Override __dir__ attribute to use the one from self._comm
     def __dir__(self):
-        return(self._comm.__dir__())
+        return(dir(self._comm))
 
     # Specialized bcast function that automatically makes use of NumPy buffers
     def bcast(self, obj, root):
         """
         Special broadcast method that automatically uses the appropriate method
-        (:meth:`~MPI.COMM_WORLD.bcast` or :meth:`~MPI.COMM_WORLD.Bcast`)
+        (:meth:`~MPI.Intracomm.bcast` or :meth:`~MPI.Intracomm.Bcast`)
         depending on the type of the provided `obj`.
 
         """
@@ -132,7 +132,7 @@ class PRISM_Comm(object):
             # Check if provided object is a NumPy array
             if isinstance(obj, np.ndarray):
                 # If so, send shape and dtype of the NumPy array
-                self._comm.bcast(['ndarray', [obj.shape, obj.dtype]],
+                self._comm.bcast(['NumPy ndarray', [obj.shape, obj.dtype]],
                                  root=root)
 
                 # Then send the NumPy array as a buffer object
@@ -156,7 +156,7 @@ class PRISM_Comm(object):
             obj_type, obj = self._comm.bcast(obj, root=root)
 
             # If obj_type is ndarray, obj contains shape and dtype
-            if(obj_type == 'ndarray'):
+            if(obj_type == 'NumPy ndarray'):
                 # Create empty NumPy array with given shape and dtype
                 obj = np.empty(*obj)
 
