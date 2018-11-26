@@ -602,8 +602,8 @@ class Pipeline(Projection, object):
                 if exec_fn is None:
                     self._worker_mode = 0
                 elif isinstance(exec_fn, (str, unicode)):
-                    obj = self
                     attrs = exec_fn.split('.')
+                    obj = self
                     for attr in attrs:
                         obj = getattr(obj, attr)
                     obj(*args, **kwargs)
@@ -643,8 +643,8 @@ class Pipeline(Projection, object):
         if exec_fn is None:
             self._worker_mode = 0
         elif isinstance(exec_fn, (str, unicode)):
-            obj = self
             attrs = exec_fn.split('.')
+            obj = self
             for attr in attrs:
                 obj = getattr(obj, attr)
             return(obj(*args, **kwargs))

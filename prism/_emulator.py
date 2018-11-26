@@ -1672,7 +1672,7 @@ class Emulator(object):
 
         """
 
-        # Value for fraction of residual variance for variety in inactive pars
+        # Value for fraction of residual variance for variety in passive pars
         weight = [1-len(active_par)/self._modellink._n_par
                   for active_par in self._active_par_data[emul_i]]
 
@@ -1704,7 +1704,7 @@ class Emulator(object):
                                            axis=-1), 2) /
                                pow(norm(self._l_corr[active_par]), 2))
 
-                    # Inactive parameter variety
+                    # Passive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
                         np.eye(self._n_sam[emul_i])
 
@@ -1734,7 +1734,7 @@ class Emulator(object):
                                            axis=-1), 2) /
                                pow(norm(self._l_corr[active_par]), 2))
 
-                    # Inactive parameter variety
+                    # Passive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
                         (par_set1 == self._sam_set[emul_i]).all(axis=-1)
 
@@ -1764,7 +1764,7 @@ class Emulator(object):
                                            axis=-1), 2) /
                                pow(norm(self._l_corr[active_par]), 2))
 
-                    # Inactive parameter variety
+                    # Passive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
                         (par_set1 == par_set2).all()
             if(self._method.lower() in ('regression', 'full') and

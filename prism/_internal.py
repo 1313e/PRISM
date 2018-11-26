@@ -89,8 +89,8 @@ class CLogger(logging.Logger):
 class PRISM_Comm(object):
     """
     Custom :class:`~MPI.Intracomm` class that automatically makes use of the
-    :class:`~numpy.ndarray` buffers when broadcasting them. Is functionally the
-    same as the provided `comm` for everything else.
+    :class:`~numpy.ndarray` buffers when using communications. Is functionally
+    the same as the provided `comm` for everything else.
 
     Parameters
     ----------
@@ -107,6 +107,8 @@ class PRISM_Comm(object):
                             "MPI.Intracomm class!")
         else:
             self._comm = comm
+            self._rank = self._comm.Get_rank()
+            self._size = self._comm.Get_size()
 
     # Override getattr property to use self._comm attributes if necessary
     def __getattribute__(self, name):
@@ -126,10 +128,24 @@ class PRISM_Comm(object):
         (:meth:`~MPI.Intracomm.bcast` or :meth:`~MPI.Intracomm.Bcast`)
         depending on the type of the provided `obj`.
 
+        Parameters
+        ----------
+        obj : :obj:`~numpy.ndarray` or object
+            The object to broadcast to all MPI ranks.
+            If :obj:`~numpy.ndarray`, use :meth:`~MPI.Intracomm.Bcast`.
+            If not, use :meth:`~MPI.Intracomm.bcast` instead.
+        root : int
+            The MPI rank that broadcasts `obj`.
+
+        Returns
+        -------
+        obj : object
+            The broadcasted `obj`.
+
         """
 
         # Sender
-        if(self._comm.Get_rank() == root):
+        if(self._rank == root):
             # Check if provided object is a NumPy array
             if isinstance(obj, np.ndarray):
                 # If so, send shape and dtype of the NumPy array
@@ -166,6 +182,84 @@ class PRISM_Comm(object):
 
         # Return obj
         return(obj)
+
+    # Specialized gather function that automatically makes use of NumPy buffers
+    def gather(self, obj, root):
+        """
+        Special gather method that automatically uses the appropriate method
+        (:meth:`~MPI.Intracomm.gather` or :meth:`~MPI.Intracomm.Gatherv`)
+        depending on the type of the provided `obj`.
+
+        Parameters
+        ----------
+        obj : :obj:`~numpy.ndarray` or object
+            The object to gather from all MPI ranks.
+            If :obj:`~numpy.ndarray`, use :meth:`~MPI.Intracomm.Gatherv`.
+            If not, use :meth:`~MPI.Intracomm.gather` instead.
+        root : int
+            The MPI rank that gathers `obj`.
+
+        Returns
+        -------
+        obj : list or None
+            If MPI rank is `root`, returns a list of the gathered objects.
+            Else, returns *None*.
+
+        Notes
+        -----
+        If some but not all MPI ranks use a NumPy array, this method will hang
+        indefinitely.
+        When gathering NumPy arrays, all arrays must have the same number of
+        dimensions and the same shape, except for one axis.
+
+        """
+
+        # Check if provided object is a NumPy array
+        if isinstance(obj, np.ndarray):
+            # If so, gather the shapes of obj on the receiver
+            shapes = self._comm.gather(obj.shape, root=root)
+
+            # Receiver sets up a buffer array and receives NumPy array
+            if(self._rank == root):
+                # Obtain the required shape of the buffer array
+                buff_shape = (self._size, np.product(np.max(shapes, axis=0)))
+
+                # Create buffer array
+                buff = np.empty(buff_shape)
+
+                # Gather all NumPy arrays
+                self._comm.Gatherv(obj, buff, root=root)
+
+                # Make an empty list holding individual arrays
+                arr_list = []
+
+                # Loop over gathered buff and transform back to single arrays
+                for array, shape in zip(buff, shapes):
+                    array_temp = array[:np.product(shape)]
+                    arr_list.append(array_temp.reshape(shape))
+
+                # Replace buff by arr_list
+                buff = arr_list
+
+            # Senders send the array
+            else:
+                # Senders set up dummy buffer
+                buff = None
+
+                # Send array
+                self._comm.Gatherv(obj, buff, root=root)
+
+        # If not, gather obj the normal way
+        else:
+            # Try to send the obj
+            try:
+                buff = self._comm.gather(obj, root=root)
+            # If this fails, raise error about byte size
+            except SystemError:
+                raise InputError("Input argument 'obj' is too large!")
+
+        # Return buff
+        return(buff)
 
 
 # Make a custom Filter class that logs the rank of the process that calls it

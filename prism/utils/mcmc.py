@@ -57,7 +57,7 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
         is plausible in iteration `emul_i` of `pipeline_obj`. The used call
         signature is ``ext_lnpost(par_set, *args, **kwargs)``. All MPI ranks
         will call this function unless
-        :attr:`~prism.Pipeline.is_listening` is *True*.
+        :attr:`~prism.Pipeline.worker_mode` is *True*.
     pipeline_obj : :obj:`~prism.Pipeline` object
         The instance of the :class:`~prism.Pipeline` class that needs
         to be used for determining the validity of the proposed sampling step.
@@ -119,7 +119,7 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
         constraining it first with the emulator defined in the `pipeline_obj`.
 
         This function needs to be called by all MPI ranks if
-        :attr:`~prism.Pipeline.is_listening` is *False*.
+        :attr:`~prism.Pipeline.worker_mode` is *False*.
 
         Parameters
         ----------
