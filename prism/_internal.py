@@ -228,7 +228,7 @@ class PRISM_Comm(object):
                 buff = np.empty(buff_shape)
 
                 # Gather all NumPy arrays
-                self._comm.Gatherv(obj, buff, root=root)
+                self._comm.Gatherv(obj.ravel(), buff, root=root)
 
                 # Make an empty list holding individual arrays
                 arr_list = []
@@ -247,7 +247,7 @@ class PRISM_Comm(object):
                 buff = None
 
                 # Send array
-                self._comm.Gatherv(obj, buff, root=root)
+                self._comm.Gatherv(obj.ravel(), buff, root=root)
 
         # If not, gather obj the normal way
         else:
@@ -289,7 +289,7 @@ class RLogger(logging.Logger):
     # Initialize Logger, adding the RFilter if size > 1
     def __init__(self, *args, **kwargs):
         super(RLogger, self).__init__(*args, **kwargs)
-        if(MPI.__package__ == 'mpi4py' and size > 1):
+        if(MPI.__name__ == 'mpi4py.MPI' and size > 1):
             self.addFilter(RFilter(rank))
 
 
@@ -1001,7 +1001,7 @@ def rprint(*args, **kwargs):
     """
 
     # If MPI is used and size > 1, prepend rank to message
-    if(MPI.__package__ == 'mpi4py' and size > 1):
+    if(MPI.__name__ == 'mpi4py.MPI' and size > 1):
         args = list(args)
         args.insert(0, "Rank %i:" % (rank))
     print(*args, **kwargs)
