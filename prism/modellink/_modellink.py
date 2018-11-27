@@ -231,6 +231,192 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         # Return representation
         return("%s(%s)" % (self.__class__.__name__, ", ".join(str_repr)))
 
+    # %% CLASS PROPERTIES
+    # General
+    @property
+    def name(self):
+        """
+        str: Name associated with an instance of this :class:`~ModelLink`
+        subclass.
+        By default, it is set to the name of this :class:`~ModelLink` subclass.
+        Can be manually manipulated to allow for more user control.
+
+        """
+
+        return(self._name)
+
+    @name.setter
+    def name(self, name):
+        self._name = check_vals(name, 'name', 'str')
+
+    @property
+    def single_call(self):
+        """
+        bool: Whether :meth:`~call_model` can/should be supplied with a single
+        evaluation sample. At least one of :attr:`~single_call` and
+        :attr:`~multi_call` must be *True*.
+        By default, single model calls are requested (True).
+
+        """
+
+        return(bool(self._single_call))
+
+    @property
+    def multi_call(self):
+        """
+        bool: Whether :meth:`~call_model` can/should be supplied with a set of
+        evaluation samples. At least one of :attr:`~single_call` and
+        :attr:`~multi_call` must be *True*.
+        By default, single model calls are requested (False).
+
+        """
+
+        return(bool(self._multi_call))
+
+    @multi_call.setter
+    def multi_call(self, multi_call):
+        warn_msg = ("Setting property 'multi_call' is deprecated since v0.5.3."
+                    "Use the 'call_type' property instead.")
+        warnings.warn(warn_msg, stacklevel=2)
+
+    @property
+    def call_type(self):
+        """
+        str: String indicating whether :meth:`call_model` should be supplied
+        with a single evaluation sample ('single') or a set of samples
+        ('multi'), or can be supplied with both ('hybrid').
+        By default, single model calls are requested ('single').
+
+        """
+
+        return(self._call_type)
+
+    @call_type.setter
+    def call_type(self, call_type):
+        # Check if call_type is a string
+        call_type = check_vals(call_type, 'call_type', 'str')
+
+        # Set single_call and multi_call appropriately
+        if call_type.lower() in ('single', 'one', '1d'):
+            self._single_call = 1
+            self._multi_call = 0
+            self._call_type = 'single'
+        elif call_type.lower() in ('multi', 'many', '2d'):
+            self._single_call = 0
+            self._multi_call = 1
+            self._call_type = 'multi'
+        elif call_type.lower() in ('hybrid', 'both', 'nd'):
+            self._single_call = 1
+            self._multi_call = 1
+            self._call_type = 'hybrid'
+        else:
+            raise ValueError("Input argument 'call_type' is invalid (%r)!"
+                             % (call_type))
+
+    @property
+    def MPI_call(self):
+        """
+        bool: Whether :meth:`~call_model` can/should be called by all MPI ranks
+        simultaneously instead of by the controller.
+        By default, only the controller rank calls the model (False).
+
+        """
+
+        return(bool(self._multi_call))
+
+    @MPI_call.setter
+    def MPI_call(self, MPI_call):
+        self._MPI_call = check_vals(MPI_call, 'MPI_call', 'bool')
+
+    # Model Parameters
+    @property
+    def n_par(self):
+        """
+        int: Number of model parameters.
+
+        """
+
+        return(self._n_par)
+
+    @property
+    def par_name(self):
+        """
+        list of str: List with model parameter names.
+
+        """
+
+        return(self._par_name)
+
+    @property
+    def par_rng(self):
+        """
+        :obj:`~numpy.ndarray`: The lower and upper values of the model
+        parameters.
+
+        """
+
+        return(self._par_rng)
+
+    @property
+    def par_est(self):
+        """
+        dict of {float, None}: The user-defined estimated values of the model
+        parameters. Contains *None* in places where estimates were not
+        provided.
+
+        """
+
+        return(SortedDict(zip(self._par_name, self._par_est)))
+
+    # Model Data
+    @property
+    def n_data(self):
+        """
+        int: Number of provided data points.
+
+        """
+
+        return(self._n_data)
+
+    @property
+    def data_val(self):
+        """
+        list of float: The values of provided data points.
+
+        """
+
+        return(self._data_val)
+
+    @property
+    def data_err(self):
+        """
+        list of float: The lower and upper :math:`1\\sigma`-confidence levels
+        of provided data points.
+
+        """
+
+        return(self._data_err)
+
+    @property
+    def data_spc(self):
+        """
+        list of str: The types of value space ({'lin', 'log', 'ln'}) of
+        provided data points.
+
+        """
+
+        return(self._data_spc)
+
+    @property
+    def data_idx(self):
+        """
+        list of tuples: The user-defined data point identifiers.
+
+        """
+
+        return(self._data_idx)
+
+    # %% GENERAL CLASS METHODS
     # This function returns non-default string representations of input args
     def _get_str_repr(self):
         """
@@ -732,6 +918,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             else:
                 self._data_idx.append(tuple(idx))
 
+    # %% ABSTRACT USER METHODS
     @abc.abstractmethod
     @docstring_substitute(emul_i=std_emul_i_doc)
     def call_model(self, emul_i, par_set, data_idx):
@@ -814,188 +1001,3 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         # Raise NotImplementedError if only super() was called
         raise NotImplementedError
-
-    # %% CLASS PROPERTIES
-    # General
-    @property
-    def name(self):
-        """
-        str: Name associated with an instance of this :class:`~ModelLink`
-        subclass.
-        By default, it is set to the name of this :class:`~ModelLink` subclass.
-        Can be manually manipulated to allow for more user control.
-
-        """
-
-        return(self._name)
-
-    @name.setter
-    def name(self, name):
-        self._name = check_vals(name, 'name', 'str')
-
-    @property
-    def single_call(self):
-        """
-        bool: Whether :meth:`~call_model` can/should be supplied with a single
-        evaluation sample. At least one of :attr:`~single_call` and
-        :attr:`~multi_call` must be *True*.
-        By default, single model calls are requested (True).
-
-        """
-
-        return(bool(self._single_call))
-
-    @property
-    def multi_call(self):
-        """
-        bool: Whether :meth:`~call_model` can/should be supplied with a set of
-        evaluation samples. At least one of :attr:`~single_call` and
-        :attr:`~multi_call` must be *True*.
-        By default, single model calls are requested (False).
-
-        """
-
-        return(bool(self._multi_call))
-
-    @multi_call.setter
-    def multi_call(self, multi_call):
-        warn_msg = ("Setting property 'multi_call' is deprecated since v0.5.3."
-                    "Use the 'call_type' property instead.")
-        warnings.warn(warn_msg, stacklevel=2)
-
-    @property
-    def call_type(self):
-        """
-        str: String indicating whether :meth:`call_model` should be supplied
-        with a single evaluation sample ('single') or a set of samples
-        ('multi'), or can be supplied with both ('hybrid').
-        By default, single model calls are requested ('single').
-
-        """
-
-        return(self._call_type)
-
-    @call_type.setter
-    def call_type(self, call_type):
-        # Check if call_type is a string
-        call_type = check_vals(call_type, 'call_type', 'str')
-
-        # Set single_call and multi_call appropriately
-        if call_type.lower() in ('single', 'one', '1d'):
-            self._single_call = 1
-            self._multi_call = 0
-            self._call_type = 'single'
-        elif call_type.lower() in ('multi', 'many', '2d'):
-            self._single_call = 0
-            self._multi_call = 1
-            self._call_type = 'multi'
-        elif call_type.lower() in ('hybrid', 'both', 'nd'):
-            self._single_call = 1
-            self._multi_call = 1
-            self._call_type = 'hybrid'
-        else:
-            raise ValueError("Input argument 'call_type' is invalid (%r)!"
-                             % (call_type))
-
-    @property
-    def MPI_call(self):
-        """
-        bool: Whether :meth:`~call_model` can/should be called by all MPI ranks
-        simultaneously instead of by the controller.
-        By default, only the controller rank calls the model (False).
-
-        """
-
-        return(bool(self._multi_call))
-
-    @MPI_call.setter
-    def MPI_call(self, MPI_call):
-        self._MPI_call = check_vals(MPI_call, 'MPI_call', 'bool')
-
-    # Model Parameters
-    @property
-    def n_par(self):
-        """
-        int: Number of model parameters.
-
-        """
-
-        return(self._n_par)
-
-    @property
-    def par_name(self):
-        """
-        list of str: List with model parameter names.
-
-        """
-
-        return(self._par_name)
-
-    @property
-    def par_rng(self):
-        """
-        :obj:`~numpy.ndarray`: The lower and upper values of the model
-        parameters.
-
-        """
-
-        return(self._par_rng)
-
-    @property
-    def par_est(self):
-        """
-        dict of {float, None}: The user-defined estimated values of the model
-        parameters. Contains *None* in places where estimates were not
-        provided.
-
-        """
-
-        return(SortedDict(zip(self._par_name, self._par_est)))
-
-    # Model Data
-    @property
-    def n_data(self):
-        """
-        int: Number of provided data points.
-
-        """
-
-        return(self._n_data)
-
-    @property
-    def data_val(self):
-        """
-        list of float: The values of provided data points.
-
-        """
-
-        return(self._data_val)
-
-    @property
-    def data_err(self):
-        """
-        list of float: The lower and upper :math:`1\\sigma`-confidence levels
-        of provided data points.
-
-        """
-
-        return(self._data_err)
-
-    @property
-    def data_spc(self):
-        """
-        list of str: The types of value space ({'lin', 'log', 'ln'}) of
-        provided data points.
-
-        """
-
-        return(self._data_spc)
-
-    @property
-    def data_idx(self):
-        """
-        list of tuples: The user-defined data point identifiers.
-
-        """
-
-        return(self._data_idx)

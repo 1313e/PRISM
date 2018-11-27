@@ -73,11 +73,6 @@ setup(name='prism-tool',
       packages=find_packages(),
       package_dir={'prism': "prism"},
       include_package_data=True,
-      dependency_links=[
-          'git+https://gitlab.mpcdf.mpg.de/ext-c45684b140ce/D2O.git'
-          '#egg=d2o-1.1.2',
-          'git+https://gitlab.mpcdf.mpg.de/ift/mpi_dummy.git'
-          '#egg=mpi_dummy-1.0.0'],
       install_requires=requirements,
       zip_safe=False,
       )

@@ -32,7 +32,7 @@ from matplotlib.colors import LinearSegmentedColormap as LSC
 try:
     from mpi4py import MPI
 except ImportError:
-    import mpi_dummy as MPI
+    from . import _dummyMPI as MPI
 import numpy as np
 
 # PRISM imports
@@ -501,7 +501,7 @@ def check_vals(values, name, *args):
             # Check if values has the copy()-method and use it if so
             try:
                 values_copy = values.copy()
-            # Else, use the built-in copy() method
+            # Else, use the built-in copy() function
             except AttributeError:
                 values_copy = copy(values)
 

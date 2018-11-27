@@ -30,7 +30,7 @@ from e13tools.sampling import lhd
 try:
     from mpi4py import MPI
 except ImportError:
-    import mpi_dummy as MPI
+    from . import _dummyMPI as MPI
 import numpy as np
 from numpy.random import normal, random
 

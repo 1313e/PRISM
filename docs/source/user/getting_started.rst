@@ -26,7 +26,6 @@ Dependencies
 
 - ``e13tools >= 0.4.7a1``;
 - ``mlxtend >= 0.9.1``;
-- ``mpi_dummy >= 1.0.0``;
 - ``scikit-learn >= 0.19.1``;
 - ``sortedcontainers >= 1.5.9``.
 
