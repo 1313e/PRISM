@@ -61,7 +61,7 @@ test_script:
   # Run the project tests
   - "%CMD_IN_ENV% check-manifest --ignore .travis.yml,appveyor.cmd,.appveyor.yml,.coveragerc,prism_trash*,docs*,test_scripts*"
   - "%CMD_IN_ENV% python setup.py check -m -r -s"
-  - "%CMD_IN_ENV% python setup.py install"
+  - "%CMD_IN_ENV% pip install ."
   - "%CMD_IN_ENV% py.test prism"
 
 on_success:

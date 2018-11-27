@@ -15,7 +15,7 @@ install:
 script:
   - check-manifest --ignore appveyor.cmd,.appveyor.yml,.coveragerc,prism_trash*,docs*,test_scripts*
   - python setup.py check -m -r -s
-  - python setup.py install
+  - pip install .
   - py.test prism
 after_success:
   - coveralls
