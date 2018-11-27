@@ -41,7 +41,7 @@ from ._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
                           get_emul_i_doc, read_par_doc, regr_cov_doc,
                           save_data_doc_e, std_emul_i_doc)
 from ._internal import (RequestError, check_compatibility, check_instance,
-                        check_vals, delist, docstring_append,
+                        check_vals, convert_str_seq, delist, docstring_append,
                         docstring_substitute, getCLogger, getRLogger,
                         raise_error)
 from .modellink import ModelLink
@@ -411,7 +411,9 @@ class Emulator(object):
     def l_corr(self):
         """
         :obj:`~numpy.ndarray`: The Gaussian correlation lengths for all model
-        parameters.
+        parameters, which is defined as the maximum distance between two values
+        of a specific model parameter within which the Gaussian contribution to
+        the correlation between the values is still significant.
 
         """
 
@@ -2627,7 +2629,8 @@ class Emulator(object):
         self._sigma = check_vals(float(par_dict['sigma']), 'sigma', 'nzero')
 
         # Gaussian correlation length
-        l_corr = check_vals(float(par_dict['l_corr']), 'l_corr', 'pos')
+        l_corr = check_vals(convert_str_seq(par_dict['l_corr']), 'l_corr',
+                            'float', 'pos')
         self._l_corr = l_corr*abs(self._modellink._par_rng[:, 1] -
                                   self._modellink._par_rng[:, 0])
 

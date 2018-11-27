@@ -5,7 +5,7 @@ Dummy MPI
 =========
 Dummy module that emulates the functionality of the :mod:`~mpi4py.MPI` module.
 This is a specialized version of the `mpi_dummy` package available at
-https://gitlab.mpcdf.mpg.de/ift/mpi_dummy/tree/master
+https://gitlab.mpcdf.mpg.de/ift/mpi_dummy
 
 """
 
@@ -22,7 +22,26 @@ import sys
 import numpy as np
 
 # All declaration
-__all__ = ['Comm', 'Intracomm', 'COMM_WORLD', 'COMM_SELF']
+__all__ = ['COMM_SELF', 'COMM_WORLD', 'Comm', 'Datatype', 'Intracomm', 'AINT',
+           'BOOL', 'BYTE', 'CHAR', 'CHARACTER', 'COMPLEX', 'COMPLEX16',
+           'COMPLEX32', 'COMPLEX4', 'COMPLEX8', 'COUNT', 'CXX_BOOL',
+           'CXX_DOUBLE_COMPLEX', 'CXX_FLOAT_COMPLEX',
+           'CXX_LONG_DOUBLE_COMPLEX', 'C_BOOL', 'C_COMPLEX',
+           'C_DOUBLE_COMPLEX', 'C_FLOAT_COMPLEX', 'C_LONG_DOUBLE_COMPLEX',
+           'DATATYPE_NULL', 'DOUBLE', 'DOUBLE_COMPLEX', 'DOUBLE_INT',
+           'DOUBLE_PRECISION', 'FLOAT', 'FLOAT_INT', 'F_BOOL', 'F_COMPLEX',
+           'F_DOUBLE', 'F_DOUBLE_COMPLEX', 'F_FLOAT', 'F_FLOAT_COMPLEX',
+           'F_INT', 'INT', 'INT16_T', 'INT32_T', 'INT64_T', 'INT8_T',
+           'INTEGER', 'INTEGER1', 'INTEGER16', 'INTEGER2', 'INTEGER4',
+           'INTEGER8', 'INT_INT', 'LB', 'LOGICAL', 'LOGICAL1', 'LOGICAL2',
+           'LOGICAL4', 'LOGICAL8', 'LONG', 'LONG_DOUBLE', 'LONG_DOUBLE_INT',
+           'LONG_INT', 'LONG_LONG', 'OFFSET', 'PACKED', 'REAL', 'REAL16',
+           'REAL2', 'REAL4', 'REAL8', 'SHORT', 'SHORT_INT', 'SIGNED_CHAR',
+           'SIGNED_INT', 'SIGNED_LONG', 'SIGNED_LONG_LONG', 'SIGNED_SHORT',
+           'SINT16_T', 'SINT32_T', 'SINT64_T', 'SINT8_T', 'TWOINT', 'UB',
+           'UINT16_T', 'UINT32_T', 'UINT64_T', 'UINT8_T', 'UNSIGNED',
+           'UNSIGNED_CHAR', 'UNSIGNED_INT', 'UNSIGNED_LONG',
+           'UNSIGNED_LONG_LONG', 'UNSIGNED_SHORT', 'WCHAR']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -180,3 +199,101 @@ class Intracomm(Comm):
 # %% INITIALIZE COMM_WORLD AND COMM_SELF
 COMM_WORLD = Intracomm('dummyMPI_COMM_WORLD')
 COMM_SELF = Intracomm('dummyMPI_COMM_SELF')
+
+
+# %% DATATYPE DEFINITIONS
+# Make dummy Datatype class
+class Datatype(object):
+    def __init__(self, name):
+        self.name = name
+
+
+# MPI datatypes
+AINT = Datatype('MPI_AINT')
+BOOL = Datatype('MPI_BOOL')
+BYTE = Datatype('MPI_BOOL')
+CHAR = Datatype('MPI_CHAR')
+CHARACTER = Datatype('MPI_CHARACTER')
+COMPLEX = Datatype('MPI_COMPLEX')
+COMPLEX4 = Datatype('MPI_COMPLEX4')
+COMPLEX8 = Datatype('MPI_COMPLEX8')
+COMPLEX16 = Datatype('MPI_COMPLEX16')
+COMPLEX32 = Datatype('MPI_COMPLEX32')
+COUNT = Datatype('MPI_COUNT')
+CXX_BOOL = Datatype('MPI_CXX_BOOL')
+CXX_DOUBLE_COMPLEX = Datatype('MPI_CXX_DOUBLE_COMPLEX')
+CXX_FLOAT_COMPLEX = Datatype('MPI_CXX_FLOAT_COMPLEX')
+CXX_LONG_DOUBLE_COMPLEX = Datatype('MPI_CXX_LONG_DOUBLE_COMPLEX')
+C_BOOL = Datatype('MPI_C_BOOL')
+C_COMPLEX = Datatype('MPI_C_COMPLEX')
+C_DOUBLE_COMPLEX = Datatype('MPI_C_DOUBLE_COMPLEX')
+C_FLOAT_COMPLEX = Datatype('MPI_C_FLOAT_COMPLEX')
+C_LONG_DOUBLE_COMPLEX = Datatype('MPI_C_LONG_DOUBLE_COMPLEX')
+DATATYPE_NULL = Datatype('MPI_DATATYPE_NULL')
+DOUBLE = Datatype('MPI_DOUBLE')
+DOUBLE_COMPLEX = Datatype('MPI_DOUBLE_COMPLEX')
+DOUBLE_INT = Datatype('MPI_DOUBLE_INT')
+DOUBLE_PRECISION = Datatype('MPI_DOUBLE_PRECISION')
+FLOAT = Datatype('MPI_FLOAT')
+FLOAT_INT = Datatype('MPI_FLOAT_INT')
+F_BOOL = Datatype('MPI_F_BOOL')
+F_COMPLEX = Datatype('MPI_F_COMPLEX')
+F_DOUBLE = Datatype('MPI_F_DOUBLE')
+F_DOUBLE_COMPLEX = Datatype('MPI_F_DOUBLE_COMPLEX')
+F_FLOAT = Datatype('MPI_F_FLOAT')
+F_FLOAT_COMPLEX = Datatype('MPI_F_FLOAT_COMPLEX')
+F_INT = Datatype('MPI_F_INT')
+INT = Datatype('MPI_INT')
+INT8_T = Datatype('MPI_INT8_T')
+INT16_T = Datatype('MPI_INT16_T')
+INT32_T = Datatype('MPI_INT32_T')
+INT64_T = Datatype('MPI_INT64_T')
+INTEGER = Datatype('MPI_INTEGER')
+INTEGER1 = Datatype('MPI_INTEGER1')
+INTEGER2 = Datatype('MPI_INTEGER2')
+INTEGER4 = Datatype('MPI_INTEGER4')
+INTEGER8 = Datatype('MPI_INTEGER8')
+INTEGER16 = Datatype('MPI_INTEGER16')
+INT_INT = Datatype('MPI_INT_INT')
+LB = Datatype('MPI_LB')
+LOGICAL = Datatype('MPI_INTEGER')
+LOGICAL1 = Datatype('MPI_LOGICAL1')
+LOGICAL2 = Datatype('MPI_LOGICAL2')
+LOGICAL4 = Datatype('MPI_LOGICAL4')
+LOGICAL8 = Datatype('MPI_LOGICAL8')
+LONG = Datatype('MPI_LONG')
+LONG_DOUBLE = Datatype('MPI_LONG_DOUBLE')
+LONG_DOUBLE_INT = Datatype('MPI_LONG_DOUBLE_INT')
+LONG_INT = Datatype('MPI_LONG_INT')
+LONG_LONG = Datatype('MPI_LONG_LONG')
+OFFSET = Datatype('MPI_OFFSET')
+PACKED = Datatype('MPI_PACKED')
+REAL = Datatype('MPI_REAL')
+REAL2 = Datatype('MPI_REAL2')
+REAL4 = Datatype('MPI_REAL4')
+REAL8 = Datatype('MPI_REAL8')
+REAL16 = Datatype('MPI_REAL16')
+SHORT = Datatype('MPI_SHORT')
+SHORT_INT = Datatype('MPI_SHORT_INT')
+SIGNED_CHAR = Datatype('MPI_SIGNED_CHAR')
+SIGNED_INT = Datatype('MPI_SIGNED_INT')
+SIGNED_LONG = Datatype('MPI_SIGNED_LONG')
+SIGNED_LONG_LONG = Datatype('MPI_SIGNED_LONG_LONG')
+SIGNED_SHORT = Datatype('MPI_SIGNED_SHORT')
+SINT8_T = Datatype('MPI_SINT8_T')
+SINT16_T = Datatype('MPI_SINT16_T')
+SINT32_T = Datatype('MPI_SINT32_T')
+SINT64_T = Datatype('MPI_SINT64_T')
+TWOINT = Datatype('MPI_TWOINT')
+UB = Datatype('MPI_UB')
+UINT8_T = Datatype('MPI_UINT8_T')
+UINT16_T = Datatype('MPI_UINT16_T')
+UINT32_T = Datatype('MPI_UINT32_T')
+UINT64_T = Datatype('MPI_UINT64_T')
+UNSIGNED = Datatype('MPI_UNSIGNED')
+UNSIGNED_CHAR = Datatype('MPI_UNSIGNED_CHAR')
+UNSIGNED_INT = Datatype('MPI_UNSIGNED_INT')
+UNSIGNED_LONG = Datatype('MPI_UNSIGNED_LONG')
+UNSIGNED_LONG_LONG = Datatype('MPI_UNSIGNED_LONG_LONG')
+UNSIGNED_SHORT = Datatype('MPI_UNSIGNED_SHORT')
+WCHAR = Datatype('MPI_WCHAR')

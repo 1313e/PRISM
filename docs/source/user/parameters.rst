@@ -27,9 +27,9 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
 	This value must be non-zero.
 
 :attr:`~prism.Emulator.l_corr` (Default: 0.3)
-	The amplitude of the Gaussian correlation length.
+	The amplitude(s) of the Gaussian correlation length.
 	This number is multiplied by the difference between the upper and lower value boundaries of the model parameters to obtain the Gaussian correlation length for every model parameter.
-	This value must be positive.
+	This value must be positive and either a scalar or a list of :attr:`~prism.modellink.ModelLink.n_par` scalars (where the values corresponds to the sorted list of model parameters).
 
 :attr:`~prism.Pipeline.impl_cut` (Default: [0.0, 4.0, 3.8, 3.5])
 	A list of implausibility cut-off values that specifies the maximum implausibility values a parameter set is allowed to have to be considered 'plausible'.

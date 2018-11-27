@@ -481,7 +481,8 @@ class Pipeline(Projection, object):
     @property
     def freeze_active_par(self):
         """
-        bool: Whether or not previously active parameters always stay active.
+        bool: Whether or not previously active parameters always stay active if
+        possible.
 
         """
 

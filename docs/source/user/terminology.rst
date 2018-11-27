@@ -92,13 +92,13 @@ External model realization set [`ext_real_set`]
 	A set of externally calculated and provided model realization samples and their outputs.
 
 Frozen (active) parameters
-	The set of model parameters that, once considered active, will always stay active, even if they should not.
+	The set of model parameters that, once considered active, will always stay active if possible.
 
 FSLR
 	Abbreviation of *forward stepwise linear regression*.
 
 Gaussian correlation length [`l_corr`]
-	The maximum distance between two values of a specific model parameter at which the Gaussian contribution to the correlation between the values is still significant.
+	The maximum distance between two values of a specific model parameter within which the Gaussian contribution to the correlation between the values is still significant.
 
 Gaussian sigma [`sigma`]
 	The standard deviation of the Gaussian function.
@@ -121,7 +121,7 @@ Implausibility wildcard
 	It is denoted as :math:`0` in provided implausibility cut-off lists.
 
 LHD
-	Abbreviation of *Latin-hypercube design*.
+	Abbreviation of *Latin-Hypercube design*.
 
 Master (HDF5) file [`hdf5_file`]
 	(Path to) The HDF5-file in which all important data about the currently loaded emulator is stored.
@@ -203,7 +203,7 @@ PRISM
 	It is also a one-word description of what *PRISM* does (splitting up a model into individually emulated model outputs).
 
 PRISM (parameters) file [`prism_file`]
-	(Path to) The text-file that contains non-default values for the :ref:`PRISM parameters<parameters>` that need to be used for the currently loaded emulator.
+	(Path to) The text-file that contains non-default values for the :ref:`PRISM parameters<parameters>` that need to be used for the currently used :obj:`~prism.Pipeline` instance.
 	It is *None* if no such file is used.
 
 Prior covariance [`prior_cov`]
