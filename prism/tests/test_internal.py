@@ -212,15 +212,19 @@ class Test_check_val(object):
         assert check_vals(1, 'normal', 'normal') == 1
         assert check_vals(0, 'normal', 'normal') == 0
         assert check_vals(0.5, 'normal', 'normal') == 0.5
+        assert check_vals(-0.5, 'normal', 'normal') == -0.5
+        assert check_vals(-1, 'normal', 'normal') == -1
         with pytest.raises(ValueError):
-            check_vals(-0.5, 'normal', 'normal')
+            check_vals(2, 'normal', 'normal')
+        with pytest.raises(ValueError):
+            check_vals(-2, 'normal', 'normal')
 
         # Check for infinite value
         with pytest.raises(ValueError):
             check_vals(np.infty, 'infty')
         with pytest.raises(ValueError):
             check_vals(np.NaN, 'nan')
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError):
             check_vals('str', 'str')
 
     # Check if providing array_like as value works correctly
@@ -252,15 +256,15 @@ class Test_check_val(object):
         array2 = check_vals(array, 'array', 'str')
         assert array2.dtype.name == 'str32' if vmajor >= 3 else 'string8'
 
-        # Check if providing a dict or tuple raises an error
-        with pytest.raises(TypeError):
+        # Check if providing a dict or sequenced list raises an error
+        with pytest.raises(InputError):
             check_vals({}, 'dict', 'float')
-        with pytest.raises(TypeError):
-            check_vals((1, 2), 'tuple', 'float')
+        with pytest.raises(InputError):
+            check_vals([1, [2]], 'seq_list', 'float')
 
     # Check if providing incorrect arguments raises an error
     def test_args(self):
-        with pytest.raises(InputError):
+        with pytest.raises(ValueError):
             check_vals(1, 'int', 'invalid')
 
 

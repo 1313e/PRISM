@@ -454,7 +454,8 @@ def check_vals(values, name, *args):
     Parameters
     ----------
     values : array_like of {int, float, str, bool}
-        The values to be checked against all given criteria in `args`.
+        The values to be checked against all given criteria in `args`. It must
+        be possible to convert `values` to a :obj:`~numpy.ndarray` object.
     name : str
         The name of the input argument, which is used in the error message if
         a criterion is not met.
@@ -466,14 +467,12 @@ def check_vals(values, name, *args):
     Returns
     -------
     return_values : array_like of {int, float, str}
-        If `args` contained 'bool', returns 0 or 1. Else, returns `values`.
+        If `args` contained 'bool', returns 0s or 1s. Else, returns `values`.
 
     Notes
     -----
-    If `values` is array_like, every element is replaced by its checked values
-    (0s or 1s in case of bools, or ints converted to floats in case of floats).
-    Because of this, a copy will be made of `values`. If this is not possible,
-    `values` is adjusted in place.
+    If `values` contains integers, but `args` contains 'float', `return_values`
+    will be cast as float.
 
     """
 
@@ -483,171 +482,198 @@ def check_vals(values, name, *args):
     # Convert args to a list
     args = list(args)
 
-    # Check ndim of values and iterate over values if ndim > 0
-    if np.ndim(values):
-        # If values is a NumPy array, make empty copy and upcast if necessary
-        if isinstance(values, np.ndarray):
-            if 'bool' in args or 'int' in args:
-                values_copy = np.empty_like(values, dtype=int)
-            elif 'float' in args:
-                values_copy = np.empty_like(values, dtype=float)
-            elif 'str' in args:
-                values_copy = np.empty_like(values, dtype=str)
-            else:
-                values_copy = np.empty_like(values)
-
-        # If not a NumPy array, make a normal copy
-        else:
-            # Check if values has the copy()-method and use it if so
-            try:
-                values_copy = values.copy()
-            # Else, use the built-in copy() function
-            except AttributeError:
-                values_copy = copy(values)
-
-        # Iterate over first dimension of values
-        for idx, value in enumerate(values):
-            # Check value
-            values_copy[idx] = check_vals(value, '%s[%i]' % (name, idx), *args)
-
-        # Return values
-        return(values_copy)
-
-    # If ndim == 0, set value to values
+    # Check type of values
+    if isinstance(values, tuple):
+        arr_type = 'tuple'
+    elif isinstance(values, list):
+        arr_type = 'list'
+    elif isinstance(values, np.ndarray):
+        arr_type = 'ndarray'
+    elif np.isscalar(values):
+        arr_type = 'scalar'
     else:
-        value = values
-
-    # Check for bool
-    if 'bool' in args:
-        # Check if bool is provided and return if so
-        if(str(value).lower() in ('false', '0')):
-            return(0)
-        elif(str(value).lower() in ('true', '1')):
-            return(1)
-        else:
-            err_msg = "Input argument %r is not of type 'bool'!" % (name)
-            raise_error(TypeError, err_msg, logger)
-
-    # Check for string
-    elif 'str' in args:
-        # Check if str is provided and return if so
-        if isinstance(value, (str, np.string_, unicode)):
-            return(value)
-        else:
-            err_msg = "Input argument %r is not of type 'str'!" % (name)
-            raise_error(TypeError, err_msg, logger)
-
-    # Check for float
-    elif 'float' in args:
-        # Check if float is provided and return if so
-        if isinstance(value, (int, float, np.integer, np.floating)):
-            # Remove 'float' from args and check it again
-            args.remove('float')
-            value = check_vals(value, name, *args)
-            return(float(value))
-        else:
-            err_msg = "Input argument %r is not of type 'float'!" % (name)
-            raise_error(TypeError, err_msg, logger)
-
-    # Check for integer
-    elif 'int' in args:
-        # Check if int is provided and return if so
-        if isinstance(value, (int, np.integer)):
-            # Remove 'int' from args and check it again
-            args.remove('int')
-            value = check_vals(value, name, *args)
-            return(value)
-        else:
-            err_msg = "Input argument %r is not of type 'int'!" % (name)
-            raise_error(TypeError, err_msg, logger)
-
-    # Check for negative value
-    elif 'neg' in args:
-        # Check if value is negative and return if so
-        if(value < 0):
-            # Remove 'neg' from args and check it again
-            args.remove('neg')
-            value = check_vals(value, name, *args)
-            return(value)
-        else:
-            err_msg = "Input argument %r is not negative!" % (name)
-            raise_error(ValueError, err_msg, logger)
-
-    # Check for non-negative value
-    elif 'nneg' in args:
-        # Check if value is non-negative and return if so
-        if not(value < 0):
-            # Remove 'nneg' from args and check it again
-            args.remove('nneg')
-            value = check_vals(value, name, *args)
-            return(value)
-        else:
-            err_msg = "Input argument %r is not non-negative!" % (name)
-            raise_error(ValueError, err_msg, logger)
-
-    # Check for normalized value [0, 1]
-    elif 'normal' in args:
-        # Check if value is normalized and return if so
-        if(0 <= value <= 1):
-            # Remove 'normal' from args and check it again
-            args.remove('normal')
-            value = check_vals(value, name, *args)
-            return(value)
-        else:
-            err_msg = "Input argument %r is not normalized!" % (name)
-            raise_error(ValueError, err_msg, logger)
-
-    # Check for non-positive value
-    elif 'npos' in args:
-        # Check if value is non-positive and return if so
-        if not(value > 0):
-            # Remove 'npos' from args and check it again
-            args.remove('npos')
-            value = check_vals(value, name, *args)
-            return(value)
-        else:
-            err_msg = "Input argument %r is not non-positive!" % (name)
-            raise_error(ValueError, err_msg, logger)
-
-    # Check for non-zero value
-    elif 'nzero' in args:
-        # Check if value is non-zero and return if so
-        if not(value == 0):
-            # Remove 'nzero' from args and check it again
-            args.remove('nzero')
-            value = check_vals(value, name, *args)
-            return(value)
-        else:
-            err_msg = "Input argument %r is not non-zero!" % (name)
-            raise_error(ValueError, err_msg, logger)
-
-    # Check for positive value
-    elif 'pos' in args:
-        # Check if value is positive and return if so
-        if(value > 0):
-            # Remove 'pos' from args and check it again
-            args.remove('pos')
-            value = check_vals(value, name, *args)
-            return(value)
-        else:
-            err_msg = "Input argument %r is not positive!" % (name)
-            raise_error(ValueError, err_msg, logger)
-
-    # If no criteria are given, it must be a finite value
-    elif not len(args):
-        # Check if finite value is provided and return if so
-        try:
-            if np.isfinite(value):
-                return(value)
-        except Exception:
-            pass
-        err_msg = "Input argument %r is not finite!" % (name)
-        raise_error(ValueError, err_msg, logger)
-
-    # If none of the criteria is found, the criteria are invalid
-    else:
-        err_msg = "Input argument 'args' is invalid!"
+        err_msg = "Input argument %r is not array_like!" % (name)
         raise_error(InputError, err_msg, logger)
+
+    # Convert values to a NumPy array
+    try:
+        values = np.asanyarray(values)
+    except Exception as error:
+        err_msg = ("Input argument %r cannot be converted to a NumPy array! "
+                   "(%s)" % (name, error))
+        raise_error(InputError, err_msg, logger)
+
+    # Loop over all criteria
+    while len(args):
+        # Check for bool
+        if 'bool' in args:
+            # Convert values to str
+            values = np.char.lower(np.asanyarray(values, dtype=str))
+
+            # Check if values available are accepted as bools
+            check_list = np.zeros_like(values, dtype=int, subok=False)
+            check_list[values == '0'] = 1
+            check_list[values == 'false'] = 1
+            values[values == 'false'] = '0'
+            check_list[values == '1'] = 1
+            check_list[values == 'true'] = 1
+            values[values == 'true'] = '1'
+
+            # Check if check_list solely contains 1s
+            if not check_list.all():
+                # If not, raise error
+                index = np.unravel_index(np.argmin(check_list), values.shape)
+                err_msg = ("Input argument '%s%s' is not of type 'bool'!"
+                           % (name, list(index) if values.ndim != 0 else ''))
+                raise_error(TypeError, err_msg, logger)
+            else:
+                # If so, convert values to integers and break the loop
+                values = np.asanyarray(values, dtype=int)
+                break
+
+        # Check for string
+        elif 'str' in args:
+            # Check if str is provided and break if so
+            if issubclass(values.dtype.type, (str, np.string_, unicode)):
+                break
+            else:
+                err_msg = "Input argument %r is not of type 'str'!" % (name)
+                raise_error(TypeError, err_msg, logger)
+
+        # Check for float
+        elif 'float' in args:
+            # Check if float is provided and continue if so
+            if issubclass(values.dtype.type, (int, float, np.integer,
+                                              np.floating)):
+                # Remove 'float' from args and check it again
+                args.remove('float')
+                values = np.asanyarray(values, dtype=float)
+                continue
+            else:
+                err_msg = "Input argument %r is not of type 'float'!" % (name)
+                raise_error(TypeError, err_msg, logger)
+
+        # Check for integer
+        elif 'int' in args:
+            # Check if int is provided and continue if so
+            if issubclass(values.dtype.type, (int, np.integer)):
+                # Remove 'int' from args and check it again
+                args.remove('int')
+                continue
+            else:
+                err_msg = "Input argument %r is not of type 'int'!" % (name)
+                raise_error(TypeError, err_msg, logger)
+
+        # Check for negative value
+        elif 'neg' in args:
+            # Check if value is negative and continue if so
+            try:
+                index = list(np.argwhere(values >= 0)[0])
+            except IndexError:
+                args.remove('neg')
+                continue
+            else:
+                err_msg = ("Input argument '%s%s' is not negative!"
+                           % (name, index if values.ndim != 0 else ''))
+                raise_error(ValueError, err_msg, logger)
+
+        # Check for non-negative value
+        elif 'nneg' in args:
+            # Check if value is non-negative and continue if so
+            try:
+                index = list(np.argwhere(values < 0)[0])
+            except IndexError:
+                args.remove('nneg')
+                continue
+            else:
+                err_msg = ("Input argument '%s%s' is not non-negative!"
+                           % (name, index if values.ndim != 0 else ''))
+                raise_error(ValueError, err_msg, logger)
+
+        # Check for normalized value [-1, 1]
+        elif 'normal' in args:
+            # Check if value is normal and continue if so
+            try:
+                index = list(np.argwhere(abs(values) > 1)[0])
+            except IndexError:
+                args.remove('normal')
+                continue
+            else:
+                err_msg = ("Input argument '%s%s' is not normalized!"
+                           % (name, index if values.ndim != 0 else ''))
+                raise_error(ValueError, err_msg, logger)
+
+        # Check for non-positive value
+        elif 'npos' in args:
+            # Check if value is non-positive and continue if so
+            try:
+                index = list(np.argwhere(values > 0)[0])
+            except IndexError:
+                args.remove('npos')
+                continue
+            else:
+                err_msg = ("Input argument '%s%s' is not non-positive!"
+                           % (name, index if values.ndim != 0 else ''))
+                raise_error(ValueError, err_msg, logger)
+
+        # Check for non-zero value
+        elif 'nzero' in args:
+            # Check if value is non-zero and continue if so
+            try:
+                index = list(np.argwhere(values == 0)[0])
+            except IndexError:
+                args.remove('nzero')
+                continue
+            else:
+                err_msg = ("Input argument '%s%s' is not non-zero!"
+                           % (name, index if values.ndim != 0 else ''))
+                raise_error(ValueError, err_msg, logger)
+
+        # Check for positive value
+        elif 'pos' in args:
+            # Check if value is positive and continue if so
+            try:
+                index = list(np.argwhere(values <= 0)[0])
+            except IndexError:
+                args.remove('pos')
+                continue
+            else:
+                err_msg = ("Input argument '%s%s' is not positive!"
+                           % (name, index if values.ndim != 0 else ''))
+                raise_error(ValueError, err_msg, logger)
+
+        # If none of the criteria is found, the criteria are invalid
+        else:
+            err_msg = ("Input argument 'args' contains invalid elements (%s)!"
+                       % (args))
+            raise_error(ValueError, err_msg, logger)
+
+    # If no criteria are left, it must be a finite value
+    else:
+        # Check if value is finite and continue if so
+        try:
+            index = list(np.argwhere(~np.isfinite(values))[0])
+        except IndexError:
+            pass
+        except TypeError:
+            err_msg = ("Input argument '%s%s' is not of type 'int' or 'float'!"
+                       % (name, index if values.ndim != 0 else ''))
+            raise_error(TypeError, err_msg, logger)
+        else:
+            err_msg = ("Input argument '%s%s' is not finite!"
+                       % (name, index if values.ndim != 0 else ''))
+            raise_error(ValueError, err_msg, logger)
+
+    # Convert values back to its original type
+    if(arr_type == 'tuple'):
+        values = tuple(values.tolist())
+    elif(arr_type == 'list'):
+        values = values.tolist()
+    elif(arr_type == 'scalar'):
+        values = np.asscalar(values)
+
+    # Return values
+    return(values)
 
 
 # Function for converting a string sequence to a sequence of elements
