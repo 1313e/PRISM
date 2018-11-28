@@ -93,7 +93,11 @@ class Emulator(object):
         Parameters
         ----------
         pipeline_obj : :obj:`~prism.Pipeline` object
+            The :obj:`~prism.Pipeline` instance this :obj:`~prism.Emulator`
+            instance should be linked to.
         modellink_obj : :obj:`~prism.modellink.ModelLink` object
+            The :obj:`~prism.modellink.ModelLink` instance that should be
+            linked to `pipeline_obj`.
 
         """
 
@@ -453,7 +457,7 @@ class Emulator(object):
         # If the current iteration is requested
         if cur_iter:
             if(emul_i == 0 or self._emul_load == 0 or global_emul_i == 0):
-                raise RequestError("Emulator HDF5-file is not built yet!")
+                raise RequestError("Emulator is not built yet!")
             elif emul_i is None:
                 emul_i = global_emul_i
             elif not(1 <= emul_i <= global_emul_i):
@@ -490,16 +494,16 @@ class Emulator(object):
 
         Generates
         ---------
-        A new master HDF5-file contained in the working directory specified in
-        the :obj:`~prism.Pipeline` instance, holding all information
-        required to construct the first iteration of the emulator.
+        A new master HDF5-file 'prism.hdf5' contained in the working directory
+        specified in the :obj:`~prism.Pipeline` instance, holding all
+        information required to construct the first iteration of the emulator.
 
         """
 
         # Start logger
         logger = getCLogger('INIT')
-        logger.info("Creating a new emulator in master HDF5-file %r."
-                    % (self._pipeline._hdf5_file))
+        logger.info("Creating a new emulator in working directory %r."
+                    % (self._pipeline._working_dir))
 
         # Clean-up all emulator system files
         self._cleanup_emul_files(1)
@@ -1969,8 +1973,8 @@ class Emulator(object):
     # Load the emulator
     def _load_emulator(self, modellink_obj):
         """
-        Checks if the provided HDF5-file contains a constructed emulator and
-        loads in the emulator data accordingly.
+        Checks if the provided working directory contains a constructed
+        emulator and loads in the emulator data accordingly.
 
         Parameters
         ----------
@@ -1986,26 +1990,35 @@ class Emulator(object):
 
         # Check if an existing hdf5-file is provided
         try:
-            logger.info("Checking if provided emulator file %r is a "
-                        "constructed emulator."
-                        % (self._pipeline._hdf5_file))
+            logger.info("Checking if provided working directory %r contains "
+                        "a constructed emulator."
+                        % (self._pipeline._working_dir))
             with self._File('r', None) as file:
-                # Existing emulator was provided
-                logger.info("Constructed emulator HDF5-file provided.")
-                self._emul_load = 1
+                # Log that an hdf5-file has been found
+                logger.info("Provided working directory contains a constructed"
+                            " emulator. Checking validity.")
 
                 # Obtain the number of emulator iterations constructed
-                self._emul_i = len(file.keys())
+                emul_i = len(file.keys())
 
                 # Check if the hdf5-file contains solely groups made by PRISM
-                req_keys = [str(i) for i in range(1, self._emul_i+1)]
+                req_keys = [str(i) for i in range(1, emul_i+1)]
                 if(req_keys != list(file.keys())):
-                    err_msg = ("Provided emulator HDF5-file contains invalid "
-                               "data groups!")
-                    raise_error(RequestError, err_msg, logger)
+                    err_msg = ("Found master HDF5-file contains invalid data "
+                               "groups!")
+                    raise_error(InputError, err_msg, logger)
+
+                # Log that valid emulator was found
+                logger.info("Found master HDF5-file is valid.")
+                self._emul_load = 1
+
+                # Save number of emulator iterations constructed
+                self._emul_i = emul_i
+
         except (OSError, IOError):
             # No existing emulator was provided
-            logger.info("Non-existing HDF5-file provided.")
+            logger.info("Provided working directory does not contain a "
+                        "constructed emulator.")
             self._emul_load = 0
             self._emul_i = 0
 

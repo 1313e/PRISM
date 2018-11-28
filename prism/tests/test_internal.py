@@ -18,7 +18,7 @@ import pytest
 # PRISM imports
 from prism._internal import (compat_version, prism_version, CLogger, RLogger,
                              RequestError, docstring_append, docstring_copy,
-                             docstring_substitute, check_vals,
+                             docstring_substitute, check_instance, check_vals,
                              check_compatibility, convert_str_seq, delist,
                              getCLogger, get_PRISM_File, getRLogger,
                              import_cmaps, move_logger, raise_error, rprint,
@@ -137,6 +137,20 @@ def test_check_compatibility():
         check_compatibility(compat_version[-1])
     with pytest.raises(RequestError):
         check_compatibility('999.999.999')
+
+
+# Pytest for the check_instance function
+def test_check_instance():
+    # Check if providing a non-class raises an error
+    with pytest.raises(InputError):
+        check_instance(np.array(1), np.array)
+
+    # Check if providing an incorrect instance raises an error
+    with pytest.raises(TypeError):
+        check_instance(list(), np.ndarray)
+
+    # Check if providing a proper instance of a class gives 1
+    assert check_instance(np.array(1), np.ndarray) == 1
 
 
 # Pytest for check_val function

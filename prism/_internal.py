@@ -15,7 +15,7 @@ from __future__ import (absolute_import, division, print_function,
                         with_statement)
 
 # Built-in imports
-from copy import copy
+from inspect import isclass
 import logging
 import logging.config
 import os
@@ -423,19 +423,22 @@ def check_instance(instance, cls):
 
     """
 
+    # Check if cls is a class
+    if not isclass(cls):
+        raise InputError("Input argument 'cls' must be a class!")
+
     # Check if instance was initialized from a cls (sub)class
     if not isinstance(instance, cls):
         raise TypeError("Input argument 'instance' must be an instance of the "
-                        "%s class!" % (cls.__name__))
+                        "%s.%s class!" % (cls.__module__, cls.__name__))
 
-    # Retrieve a list of all cls properties
-    class_props = [prop for prop in dir(cls) if
-                   isinstance(getattr(cls, prop), property)]
+    # Retrieve a list of all cls attributes
+    class_attrs = dir(cls)
 
-    # Check if all cls properties can be called in instance
-    for prop in class_props:
+    # Check if all cls attributes can be called in instance
+    for attr in class_attrs:
         try:
-            getattr(instance, prop)
+            getattr(instance, attr)
         except AttributeError:
             return(0)
     else:
@@ -898,8 +901,9 @@ def import_cmaps(cmap_dir):
     Parameters
     ----------
     cmap_dir : str
-        If str, relative or absolute path to the directory that contains custom
-        colormap files.
+        Relative or absolute path to the directory that contains custom
+        colormap files. A colormap file can be a NumPy binary file ('.npy' or
+        '.npz') or any text file.
 
     Notes
     -----

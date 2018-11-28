@@ -119,24 +119,14 @@ paths_doc =\
             directories or scan for existing ones. If *None*, all directories
             in `root_dir` are considered working directories and 'prism_' will
             be used as a prefix for new ones.
-        hdf5_file : str{0}{4}
-            String containing the name of the master HDF5-file in `working_dir`
-            to be used in this class instance. Different types of master
-            HDF5-files can be provided:
-                *Non-existing master HDF5-file*: This file will be created and
-                used to save the constructed emulator in.
-
-                *Existing master HDF5-file*: This file will be used to
-                regenerate a previously constructed emulator.
-        prism_file : str or None{0}{5}
+        prism_file : str or None{0}{4}
             String containing the absolute or relative path to the TXT-file
             containing the *PRISM* parameters that need to be changed from
             their default values. If a relative path is given, its path must be
             relative to `root_dir` or the current directory. If *None*, no
             changes will be made to the default parameters."""
 paths_doc_s = paths_doc.format("", "", "", "", "", "")
-paths_doc_d = paths_doc.format(ds, "None", "None", "None", "'prism.hdf5'",
-                               "None")
+paths_doc_d = paths_doc.format(ds, "None", "None", "None", "None")
 
 
 # %% EMULATOR DOCSTRINGS

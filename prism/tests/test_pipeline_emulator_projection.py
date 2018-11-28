@@ -458,20 +458,6 @@ class Test_Pipeline_Init_Exceptions(object):
                      prism_file=prism_file_default, prefix=1,
                      emul_type='default')
 
-    # Create a Pipeline object using an invalid hdf5_file path
-    def test_invalid_hdf5_file_name(self, root_working_dir, model_link):
-        with pytest.raises(TypeError):
-            Pipeline(model_link, *root_working_dir,
-                     prism_file=prism_file_default, hdf5_file=1,
-                     emul_type='default')
-
-    # Create a Pipeline object using an invalid hdf5_file extension
-    def test_invalid_hdf5_file_extension(self, root_working_dir, model_link):
-        with pytest.raises(ValueError):
-            Pipeline(model_link, *root_working_dir,
-                     prism_file=prism_file_default, hdf5_file='test.txt',
-                     emul_type='default')
-
     # Create a Pipeline object using invalid mock data spaces
     def test_invalid_mock_data_spc_predef(self, root_working_dir, model_link):
         model_link._data_spc = ['A', 'B', 'C']
@@ -678,6 +664,16 @@ class Test_Pipeline_User_Exceptions(object):
             pipe.project(1, (0, 1), impl_kwargs={'x': 1},
                          los_kwargs={'cmap': 1})
 
+    # Try to load an emulator with invalid emulator iteration groups
+    def test_invalid_iteration_groups(self, pipe):
+        with h5py.File(pipe._hdf5_file, 'r+') as file:
+            file.create_group('test')
+        with pytest.raises(InputError):
+            model_link = GaussianLink2D()
+            pipe._emulator._load_emulator(model_link)
+        with h5py.File(pipe._hdf5_file, 'r+') as file:
+            del file['test']
+
 
 # Pytest for Pipeline class request exception handling
 class Test_Pipeline_Request_Exceptions(object):
@@ -748,14 +744,6 @@ class Test_Pipeline_Request_Exceptions(object):
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                         prism_file=prism_file, emul_type='default')
         pipe.construct(1, force=True)
-
-    # Try to load an emulator with invalid emulator iteration groups
-    def test_invalid_iteration_groups(self, pipe_default):
-        with h5py.File(pipe_default._hdf5_file, 'r+') as file:
-            file.create_group('test')
-        with pytest.raises(RequestError):
-            model_link = GaussianLink2D()
-            pipe_default._emulator._load_emulator(model_link)
 
     # Try to call an iteration that cannot be finished
     def test_break_call(self, pipe_impl):
@@ -833,7 +821,7 @@ class Test_Pipeline_Init_Versatility(object):
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
-                        hdf5_file='test.hdf5', prism_file=prism_file_default,
+                        prism_file=prism_file_default,
                         emul_type=CustomEmulator)
         repr(pipe)
 

@@ -75,8 +75,8 @@ class Pipeline(Projection, object):
 
     @docstring_substitute(paths=paths_doc_d)
     def __init__(self, modellink_obj, root_dir=None, working_dir=None,
-                 prefix=None, hdf5_file='prism.hdf5', prism_file=None,
-                 emul_type='default', comm=MPI.COMM_WORLD):
+                 prefix=None, prism_file=None, emul_type='default',
+                 comm=MPI.COMM_WORLD):
         """
         Initialize an instance of the :class:`~Pipeline` class.
 
@@ -98,7 +98,8 @@ class Pipeline(Projection, object):
         comm : :obj:`~MPI.Intracomm` object. Default: :obj:`MPI.COMM_WORLD`
             The MPI intra-communicator to use in this :class:`~Pipeline`
             instance.
-            If ``mpi4py`` is not installed, ``mpi_dummy`` is used instead.
+            If ``mpi4py`` is not installed, :mod:`~prism._dummyMPI` is used
+            instead.
 
         """
 
@@ -124,8 +125,7 @@ class Pipeline(Projection, object):
             logger.info("Initializing Pipeline class.")
 
             # Obtain paths
-            self._get_paths(root_dir, working_dir, prefix, hdf5_file,
-                            prism_file)
+            self._get_paths(root_dir, working_dir, prefix, prism_file)
 
             # Move logger to working directory and restart it
             move_logger(self._working_dir, logging_file)
@@ -133,8 +133,7 @@ class Pipeline(Projection, object):
         # Remaining workers obtain paths from controller
         else:
             # Obtain paths
-            self._get_paths(root_dir, working_dir, prefix, hdf5_file,
-                            prism_file)
+            self._get_paths(root_dir, working_dir, prefix, prism_file)
 
         # MPI Barrier
         self._comm.Barrier()
@@ -212,7 +211,7 @@ class Pipeline(Projection, object):
     # TODO: Find out if there is a way to represent an MPI intra-communicator
     def __repr__(self):
         # Get path to current working directory, make all paths relative to it
-        cwd = os.getcwd()
+        pwd = os.getcwd()
 
         # Make empty list holding representations of all input arguments
         str_repr = []
@@ -222,10 +221,10 @@ class Pipeline(Projection, object):
 
         # Add the root_dir representation if it is not default
         if(path.splitdrive(self._root_dir)[0].lower() !=
-           path.splitdrive(cwd)[0].lower()):
+           path.splitdrive(pwd)[0].lower()):
             rel_root_path = self._root_dir
         else:
-            rel_root_path = path.relpath(self._root_dir, cwd)
+            rel_root_path = path.relpath(self._root_dir, pwd)
 
         if(rel_root_path != '.'):
             str_repr.append("root_dir=%r" % (rel_root_path))
@@ -234,19 +233,14 @@ class Pipeline(Projection, object):
         str_repr.append("working_dir=%r" % (path.relpath(self._working_dir,
                                                          self._root_dir)))
 
-        # Add the hdf5_file representation if it is not default
-        rel_hdf5_path = path.relpath(self._hdf5_file, self._working_dir)
-        if(rel_hdf5_path != 'prism.hdf5'):
-            str_repr.append("hdf5_file=%r" % (rel_hdf5_path))
-
         # Add the prism_file representation if it is not default
         if self._prism_file is not None:
             if(path.splitdrive(self._prism_file)[0].lower() !=
-               path.splitdrive(cwd)[0].lower()):
+               path.splitdrive(pwd)[0].lower()):
                 str_repr.append("prism_file=%r" % (self._prism_file))
             else:
                 str_repr.append("prism_file=%r"
-                                % (path.relpath(self._prism_file, cwd)))
+                                % (path.relpath(self._prism_file, pwd)))
 
         # Add the emul_type representation if it is not default
         emul_repr = "%s.%s" % (self._emulator.__class__.__module__,
@@ -827,10 +821,10 @@ class Pipeline(Projection, object):
     # Obtains the paths for the root directory, working directory, pipeline
     # hdf5-file and prism parameters file
     @docstring_substitute(paths=paths_doc_s)
-    def _get_paths(self, root_dir, working_dir, prefix, hdf5_file, prism_file):
+    def _get_paths(self, root_dir, working_dir, prefix, prism_file):
         """
-        Obtains the path for the root directory, working directory, HDF5-file
-        and parameters file for *PRISM*.
+        Obtains the path for the root directory, working directory and
+        parameters file for *PRISM*.
 
         Parameters
         ----------
@@ -838,8 +832,8 @@ class Pipeline(Projection, object):
 
         Generates
         ---------
-        The absolute paths to the root directory, working directory, pipeline
-        HDF5-file and *PRISM* parameters file.
+        The absolute paths to the root directory, working directory, emulator
+        master HDF5-file and *PRISM* parameters file.
 
         """
 
@@ -978,21 +972,7 @@ class Pipeline(Projection, object):
                 raise_error(InputError, err_msg, logger)
 
             # Obtain hdf5-file path
-            if isinstance(hdf5_file, (str, unicode)):
-                # Check if provided filename has correct extension
-                if path.splitext(hdf5_file)[1] not in ('.hdf5', '.h5'):
-                    err_msg = ("Input argument 'hdf5_file' has invalid HDF5 "
-                               "extension!")
-                    raise_error(ValueError, err_msg, logger)
-
-                # Save hdf5-file absolute path
-                self._hdf5_file = path.join(self._working_dir, hdf5_file)
-                logger.info("Master HDF5-file set to %r." % (hdf5_file))
-
-            # If no string is given, it is invalid
-            else:
-                err_msg = "Input argument 'hdf5_file' is not of type 'str'!"
-                raise_error(TypeError, err_msg, logger)
+            self._hdf5_file = path.join(self._working_dir, 'prism.hdf5')
 
             # Obtain PRISM parameter file path
             # If no PRISM parameter file was provided
@@ -2474,9 +2454,9 @@ class Pipeline(Projection, object):
 
         Props
         -----
-        HDF5-file name
-            The relative path to the loaded HDF5-file starting at `root_dir`,
-            which consists of the given `working_dir` and `hdf5_file`.
+        Working directory
+            The relative path to the working directory of the emulator starting
+            at the current working directory.
         Emulator type
             The type of this emulator, corresponding to the provided
             `emul_type` during :class:`~Pipeline` initialization.
@@ -2646,8 +2626,13 @@ class Pipeline(Projection, object):
             # Obtain number of emulator systems
             n_emul_s = self._emulator._n_emul_s_tot
 
-            # Determine the relative path to the master HDF5-file
-            hdf5_rel_path = path.relpath(self._hdf5_file, self._root_dir)
+            # Determine the relative path to the working directory
+            pwd = os.getcwd()
+            if(path.splitdrive(self._working_dir)[0].lower() !=
+               path.splitdrive(pwd)[0].lower()):
+                working_dir_rel_path = self._working_dir
+            else:
+                working_dir_rel_path = path.relpath(self._working_dir, pwd)
 
             # Set width of first details column
             width = 31
@@ -2662,8 +2647,8 @@ class Pipeline(Projection, object):
             print("-"*width)
 
             # General details about loaded emulator
-            print("{0: <{1}}\t'{2}'".format("HDF5-file name", width,
-                                            hdf5_rel_path))
+            print("{0: <{1}}\t'{2}'".format("Working directory", width,
+                                            working_dir_rel_path))
             print("{0: <{1}}\t'{2}'".format("Emulator type", width,
                                             self._emulator._emul_type))
             print("{0: <{1}}\t{2}".format("ModelLink subclass", width,
