@@ -378,7 +378,7 @@ def check_compatibility(emul_version):
     """
 
     # Do some logging
-    logger = getRLogger('CHECK')
+    logger = getCLogger('CHECK')
     logger.info("Performing version compatibility check.")
 
     # Loop over all compatibility versions

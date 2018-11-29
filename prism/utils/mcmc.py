@@ -3,8 +3,8 @@
 """
 MCMC
 ====
-Provides several functions that allow for *PRISM* to be connected easily to
-MCMC routines.
+Provides several functions that allow for *PRISM* to be connected more easily
+to MCMC routines.
 
 """
 
@@ -16,6 +16,7 @@ from __future__ import absolute_import, division, print_function
 # Built-in imports
 from inspect import isfunction
 import sys
+from textwrap import dedent
 import warnings
 
 # Package imports
@@ -39,12 +40,13 @@ if(sys.version_info.major >= 3):
 # %% FUNCTION DEFINITIONS
 # This function returns a specialized version of the lnpost function
 @docstring_substitute(emul_i=user_emul_i_doc)
-def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
+def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
+                  hybrid=True):
     """
-    Returns a function definition ``lnpost(par_set, *args, **kwargs)``.
+    Returns a function definition ``get_lnpost(par_set, *args, **kwargs)``.
 
-    This ``lnpost`` function can be used to calculate the natural logarithm of
-    the posterior probability, which analyzes a given `par_set` first in the
+    This `get_lnpost` function can be used to calculate the natural logarithm
+    of the posterior probability, which analyzes a given `par_set` first in the
     provided `pipeline_obj` at iteration `emul_i` and passes it to the
     `ext_lnpost` function if it is plausible.
 
@@ -68,11 +70,15 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
     unit_space : bool. Default: True
         Bool determining whether or not the provided sample will be given in
         unit space.
+    hybrid : bool. Default: True
+        Bool determining whether or not the `get_lnpost` function should
+        use the implausibility values of a given `par_set` as an additional
+        prior.
 
     Returns
     -------
-    lnpost : function
-        Definition of the function ``lnpost(par_set, *args, **kwargs)``.
+    get_lnpost : function
+        Definition of the function ``get_lnpost(par_set, *args, **kwargs)``.
 
 
     See also
@@ -85,7 +91,7 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
     Calling this function factory will disable all regular logging in
     `pipeline_obj` (:attr:`~prism.Pipeline.do_logging` set to
     *False*), in order to avoid having the same message being logged every time
-    `lnpost` is called.
+    `get_lnpost` is called.
 
     """
 
@@ -108,18 +114,39 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
     # Check if unit_space is a bool
     unit_space = check_vals(unit_space, 'unit_space', 'bool')
 
+    # Check if hybrid is a bool
+    hybrid = check_vals(hybrid, 'hybrid', 'bool')
+
+    # If hybrid sampling is requested, define the various code snippets
+    if hybrid:
+        # Define the various code snippets
+        pre_code = "lnprior = 0"
+        eval_code = ""
+        anal_code = dedent("""
+            lnprior = (np.log(1-impl_cut_val/self._impl_cut[i][0]) if
+                       impl_check_val else -np.infty)
+            """)
+        post_code = dedent("""
+            lnprior = self._comm.bcast(lnprior, 0)
+            self.results = (sam_set[sam_idx], lnprior)
+            """)
+        exit_code = ""
+
+        # Combine code snippets into a tuple
+        exec_code = (pre_code, eval_code, anal_code, post_code, exit_code)
+
     # Disable PRISM logging
     pipe.do_logging = False
 
-    # Define lnpost function
-    def lnpost(par_set, *args, **kwargs):
+    # Define get_lnpost function
+    def get_lnpost(par_set, *args, **kwargs):
         """
         Calculates the natural logarithm of the posterior probability of
         `par_set` using the provided function `ext_lnpost`, in addition to
         constraining it first with the emulator defined in the `pipeline_obj`.
 
-        This function needs to be called by all MPI ranks if
-        :attr:`~prism.Pipeline.worker_mode` is *False*.
+        This function needs to be called by all MPI ranks unless
+        :attr:`~prism.Pipeline.worker_mode` is *True*.
 
         Parameters
         ----------
@@ -138,8 +165,10 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
         -------
         lnp : float
             The natural logarithm of the posterior probability of `par_set`, as
-            determined by the emulator in `pipeline_obj` and the `ext_lnpost`
-            function.
+            determined by the `ext_lnpost` function if `par_set` is plausible.
+            If `hybrid` is *True*, `lnp` is calculated as `lnprior` +
+            `ext_lnpost`, with `lnprior` the natural logarithm of the first
+            implausibility cut-off value of `par_set` scaled with its maximum.
 
         """
 
@@ -154,13 +183,21 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
         if not ((par_rng[:, 0] <= sam)*(sam <= par_rng[:, 1])).all():
             return(-np.infty)
 
-        # Analyze par_set
-        impl_sam = pipe._make_call('_get_impl_sam', emul_i,
-                                   np.array(sam, ndmin=2))
+        # CHeck what sampling is requested and analyze par_set
+        if hybrid:
+            impl_sam, lnprior = pipe._make_call('_evaluate_sam_set', emul_i,
+                                                np.array(sam, ndmin=2),
+                                                *exec_code)
+        else:
+            impl_sam = pipe._make_call('_get_impl_sam', emul_i,
+                                       np.array(sam, ndmin=2))
 
         # If par_set is plausible, call ext_lnpost
-        if impl_sam.size:
-            return(ext_lnpost(par_set, *args, **kwargs))
+        if len(impl_sam):
+            if hybrid:
+                return(lnprior+ext_lnpost(par_set, *args, **kwargs))
+            else:
+                return(ext_lnpost(par_set, *args, **kwargs))
 
         # If par_set is not plausible, return -inf
         else:
@@ -172,14 +209,14 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True):
                     "requests multi-calls. Using MCMC may not be possible.")
         warnings.warn(warn_msg, stacklevel=2)
 
-    # Return lnpost function definition
-    return(lnpost)
+    # Return get_lnpost function definition
+    return(get_lnpost)
 
 
 # This function returns a set of valid MCMC walkers
 @docstring_substitute(emul_i=user_emul_i_doc)
 def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
-                lnpost_fn=None):
+                lnpost_fn=None, **kwargs):
     """
     Analyzes proposed `init_walkers` and returns valid `p0_walkers`.
 
@@ -216,7 +253,8 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         If function, call :func:`~get_lnpost_fn` function factory using
         `lnpost_fn` as the `ext_lnpost` input argument and the same values for
         `pipeline_obj`, `emul_i` and `unit_space`, and return the resulting
-        function definition ``lnpost``.
+        function definition `get_lnpost`. Any additionally provided `kwargs`
+        are also passed to it.
 
     Returns
     -------
@@ -224,15 +262,15 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         Number of returned MCMC walkers.
     p0_walkers : 2D :obj:`~numpy.ndarray` object
         Array containing starting positions of valid MCMC walkers.
-    lnpost : function (if `lnpost_fn` is a function)
+    get_lnpost : function (if `lnpost_fn` is a function)
         The function returned by :func:`~get_lnpost_fn` function factory using
-        `lnpost_fn`, `pipeline_obj`, `emul_i` and `unit_space` as the input
-        values.
+        `lnpost_fn`, `pipeline_obj`, `emul_i`, `unit_space` and `kwargs` as the
+        input values.
 
     See also
     --------
     :func:`~get_lnpost_fn`: Returns a function definition \
-        ``lnpost(par_set, *args, **kwargs)``.
+        ``get_lnpost(par_set, *args, **kwargs)``.
 
     Notes
     -----
@@ -325,6 +363,6 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
     # Check if lnpost_fn was requested and return it as well if so
     if lnpost_fn is not None:
         return(n_walkers, p0_walkers,
-               get_lnpost_fn(lnpost_fn, pipe, emul_i, unit_space))
+               get_lnpost_fn(lnpost_fn, pipe, emul_i, unit_space, **kwargs))
     else:
         return(n_walkers, p0_walkers)

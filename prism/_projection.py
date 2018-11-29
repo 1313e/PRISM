@@ -65,9 +65,6 @@ class Projection(object):
 
     """
 
-    # Determine the fig_prefix
-    _fig_prefix = path.join('{0}', '{1}_proj_')
-
     # Create __init__ method to warn if this class is every initialized
     def __init__(self, *args, **kwargs):
         logger = getCLogger('PROJECTION')

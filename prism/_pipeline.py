@@ -1947,8 +1947,8 @@ class Pipeline(Projection, object):
             Code snippet to be executed after the evaluation of each sample in
             `sam_set`.
         anal_code : str or code object
-            Code snippet to be executed after the evaluation of each sample in
-            `sam_set`.
+            Code snippet to be executed after the analysis of each sample in
+            `sam_set`. This code snippet is only executed by the controller.
         post_code : str or code object
             Code snippet to be executed after the evaluation of `sam_set` ends.
         exit_code : str or code object
@@ -1967,9 +1967,7 @@ class Pipeline(Projection, object):
         Notes
         -----
         If any of the code snippets is provided as a string, it will be
-        compiled before being executed every time the :func:`~exec` function is
-        called. Providing a code object instead will simply allow the code
-        snippet to be executed without any compilations.
+        compiled into a code object before starting the evaluation.
 
         """
 
@@ -1977,9 +1975,20 @@ class Pipeline(Projection, object):
         n_sam = sam_set.shape[0]
 
         # Start logging
-        logger = getCLogger('ANALYZE_SS')
-        logger.info("Starting analysis of evaluation sample set of size %i."
-                    % (n_sam))
+        logger = getCLogger('EVAL_SS')
+        logger.info("Starting evaluation of sample set of size %i." % (n_sam))
+
+        # Compile any code snippets that were provided as a string
+        if isinstance(pre_code, (str, unicode)):
+            pre_code = compile(pre_code, '<string>', 'exec')
+        if isinstance(eval_code, (str, unicode)):
+            eval_code = compile(eval_code, '<string>', 'exec')
+        if isinstance(anal_code, (str, unicode)):
+            anal_code = compile(anal_code, '<string>', 'exec')
+        if isinstance(post_code, (str, unicode)):
+            post_code = compile(post_code, '<string>', 'exec')
+        if isinstance(exit_code, (str, unicode)):
+            exit_code = compile(exit_code, '<string>', 'exec')
 
         # Make a filled bool list containing which samples are plausible
         impl_check = np.ones(n_sam, dtype=bool)

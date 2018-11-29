@@ -2559,14 +2559,15 @@ class Emulator(object):
     # Read in the emulator attributes
     def _retrieve_parameters(self):
         """
-        Reads in the emulator parameters from the provided HDF5-file and saves
-        them in the current :obj:`~Emulator` instance.
+        Reads in the emulator parameters from the provided working directory
+        and saves them in the current :obj:`~Emulator` instance.
 
         """
 
         # Log that parameters are being read
         logger = getCLogger('INIT')
-        logger.info("Retrieving emulator parameters from provided HDF5-file.")
+        logger.info("Retrieving emulator parameters from provided working "
+                    "directory.")
 
         # Open hdf5-file
         with self._File('r', None) as file:
