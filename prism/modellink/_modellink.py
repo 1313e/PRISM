@@ -276,8 +276,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @multi_call.setter
     def multi_call(self, multi_call):
         warn_msg = ("Setting property 'multi_call' is deprecated since v0.5.3."
-                    "Use the 'call_type' property instead.")
-        warnings.warn(warn_msg, stacklevel=2)
+                    "Set the 'call_type' property instead.")
+        warnings.warn(warn_msg, DeprecationWarning, stacklevel=2)
 
     @property
     def call_type(self):
@@ -966,7 +966,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         points `data_idx` for the model wrapped in this :class:`~ModelLink`
         subclass.
 
-        This method is always single-called with solely keyword arguments.
+        This method is always single-called by one MPI rank with solely keyword
+        arguments.
 
         This is an abstract method and must be overridden by the
         :class:`~ModelLink` subclass.

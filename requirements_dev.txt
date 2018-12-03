@@ -7,4 +7,4 @@ pytest-pep8
 python-coveralls
 readme_renderer
 setuptools>=36.3.0
-
+emcee>=2.2.1

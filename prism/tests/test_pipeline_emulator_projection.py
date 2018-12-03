@@ -19,12 +19,12 @@ import pytest
 import pytest_mpl
 
 # PRISM imports
-from .modellink.simple_gaussian_link import GaussianLink2D, GaussianLink3D
-from prism._emulator import Emulator
-from prism._internal import RequestError, check_instance
-from prism._pipeline import Pipeline
-from prism._projection import Projection
-from prism.modellink import ModelLink
+from .._emulator import Emulator
+from .._internal import RequestError, check_instance
+from .._pipeline import Pipeline
+from .._projection import Projection
+from ..modellink._modellink import ModelLink
+from ..modellink.tests.modellink import GaussianLink2D, GaussianLink3D
 
 
 # Save the path to this directory

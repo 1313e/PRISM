@@ -13,7 +13,7 @@ from sys import platform, version_info
 import numpy as np
 
 # PRISM imports
-from prism._dummyMPI import Comm, COMM_WORLD as comm
+from .._dummyMPI import Comm, COMM_WORLD as comm
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)

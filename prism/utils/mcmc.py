@@ -183,7 +183,7 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
         if not ((par_rng[:, 0] <= sam)*(sam <= par_rng[:, 1])).all():
             return(-np.infty)
 
-        # CHeck what sampling is requested and analyze par_set
+        # Check what sampling is requested and analyze par_set
         if hybrid:
             impl_sam, lnprior = pipe._make_call('_evaluate_sam_set', emul_i,
                                                 np.array(sam, ndmin=2),
@@ -207,7 +207,7 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
     if pipe._is_controller and not pipe._modellink._single_call:
         warn_msg = ("ModelLink bound to provided Pipeline object solely "
                     "requests multi-calls. Using MCMC may not be possible.")
-        warnings.warn(warn_msg, stacklevel=2)
+        warnings.warn(warn_msg, UserWarning, stacklevel=2)
 
     # Return get_lnpost function definition
     return(get_lnpost)
@@ -293,9 +293,13 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
     # Check if unit_space is a bool
     unit_space = check_vals(unit_space, 'unit_space', 'bool')
 
-    # Check if lnpost_fn is a function or None
-    if not isfunction(lnpost_fn) and lnpost_fn is not None:
-        raise InputError("Input argument 'lnpost_fn' is invalid!")
+    # Check if lnpost_fn is None and try to obtain lnpost function if not
+    if lnpost_fn is not None:
+        try:
+            lnpost_fn = get_lnpost_fn(lnpost_fn, pipe, emul_i, unit_space,
+                                      **kwargs)
+        except InputError:
+            raise InputError("Input argument 'lnpost_fn' is invalid!")
 
     # If init_walkers is None, use impl_sam of emul_i
     if init_walkers is None:
@@ -362,7 +366,6 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
 
     # Check if lnpost_fn was requested and return it as well if so
     if lnpost_fn is not None:
-        return(n_walkers, p0_walkers,
-               get_lnpost_fn(lnpost_fn, pipe, emul_i, unit_space, **kwargs))
+        return(n_walkers, p0_walkers, lnpost_fn)
     else:
         return(n_walkers, p0_walkers)

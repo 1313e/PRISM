@@ -16,13 +16,12 @@ import numpy as np
 import pytest
 
 # PRISM imports
-from prism._internal import (compat_version, prism_version, CLogger, RLogger,
-                             RequestError, docstring_append, docstring_copy,
-                             docstring_substitute, check_instance, check_vals,
-                             check_compatibility, convert_str_seq, delist,
-                             getCLogger, get_PRISM_File, getRLogger,
-                             import_cmaps, move_logger, raise_error, rprint,
-                             start_logger)
+from .._internal import (compat_version, prism_version, CLogger, RLogger,
+                         RequestError, docstring_append, docstring_copy,
+                         docstring_substitute, check_instance, check_vals,
+                         check_compatibility, convert_str_seq, delist,
+                         getCLogger, get_PRISM_File, getRLogger, import_cmaps,
+                         move_logger, raise_error, rprint, start_logger)
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
