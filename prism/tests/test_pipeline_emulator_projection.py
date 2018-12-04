@@ -468,7 +468,7 @@ class Test_Pipeline_Init_Exceptions(object):
         with pytest.raises(NotImplementedError):
             pipe._emulator._create_new_emulator()
 
-    # Create a Pipeline object using invalid mock data spaces
+    # Create a new emulator using invalid mock data spaces
     def test_invalid_mock_data_spc_undef(self, root_working_dir):
         model_link = GaussianLink3D(model_parameters=model_parameters_3D,
                                     model_data=model_data_single)
@@ -502,6 +502,14 @@ class Test_Pipeline_Init_Exceptions(object):
                         prism_file=prism_file, emul_type='default')
         with pytest.raises(ValueError):
             pipe._get_impl_par(True)
+
+    # Create a new emulator using an invalid n_cross_val value
+    def test_invalid_n_cross_val(self, root_working_dir, model_link):
+        prism_file = path.join(dirpath, 'data/prism_invalid_n_cross_val.txt')
+        pipe = Pipeline(model_link, *root_working_dir, prism_file=prism_file,
+                        emul_type='default')
+        with pytest.raises(ValueError):
+            pipe._emulator._create_new_emulator()
 
     # Try to load an emulator that was built with a different modellink
     def test_unmatched_ModelLink(self, root_working_dir, model_link):

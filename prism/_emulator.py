@@ -40,10 +40,10 @@ from ._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
                           emul_s_seq_doc, eval_doc, full_cov_doc,
                           get_emul_i_doc, read_par_doc, regr_cov_doc,
                           save_data_doc_e, std_emul_i_doc)
-from ._internal import (RequestError, check_compatibility, check_instance,
-                        check_vals, convert_str_seq, delist, docstring_append,
-                        docstring_substitute, getCLogger, getRLogger,
-                        raise_error)
+from ._internal import (RequestError, RequestWarning, check_compatibility,
+                        check_instance, check_vals, convert_str_seq, delist,
+                        docstring_append, docstring_substitute, getCLogger,
+                        getRLogger, raise_error, raise_warning)
 from .modellink import ModelLink
 
 # All declaration
@@ -233,12 +233,26 @@ class Emulator(object):
         """
         int: Polynomial order that is considered for the regression process.
         If :attr:`~method` == 'gaussian' and
-        :attr:`~prism.Pipeline.do_active_anal` is *False*, this number
-        is not required.
+        :attr:`~prism.Pipeline.do_active_anal` is *False*, this number is not
+        required.
 
         """
 
         return(self._poly_order)
+
+    @property
+    def n_cross_val(self):
+        """
+        int: Number of (k-fold) cross-validations that are used for determining
+        the quality of the regression process. It is set to zero if
+        cross-validations are not used.
+        If :attr:`~method` == 'gaussian' and
+        :attr:`~prism.Pipeline.do_active_anal` is *False*, this number is not
+        required.
+
+        """
+
+        return(self._n_cross_val)
 
     @property
     def active_emul_s(self):
@@ -463,7 +477,7 @@ class Emulator(object):
             elif not(1 <= emul_i <= global_emul_i):
                 err_msg = ("Requested emulator iteration %i does not exist!"
                            % (emul_i))
-                raise_error(RequestError, err_msg, logger)
+                raise_error(err_msg, RequestError, logger)
             else:
                 emul_i = check_vals(emul_i, 'emul_i', 'pos', 'int')
 
@@ -474,7 +488,7 @@ class Emulator(object):
             elif not(1 <= emul_i <= global_emul_i+1):
                 err_msg = ("Requested emulator iteration %i cannot be "
                            "requested!" % (emul_i))
-                raise_error(RequestError, err_msg, logger)
+                raise_error(err_msg, RequestError, logger)
             else:
                 emul_i = check_vals(emul_i, 'emul_i', 'pos', 'int')
 
@@ -524,6 +538,7 @@ class Emulator(object):
                 file.attrs['method'] = self._method.encode('ascii', 'ignore')
                 file.attrs['use_regr_cov'] = bool(self._use_regr_cov)
                 file.attrs['poly_order'] = self._poly_order
+                file.attrs['n_cross_val'] = self._n_cross_val
                 file.attrs['modellink_name'] =\
                     self._modellink._name.encode('ascii', 'ignore')
                 file.attrs['prism_version'] =\
@@ -1031,7 +1046,7 @@ class Emulator(object):
         elif not(1 <= emul_i-1 <= self._emul_i):
             err_msg = ("Preparation of emulator iteration %i is only available"
                        " when all previous iterations exist!" % (emul_i))
-            raise_error(RequestError, err_msg, logger)
+            raise_error(err_msg, RequestError, logger)
         elif(emul_i-1 == self._emul_i):
             # Set reload flag to 0
             reload = 0
@@ -1064,13 +1079,12 @@ class Emulator(object):
 
             # If all diff_flags were 0, give out a warning
             if self._is_controller and not diff_flag:
-                msg = ("No differences in model comparison data detected."
-                       "\nUnless this repreparation was intentional, using the"
-                       " 'analyze' method of the Pipeline class is much faster"
-                       " for reanalyzing the emulator with new pipeline "
-                       "parameters.")
-                logger.warning(msg)
-                print(msg)
+                warn_msg = ("No differences in model comparison data detected."
+                            "\nUnless this repreparation was intentional, "
+                            "using the 'analyze' method of the Pipeline class "
+                            "is much faster for reanalyzing the emulator with "
+                            "new implausibility analysis parameters.")
+                raise_warning(warn_msg, RequestWarning, logger, 3)
 
             # Set reload flag to 1
             reload = 1
@@ -1360,7 +1374,7 @@ class Emulator(object):
                     # Create SequentialFeatureSelector object
                     sfs_obj = SFS(LR(), k_features='parsimonious',
                                   forward=False, floating=False, scoring='r2',
-                                  cv=min(5, self._n_sam[emul_i]))
+                                  cv=self._n_cross_val)
 
                     # Obtain sam_set of frz_pot_par
                     frz_pot_sam_set = self._sam_set[emul_i][:, frz_pot_par]
@@ -1471,7 +1485,7 @@ class Emulator(object):
         # Create SequentialFeatureSelector object
         sfs_obj = SFS(LR(), k_features='best', forward=True, floating=False,
                       scoring='neg_mean_squared_error',
-                      cv=min(5, self._n_sam[emul_i]))
+                      cv=self._n_cross_val)
 
         # Create Scikit-learn Pipeline object
         # The bias/intercept/constant-term is not included in the SFS object to
@@ -2006,7 +2020,7 @@ class Emulator(object):
                 if(req_keys != list(file.keys())):
                     err_msg = ("Found master HDF5-file contains invalid data "
                                "groups!")
-                    raise_error(InputError, err_msg, logger)
+                    raise_error(err_msg, InputError, logger)
 
                 # Log that valid emulator was found
                 logger.info("Found master HDF5-file is valid.")
@@ -2073,13 +2087,13 @@ class Emulator(object):
                 err_msg = ("Provided ModelLink subclass %r was not "
                            "initialized properly!"
                            % (modellink_obj.__class__.__name__))
-                raise_error(InputError, err_msg, logger)
+                raise_error(err_msg, InputError, logger)
 
         # If this fails, modellink_obj is not an instance of ModelLink
         except TypeError:
             err_msg = ("Input argument 'modellink_obj' must be an instance of "
                        "the ModelLink class!")
-            raise_error(TypeError, err_msg, logger)
+            raise_error(err_msg, TypeError, logger)
 
         # If no existing emulator is loaded, pass
         if modellink_loaded is None:
@@ -2107,7 +2121,7 @@ class Emulator(object):
             err_msg = ("Provided ModelLink subclass %r does not match the "
                        "ModelLink subclass %r used for emulator construction!"
                        % (modellink_obj._name, modellink_loaded))
-            raise_error(InputError, err_msg, logger)
+            raise_error(err_msg, InputError, logger)
 
         # Logging
         logger.info("ModelLink object set to %r." % (self._modellink._name))
@@ -2173,7 +2187,7 @@ class Emulator(object):
         elif not(1 <= emul_i <= self._emul_i):
             err_msg = ("Requested emulator iteration %i does not exist!"
                        % (emul_i))
-            raise_error(RequestError, err_msg, logger)
+            raise_error(err_msg, RequestError, logger)
 
         # If both checks succeed, assign emulator systems to the MPI ranks
         if self._is_controller:
@@ -2551,7 +2565,7 @@ class Emulator(object):
                 # INVALID KEYWORD
                 else:
                     err_msg = "Invalid keyword argument provided!"
-                    raise_error(ValueError, err_msg, logger)
+                    raise_error(err_msg, ValueError, logger)
 
         # More logging
         logger.info("Finished saving data to HDF5.")
@@ -2577,6 +2591,7 @@ class Emulator(object):
             self._method = file.attrs['method'].decode('utf-8')
             self._use_regr_cov = int(file.attrs['use_regr_cov'])
             self._poly_order = file.attrs['poly_order']
+            self._n_cross_val = file.attrs['n_cross_val']
             modellink_name = file.attrs['modellink_name'].decode('utf-8')
             self._use_mock = int(file.attrs['use_mock'])
 
@@ -2588,7 +2603,7 @@ class Emulator(object):
         if(emul_type != self._emul_type):
             err_msg = ("Provided emulator system type (%r) does not match the "
                        "requested type (%r)!" % (emul_type, self._emul_type))
-            raise_error(RequestError, err_msg, logger)
+            raise_error(err_msg, RequestError, logger)
 
         # Check if provided emul_version is compatible
         check_compatibility(emul_version)
@@ -2609,6 +2624,7 @@ class Emulator(object):
                     'method': "'full'",
                     'use_regr_cov': 'False',
                     'poly_order': '3',
+                    'n_cross_val': '5',
                     'use_mock': 'False'}
 
         # Return it
@@ -2640,7 +2656,8 @@ class Emulator(object):
 
         # GENERAL
         # Gaussian sigma
-        self._sigma = check_vals(float(par_dict['sigma']), 'sigma', 'nzero')
+        self._sigma = check_vals(convert_str_seq(par_dict['sigma'])[0],
+                                 'sigma', 'float', 'nzero')
 
         # Gaussian correlation length
         l_corr = check_vals(convert_str_seq(par_dict['l_corr']), 'l_corr',
@@ -2650,7 +2667,8 @@ class Emulator(object):
 
         # Method used to calculate emulator functions
         # Future will include 'gaussian', 'regression', 'auto' and 'full'
-        self._method = str(par_dict['method']).replace("'", '')
+        self._method = check_vals(convert_str_seq(par_dict['method'])[0],
+                                  'method', 'str')
         if self._method.lower() in ('gaussian', 'regression', 'full'):
             pass
         elif(self._method.lower() == 'auto'):
@@ -2658,19 +2676,30 @@ class Emulator(object):
         else:
             err_msg = ("Input argument 'method' is invalid (%r)!"
                        % (self._method.lower()))
-            raise_error(ValueError, err_msg, logger)
+            raise_error(err_msg, ValueError, logger)
 
         # Obtain the bool determining whether or not to use regr_cov
         self._use_regr_cov = check_vals(par_dict['use_regr_cov'],
                                         'use_regr_cov', 'bool')
 
         # Check if method == 'regression' and set use_regr_cov to True if so
-        if self._method.lower() == 'regression':
+        if(self._method.lower() == 'regression'):
             self._use_regr_cov = 1
 
         # Obtain the polynomial order for the regression selection process
-        self._poly_order = check_vals(int(par_dict['poly_order']),
-                                      'poly_order', 'pos')
+        self._poly_order =\
+            check_vals(convert_str_seq(par_dict['poly_order'])[0],
+                       'poly_order', 'int', 'pos')
+
+        # Obtain the number of requested cross-validations
+        n_cross_val = check_vals(convert_str_seq(par_dict['n_cross_val'])[0],
+                                 'n_cross_val', 'int', 'nneg')
+        if(n_cross_val != 1):
+            self._n_cross_val = n_cross_val
+        else:
+            err_msg = ("Input argument 'n_cross_val' must be zero or higher "
+                       "than two!")
+            raise_error(err_msg, ValueError, logger)
 
         # Obtain the bool determining whether or not to use mock data
         use_mock = check_vals(par_dict['use_mock'], 'use_mock', 'bool')
@@ -2683,7 +2712,7 @@ class Emulator(object):
                        "has been requested for new emulator. Reinitialize the "
                        "ModelLink and Pipeline classes to accommodate for this"
                        " change.")
-            raise_error(RequestError, err_msg, logger)
+            raise_error(err_msg, RequestError, logger)
         else:
             self._use_mock = use_mock
 

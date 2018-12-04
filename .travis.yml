@@ -14,7 +14,8 @@ install:
   - pip install -r requirements_dev.txt
 script:
   - check-manifest --ignore appveyor.cmd,.appveyor.yml,.coveragerc,prism_trash*,docs*,test_scripts*
-  - python setup.py check -m -r -s
+  - python setup.py sdist bdist_wheel
+  - twine check dist/*
   - pip install .
   - py.test prism
 after_success:

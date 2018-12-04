@@ -9,6 +9,7 @@ criterion		: 'multi'
 method			: 'full'
 use_regr_cov		: False
 poly_order		: 3
+n_cross_val		: 5
 do_active_anal		: False
 freeze_active_par	: True
 pot_active_par		: ['b51_coh_b1', 'b51_coh_b2', 'b51_coh_b3', 'b51_coh_b4', 'b51_coh_b5', 'b51_coh_b6', 'b51_coh_b7', 'b51_b0_x', 'b51_Xtheta', 'b51_r0_x', 'b51_h_disk', 'b51_Bn', 'b51_Bs', 'b51_z0_halo', 'b51_b_ring']

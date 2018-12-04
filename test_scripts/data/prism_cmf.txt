@@ -9,6 +9,7 @@ criterion		: None
 method			: 'full'
 use_regr_cov		: False
 poly_order		: 3
+n_cross_val		: 5
 do_active_anal		: True
 freeze_active_par	: True
 pot_active_par		: None

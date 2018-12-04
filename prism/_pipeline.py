@@ -42,11 +42,11 @@ from ._docstrings import (call_emul_i_doc, call_model_doc_s, call_model_doc_m,
                           paths_doc_d, paths_doc_s, read_par_doc,
                           save_data_doc_p, std_emul_i_doc, user_emul_i_doc)
 from ._emulator import Emulator
-from ._internal import (PRISM_Comm, RequestError, check_vals, convert_str_seq,
-                        delist, docstring_append, docstring_copy,
-                        docstring_substitute, exec_code_anal, getCLogger,
-                        get_PRISM_File, getRLogger, move_logger, raise_error,
-                        start_logger)
+from ._internal import (PRISM_Comm, RequestError, RequestWarning, check_vals,
+                        convert_str_seq, delist, docstring_append,
+                        docstring_copy, docstring_substitute, exec_code_anal,
+                        getCLogger, get_PRISM_File, getRLogger, move_logger,
+                        raise_error, raise_warning, start_logger)
 from ._projection import Projection
 
 # All declaration
@@ -154,7 +154,7 @@ class Pipeline(Projection, object):
             except Exception as error:
                 err_msg = ("Input argument 'emul_type' is invalid! (%s)"
                            % (error))
-                raise_error(InputError, err_msg, logger)
+                raise_error(err_msg, InputError, logger)
 
         # If not, initialize a registered Emulator class
         elif(emul_type == 'default'):
@@ -164,7 +164,7 @@ class Pipeline(Projection, object):
         else:
             err_msg = ("Input argument 'emul_type' is invalid (%r)!"
                        % (emul_type))
-            raise_error(InputError, err_msg, logger)
+            raise_error(err_msg, InputError, logger)
 
         # Let everybody read in the pipeline parameters
         self._read_parameters()
@@ -732,12 +732,14 @@ class Pipeline(Projection, object):
 
         # GENERAL
         # Number of starting samples
-        self._n_sam_init = check_vals(int(par_dict['n_sam_init']),
-                                      'n_sam_init', 'pos')
+        self._n_sam_init =\
+            check_vals(convert_str_seq(par_dict['n_sam_init'])[0],
+                       'n_sam_init', 'int', 'pos')
 
         # Base number of emulator evaluation samples
-        self._base_eval_sam = check_vals(int(par_dict['base_eval_sam']),
-                                         'base_eval_sam', 'pos')
+        self._base_eval_sam =\
+            check_vals(convert_str_seq(par_dict['base_eval_sam'])[0],
+                       'base_eval_sam', 'int', 'pos')
 
         # Criterion parameter used for Latin Hypercube Sampling
         # If criterion is None, save it as such
@@ -748,16 +750,12 @@ class Pipeline(Projection, object):
         elif par_dict['criterion'].lower() in ('false', 'true'):
             err_msg = ("Input argument 'criterion' does not accept values of "
                        "type 'bool'!")
-            raise_error(TypeError, err_msg, logger)
+            raise_error(err_msg, TypeError, logger)
 
         # If anything else is given, it must be a float or string
         else:
-            # Try to convert value to float
-            try:
-                criterion = float(par_dict['criterion'])
-            # If it fails, it must be a string
-            except ValueError:
-                criterion = par_dict['criterion'].replace("'", '')
+            # Convert to float or string
+            criterion = convert_str_seq(par_dict['criterion'])[0]
 
             # Try to use criterion to check validity
             try:
@@ -785,7 +783,7 @@ class Pipeline(Projection, object):
         elif par_dict['pot_active_par'].lower() in ('false', 'true'):
             err_msg = ("Input argument 'pot_active_par' does not accept values"
                        "of type 'bool'!")
-            raise_error(TypeError, err_msg, logger)
+            raise_error(err_msg, TypeError, logger)
 
         # If anything else is given, it must be a sequence of model parameters
         else:
@@ -866,7 +864,7 @@ class Pipeline(Projection, object):
             # If anything else is given, it is invalid
             else:
                 err_msg = "Input argument 'root_dir' is invalid!"
-                raise_error(InputError, err_msg, logger)
+                raise_error(err_msg, InputError, logger)
 
             # Check if a valid working directory prefix string is given
             if prefix is None:
@@ -879,7 +877,7 @@ class Pipeline(Projection, object):
                 prefix_len = len(prefix)
             else:
                 err_msg = "Input argument 'prefix' is not of type 'str'!"
-                raise_error(TypeError, err_msg, logger)
+                raise_error(err_msg, TypeError, logger)
 
             # Obtain working directory path
             # If one did not specify a working directory, obtain it
@@ -969,7 +967,7 @@ class Pipeline(Projection, object):
             # If anything else is given, it is invalid
             else:
                 err_msg = "Input argument 'working_dir' is invalid!"
-                raise_error(InputError, err_msg, logger)
+                raise_error(err_msg, InputError, logger)
 
             # Obtain hdf5-file path
             self._hdf5_file = path.join(self._working_dir, 'prism.hdf5')
@@ -991,14 +989,14 @@ class Pipeline(Projection, object):
                 else:
                     err_msg = ("Input argument 'prism_file' is a non-existing "
                                "path (%r)!" % (prism_file))
-                    raise_error(OSError, err_msg, logger)
+                    raise_error(err_msg, OSError, logger)
                 logger.info("PRISM parameters file set to %r."
                             % (self._prism_file))
 
             # If anything else is given, it is invalid
             else:
                 err_msg = "Input argument 'prism_file' is invalid!"
-                raise_error(InputError, err_msg, logger)
+                raise_error(err_msg, InputError, logger)
 
         # Workers get dummy paths
         else:
@@ -1256,7 +1254,7 @@ class Pipeline(Projection, object):
                 # INVALID KEYWORD
                 else:
                     err_msg = "Invalid keyword argument provided!"
-                    raise_error(ValueError, err_msg, logger)
+                    raise_error(err_msg, ValueError, logger)
 
     # This function saves a statistic to hdf5
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -1707,7 +1705,7 @@ class Pipeline(Projection, object):
         except IndexError:
             err_msg = ("Provided implausibility cut-off list contains no "
                        "elements!")
-            raise_error(ValueError, err_msg, logger)
+            raise_error(err_msg, ValueError, logger)
 
         # Loop over the remaining values in impl_cut
         for i in range(1, len(impl_cut)):
@@ -1723,7 +1721,7 @@ class Pipeline(Projection, object):
             elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
                 err_msg = ("Cut-off %i is higher than cut-off %i (%f > %f)!"
                            % (i, i-1, impl_cut[i], impl_cut[i-1]))
-                raise_error(ValueError, err_msg, logger)
+                raise_error(err_msg, ValueError, logger)
 
         # Get the index identifying where the first real impl_cut is
         for i, impl in enumerate(impl_cut[:self._emulator._n_data_tot[-1]]):
@@ -1733,7 +1731,7 @@ class Pipeline(Projection, object):
         # If the loop ends normally, there were only wildcards
         else:
             err_msg = "No non-wildcard implausibility cut-off was provided!"
-            raise_error(ValueError, err_msg, logger)
+            raise_error(err_msg, ValueError, logger)
 
         # Save both impl_cut and cut_idx
         impl_cut = np.array(impl_cut)[cut_idx:]
@@ -1835,7 +1833,7 @@ class Pipeline(Projection, object):
             # Check if ext_real_set contains 2 elements
             if(len(ext_real_set) != 2):
                 err_msg = "Input argument 'ext_real_set' is not of length 2!"
-                raise_error(ShapeError, err_msg, logger)
+                raise_error(err_msg, ShapeError, logger)
 
             # Try to extract ext_sam_set and ext_mod_set
             try:
@@ -1844,7 +1842,7 @@ class Pipeline(Projection, object):
             except Exception as error:
                 err_msg = ("Input argument 'ext_real_set' is invalid! (%s)"
                            % (error))
-                raise_error(InputError, err_msg, logger)
+                raise_error(err_msg, InputError, logger)
 
         # If a dict is given
         elif isinstance(ext_real_set, dict):
@@ -1852,11 +1850,11 @@ class Pipeline(Projection, object):
             if 'sam_set' not in ext_real_set.keys():
                 err_msg = ("Input argument 'ext_real_set' does not contain key"
                            " 'sam_set'!")
-                raise_error(KeyError, err_msg, logger)
+                raise_error(err_msg, KeyError, logger)
             if 'mod_set' not in ext_real_set.keys():
                 err_msg = ("Input argument 'ext_real_set' does not contain key"
                            " 'mod_set'!")
-                raise_error(KeyError, err_msg, logger)
+                raise_error(err_msg, KeyError, logger)
 
             # Try to extract ext_sam_set and ext_mod_set
             try:
@@ -1865,12 +1863,12 @@ class Pipeline(Projection, object):
             except Exception as error:
                 err_msg = ("Input argument 'ext_real_set' is invalid! (%s)"
                            % (error))
-                raise_error(InputError, err_msg, logger)
+                raise_error(err_msg, InputError, logger)
 
         # If anything else is given, it is invalid
         else:
             err_msg = "Input argument 'ext_real_set' is invalid!"
-            raise_error(InputError, err_msg, logger)
+            raise_error(err_msg, InputError, logger)
 
         # Check ext_sam_set and ext_mod_set
         ext_sam_set = self._modellink._check_sam_set(ext_sam_set,
@@ -1887,7 +1885,7 @@ class Pipeline(Projection, object):
             err_msg = ("External sample and model output sets do not contain "
                        "the same number of samples (%i != %i)!"
                        % (ext_sam_set.shape[0], ext_mod_set.shape[0]))
-            raise_error(ShapeError, err_msg, logger)
+            raise_error(err_msg, ShapeError, logger)
 
         # Log that processing has been finished
         logger.info("Finished processing externally provided model realization"
@@ -2140,7 +2138,7 @@ class Pipeline(Projection, object):
                                    "(%i) has already been started. Reanalysis "
                                    "of the current iteration is not possible."
                                    % (emul_i+1))
-                        raise_error(RequestError, err_msg, logger)
+                        raise_error(err_msg, RequestError, logger)
 
         # Controller obtaining the emulator evaluation sample set
         if self._is_controller:
@@ -2174,6 +2172,18 @@ class Pipeline(Projection, object):
             time_diff_total = end_time-start_time1
             time_diff_eval = end_time-start_time2
 
+            # Calculate the number of plausible samples left
+            n_impl_sam = len(impl_sam)
+
+            # Raise warning if n_impl_sam is less than n_sam_init
+            if(n_impl_sam < self._n_sam_init):
+                warn_msg = ("Number of plausible samples is lower than the "
+                            "number of samples in the first iteration (%i < "
+                            "%i). Constructing the next iteration might not "
+                            "produce a more accurate emulator."
+                            % (n_impl_sam, self._n_sam_init))
+                raise_warning(warn_msg, RequestWarning, logger, 2)
+
             # Save the results
             self._save_data({
                 'impl_sam': impl_sam,
@@ -2181,7 +2191,7 @@ class Pipeline(Projection, object):
 
             # Save statistics about analyze time, evaluation rate, par_space
             avg_eval_rate = n_eval_sam/time_diff_eval
-            par_space_rem = (len(impl_sam)/n_eval_sam)*100
+            par_space_rem = (n_impl_sam/n_eval_sam)*100
             self._save_statistics(emul_i, {
                 'tot_analyze_time': ['%.2f' % (time_diff_total), 's'],
                 'avg_emul_eval_rate': ['%.2f' % (avg_eval_rate), '1/s'],
@@ -2193,7 +2203,7 @@ class Pipeline(Projection, object):
                     "averaging %.2f emulator evaluations per second."
                     % (time_diff_total, n_eval_sam/time_diff_eval))
             msg2 = ("There is %.3g%% of parameter space remaining."
-                    % ((len(impl_sam)/n_eval_sam)*100))
+                    % (par_space_rem))
             logger.info(msg1)
             logger.info(msg2)
             print(msg1)
@@ -2388,7 +2398,7 @@ class Pipeline(Projection, object):
                         err_msg = ("No plausible regions were found in the "
                                    "analysis of the previous emulator "
                                    "iteration. Construction is not possible!")
-                        raise_error(RequestError, err_msg, logger)
+                        raise_error(err_msg, RequestError, logger)
 
                     # Make the emulator prepare for a new iteration
                     reload = self._emulator._prepare_new_iteration(emul_i)

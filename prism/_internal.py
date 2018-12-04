@@ -23,6 +23,7 @@ from os import path
 import shutil
 import sys
 from tempfile import mkstemp
+import warnings
 
 # Package imports
 from e13tools import InputError, compare_versions
@@ -40,12 +41,12 @@ from .__version__ import compat_version, prism_version
 
 # All declaration
 __all__ = ['CFilter', 'CLogger', 'PRISM_Comm', 'RFilter', 'RLogger',
-           'RequestError', 'aux_char_list', 'check_compatibility',
-           'check_instance', 'check_vals', 'convert_str_seq', 'delist',
-           'docstring_append', 'docstring_copy', 'docstring_substitute',
-           'exec_code_anal', 'getCLogger', 'get_PRISM_File', 'getRLogger',
-           'import_cmaps', 'move_logger', 'raise_error', 'rprint',
-           'start_logger']
+           'RequestError', 'RequestWarning', 'aux_char_list',
+           'check_compatibility', 'check_instance', 'check_vals',
+           'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
+           'docstring_substitute', 'exec_code_anal', 'getCLogger',
+           'get_PRISM_File', 'getRLogger', 'import_cmaps', 'move_logger',
+           'raise_error', 'raise_warning', 'rprint', 'start_logger']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -308,6 +309,22 @@ class RequestError(Exception):
     pass
 
 
+# Define Warning class for when a (future) requested action may not be useful
+class RequestWarning(Warning):
+    """
+    Generic warning raised for (future) action requests in the *PRISM* pipeline
+    that may not be useful.
+
+    General purpose warning class, raised whenever a requested action may not
+    produce appropriate or expected results due to the current state of the
+    :obj:`~prism.Pipeline` instance. It is also raised if an obtained result
+    can lead to such an action in the future.
+
+    """
+
+    pass
+
+
 # %% DECORATOR DEFINITIONS
 # Define custom decorator for appending docstrings to a function's docstring
 def docstring_append(addendum, join=''):
@@ -389,14 +406,14 @@ def check_compatibility(emul_version):
             err_msg = ("The provided emulator is incompatible with the current"
                        " version of PRISM (v%s). The last compatible version "
                        "is v%s." % (prism_version, version))
-            raise_error(RequestError, err_msg, logger)
+            raise_error(err_msg, RequestError, logger)
 
     # Check if emul_version is not newer than prism_version
     if not compare_versions(prism_version, emul_version):
         err_msg = ("The provided emulator was constructed with a version later"
                    " than the current version of PRISM (v%s). Use v%s or later"
                    " to use this emulator." % (prism_version, emul_version))
-        raise_error(RequestError, err_msg, logger)
+        raise_error(err_msg, RequestError, logger)
     else:
         logger.info("Version compatibility check was successful.")
 
@@ -496,7 +513,7 @@ def check_vals(values, name, *args):
         arr_type = 'scalar'
     else:
         err_msg = "Input argument %r is not array_like!" % (name)
-        raise_error(InputError, err_msg, logger)
+        raise_error(err_msg, InputError, logger)
 
     # Convert values to a NumPy array
     try:
@@ -504,7 +521,7 @@ def check_vals(values, name, *args):
     except Exception as error:
         err_msg = ("Input argument %r cannot be converted to a NumPy array! "
                    "(%s)" % (name, error))
-        raise_error(InputError, err_msg, logger)
+        raise_error(err_msg, InputError, logger)
 
     # Loop over all criteria
     while len(args):
@@ -528,7 +545,7 @@ def check_vals(values, name, *args):
                 index = np.unravel_index(np.argmin(check_list), values.shape)
                 err_msg = ("Input argument '%s%s' is not of type 'bool'!"
                            % (name, list(index) if values.ndim != 0 else ''))
-                raise_error(TypeError, err_msg, logger)
+                raise_error(err_msg, TypeError, logger)
             else:
                 # If so, convert values to integers and break the loop
                 values = np.asanyarray(values, dtype=int)
@@ -541,7 +558,7 @@ def check_vals(values, name, *args):
                 break
             else:
                 err_msg = "Input argument %r is not of type 'str'!" % (name)
-                raise_error(TypeError, err_msg, logger)
+                raise_error(err_msg, TypeError, logger)
 
         # Check for float
         elif 'float' in args:
@@ -554,7 +571,7 @@ def check_vals(values, name, *args):
                 continue
             else:
                 err_msg = "Input argument %r is not of type 'float'!" % (name)
-                raise_error(TypeError, err_msg, logger)
+                raise_error(err_msg, TypeError, logger)
 
         # Check for integer
         elif 'int' in args:
@@ -565,7 +582,7 @@ def check_vals(values, name, *args):
                 continue
             else:
                 err_msg = "Input argument %r is not of type 'int'!" % (name)
-                raise_error(TypeError, err_msg, logger)
+                raise_error(err_msg, TypeError, logger)
 
         # Check for negative value
         elif 'neg' in args:
@@ -578,7 +595,7 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument '%s%s' is not negative!"
                            % (name, index if values.ndim != 0 else ''))
-                raise_error(ValueError, err_msg, logger)
+                raise_error(err_msg, ValueError, logger)
 
         # Check for non-negative value
         elif 'nneg' in args:
@@ -591,7 +608,7 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument '%s%s' is not non-negative!"
                            % (name, index if values.ndim != 0 else ''))
-                raise_error(ValueError, err_msg, logger)
+                raise_error(err_msg, ValueError, logger)
 
         # Check for normalized value [-1, 1]
         elif 'normal' in args:
@@ -604,7 +621,7 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument '%s%s' is not normalized!"
                            % (name, index if values.ndim != 0 else ''))
-                raise_error(ValueError, err_msg, logger)
+                raise_error(err_msg, ValueError, logger)
 
         # Check for non-positive value
         elif 'npos' in args:
@@ -617,7 +634,7 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument '%s%s' is not non-positive!"
                            % (name, index if values.ndim != 0 else ''))
-                raise_error(ValueError, err_msg, logger)
+                raise_error(err_msg, ValueError, logger)
 
         # Check for non-zero value
         elif 'nzero' in args:
@@ -630,7 +647,7 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument '%s%s' is not non-zero!"
                            % (name, index if values.ndim != 0 else ''))
-                raise_error(ValueError, err_msg, logger)
+                raise_error(err_msg, ValueError, logger)
 
         # Check for positive value
         elif 'pos' in args:
@@ -643,13 +660,13 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument '%s%s' is not positive!"
                            % (name, index if values.ndim != 0 else ''))
-                raise_error(ValueError, err_msg, logger)
+                raise_error(err_msg, ValueError, logger)
 
         # If none of the criteria is found, the criteria are invalid
         else:
             err_msg = ("Input argument 'args' contains invalid elements (%s)!"
                        % (args))
-            raise_error(ValueError, err_msg, logger)
+            raise_error(err_msg, ValueError, logger)
 
     # If no criteria are left, it must be a finite value
     else:
@@ -661,11 +678,11 @@ def check_vals(values, name, *args):
         except TypeError:
             err_msg = ("Input argument '%s%s' is not of type 'int' or 'float'!"
                        % (name, index if values.ndim != 0 else ''))
-            raise_error(TypeError, err_msg, logger)
+            raise_error(err_msg, TypeError, logger)
         else:
             err_msg = ("Input argument '%s%s' is not finite!"
                        % (name, index if values.ndim != 0 else ''))
-            raise_error(ValueError, err_msg, logger)
+            raise_error(err_msg, ValueError, logger)
 
     # Convert values back to its original type
     if(arr_type == 'tuple'):
@@ -685,6 +702,18 @@ def convert_str_seq(seq):
     Converts a provided sequence to a string, removes all auxiliary characters
     from it, splits it up into individual elements and converts all elements
     back to integers, floats and/or strings.
+
+    Parameters
+    ----------
+    seq : str or array_like
+        The sequence that needs to be converted to individual elements.
+        If array_like, `seq` is first converted to a string.
+
+    Returns
+    -------
+    new_seq : list
+        A list with all individual elements converted to integers, floats
+        and/or strings.
 
     """
 
@@ -999,25 +1028,60 @@ def move_logger(working_dir, filename):
 
 
 # This function raises a given error after logging the error
-def raise_error(err_type, err_msg, logger):
+def raise_error(err_msg, err_type=Exception, logger=None):
     """
-    Raises a given error of type `err_type` with message `err_msg` and logs the
-    error using the provided `logger`.
+    Raises a given error `err_msg` of type `err_type` and logs the error using
+    the provided `logger`.
 
     Parameters
     ----------
-    err_type : :class:`~Exception` subclass
-        The type of error that needs to be raised.
     err_msg : str
         The message included in the error.
-    logger : :obj:`~logging.Logger` object
+
+    Optional
+    --------
+    err_type : :class:`Exception` subclass. Default: :class:`Exception`
+        The type of error that needs to be raised.
+    logger : :obj:`~logging.Logger` object or None. Default: None
         The logger to which the error message must be written.
+        If *None*, the :obj:`~logging.root` logger is used instead.
 
     """
 
     # Log the error and raise it right after
+    logger = logging.root if logger is None else logger
     logger.error(err_msg)
     raise err_type(err_msg)
+
+
+# This function raises a given warning after logging the warning
+def raise_warning(warn_msg, warn_type=UserWarning, logger=None, stacklevel=1):
+    """
+    Raises a given warning `warn_msg` of type `warn_type` and logs the warning
+    using the provided `logger`.
+
+    Parameters
+    ----------
+    warn_msg : str
+        The message included in the warning.
+
+    Optional
+    --------
+    warn_type : :class:`Warning` subclass. Default: :class:`UserWarning`
+        The type of warning that needs to be raised.
+    logger : :obj:`~logging.Logger` object or None. Default: None
+        The logger to which the warning message must be written.
+        If *None*, the :obj:`~logging.root` logger is used instead.
+    stacklevel : int. Default: 1
+        The stack level of the warning message at the location of this function
+        call. The actual used stack level is increased by one.
+
+    """
+
+    # Log the warning and raise it right after
+    logger = logging.root if logger is None else logger
+    logger.warning(warn_msg)
+    warnings.warn(warn_msg, warn_type, stacklevel=stacklevel+1)
 
 
 # Redefine the print function to include the MPI rank if MPI is used

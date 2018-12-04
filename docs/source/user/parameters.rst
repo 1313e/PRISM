@@ -29,7 +29,7 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
 :attr:`~prism.Emulator.l_corr` (Default: 0.3)
 	The amplitude(s) of the Gaussian correlation length.
 	This number is multiplied by the difference between the upper and lower value boundaries of the model parameters to obtain the Gaussian correlation length for every model parameter.
-	This value must be positive and either a scalar or a list of :attr:`~prism.modellink.ModelLink.n_par` scalars (where the values corresponds to the sorted list of model parameters).
+	This value must be positive and either a scalar or a list of :attr:`~prism.modellink.ModelLink.n_par` scalars (where the values correspond to the sorted list of model parameters).
 
 :attr:`~prism.Pipeline.impl_cut` (Default: [0.0, 4.0, 3.8, 3.5])
 	A list of implausibility cut-off values that specifies the maximum implausibility values a parameter set is allowed to have to be considered 'plausible'.
@@ -71,6 +71,12 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
 	Up to which order all polynomial terms of all model parameters should be included in the active parameters and regression processes.
 	This value is not required if :attr:`~prism.Emulator.method` == ``'gaussian'`` and :attr:`~prism.Pipeline.do_active_anal` == *False*.
 	This value must be a positive integer.
+
+:attr:`~prism.Emulator.n_cross_val` (Default: 5)
+	Number of (k-fold) cross-validations that must be used for determining the quality of the active parameters analysis and regression process fits.
+	If this parameter is zero, cross-validations are not used.
+	This value is not required if :attr:`~prism.Emulator.method` == ``'gaussian'`` and :attr:`~prism.Pipeline.do_active_anal` == *False*.
+	This value must be a non-negative integer and not equal to 1.
 
 :attr:`~prism.Pipeline.do_active_anal` (Default: True)
 	Whether or not an active parameters analysis must be carried out for every iteration of every emulator system.

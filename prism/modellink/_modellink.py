@@ -493,7 +493,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             # If any operation above fails, raise error
             except Exception as error:
                 err_msg = "Input argument %r is invalid! (%s)" % (name, error)
-                raise_error(InputError, err_msg, logger)
+                raise_error(err_msg, InputError, logger)
 
         # If everything went without exceptions, check if list is not empty and
         # remove duplicates
@@ -501,7 +501,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             par_seq = list(SortedSet(par_seq))
         else:
             err_msg = "Input argument %r is empty!" % (name)
-            raise_error(ValueError, err_msg, logger)
+            raise_error(err_msg, ValueError, logger)
 
         # Log end
         logger.info("Finished converting sequence of model parameter "
@@ -542,14 +542,14 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         if not(mod_set.ndim == 1 or mod_set.ndim == 2):
             err_msg = ("Input argument %r is not one-dimensional or "
                        "two-dimensional!" % (name))
-            raise_error(ShapeError, err_msg, logger)
+            raise_error(err_msg, ShapeError, logger)
 
         # Raise error if mod_set does not have n_data data values
         if not(mod_set.shape[-1] == self._n_data):
             err_msg = ("Input argument %r has incorrect number of data values "
                        "(%i != %i)!"
                        % (name, mod_set.shape[-1], self._n_data))
-            raise_error(ShapeError, err_msg, logger)
+            raise_error(err_msg, ShapeError, logger)
 
         # Check if mod_set solely consists out of floats
         mod_set = check_vals(mod_set, name, 'float')
@@ -593,14 +593,14 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         if not(sam_set.ndim == 1 or sam_set.ndim == 2):
             err_msg = ("Input argument %r is not one-dimensional or "
                        "two-dimensional!" % (name))
-            raise_error(ShapeError, err_msg, logger)
+            raise_error(err_msg, ShapeError, logger)
 
         # Raise error if sam_set does not have n_par parameter values
         if not(sam_set.shape[-1] == self._n_par):
             err_msg = ("Input argument %r has incorrect number of parameters "
                        "(%i != %i)!"
                        % (name, sam_set.shape[-1], self._n_par))
-            raise_error(ShapeError, err_msg, logger)
+            raise_error(err_msg, ShapeError, logger)
 
         # Check if sam_set solely consists out of floats
         sam_set = check_vals(sam_set, name, 'float')
@@ -611,7 +611,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             if not ((0 <= par_set)*(par_set <= 1)).all():
                 err_msg = ("Input argument %r contains a sample outside of "
                            "parameter space at index %i!" % (name, i))
-                raise_error(ValueError, err_msg, logger)
+                raise_error(err_msg, ValueError, logger)
 
         # Log again and return sam_set
         logger.info("Finished validating provided set of model parameter "

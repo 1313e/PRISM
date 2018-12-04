@@ -37,8 +37,10 @@ from tqdm import tqdm
 from ._docstrings import (def_par_doc, draw_proj_fig_doc, hcube_doc,
                           proj_data_doc, proj_par_doc_d, proj_par_doc_s,
                           read_par_doc, save_data_doc_pr, user_emul_i_doc)
-from ._internal import (RequestError, check_vals, docstring_append,
-                        docstring_substitute, getCLogger, raise_error)
+from ._internal import (RequestError, RequestWarning, check_vals,
+                        convert_str_seq, docstring_append,
+                        docstring_substitute, getCLogger, raise_error,
+                        raise_warning)
 
 # All declaration
 __all__ = ['Projection']
@@ -70,7 +72,7 @@ class Projection(object):
         logger = getCLogger('PROJECTION')
         err_msg = ("The Projection class is a base class for the Pipeline "
                    "class and cannot be used on its own!")
-        raise_error(RequestError, err_msg, logger)
+        raise_error(err_msg, RequestError, logger)
 
     # Function that creates all projection figures
     @docstring_substitute(emul_i=user_emul_i_doc, proj_par=proj_par_doc_d)
@@ -647,7 +649,7 @@ class Projection(object):
                 else:
                     err_msg = ("Not enough active model parameters have been "
                                "provided to make a projection figure!")
-                    raise_error(RequestError, err_msg, logger)
+                    raise_error(err_msg, RequestError, logger)
 
             # Obtain list of hypercube names
             if(self._modellink._n_par == 2):
@@ -866,9 +868,10 @@ class Projection(object):
                     "parameters.")
 
         # Number of samples used for implausibility evaluations
-        self.__res = check_vals(int(par_dict['proj_res']), 'proj_res', 'pos')
-        self.__depth = check_vals(int(par_dict['proj_depth']), 'proj_depth',
-                                  'pos')
+        self.__res = check_vals(convert_str_seq(par_dict['proj_res'])[0],
+                                'proj_res', 'int', 'pos')
+        self.__depth = check_vals(convert_str_seq(par_dict['proj_depth'])[0],
+                                  'proj_depth', 'int', 'pos')
 
         # Finish logging
         logger.info("Finished reading projection parameters.")
@@ -1099,7 +1102,7 @@ class Projection(object):
         if(len(args) > 2):
             err_msg = ("The project()-method takes a maximum of 2 positional "
                        "arguments, but %i have been provided!" % (len(args)))
-            raise_error(InputError, err_msg, logger)
+            raise_error(err_msg, InputError, logger)
 
         # Update emul_i and proj_par by given args
         try:
@@ -1115,7 +1118,7 @@ class Projection(object):
                 if not isinstance(value, dict):
                     err_msg = ("Input argument %r is not of type 'dict'!"
                                % (key))
-                    raise_error(TypeError, err_msg, logger)
+                    raise_error(err_msg, TypeError, logger)
                 else:
                     kwargs_dict[key].update(value)
 
@@ -1147,7 +1150,7 @@ class Projection(object):
             else:
                 err_msg = ("Input argument 'align' is invalid (%r)!"
                            % (align))
-                raise_error(ValueError, err_msg, logger)
+                raise_error(err_msg, ValueError, logger)
 
             # Pop all specific kwargs dicts from kwargs
             fig_kwargs = kwargs['fig_kwargs']
@@ -1169,7 +1172,7 @@ class Projection(object):
             except Exception as error:
                 err_msg = ("Input argument 'impl_kwargs/cmap' is invalid! (%s)"
                            % (error))
-                raise_error(InputError, err_msg, logger)
+                raise_error(err_msg, InputError, logger)
 
             # Check if any forbidden kwargs are given and remove them
             impl_keys = list(impl_kwargs.keys())
@@ -1186,7 +1189,7 @@ class Projection(object):
             except Exception as error:
                 err_msg = ("Input argument 'los_kwargs/cmap' is invalid! (%s)"
                            % (error))
-                raise_error(InputError, err_msg, logger)
+                raise_error(err_msg, InputError, logger)
 
             # Check if any forbidden kwargs are given and remove them
             los_keys = list(los_kwargs.keys())
@@ -1237,18 +1240,17 @@ class Projection(object):
             # Check if it makes sense to create a projection
             if(self.__emul_i == self._emulator._emul_i):
                 if not self._n_eval_sam[self.__emul_i]:
-                    msg = ("Requested emulator iteration %i has not been "
-                           "analyzed yet. Creating projections may not be "
-                           "useful." % (self.__emul_i))
-                    logger.warning(msg)
-                    print(msg)
+                    warn_msg = ("Requested emulator iteration %i has not been "
+                                "analyzed yet. Creating projections may not be"
+                                " useful." % (self.__emul_i))
+                    raise_warning(warn_msg, RequestWarning, logger, 2)
                 elif self._prc:
                     pass
                 else:
                     err_msg = ("Requested emulator iteration %i has no "
                                "plausible regions. Creating projections has no"
                                " use." % (self.__emul_i))
-                    raise_error(RequestError, err_msg, logger)
+                    raise_error(err_msg, RequestError, logger)
 
             # Check if projection has been created before
             with self._File('r+', None) as file:
@@ -1305,4 +1307,4 @@ class Projection(object):
                 # INVALID KEYWORD
                 else:
                     err_msg = "Invalid keyword argument provided!"
-                    raise_error(ValueError, err_msg, logger)
+                    raise_error(err_msg, ValueError, logger)

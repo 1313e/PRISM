@@ -17,11 +17,12 @@ import pytest
 
 # PRISM imports
 from .._internal import (compat_version, prism_version, CLogger, RLogger,
-                         RequestError, docstring_append, docstring_copy,
-                         docstring_substitute, check_instance, check_vals,
-                         check_compatibility, convert_str_seq, delist,
-                         getCLogger, get_PRISM_File, getRLogger, import_cmaps,
-                         move_logger, raise_error, rprint, start_logger)
+                         RequestError, RequestWarning, docstring_append,
+                         docstring_copy, docstring_substitute, check_instance,
+                         check_vals, check_compatibility, convert_str_seq,
+                         delist, getCLogger, get_PRISM_File, getRLogger,
+                         import_cmaps, move_logger, raise_error, raise_warning,
+                         rprint, start_logger)
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
@@ -363,7 +364,15 @@ def test_raise_error():
     # Create a logger and check if an error can be properly raised and logged
     logger = logging.getLogger('TEST')
     with pytest.raises(Exception):
-        raise_error(Exception, 'ERROR', logger)
+        raise_error('ERROR', Exception, logger)
+
+
+# Pytest for the raise_warning function
+def test_raise_warning():
+    # Create a logger and check if a warning can be properly raised and logged
+    logger = logging.getLogger('TEST')
+    with pytest.warns(RequestWarning):
+        raise_warning('WARNING', RequestWarning, logger)
 
 
 # Pytest for the rprint function

@@ -5,6 +5,9 @@ pytest-cov
 pytest-mpl
 pytest-pep8
 python-coveralls
-readme_renderer
-setuptools>=36.3.0
+readme_renderer[md]
+setuptools>=38.6.0
 emcee>=2.2.1
+twine>=1.11.0
+wheel>=0.31.0
+
