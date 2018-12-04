@@ -1,4 +1,4 @@
-|PyPI| |Python| |License| |Travis| |AppVeyor| |Coverage|
+|PyPI| |Python| |License| |Travis| |AppVeyor| |Coverage| |ReadTheDocs|
 
 Model dispersion with PRISM, a "Probabilistic Regression Instrument for Simulating Models"
 ==========================================================================================
@@ -80,7 +80,7 @@ For running *PRISM* in MPI, the following packages are also required (not instal
 .. |PyPI| image:: https://img.shields.io/pypi/v/prism_tool.svg?label=PyPI
    :target: https://pypi.python.org/pypi/prism_tool
    :alt: PyPI - Release
-.. |Python| image:: https://img.shields.io/pypi/pyversions/prism_tool.svg?label=Python
+.. |Python| image:: https://img.shields.io/pypi/pyversions/prism_tool.svg?logo=python&logoColor=white&label=Python
    :target: https://pypi.python.org/pypi/prism_tool
    :alt: PyPi - Python Versions
 .. |License| image:: https://img.shields.io/pypi/l/prism_tool.svg?colorB=blue&label=License
@@ -95,3 +95,6 @@ For running *PRISM* in MPI, the following packages are also required (not instal
 .. |Coverage| image:: https://img.shields.io/coveralls/github/1313e/PRISM/master.svg?label=Coverage
    :target: https://coveralls.io/github/1313e/PRISM?branch=master
    :alt: Coveralls - Coverage Status
+.. |ReadTheDocs| image:: https://img.shields.io/readthedocs/prism-tool/latest.svg?logo=read%20the%20docs&logoColor=white&label=ReadTheDocs
+   :target: https://prism-tool.readthedocs.io/en/latest/?badge=latest
+   :alt: ReadTheDocs - Status
