@@ -395,7 +395,7 @@ def check_compatibility(emul_version):
     """
 
     # Do some logging
-    logger = getCLogger('CHECK')
+    logger = getCLogger('COMP_CHECK')
     logger.info("Performing version compatibility check.")
 
     # Loop over all compatibility versions
@@ -860,18 +860,21 @@ def get_PRISM_File(prism_hdf5_file):
 
             """
 
-            # Log that an HDF5-file is being opened
-            logger = getRLogger('HDF5-FILE')
+            # Save emul_s as a property
+            self.emul_s = emul_s
 
             # Set default settings
             hdf5_kwargs = {'driver': None,
                            'libver': 'earliest'}
 
-            # Check emul_s
-            if emul_s is None:
+            # Check emul_s and obtain proper logger
+            if self.emul_s is None:
+                # Only controller opens master file for writing, so use CLogger
                 sub_str = ''
+                logger = getCLogger('M-HDF5')
             else:
-                sub_str = '_%i' % (emul_s)
+                sub_str = '_%i' % (self.emul_s)
+                logger = getRLogger('S-HDF5')
 
             # Add sub_str to filename
             parts = path.splitext(prism_hdf5_file)
@@ -881,8 +884,11 @@ def get_PRISM_File(prism_hdf5_file):
             hdf5_kwargs.update(kwargs)
 
             # Log that an HDF5-file is being opened
-            logger.info("Opening HDF5-file %r (mode: %r)."
-                        % (path.basename(filename), mode))
+            if self.emul_s is None:
+                logger.info("Opening master HDF5-file (mode: %r)." % (mode))
+            else:
+                logger.info("Opening system HDF5-file %i (mode: %r)."
+                            % (self.emul_s, mode))
 
             # Inheriting File __init__()
             super(PRISM_File, self).__init__(filename, mode, **hdf5_kwargs)
@@ -890,11 +896,12 @@ def get_PRISM_File(prism_hdf5_file):
         # Override __exit__() to include logging
         def __exit__(self, *args, **kwargs):
             # Log that an HDF5-file will be closed
-            logger = getRLogger('HDF5-FILE')
-
-            # Log about closing the file
-            logger.info("Closing HDF5-file %r."
-                        % (path.basename(self.filename)))
+            if self.emul_s is None:
+                logger = getCLogger('M-HDF5')
+                logger.info("Closing master HDF5-file.")
+            else:
+                logger = getRLogger('S-HDF5')
+                logger.info("Closing system HDF5-file %i." % (self.emul_s))
 
             # Inheriting File __exit__()
             super(PRISM_File, self).__exit__(*args, **kwargs)

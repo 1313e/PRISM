@@ -12,12 +12,12 @@ Installation
 
 or by installing it directly from `PyPI`_ with::
 
-	$ pip install prism-tool
+	$ pip install prism
 
 *PRISM* can now be imported as a package with ``import prism``.
 
 .. _repository: https://github.com/1313e/PRISM
-.. _PyPI: https://pypi.org/project/prism-tool
+.. _PyPI: https://pypi.org/project/prism
 
 The *PRISM* package comes with several test scripts, data files and ModelLink subclasses.
 These test scripts work out-of-the-box and can be used to see how *PRISM* works, and what the typical lay-outs of the required files are.

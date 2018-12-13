@@ -2145,7 +2145,7 @@ class Emulator(object):
         """
 
         # Set the logger
-        logger = getRLogger('LOAD_DATA')
+        logger = getCLogger('LOAD_DATA')
 
         # Initialize all data sets with empty lists
         logger.info("Initializing emulator data sets.")

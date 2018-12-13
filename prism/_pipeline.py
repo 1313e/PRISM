@@ -1134,7 +1134,7 @@ class Pipeline(Projection, object):
         """
 
         # Set the logger
-        logger = getRLogger('LOAD_DATA')
+        logger = getCLogger('LOAD_DATA')
 
         # Initialize all data sets with empty lists
         logger.info("Initializing pipeline data sets.")
@@ -1922,6 +1922,7 @@ class Pipeline(Projection, object):
 
     # This function evaluates given sam_set in the emulator using code snippets
     # TODO: Determine whether using arrays or lists is faster
+    # OPTIMIZE: Reduce memory usage by limiting number of arrays required
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _evaluate_sam_set(self, emul_i, sam_set, pre_code, eval_code,
                           anal_code, post_code, exit_code):
@@ -1995,6 +1996,9 @@ class Pipeline(Projection, object):
         sam_idx_full = np.array(list(range(n_sam)))
         sam_idx = sam_idx_full[impl_check]
 
+        # Mark all samples as plausible
+        eval_sam_set = sam_set
+
         # Set the results property to None
         self.results = None
 
@@ -2011,9 +2015,6 @@ class Pipeline(Projection, object):
                 # Log that this iteration is being evaluated
                 logger.info("Analyzing evaluation sample set of size %i in "
                             "emulator iteration %i." % (n_sam, i))
-
-                # Determine which samples are still plausible in this iteration
-                eval_sam_set = sam_set[sam_idx]
 
                 # Determine the active emulator systems on every rank
                 active_emul_s = self._emulator._active_emul_s[i]
@@ -2071,7 +2072,11 @@ class Pipeline(Projection, object):
 
                 # Check that sam_idx is still holding plausible samples
                 if not len(sam_idx):
+                    # If not, stop analysis
                     break
+                else:
+                    # If so, determine which samples are still plausible
+                    eval_sam_set = sam_set[sam_idx]
 
         # If any other emulator type is used
         else:

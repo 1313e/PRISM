@@ -100,7 +100,16 @@ html_theme = 'sphinx_rtd_theme'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    'prev_next_buttons_location': 'both',
+    'collapse_navigation': False,
+    'sticky_navigation': False,
+    'includehidden': False,
+    'titles_only': False
+}
+
+# Title formatting
+html_title = "%s v%s documentation" % (project, release)
 
 # Date formatting
 html_last_updated_fmt = '%a %d %b %Y'
@@ -122,6 +131,8 @@ html_use_opensearch = ''
 # 'searchbox.html']``.
 #
 # html_sidebars = {}
+
+html_split_index = True
 
 
 # -- Options for HTMLHelp output ---------------------------------------------
@@ -164,7 +175,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'prism', 'PRISM Documentation',
+    (master_doc, 'PRISM', 'PRISM Documentation',
      [author], 1)
 ]
 
@@ -176,7 +187,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'PRISM', 'PRISM Documentation',
-     author, 'PRISM', 'One line description of project.',
+     author, 'PRISM', '"Probabilistic Regression Instrument for Simulating Models"',
      'Miscellaneous'),
 ]
 

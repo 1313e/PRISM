@@ -2,4 +2,8 @@
 
 The PRISM pipeline
 ==================
-.. image:: images/PRISM.pdf
+.. image:: images/PRISM.png
+    :alt: The *PRISM* pipeline
+    :width: 100%
+    :align: center
+

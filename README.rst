@@ -53,12 +53,12 @@ Installation
 
 or by installing it directly from `PyPI`_ with::
 
-	$ pip install prism-tool
+	$ pip install prism
 
 *PRISM* can now be imported as a package with ``import prism``.
 
 .. _repository: https://github.com/1313e/PRISM
-.. _PyPI: https://pypi.org/project/prism-tool
+.. _PyPI: https://pypi.org/project/prism
 
 The *PRISM* package comes with several test scripts, data files and ModelLink subclasses.
 These test scripts work out-of-the-box and can be used to see how *PRISM* works, and what the typical lay-outs of the required files are.
@@ -77,13 +77,13 @@ For running *PRISM* in MPI, the following packages are also required (not instal
 - ``mpi4py >= 3.0.0``.
 
 
-.. |PyPI| image:: https://img.shields.io/pypi/v/prism_tool.svg?label=PyPI
-   :target: https://pypi.python.org/pypi/prism_tool
+.. |PyPI| image:: https://img.shields.io/pypi/v/prism.svg?label=PyPI
+   :target: https://pypi.python.org/pypi/prism
    :alt: PyPI - Release
-.. |Python| image:: https://img.shields.io/pypi/pyversions/prism_tool.svg?logo=python&logoColor=white&label=Python
-   :target: https://pypi.python.org/pypi/prism_tool
+.. |Python| image:: https://img.shields.io/pypi/pyversions/prism.svg?logo=python&logoColor=white&label=Python
+   :target: https://pypi.python.org/pypi/prism
    :alt: PyPi - Python Versions
-.. |License| image:: https://img.shields.io/pypi/l/prism_tool.svg?colorB=blue&label=License
+.. |License| image:: https://img.shields.io/pypi/l/prism.svg?colorB=blue&label=License
    :target: https://github.com/1313e/PRISM/raw/master/LICENSE
    :alt: PyPI - License
 .. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis&label=Travis%20CI
@@ -96,5 +96,5 @@ For running *PRISM* in MPI, the following packages are also required (not instal
    :target: https://coveralls.io/github/1313e/PRISM?branch=master
    :alt: Coveralls - Coverage Status
 .. |ReadTheDocs| image:: https://img.shields.io/readthedocs/prism-tool/latest.svg?logo=read%20the%20docs&logoColor=white&label=ReadTheDocs
-   :target: https://prism-tool.readthedocs.io/en/latest/?badge=latest
+   :target: https://prism-tool.readthedocs.io/en/latest
    :alt: ReadTheDocs - Status

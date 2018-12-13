@@ -37,7 +37,7 @@ with open('requirements.txt', 'r') as f:
 exec(open('prism/__version__.py', 'r').read())
 
 # Setup function declaration
-setup(name='prism-tool',
+setup(name='prism',
       version=prism_version,
       author="Ellert van der Velden",
       author_email="evandervelden@swin.edu.au",
@@ -45,8 +45,13 @@ setup(name='prism-tool',
       description=("PRISM: A \"Probabilistic Regression Instrument for "
                    "Simulating Models\""),
       long_description=long_description,
-      download_url="https://pypi.org/project/prism-tool",
+      download_url="https://pypi.org/project/prism",
       url="https://github.com/1313e/PRISM",
+      project_urls={
+          'Documentation': "https://prism-tool.readthedocs.io",
+          'Home Page': "https://github.com/1313e/PRISM",
+          'Source Code': "https://github.com/1313e/PRISM"
+          },
       license='BSD-3',
       platforms=['Windows', 'Mac OS-X', 'Linux', 'Unix'],
       classifiers=[
