@@ -167,7 +167,7 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
             The natural logarithm of the posterior probability of `par_set`, as
             determined by the `ext_lnpost` function if `par_set` is plausible.
             If `hybrid` is *True*, `lnp` is calculated as `lnprior` +
-            `ext_lnpost`, with `lnprior` the natural logarithm of the first
+            `ext_lnpost()`, with `lnprior` the natural logarithm of the first
             implausibility cut-off value of `par_set` scaled with its maximum.
 
         """
@@ -191,13 +191,11 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
         else:
             impl_sam = pipe._make_call('_get_impl_sam', emul_i,
                                        np.array(sam, ndmin=2))
+            lnprior = 0
 
         # If par_set is plausible, call ext_lnpost
         if len(impl_sam):
-            if hybrid:
-                return(lnprior+ext_lnpost(par_set, *args, **kwargs))
-            else:
-                return(ext_lnpost(par_set, *args, **kwargs))
+            return(lnprior+ext_lnpost(par_set, *args, **kwargs))
 
         # If par_set is not plausible, return -inf
         else:

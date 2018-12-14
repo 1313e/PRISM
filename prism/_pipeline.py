@@ -1079,26 +1079,26 @@ class Pipeline(Projection, object):
             for i in range(self._modellink._n_data):
                 # If value space is linear
                 if(self._modellink._data_spc[i] == 'lin'):
-                    if(noise[i] < 0):
+                    if(noise[i] > 0):
                         noise[i] *= err[i][0]
                     else:
                         noise[i] *= err[i][1]
 
                 # If value space is log10
                 elif(self._modellink._data_spc[i] == 'log10'):
-                    if(noise[i] < 0):
-                        noise[i] =\
-                            np.log10((pow(10, -1*err[i][0])-1)*-1*noise[i]+1)
-                    else:
+                    if(noise[i] > 0):
                         noise[i] = np.log10((pow(10, err[i][0])-1)*noise[i]+1)
+                    else:
+                        noise[i] =\
+                            np.log10((pow(10, -1*err[i][1])-1)*-1*noise[i]+1)
 
                 # If value space is ln
                 elif(self._modellink._data_spc[i] == 'ln'):
-                    if(noise[i] < 0):
-                        noise[i] =\
-                            np.log((pow(np.e, -1*err[i][0])-1)*-1*noise[i]+1)
-                    else:
+                    if(noise[i] > 0):
                         noise[i] = np.log((pow(np.e, err[i][0])-1)*noise[i]+1)
+                    else:
+                        noise[i] =\
+                            np.log((pow(np.e, -1*err[i][1])-1)*-1*noise[i]+1)
 
                 # If value space is anything else
                 else:
@@ -1551,11 +1551,11 @@ class Pipeline(Projection, object):
 
         # Calculate the univariate implausibility values
         for i, emul_s in enumerate(emul_s_seq):
-            # Use the lower errors by default
+            # Use the upper errors by default
             err_idx = 0
 
-            # If adj_exp_val > data_val, use the upper error instead
-            if(adj_exp_val[i] > self._emulator._data_val[emul_i][emul_s]):
+            # If adj_exp_val < data_val, use the lower error instead
+            if(adj_exp_val[i] < self._emulator._data_val[emul_i][emul_s]):
                 err_idx = 1
 
             # Calculate the univariate implausibility value
@@ -1622,14 +1622,14 @@ class Pipeline(Projection, object):
                 if(data_spc == 'lin'):
                     md_var.append([pow(data_val/6, 2)]*2)
 
-                # If value space is log10, take log10(5/6) and log10(7/6)
+                # If value space is log10, take log10(7/6) and log10(5/6)
                 elif(data_spc == 'log10'):
-                    md_var.append([0.006269669725654501,
-                                   0.0044818726418455815])
+                    md_var.append([0.0044818726418455815,
+                                   0.006269669725654501])
 
-                # If value space is ln, take ln(5/6) and ln(7/6)
+                # If value space is ln, take ln(7/6) and ln(5/6)
                 elif(data_spc == 'ln'):
-                    md_var.append([0.03324115007177121, 0.023762432091205918])
+                    md_var.append([0.023762432091205918, 0.03324115007177121])
 
                 # If value space is anything else
                 else:

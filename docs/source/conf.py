@@ -165,8 +165,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'PRISM.tex', 'PRISM Documentation',
-     'Ellert van der Velden', 'manual'),
+    (master_doc, 'PRISM.tex', html_title,
+     author, 'manual'),
 ]
 
 
@@ -175,8 +175,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'PRISM', 'PRISM Documentation',
-     [author], 1)
+    (master_doc, project, html_title, [author], 1)
 ]
 
 
@@ -186,8 +185,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'PRISM', 'PRISM Documentation',
-     author, 'PRISM', '"Probabilistic Regression Instrument for Simulating Models"',
+    (master_doc, project, html_title,
+     author, project, '"Probabilistic Regression Instrument for Simulating Models"',
      'Miscellaneous'),
 ]
 

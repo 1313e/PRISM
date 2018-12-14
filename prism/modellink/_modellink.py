@@ -132,7 +132,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         assumed to have a centered :math:`1\\sigma`-confidence interval. If the
         data errors are given with two values, then the data points are
         assumed to have a :math:`1\\sigma`-confidence interval defined by the
-        provided lower and upper errors.
+        provided upper and lower errors.
 
         The data spaces are one of five strings ({'lin', 'log' or 'log_10',
         'ln' or 'log_e'}) indicating in which of the three value spaces
@@ -159,7 +159,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             ``data_err, data_spc]}`` \n
             **or** \n
             ``{(data_idx_0, data_idx_1, ..., data_idx_n): [data_val,`` \
-            ``lower_data_err, upper_data_err, data_spc]}``
+            ``upper_data_err, lower_data_err, data_spc]}``
 
         """
 
@@ -390,7 +390,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
     @property
     def data_err(self):
         """
-        list of float: The lower and upper :math:`1\\sigma`-confidence levels
+        list of float: The upper and lower :math:`1\\sigma`-confidence levels
         of provided data points.
 
         """

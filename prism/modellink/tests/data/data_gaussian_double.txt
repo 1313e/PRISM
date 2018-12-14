@@ -1,4 +1,4 @@
-# x	: data_val	lower_data_err	upper_data_err	data_spc
+# x	: data_val	upper_data_err	lower_data_err	data_spc
   1	: 1		0.05		0.1		'log'
   3	: 2		0.05		0.1
   4	: 3		0.05		0.1
