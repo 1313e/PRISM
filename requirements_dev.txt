@@ -1,4 +1,5 @@
 check-manifest
+codecov
 pytest>=3.8.0
 pytest-cov
 pytest-mpl

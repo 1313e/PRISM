@@ -4,6 +4,8 @@ codecov:
     - !appveyor
   notify:
     require_ci_to_pass: yes
+  strict_yaml_branch: master
+  
 
 coverage:
   range: 0..100
