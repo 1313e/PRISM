@@ -2988,7 +2988,7 @@ class Pipeline(Projection, object):
                     print("Plausible? Yes")
                 else:
                     print("Plausible? No")
-                print("emul_i_stop = %s" % (emul_i_stop[0]))
+                print("emul_i_stop = %i" % (emul_i_stop[0]))
                 print("adj_exp_val = %s" % (adj_exp_val[0]))
                 print("adj_var_val = %s" % (adj_var_val[0]))
                 print("sigma_val = %s" % (np.sqrt(adj_var_val[0])))

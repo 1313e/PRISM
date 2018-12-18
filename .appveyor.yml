@@ -64,6 +64,3 @@ test_script:
   - "%CMD_IN_ENV% twine check dist/*"
   - "%CMD_IN_ENV% pip install -e ."
   - "%CMD_IN_ENV% py.test prism"
-
-on_success:
-  - "%CMD_IN_ENV" coveralls

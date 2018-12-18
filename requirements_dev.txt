@@ -1,10 +1,8 @@
 check-manifest
-coveralls
 pytest>=3.8.0
 pytest-cov
 pytest-mpl
 pytest-pep8
-python-coveralls
 readme_renderer[md]
 setuptools>=38.6.0
 emcee>=2.2.1

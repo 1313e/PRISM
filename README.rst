@@ -92,9 +92,9 @@ For running *PRISM* in MPI, the following packages are also required (not instal
 .. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/master.svg?logo=appveyor&label=AppVeyor
    :target: https://ci.appveyor.com/project/1313e/PRISM
    :alt: AppVeyor - Build Status
-.. |Coverage| image:: https://img.shields.io/coveralls/github/1313e/PRISM/master.svg?label=Coverage
-   :target: https://coveralls.io/github/1313e/PRISM?branch=master
-   :alt: Coveralls - Coverage Status
+.. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/master.svg?logo=codecov&logoColor=white&label=Coverage
+   :target: https://codecov.io/gh/1313e/PRISM?branch=master
+   :alt: CodeCov - Coverage Status
 .. |ReadTheDocs| image:: https://img.shields.io/readthedocs/prism-tool/latest.svg?logo=read%20the%20docs&logoColor=white&label=ReadTheDocs
    :target: https://prism-tool.readthedocs.io/en/latest
    :alt: ReadTheDocs - Status

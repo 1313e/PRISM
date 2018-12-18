@@ -126,7 +126,7 @@ class Emulator(object):
     @property
     def emul_type(self):
         """
-        str: The type of emulator is currently loaded.
+        str: The type of emulator that is currently loaded.
 
         """
 
@@ -155,7 +155,7 @@ class Emulator(object):
     @property
     def ccheck(self):
         """
-        list of str: The emulator system components are still required to
+        list of str: The emulator system components that are still required to
         complete the construction of an emulator iteration on this MPI rank.
         The controller rank additionally lists the required components that are
         emulator iteration specific ('mod_real_set' and 'active_par').

@@ -51,7 +51,6 @@ if(sys.version_info.major >= 3):
 
 
 # %% PROJECTION CLASS DEFINITION
-# TODO: Make something like Figure 4 in Bower et al
 class Projection(object):
     """
     Defines the :class:`~Projection` class of the *PRISM* package.

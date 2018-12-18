@@ -18,7 +18,5 @@ script:
   - twine check dist/*
   - pip install -e .
   - py.test prism
-after_success:
-  - coveralls
 notifications:
   email: false
