@@ -13,7 +13,7 @@ matrix:
 install:
   - pip install -r requirements_dev.txt
 script:
-  - check-manifest --ignore appveyor.cmd,.appveyor.yml,.coveragerc,prism_trash*,docs*,test_scripts*
+  - check-manifest --ignore appveyor.cmd,.appveyor.yml,.codecov.yml,prism_trash*,docs*,test_scripts*
   - python setup.py sdist bdist_wheel
   - twine check dist/*
   - pip install -e .
