@@ -55,4 +55,4 @@ The current state of the :obj:`~prism.Pipeline` object can be viewed by calling 
 
 This is all that is required to construct an emulator of the model of choice.
 All user-methods, with one exception (:meth:`~prism.Pipeline.evaluate`), solely take optional arguments and perform the operations that make the most sense given the current state of the :obj:`~prism.Pipeline` object if no arguments are given.
-These arguments allow for one to modify the performed operations, like reconstructing.reanalyzing previous iterations, projecting specific parameters, evaluating the emulator and more.
+These arguments allow for one to modify the performed operations, like reconstructing/reanalyzing previous iterations, projecting specific parameters, evaluating the emulator and more.

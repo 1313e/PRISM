@@ -6,4 +6,5 @@ The PRISM pipeline
     :alt: The *PRISM* pipeline
     :width: 100%
     :align: center
+    :name: PRISM
 

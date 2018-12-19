@@ -88,6 +88,10 @@ exclude_patterns = []
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
+add_function_parentheses = True
+add_module_names = True
+show_authors = True
+
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -133,6 +137,8 @@ html_use_opensearch = ''
 # html_sidebars = {}
 
 html_split_index = True
+
+html_favicon = 'py.png'
 
 
 # -- Options for HTMLHelp output ---------------------------------------------

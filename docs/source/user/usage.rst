@@ -2,5 +2,5 @@
 
 Usage
 =====
-.. include:: usage_modellink.rst
 .. include:: usage_pipeline.rst
+.. include:: usage_modellink.rst
