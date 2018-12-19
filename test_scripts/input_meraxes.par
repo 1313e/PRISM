@@ -1,4 +1,0 @@
-FileNameGalaxies    : meraxes
-DefaultsFile        : Tiamat_meraxes.par
-FileWithOutputSnaps : snaplist_meraxes.txt
-OutputDir           : output_meraxes
