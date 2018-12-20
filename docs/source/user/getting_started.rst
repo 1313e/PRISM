@@ -14,7 +14,7 @@ or by installing it directly from `PyPI`_ with::
 
 	$ pip install prism
 
-*PRISM* can now be imported as a package with ``import prism``.
+*PRISM* can now be imported as a package with :pycode:`import prism`.
 
 .. _repository: https://github.com/1313e/PRISM
 .. _PyPI: https://pypi.org/project/prism

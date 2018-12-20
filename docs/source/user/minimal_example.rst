@@ -23,7 +23,8 @@ Here, the :class:`~prism.modellink.GaussianLink` class was initialized by giving
 One can check this by looking at the representation of this :obj:`~prism.modellink.GaussianLink` object::
 
 	>>> modellink_obj
-	GaussianLink(model_parameters={'A1': [1.0, 10.0, 5], 'B1': [0.0, 10.0, 5], 'C1': [0.0, 5.0, 2]},
+	GaussianLink(model_parameters={'A1': [1.0, 10.0, 5.0], 'B1': [0.0, 10.0, 5.0],
+				       'C1': [0.0, 5.0, 2.0]},
 		     model_data={7: [3.0, 0.1], 5: [5.0, 0.1], 3: [3.0, 0.1]})
 
 The :class:`~prism.Pipeline` class takes several optional arguments, which are mostly paths and the type of :class:`~prism.Emulator` class that must be used.
@@ -32,8 +33,8 @@ Since it has already been initialized above, the :class:`~prism.Pipeline` class 
 
 	>>> pipe = pipeline(modellink_obj)
 	>>> pipe
-	Pipeline(GaussianLink(model_parameters={'A1': [1.0, 10.0, 5], 'B1': [0.0, 10.0, 5],
-						'C1': [0.0, 5.0, 2]},
+	Pipeline(GaussianLink(model_parameters={'A1': [1.0, 10.0, 5.0], 'B1': [0.0, 10.0, 5.0],
+						'C1': [0.0, 5.0, 2.0]},
 		     	      model_data={7: [3.0, 0.1], 5: [5.0, 0.1], 3: [3.0, 0.1]}),
 		 working_dir='prism_0')
 

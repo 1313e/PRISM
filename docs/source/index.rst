@@ -40,3 +40,7 @@ The documentation of *PRISM* is spread out over several sections:
    api/classes
    api/subpackages
    api/submodules
+
+.. role:: pycode(code)
+   :language: python
+   :class: highlight

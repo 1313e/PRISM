@@ -101,8 +101,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             :meth:`~get_default_model_data`. For more information on the
             lay-out of these dicts, see ``Notes``.
 
-            If array_like, dict(model_parameters/model_data) must generate a
-            dict with the correct lay-out.
+            If array_like, dict(`model_parameters`/`model_data`) must generate
+            a dict with the correct lay-out.
             If dict, the dict itself must have the correct lay-out.
             If str, the string must be the path to a file containing the dict
             keys in the first column and the dict values in the second column,
@@ -225,7 +225,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         data_repr = "model_data={%s}" % (", ".join(map(str, data_repr)))
 
         # Obtain non-default representation and add default ones
-        str_repr = self._get_str_repr()
+        str_repr = self.get_str_repr()
         str_repr.extend([par_repr, data_repr])
 
         # Return representation
@@ -418,7 +418,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
     # %% GENERAL CLASS METHODS
     # This function returns non-default string representations of input args
-    def _get_str_repr(self):
+    def get_str_repr(self):
         """
         Returns a list of string representations of all additional input
         arguments with which this :class:`~ModelLink` subclass was initialized.

@@ -254,3 +254,4 @@ Worker mode [`worker_mode`]
 	A mode initialized by :attr:`~prism.Pipeline.worker_mode`, where all workers are continuously listening for calls made by the controller rank and execute the received messages.
 	This allows for serial codes to be combined more easily with *PRISM*.
 	By default, it is turned off, requiring all MPI ranks to call most functions.
+	See :ref:`dual_nature` for more information.

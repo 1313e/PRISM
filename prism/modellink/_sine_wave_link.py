@@ -49,8 +49,7 @@ class SineWaveLink(ModelLink):
         # Inheriting ModelLink __init__()
         super(SineWaveLink, self).__init__(*args, **kwargs)
 
-    @property
-    def _default_model_parameters(self):
+    def get_default_model_parameters(self):
         par_dict = {'A': [2, 7, 4],
                     'B': [-1, 12, 3],
                     'C': [0, 10, 5],

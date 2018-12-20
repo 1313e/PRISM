@@ -112,6 +112,7 @@ class Pipeline(Projection, object):
         self._is_controller = 1 if not self._rank else 0
         self._is_worker = 1 if self._rank else 0
         self._worker_mode = 0
+        self._do_logging = 1
 
         # Controller obtaining paths and preparing logging system
         if self._is_controller:
@@ -141,9 +142,6 @@ class Pipeline(Projection, object):
         # Start logger for workers as well
         if self._is_worker:
             start_logger(path.join(self._working_dir, 'prism_log.log'), 'a')
-
-        # Set do_logging property to True
-        self._do_logging = True
 
         # Initialize Emulator class
         # If emul_type is a subclass of Emulator, try to initialize it
@@ -358,7 +356,7 @@ class Pipeline(Projection, object):
 
         """
 
-        return(self._do_logging)
+        return(bool(self._do_logging))
 
     # TODO: Find a way to only turn off all regular logging done by PRISM
     @do_logging.setter

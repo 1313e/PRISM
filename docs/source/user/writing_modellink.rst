@@ -17,6 +17,64 @@ Here, the basic steps for making a custom :class:`~prism.modellink.ModelLink` su
 ----
 
 In the example_link.py_ file above, a minimal example of a :class:`~prism.modellink.ModelLink` subclass is shown.
+It has two abstract methods that need to be overridden; :meth:`~prism.modellink.ModelLink.call_model` (wrapper function for calling the model) and :meth:`~prism.modellink.ModelLink.get_md_var` (calculates the model discrepancy variance).
+A :class:`~prism.modellink.ModelLink` subclass cannot be initialized if either method has not been overridden.
+Given the importance of both methods, detailed descriptions are given in :ref:`call_model` and :ref:`md_var`, respectively.
+
+Since every model is different, with some requiring preparations in order to work properly, the :meth:`~prism.modellink.ModelLink.__init__` constructor method may be extended to include any custom code to be executed when the subclass is initialized.
+The superclass version of the :meth:`~prism.modellink.ModelLink.__init__` method must always be called, as it sets several important flags and properties, but the time at which this is done does not matter.
+During the initialization of the :class:`~prism.Emulator` class, it is checked whether or not the superclass constructor of a provided :obj:`~prism.modellink.ModelLink` instance was called (to avoid this from being forgotten).
+
+Besides executing custom code, three properties/flags can be set in :meth:`~prism.modellink.ModelLink.__init__`, which have the following default values if the extended constructor does not set them::
+
+	self.name = self.__class__.__name__	# Set instance name to the name of the class
+	self.call_type = 'single'		# Request single model calls
+	self.MPI_call = False			# Request only controller calls
+
+The first property, :attr:`~prism.modellink.ModelLink.name`, defines the name of the :obj:`~prism.modellink.ModelLink` instance.
+This name is used by the :class:`~prism.Emulator` class during initialization to check if a constructed emulator is linked to the proper :obj:`~prism.modellink.ModelLink` instance, in order to avoid causing mismatches.
+If one wants to use the same :class:`~prism.modellink.ModelLink` subclass for different models (like, using different parameter spaces), it is recommended to add an identifier for this to this name.
+An example of this can be found in the definition of the :class:`~prism.modellink.GaussianLink` class, which adds the number of Gaussians in the model to its :attr:`~prism.modellink.ModelLink.name` property.
+
+The other two properties, :attr:`~prism.modellink.ModelLink.call_type` and :attr:`~prism.modellink.ModelLink.MPI_call`, are flags that tell *PRISM* how the :meth:`~prism.modellink.ModelLink.call_model` method should be used.
+By default, every model evaluation sample is requested individually in serial, since this would be the most expected behavior.
+However, this is most likely not enough for sophisticated models, as they can require some preparation (e.g., having to read in data files) or more than a single core (in MPI) to function.
+Therefore, :attr:`~prism.modellink.ModelLink.call_type` can be set to accept solely individual samples (``'single'``), solely entire sample sets (``'multi'``) or both (``'hybrid'``).
+In the same way, :attr:`~prism.modellink.ModelLink.MPI_call` can be set to *True* or *False* to identify that the model needs to be executed in serial or in MPI.
+
+.. note::
+	If a model uses OpenMP parallelization, it is recommended to set :attr:`~prism.modellink.ModelLink.MPI_call` to *False* in the :class:`~prism.modellink.ModelLink` subclass and set :attr:`~prism.Pipeline.worker_mode` to *True* after initializing the :class:`~prism.Pipeline` class.
+	This way, *PRISM* can operate in MPI while the model itself can operate in OpenMP.
+
+Finally, the :class:`~prism.modellink.ModelLink` class has three methods that can be overridden for adding utility to the class (of which two are shown in example_link.py_).
+The :meth:`~prism.modellink.ModelLink.get_default_model_parameters` and :meth:`~prism.modellink.ModelLink.get_default_model_data` methods return dictionaries containing the default model parameters and model data to use in this class instance, respectively.
+By overriding these methods, one can hard-code the use of specific parameters or comparison data, avoiding having to provide them when initializing the :class:`~prism.modellink.ModelLink` subclass.
+Additionally, if a default parameter or data point is also provided during initialization, the provided information will override the defaults.
+
+.. admonition:: Example
+
+	The :class:`~prism.modellink.GaussianLink` class has default parameters defined::
+	
+		>>> from prism.modellink import GaussianLink
+		>>> model_data = {3: [3.0, 0.1]}
+		>>> modellink_obj = GaussianLink(model_data=model_data)
+		>>> modellink_obj
+		GaussianLink(model_parameters={'A1': [1.0, 10.0, 5.0], 'B1': [0.0, 10.0, 5.0],
+					       'C1': [0.0, 5.0, 2.0]},
+			     model_data={3: [3.0, 0.1]})
+
+	Providing a custom set of parameters will override the coded defaults::
+	
+		>>> model_parameters = {'A1': [-5, 7, 2]}
+		>>> modellink_obj = GaussianLink(model_parameters=model_parameters, model_data=model_data)
+		>>> modellink_obj
+		GaussianLink(model_parameters={'A1': [-5.0, 7.0, 2.0], 'B1': [0.0, 10.0, 5.0],
+					       'C1': [0.0, 5.0, 2.0]},
+			     model_data={3: [3.0, 0.1]})
+
+The third method, :meth:`~prism.modellink.ModelLink.get_str_repr`, is a simple function that returns a list containing the representations of all non-default input arguments the :class:`~prism.modellink.ModelLink` subclass takes.
+It can be overridden to add the missing input arguments to the full representation of the class, which is automatically called whenever the representation is requested.
+The :class:`~prism.modellink.GaussianLink` class overrides this method to add its :attr:`~prism.modellink.GaussianLink.n_gaussians` input argument.
 
 ----
 
