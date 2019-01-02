@@ -27,7 +27,7 @@ What characterizes *PRISM*?
 - Accepts any type of model and comparison data;
 - Built as a plug-and-play tool: all main classes can also be used as base classes;
 - Easily linked to any model by writing a single custom ModelLink class;
-- Capable of reducing relevant parameter space factors up to :math:`100,000` allowing existing MCMC methods to explore and obtain the optimal model realizations much faster;
+- Capable of reducing relevant parameter space factors up to 100,000 allowing existing MCMC methods to explore and obtain the optimal model realizations much faster;
 - Extensively documented;
 - Suited for both simple and advanced projects.
 
