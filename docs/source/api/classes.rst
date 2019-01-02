@@ -1,7 +1,7 @@
 .. _classes:
 
-Classes
-=======
+Main classes
+============
 .. toctree::
     prism.Emulator
     prism.Pipeline

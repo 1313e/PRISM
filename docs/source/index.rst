@@ -38,8 +38,9 @@ The documentation of *PRISM* is spread out over several sections:
    :caption: API Reference
    
    api/classes
-   api/subpackages
-   api/submodules
+   api/prism._internal
+   api/prism.modellink
+   api/prism.utils
 
 .. role:: pycode(code)
    :language: python

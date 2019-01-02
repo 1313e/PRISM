@@ -1,8 +1,8 @@
 |PyPI| |Python| |License| |Travis| |AppVeyor| |Coverage| |ReadTheDocs|
 
 Model dispersion with *PRISM*; an alternative to MCMC for rapid analysis of models
-================================================================================
-PRISM is a pure Python 2/3 package that provides an alternative method to MCMC for analyzing scientific models.
+==================================================================================
+*PRISM* is a pure Python 2/3 package that provides an alternative method to MCMC for analyzing scientific models.
 
 Introduction
 ============

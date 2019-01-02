@@ -66,7 +66,7 @@ class Projection(object):
 
     """
 
-    # Create __init__ method to warn if this class is every initialized
+    # Create __init__ method to warn if this class is ever initialized
     def __init__(self, *args, **kwargs):
         logger = getCLogger('PROJECTION')
         err_msg = ("The Projection class is a base class for the Pipeline "
