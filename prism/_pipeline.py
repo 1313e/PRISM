@@ -27,10 +27,6 @@ from time import time
 from e13tools import InputError, ShapeError
 from e13tools.math import nCr
 from e13tools.sampling import lhd
-try:
-    from mpi4py import MPI
-except ImportError:
-    from . import _dummyMPI as MPI
 import numpy as np
 from numpy.random import normal, random
 
@@ -75,15 +71,14 @@ class Pipeline(Projection, object):
 
     @docstring_substitute(paths=paths_doc_d)
     def __init__(self, modellink_obj, root_dir=None, working_dir=None,
-                 prefix=None, prism_file=None, emul_type='default',
-                 comm=MPI.COMM_WORLD):
+                 prefix=None, prism_file=None, emul_type='default', comm=None):
         """
         Initialize an instance of the :class:`~Pipeline` class.
 
         Parameters
         ----------
         modellink_obj : :obj:`~prism.modellink.ModelLink` object
-            Instance of the :class:`~prism.modellink.ModelLink` class
+            Instance of the :class:`~prism.modellink.ModelLink` subclass
             that links the emulated model to this :obj:`~Pipeline` instance.
 
         Optional
@@ -95,9 +90,9 @@ class Pipeline(Projection, object):
             :class:`~Pipeline` base class, only 'default' is supported.
             If :class:`~prism.Emulator` subclass, the supplied
             :class:`~prism.Emulator` subclass will be used instead.
-        comm : :obj:`~MPI.Intracomm` object. Default: :obj:`MPI.COMM_WORLD`
+        comm : :obj:`~MPI.Intracomm` object or None. Default: None
             The MPI intra-communicator to use in this :class:`~Pipeline`
-            instance.
+            instance or :obj:`MPI.COMM_WORLD` if `comm` is *None*.
             If ``mpi4py`` is not installed, :mod:`~prism._dummyMPI` is used
             instead.
 
@@ -644,6 +639,65 @@ class Pipeline(Projection, object):
         else:
             return(exec_fn(*args, **kwargs))
 
+    # This function evaluates the model for a given set of evaluation samples
+    # TODO: If not MPI_call, all ranks evaluate part of sam_set simultaneously?
+    # Requires check/flag that model can be evaluated in multiple instances
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _evaluate_model(self, emul_i, sam_set, data_idx):
+        """
+        Evaluates the model for provided evaluation sample set `sam_set` at
+        given data points `data_idx`.
+
+        This method automatically distributes the samples according to the
+        various flags set in the :class:`~prism.modellink.ModelLink` subclass.
+
+        Parameters
+        ----------
+        %(emul_i)s
+        sam_set : 1D or 2D array_like
+            Parameter/sample set to evaluate in the model.
+        data_idx : list of tuples
+            The list of data identifiers for which the model is requested to
+            return the corresponding data values.
+
+        Returns
+        -------
+        mod_set : 2D :obj:`~numpy.ndarray` object of shape ``(n_sam, n_data)``
+            Array containing the data values corresponding to the requested
+            data points.
+
+        """
+
+        # Log that evaluation of model samples is started
+        logger = getCLogger('MODEL')
+        logger.info("Evaluating model samples.")
+
+        # Make sure that sam_set is at least 2D and a NumPy array
+        sam_set = np.array(sam_set, ndmin=2)
+
+        # Check who needs to call the model
+        if self._is_controller or self._modellink._MPI_call:
+            # Request all evaluation samples at once
+            if self._modellink._multi_call:
+                mod_set = self._multi_call_model(emul_i, sam_set, data_idx)
+
+            # Request evaluation samples one-by-one
+            else:
+                # Initialize mod_set
+                mod_set = np.zeros([sam_set.shape[0], self._modellink._n_data])
+
+                # Loop over all requested evaluation samples
+                for i, par_set in enumerate(sam_set):
+                    mod_set[i] = self._call_model(emul_i, par_set, data_idx)
+
+        # If workers did not call model, give them a dummy mod_set
+        else:
+            mod_set = []
+
+        # Log that evaluation is completed and return mod_set
+        logger.info("Finished evaluating model samples.")
+        return(mod_set)
+
     # Function obtaining the model output for a given set of parameter values
     @docstring_append(call_model_doc_s)
     def _call_model(self, emul_i, par_set, data_idx):
@@ -1035,7 +1089,7 @@ class Pipeline(Projection, object):
         logger = getCLogger('MOCK_DATA')
 
         # Log new mock_data being created
-        logger.info("Generating mock data for new emulator system.")
+        logger.info("Generating mock data for new emulator.")
 
         # Controller only
         if self._is_controller:
@@ -1047,26 +1101,15 @@ class Pipeline(Projection, object):
         self._modellink._par_est = self._comm.bcast(self._modellink._par_est,
                                                     0)
 
-        # Set non-default model data values
-        # Check who needs to call the model
-        if self._is_controller or self._modellink._MPI_call:
-            # Multi-call model
-            if self._modellink._multi_call:
-                mod_out = self._multi_call_model(0, self._modellink._par_est,
-                                                 self._modellink._data_idx)
-
-                # Only controller receives output and can thus use indexing
-                if self._is_controller:
-                    self._emulator._data_val[0] = mod_out[0].tolist()
-
-            # Single-call model
-            else:
-                self._emulator._data_val[0] =\
-                    self._call_model(0, self._modellink._par_est,
-                                     self._modellink._data_idx).tolist()
+        # Obtain non-default model data values
+        data_val = self._evaluate_model(0, self._modellink._par_est,
+                                        self._modellink._data_idx)
 
         # Controller only
         if self._is_controller:
+            # Set non-default model data values
+            self._emulator._data_val[0] = data_val[0].tolist()
+
             # Use model discrepancy variance as model data errors
             md_var = self._get_md_var(0, self._modellink._par_est)
             err = np.sqrt(md_var).tolist()
@@ -1290,16 +1333,15 @@ class Pipeline(Projection, object):
                     [str(value).encode('ascii', 'ignore'),
                      unit.encode('ascii', 'ignore')]
 
-    # This function evaluates the model for a given set of evaluation samples
+    # This function evaluates and distributes the model evaluations samples
     # This is function 'k'
-    # TODO: If not MPI_call, all ranks evaluate part of sam_set simultaneously?
-    # Requires check/flag that model can be evaluated in multiple instances
     @docstring_substitute(emul_i=std_emul_i_doc, ext_sam=ext_sam_set_doc,
                           ext_mod=ext_mod_set_doc)
-    def _evaluate_model(self, emul_i, sam_set, ext_sam_set, ext_mod_set):
+    def _get_iteration_data(self, emul_i, sam_set, ext_sam_set, ext_mod_set):
         """
-        Evaluates the model at all specified model evaluation samples at a
-        given emulator iteration `emul_i`.
+        Obtains the model realization data for given emulator iteration
+        `emul_i` by evaluating the provided `sam_set` in the model and
+        distributing model outputs to the correct emulator systems.
 
         Parameters
         ----------
@@ -1321,8 +1363,9 @@ class Pipeline(Projection, object):
         """
 
         # Log that evaluation of model samples is started
-        logger = getCLogger('MODEL')
-        logger.info("Evaluating model samples.")
+        logger = getCLogger('MODEL_REAL')
+        logger.info("Obtaining model realization data for emulator iteration "
+                    "%i." % (emul_i))
 
         # Save the current time
         start_time = time()
@@ -1352,22 +1395,11 @@ class Pipeline(Projection, object):
 
         # If there are any samples in sam_set, evaluate them in the model
         if n_sam:
-            # Check who needs to call the model
-            if self._is_controller or self._modellink._MPI_call:
-                # Request all evaluation samples at once
-                if self._modellink._multi_call:
-                    mod_set = self._multi_call_model(emul_i, sam_set,
-                                                     data_idx_flat).T
+            mod_set = self._evaluate_model(emul_i, sam_set, data_idx_flat)
 
-                # Request evaluation samples one-by-one
-                else:
-                    # Initialize mod_set
-                    mod_set = np.zeros([self._modellink._n_data, n_sam])
-
-                    # Loop over all requested evaluation samples
-                    for i in range(n_sam):
-                        mod_set[:, i] = self._call_model(emul_i, sam_set[i],
-                                                         data_idx_flat)
+            # Transpose obtained mod_set on controller
+            if self._is_controller:
+                mod_set = mod_set.T
 
         # Controller processing the received data values
         if self._is_controller:
@@ -1375,11 +1407,11 @@ class Pipeline(Projection, object):
             end_time = time()-start_time
 
             # Check if ext_real_set and/or sam_set were provided
-            if(ext_sam_set.shape[0] and sam_set.shape[0]):
+            if ext_sam_set.shape[0] and n_sam:
                 sam_set = np.concatenate([sam_set, ext_sam_set], axis=0)
                 mod_set = np.concatenate([mod_set, ext_mod_set], axis=1)
                 use_ext_real_set = 1
-            elif(ext_sam_set.shape[0]):
+            elif ext_sam_set.shape[0]:
                 sam_set = ext_sam_set
                 mod_set = ext_mod_set
                 use_ext_real_set = 1
@@ -1387,6 +1419,8 @@ class Pipeline(Projection, object):
                 use_ext_real_set = 0
 
             # Sent the specific mod_set parts to the corresponding workers
+            logger.info("Distributing model realization data to corresponding "
+                        "emulator systems.")
             s_idx = 0
             for rank, n_data in enumerate(data_idx_len):
                 # Controller data must be saved last
@@ -1419,9 +1453,9 @@ class Pipeline(Projection, object):
         if self._is_controller:
             # Log that this is finished
             eval_rate = end_time/n_sam if n_sam else 0
-            msg = ("Finished evaluating model samples in %.3g seconds, "
-                   "averaging %.3g seconds per model evaluation."
-                   % (end_time, eval_rate))
+            msg = ("Finished obtaining and distributing model realization data"
+                   " in %.3g seconds, averaging %.3g seconds per model "
+                   "evaluation." % (end_time, eval_rate))
             self._save_statistics(emul_i, {
                 'tot_model_eval_time': ['%.3g' % (end_time), 's'],
                 'avg_model_eval_time': ['%.3g' % (eval_rate), 's'],
@@ -2432,7 +2466,8 @@ class Pipeline(Projection, object):
             add_sam_set = self._comm.bcast(add_sam_set, 0)
 
             # Obtain corresponding set of model evaluations
-            self._evaluate_model(emul_i, add_sam_set, ext_sam_set, ext_mod_set)
+            self._get_iteration_data(emul_i, add_sam_set, ext_sam_set,
+                                     ext_mod_set)
 
         # Construct emulator iteration
         self._emulator._construct_iteration(emul_i)

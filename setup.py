@@ -3,10 +3,10 @@
 """
 PRISM Setup
 ===========
-Contains the setup script required for installing the PRISM package.
+Contains the setup script required for installing the *PRISM* package.
 This can be ran directly by using::
 
-    python setup.py install
+    pip install .
 
 or anything equivalent.
 
@@ -42,8 +42,8 @@ setup(name='prism',
       author="Ellert van der Velden",
       author_email="evandervelden@swin.edu.au",
       maintainer="1313e",
-      description=("PRISM: A \"Probabilistic Regression Instrument for "
-                   "Simulating Models\""),
+      description=("PRISM: An alternative to MCMC for rapid analysis of "
+                   "models"),
       long_description=long_description,
       download_url="https://pypi.org/project/prism",
       url="https://github.com/1313e/PRISM",
@@ -73,7 +73,8 @@ setup(name='prism',
           'Topic :: Scientific/Engineering',
           'Topic :: Software Development'
           ],
-      keywords='PRISM prism model analysis emulator regression',
+      keywords=('PRISM prism model analysis emulator regression MCMC '
+                'optimization'),
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4',
       packages=find_packages(),
       package_dir={'prism': "prism"},

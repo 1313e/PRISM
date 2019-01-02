@@ -11,8 +11,7 @@ from os import path
 import numpy as np
 
 # PRISM imports
-from prism._internal import check_instance
-from prism.modellink import GaussianLink, ModelLink
+from prism.modellink import GaussianLink, test_subclass as _test_subclass
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
@@ -25,11 +24,10 @@ def test_GaussianLink():
     model_data = path.join(dirpath, 'data/data_gaussian.txt')
 
     # Initialize GaussianLink class
-    model_link = GaussianLink(3, model_data=model_data)
+    model_link = _test_subclass(GaussianLink, 3, model_data=model_data)
     repr(model_link)
 
-    # Check if this instance is from a proper ModelLink subclass
-    assert check_instance(model_link, ModelLink)
+    # Check if this instance is has the correct number of Gaussians
     assert model_link.n_gaussians == 3
 
     # Call model

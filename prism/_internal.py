@@ -93,23 +93,28 @@ class PRISM_Comm(object):
     :class:`~numpy.ndarray` buffers when using communications. Is functionally
     the same as the provided `comm` for everything else.
 
-    Parameters
-    ----------
-    comm : :obj:`~MPI.Intracomm` object
+    Optional
+    --------
+    comm : :obj:`~MPI.Intracomm` object or None. Default: None
         The MPI intra-communicator to use in this :class:`~PRISM_Comm`
         instance.
+        If *None*, use :obj:`MPI.COMM_WORLD` instead.
 
     """
 
-    def __init__(self, comm):
-        # Raise error if provided comm is not an MPI intra-communicator
-        if not isinstance(comm, MPI.Intracomm):
+    def __init__(self, comm=None):
+        # If comm is None, use MPI.COMM_WORLD
+        if comm is None:
+            comm = MPI.COMM_WORLD
+        # Else, raise error if provided comm is not an MPI intra-communicator
+        elif not isinstance(comm, MPI.Intracomm):
             raise TypeError("Input argument 'comm' must be an instance of the "
                             "MPI.Intracomm class!")
-        else:
-            self._comm = comm
-            self._rank = self._comm.Get_rank()
-            self._size = self._comm.Get_size()
+
+        # Bind provided communicator
+        self._comm = comm
+        self._rank = self._comm.Get_rank()
+        self._size = self._comm.Get_size()
 
     # Override getattr property to use self._comm attributes if necessary
     def __getattribute__(self, name):

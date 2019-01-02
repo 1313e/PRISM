@@ -64,7 +64,7 @@ call_model_doc =\
         %s
         {0} : {2} array_like
             Model parameter sample{3} to calculate the model output for.
-        data_idx : list of lists
+        data_idx : list of tuples
             The list of data identifiers for which the model is requested to
             return the corresponding data values.
 

@@ -57,38 +57,16 @@ class CustomEmulator(Emulator):
     pass
 
 
-# Custom invalid ModelLink class
-class InvalidModelLink(ModelLink):
+# Custom improper ModelLink class
+class ImproperModelLink(ModelLink):
     def __init__(self, *args, **kwargs):
         pass
 
     def call_model(self, *args, **kwargs):
-        super(InvalidModelLink, self).call_model(*args, **kwargs)
+        super(ImproperModelLink, self).call_model(*args, **kwargs)
 
     def get_md_var(self, *args, **kwargs):
-        super(InvalidModelLink, self).get_md_var(*args, **kwargs)
-
-
-# Custom ModelLink class with no call_model
-class NoCallModelLink(ModelLink):
-    def call_model(self, *args, **kwargs):
-        super(NoCallModelLink, self).call_model(*args, **kwargs)
-
-    def get_md_var(self, *args, **kwargs):
-        super(NoCallModelLink, self).get_md_var(*args, **kwargs)
-
-
-# Custom ModelLink class with missing attributes
-class NoAttrModelLink(ModelLink):
-    def __init__(self, *args, **kwargs):
-        super(NoAttrModelLink, self).__init__(*args, **kwargs)
-        del self._n_data
-
-    def call_model(self, *args, **kwargs):
-        return(1)
-
-    def get_md_var(self, *args, **kwargs):
-        super(NoAttrModelLink, self).get_md_var(*args, **kwargs)
+        super(ImproperModelLink, self).get_md_var(*args, **kwargs)
 
 
 # Custom ModelLink class with incorrect number of md_var values
@@ -119,7 +97,7 @@ class DoubleMdVarModelLink(ModelLink):
         return([[1, 1]]*len(data_idx))
 
 
-# Custom ModelLInk class
+# Custom ModelLink class
 class CustomModelLink(ModelLink):
     def call_model(self, data_idx, *args, **kwargs):
         return(np.random.rand(len(data_idx)))
@@ -340,27 +318,10 @@ class Test_Pipeline_Init_Exceptions(object):
             Pipeline(model_link, *root_working_dir,
                      prism_file=prism_file_default, emul_type=Pipeline)
 
-    # Create a Pipeline object using an invalid ModelLink object
-    def test_invalid_ModelLink(self, root_working_dir):
+    # Create a Pipeline object using an improper ModelLink object
+    def test_improper_ModelLink(self, root_working_dir):
         with pytest.raises(InputError):
-            model_link = InvalidModelLink()
-            Pipeline(model_link, *root_working_dir,
-                     prism_file=prism_file_default, emul_type='default')
-
-    # Create a Pipeline object using a ModelLink object with no call_model
-    def test_no_call_ModelLink(self):
-        with pytest.raises(NotImplementedError):
-            model_link =\
-                NoCallModelLink(model_parameters=model_parameters_3D,
-                                model_data=model_data_single)
-            model_link.call_model(0, 0, 0)
-
-    # Create a Pipeline object using a ModelLink object with missing attr
-    def test_no_attr_ModelLink(self, root_working_dir):
-        with pytest.raises(InputError):
-            model_link =\
-                NoAttrModelLink(model_parameters=model_parameters_3D,
-                                model_data=model_data_single)
+            model_link = ImproperModelLink()
             Pipeline(model_link, *root_working_dir,
                      prism_file=prism_file_default, emul_type='default')
 

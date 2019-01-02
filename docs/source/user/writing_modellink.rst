@@ -87,3 +87,24 @@ The :class:`~prism.modellink.GaussianLink` class overrides this method to add it
 
 ----
 
+Using all the information above and the template given in example_link.py_, a :class:`~prism.modellink.ModelLink` subclass can be written for a straight line model, shown in the line_link.py_ file above.
+Here, all methods discussed before (besides the :meth:`~prism.modellink.ModelLink.get_str_repr` method, since no additional input arguments are used) have been overridden.
+Given that this model is very simple, no changes have been made to the instance constructor, :meth:`~prism.modellink.ModelLink.__init__`.
+Therefore, only single evaluation samples in serial are requested.
+
+*PRISM* provides the :func:`~prism.modellink.test_subclass` function that allows the user to check if a :class:`~prism.modellink.ModelLink` subclass is properly written.
+It returns an instance of the subclass if the test passes, or raises a specific error if not.
+We can use this function to initialize our newly written subclass::
+
+	>>> from line_link import LineLink
+	>>> from prism.modellink import test_subclass
+	>>> modellink_obj = test_subclass(LineLink)
+	>>> modellink_obj
+	LineLink(model_parameters={'A': [-10.0, 10.0, 3.0], 'B': [0.0, 5.0, 1.5]},
+		 model_data={2.5: [6.8, 0.1], -2: [0.0, 0.1], 1: [4.5, 0.1]})
+
+Since no errors were raised, we can now use the initialized :class:`~prism.modellink.ModelLink` subclass to initialize the :class:`~prism.Pipeline` class::
+
+	>>> from prism import Pipeline
+	>>> pipe = Pipeline(modellink_obj)
+

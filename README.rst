@@ -1,7 +1,7 @@
 |PyPI| |Python| |License| |Travis| |AppVeyor| |Coverage| |ReadTheDocs|
 
-Model dispersion with PRISM, a "Probabilistic Regression Instrument for Simulating Models"
-==========================================================================================
+Model dispersion with *PRISM*; an alternative to MCMC for rapid analysis of models
+================================================================================
 PRISM is a pure Python 2/3 package that provides an alternative method to MCMC for analyzing scientific models.
 
 Introduction
@@ -18,15 +18,6 @@ By utilizing this system, *PRISM* is capable of identifying large parts of param
 Additionally, *PRISM* will map out the behavior of a model, allowing developers to study its properties.
 This makes *PRISM* an excellent alternative to ordinary MCMC methods for developers that seek to analyze and optimize their models.
 
-What can *PRISM* do for your model?
------------------------------------
-- Rapid analysis of your model, being several magnitudes faster than ordinary MCMC methods;
-- Provide an approximated version of the model;
-- Analyze and map out its physical behavior;
-- Detect inaccuracies and flaws;
-- Advise on important missing constraining data;
-- Massively reduce relevant parameter space by factors up to 100,000, allowing existing MCMC methods to explore and obtain the optimal model realizations much faster.
-
 What characterizes *PRISM*?
 ---------------------------
 - Written in pure Python 2/3, for versatility;
@@ -36,6 +27,7 @@ What characterizes *PRISM*?
 - Accepts any type of model and comparison data;
 - Built as a plug-and-play tool: all main classes can also be used as base classes;
 - Easily linked to any model by writing a single custom ModelLink class;
+- Capable of reducing relevant parameter space factors up to :math:`100,000` allowing existing MCMC methods to explore and obtain the optimal model realizations much faster;
 - Extensively documented;
 - Suited for both simple and advanced projects.
 

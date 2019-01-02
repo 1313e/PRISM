@@ -15,8 +15,8 @@ from __future__ import absolute_import, division, print_function
 
 # Import modellink modules
 from ._gaussian_link import GaussianLink
-from ._modellink import ModelLink
+from ._modellink import ModelLink, test_subclass
 from ._sine_wave_link import SineWaveLink
 
 # All declaration
-__all__ = ['GaussianLink', 'ModelLink', 'SineWaveLink']
+__all__ = ['GaussianLink', 'ModelLink', 'SineWaveLink', 'test_subclass']

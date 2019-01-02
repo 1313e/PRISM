@@ -13,6 +13,8 @@ import numpy as np
 import pytest
 
 # PRISM imports
+from ..._internal import RequestWarning
+from .._modellink import ModelLink, test_subclass as _test_subclass
 from .modellink.simple_gaussian_link import GaussianLink2D, GaussianLink3D
 
 # Save the path to this directory
@@ -27,6 +29,61 @@ model_parameters_invalid_est = path.join(dirpath,
                                          'data/parameters_invalid_est.txt')
 model_parameters_outside_est = path.join(dirpath,
                                          'data/parameters_outside_est.txt')
+
+
+# %% CUSTOM CLASSES
+# Custom invalid ModelLink class
+class InvalidModelLink(ModelLink):
+    def __init__(self, *args, **kwargs):
+        pass
+
+
+# Custom improper ModelLink class
+class ImproperModelLink(ModelLink):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def call_model(self, *args, **kwargs):
+        super(ImproperModelLink, self).call_model(*args, **kwargs)
+
+    def get_md_var(self, *args, **kwargs):
+        super(ImproperModelLink, self).get_md_var(*args, **kwargs)
+
+
+# Custom ModelLink class with no call_model
+class NoCallModelLink(ModelLink):
+    def call_model(self, *args, **kwargs):
+        super(NoCallModelLink, self).call_model(*args, **kwargs)
+
+    def get_md_var(self, *args, **kwargs):
+        super(NoCallModelLink, self).get_md_var(*args, **kwargs)
+
+
+# Custom ModelLink class that does not accept the correct call_model arguments
+class WrongCallModelLink(ModelLink):
+    def call_model(self, emul_i):
+        pass
+
+    def get_md_var(self, *args, **kwargs):
+        super(NoCallModelLink, self).get_md_var(*args, **kwargs)
+
+
+# Custom ModelLink class with no get_md_var()
+class NoMdVarModelLink(ModelLink):
+    def call_model(self, data_idx, *args, **kwargs):
+        return([1]*len(data_idx))
+
+    def get_md_var(self, *args, **kwargs):
+        super(NoMdVarModelLink, self).get_md_var(*args, **kwargs)
+
+
+# Custom ModelLink class that does not accept the correct get_md_var arguments
+class WrongMdVarModelLink(ModelLink):
+    def call_model(self, data_idx, *args, **kwargs):
+        return([1]*len(data_idx))
+
+    def get_md_var(self, emul_i):
+        pass
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -148,3 +205,54 @@ class Test_ModelLink_Versatility(object):
         model_link = GaussianLink3D(model_parameters=model_parameters_3D,
                                     model_data=model_data_types)
         repr(model_link)
+
+
+# Pytest for test_subclass function
+class Test_test_subclass(object):
+    # Test not a class
+    def test_no_class(self):
+        with pytest.raises(InputError):
+            _test_subclass(np.array)
+
+    # Test a ModelLink subclass that cannot be initialized
+    def test_invalid_ModelLink(self):
+        with pytest.raises(InputError):
+            _test_subclass(InvalidModelLink)
+
+    # Test not a ModelLink subclass
+    def test_no_ModelLink_subclass(self):
+        with pytest.raises(TypeError):
+            _test_subclass(ValueError)
+
+    # Test an improper ModelLink
+    def test_improper_ModelLink(self):
+        with pytest.raises(InputError):
+            _test_subclass(ImproperModelLink)
+
+    # Test a ModelLink subclass with no custom call_model()-method
+    def test_no_call_ModelLink(self):
+        with pytest.raises(NotImplementedError):
+            _test_subclass(NoCallModelLink,
+                           model_parameters=model_parameters_3D,
+                           model_data=model_data_single)
+
+    # Test a ModelLink subclass that has an invalid call_model()-method
+    def test_invalid_call_ModelLink(self):
+        with pytest.raises(TypeError):
+            _test_subclass(WrongCallModelLink,
+                           model_parameters=model_parameters_3D,
+                           model_data=model_data_single)
+
+    # Test a ModelLink subclass with no custom get_md_var()-method
+    def test_no_md_var_ModelLink(self):
+        with pytest.warns(RequestWarning):
+            _test_subclass(NoMdVarModelLink,
+                           model_parameters=model_parameters_3D,
+                           model_data=model_data_single)
+
+    # Test a ModelLink subclass that has an invalid get_md_var()-method
+    def test_invalid_md_var_ModelLink(self):
+        with pytest.raises(TypeError):
+            _test_subclass(WrongMdVarModelLink,
+                           model_parameters=model_parameters_3D,
+                           model_data=model_data_single)

@@ -39,4 +39,4 @@ Below is a list of general usage rules that apply to *PRISM*.
 - All docstrings in *PRISM* are written in `RTF`_ (Rich Text Format) and are therefore best viewed in an editor that supports it (like `Spyder`_).
 
 .. _RTF: https://en.wikipedia.org/wiki/Rich_Text_Format
-.. _Spyder: https://pythonhosted.org/spyder/installation.html
+.. _Spyder: https://www.spyder-ide.org

@@ -1,5 +1,5 @@
-Model dispersion with *PRISM*, a "Probabilistic Regression Instrument for Simulating Models"
-============================================================================================
+Model dispersion with *PRISM*; an alternative to MCMC for rapid analysis of models
+==================================================================================
 
 This is the documentation for the *PRISM* package, an efficient and rapid alternative to MCMC methods for optimizing and analyzing scientific models.
 *PRISM* was made by **Ellert van der Velden** as part of a Ph.D under supervision of `A/Prof. Alan Duffy`_ at `Swinburne University of Technology`_.
