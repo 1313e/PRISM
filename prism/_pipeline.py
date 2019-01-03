@@ -2293,7 +2293,7 @@ class Pipeline(Projection, object):
         If no implausibility analysis is requested, then the implausibility
         parameters are read in from the *PRISM* parameters file and temporarily
         stored in memory in order to enable the usage of the :meth:`~evaluate`
-        and :meth:`~prism.projection.Projection.project` methods.
+        and :meth:`~prism._projection.Projection.project` methods.
 
         """
 
@@ -2532,7 +2532,7 @@ class Pipeline(Projection, object):
 
         Emulator iteration
             The iteration of the emulator this details overview is about. By
-            default, this is the last constructed iteration.
+            default, this is the last (partly) constructed iteration.
         Construction completed?
             Whether or not the construction of this emulator iteration is
             completed. If not, the missing components for each emulator system
@@ -2569,8 +2569,8 @@ class Pipeline(Projection, object):
         # of active/total parameters
             The number of model parameters that was considered active during
             the construction of this emulator iteration, compared to the total
-            number of model parameters defined in the used :class:`~ModelLink`
-            subclass.
+            number of model parameters defined in the used
+            :class:`~prism.modellink.ModelLink` subclass.
         # of emulated data points
             The number of data points that have been emulated in this
             emulator iteration.
@@ -2584,11 +2584,11 @@ class Pipeline(Projection, object):
         Parameter space
             Lists the name, lower and upper value boundaries and estimate (if
             provided) of all model parameters defined in the used
-            :class:`~ModelLink` subclass. An asterisk is printed in front of
-            the parameter name if this model parameter was considered active
-            during the construction of this emulator iteration. A question mark
-            is used instead if the construction of this emulator iteration is
-            not finished.
+            :class:`~prism.modellink.ModelLink` subclass. An asterisk is
+            printed in front of the parameter name if this model parameter was
+            considered active during the construction of this emulator
+            iteration. A question mark is used instead if the construction of
+            this emulator iteration is not finished.
 
         """
 
@@ -2597,8 +2597,7 @@ class Pipeline(Projection, object):
         logger.info("Collecting details about current pipeline instance.")
 
         # Check if last emulator iteration is finished constructing
-        if(len(self._emulator._ccheck[-1]) == 0 or
-           delist(self._emulator._ccheck[-1]) == []):
+        if(delist(self._emulator._ccheck[-1]) == []):
             ccheck_flag = 1
         else:
             ccheck_flag = 0

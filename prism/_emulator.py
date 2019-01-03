@@ -314,7 +314,7 @@ class Emulator(object):
     @property
     def rsdl_var(self):
         """
-        list of int: The residual variances for every emulator system on this
+        list of float: The residual variances for every emulator system on this
         MPI rank.
         Obtained from regression process and replaces the Gaussian sigma.
         Empty if :attr:`~method` == 'gaussian'.
@@ -417,9 +417,9 @@ class Emulator(object):
     @property
     def sigma(self):
         """
-        int: Value of the Gaussian sigma.
-        If :attr:`~method` != 'gaussian' or 'full', this value is not required,
-        since it is obtained from the regression process instead.
+        float: Value of the Gaussian sigma.
+        If :attr:`~method` != 'gaussian', this value is not required, since it
+        is obtained from the regression process instead.
 
         """
 
@@ -450,8 +450,8 @@ class Emulator(object):
         ----------
         %(emul_i)s
         cur_iter : bool
-            Bool determining whether the current or the next emulator iteration
-            is requested.
+            Bool determining whether the current (*True*) or the next (*False*)
+            emulator iteration is requested.
 
         Returns
         -------

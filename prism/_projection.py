@@ -126,14 +126,14 @@ class Projection(object):
             :func:`~matplotlib.pyplot.figure` function.
         impl_kwargs : dict. Default: {} or {'cmap': 'rainforest_r'}
             Dict of keyword arguments to be used for making the minimum
-            implausibility (top) plot. It takes all arguments that can be
+            implausibility (top/left) plot. It takes all arguments that can be
             provided to the :func:`~matplotlib.pyplot.plot` (2D) or
-            :func:`~matplotlib.pyplot.hexbin` (nD) function.
+            :func:`~matplotlib.pyplot.hexbin` (3D) function.
         los_kwargs : dict. Default: {} or {'cmap': 'blaze'}
             Dict of keyword arguments to be used for making the line-of-sight
-            (bottom) plot. It takes all arguments that can be provided to the
-            :func:`~matplotlib.pyplot.plot` (2D) or
-            :func:`~matplotlib.pyplot.hexbin` (nD) function.
+            (bottom/right) plot. It takes all arguments that can be provided to
+            the :func:`~matplotlib.pyplot.plot` (2D) or
+            :func:`~matplotlib.pyplot.hexbin` (3D) function.
         line_kwargs : dict. Default: {'linestyle': '--', 'color': 'grey'}
             Dict of keyword arguments to be used for drawing the parameter
             estimate lines in both plots. It takes all arguments that can be
