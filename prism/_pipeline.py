@@ -1243,18 +1243,18 @@ class Pipeline(Projection, object):
                             % (keyword, emul_i))
 
                 # Check what data keyword has been provided
-                # IMPL_CUT
-                if(keyword == 'impl_cut'):
-                    # Check if impl_cut data has been saved before
+                # IMPL_PAR
+                if(keyword == 'impl_par'):
+                    # Check if impl_par data has been saved before
                     try:
-                        self._impl_cut[emul_i] = data[0]
-                        self._cut_idx[emul_i] = data[1]
+                        self._impl_cut[emul_i] = data['impl_cut']
+                        self._cut_idx[emul_i] = data['cut_idx']
                     except IndexError:
-                        self._impl_cut.append(data[0])
-                        self._cut_idx.append(data[1])
+                        self._impl_cut.append(data['impl_cut'])
+                        self._cut_idx.append(data['cut_idx'])
                     finally:
-                        data_set.attrs['impl_cut'] = data[0]
-                        data_set.attrs['cut_idx'] = data[1]
+                        data_set.attrs['impl_cut'] = data['impl_cut']
+                        data_set.attrs['cut_idx'] = data['cut_idx']
 
                 # IMPL_SAM
                 elif(keyword == 'impl_sam'):
@@ -1437,8 +1437,10 @@ class Pipeline(Projection, object):
             else:
                 # If workers received their data, save controller data
                 self._emulator._save_data(emul_i, None, {
-                    'mod_real_set': [sam_set, mod_set[0:data_idx_len[0]],
-                                     use_ext_real_set]})
+                    'mod_real_set': {
+                        'sam_set': sam_set,
+                        'mod_set': mod_set[0:data_idx_len[0]],
+                        'use_ext_real_set': use_ext_real_set}})
 
         # Workers waiting for controller to send them their data values
         else:
@@ -1447,7 +1449,9 @@ class Pipeline(Projection, object):
             # Save all the data to the specific hdf5-files
             for i, lemul_s in enumerate(self._emulator._active_emul_s[emul_i]):
                 self._emulator._save_data(emul_i, lemul_s, {
-                    'mod_real_set': [sam_set, mod_set[i]]})
+                    'mod_real_set': {
+                        'sam_set': sam_set,
+                        'mod_set': mod_set[i]}})
 
         # Controller finishing up
         if self._is_controller:
@@ -1774,7 +1778,9 @@ class Pipeline(Projection, object):
         else:
             # If they need to be stored to file
             self._save_data({
-                'impl_cut': [impl_cut, cut_idx]})
+                'impl_par': {
+                    'impl_cut': impl_cut,
+                    'cut_idx': cut_idx}})
 
         # Log end of process
         logger.info("Finished generating implausibility cut-off list.")

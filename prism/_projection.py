@@ -90,11 +90,11 @@ class Projection(object):
 
         Keyword arguments
         -----------------
-        proj_2D : bool. Default: True
-            If :attr:`~prism.modellink.ModelLink.n_par` > 2, whether or not to
-            create 2D projections of all supplied active parameters in addition
-            to the standard 3D projections. Is always *True* if
-            :attr:`~prism.modellink.ModelLink.n_par` == 2.
+        proj_type : {'2D', '3D', 'both'}. Default: '2D' (2D), 'both' (nD)
+            String indicating which projection type to create for all supplied
+            active parameters.
+            If :attr:`~prism.modellink.ModelLink.n_par` == 2, this is always
+            '2D' (and cannot be modified).
         figure : bool. Default: True
             Whether or not to create the projection figures. If *False*, only
             the data required to create the figures is calculated and saved in
@@ -134,7 +134,7 @@ class Projection(object):
             implausibility (top/left) plot in the 2D projection figures. It
             takes all arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
-        impl_kwargs_3D: dict. Default: {'cmap': 'rainforest_r'}
+        impl_kwargs_3D : dict. Default: {'cmap': 'rainforest_r'}
             Dict of keyword arguments to be used for making the minimum
             implausibility (top/left) plot in the 3D projection figures. It
             takes all arguments that can be provided to the
@@ -284,6 +284,8 @@ class Projection(object):
         """
         int: Number of emulator evaluations used to generate the samples in
         every grid point for the last created projection figures.
+        Note that when making 2D projections of nD models, the used depth was
+        this number multiplied by :attr:`~proj_res`.
 
         """
 
@@ -659,7 +661,7 @@ class Projection(object):
                 # Make sure that there are still enough values left
                 if(self.__proj_2D and len(proj_par) >= 1):
                     pass
-                elif(self._modellink._n_par > 2 and len(proj_par) >= 2):
+                elif(self.__proj_3D and len(proj_par) >= 2):
                     pass
                 else:
                     err_msg = ("Not enough active model parameters have been "
@@ -671,7 +673,7 @@ class Projection(object):
             if self.__proj_2D:
                 hcube_idx = list(combinations(range(len(proj_par)), 1))
                 hcubes.extend(proj_par[np.array(hcube_idx)].tolist())
-            if(self._modellink._n_par > 2):
+            if self.__proj_3D:
                 hcube_idx = list(combinations(range(len(proj_par)), 2))
                 hcubes.extend(proj_par[np.array(hcube_idx)].tolist())
 
@@ -846,12 +848,12 @@ class Projection(object):
         # Create input argument dict with default projection parameters
         kwargs_dict = {'emul_i': None,
                        'proj_par': None,
-                       'proj_2D': True,
-                       'figure': True,
-                       'show': False,
+                       'proj_type': '2D' if(self.__n_par == 2) else 'both',
+                       'figure': 1,
+                       'show': 0,
                        'align': 'col',
-                       'smooth': False,
-                       'force': False,
+                       'smooth': 0,
+                       'force': 0,
                        'fig_kwargs': fig_kwargs,
                        'impl_kwargs_2D': impl_kwargs_2D,
                        'impl_kwargs_3D': impl_kwargs_3D,
@@ -930,13 +932,19 @@ class Projection(object):
             # Identify projected parameter
             par = hcube[0]
 
+            # Calculate the actual depth
+            if(self.__n_par == 2):
+                # If n_par == 2, use normal depth
+                depth = self.__depth
+            else:
+                # If n_par > 2, multiply depth by res to have same n_sam as 3D
+                depth = self.__depth*self.__res
+
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([self.__res, self.__depth,
-                                   self._modellink._n_par])
+            proj_hcube = np.zeros([self.__res, depth, self.__n_par])
 
             # Create list that contains all the other parameters
-            par_hid = list(chain(range(0, par),
-                                 range(par+1, self._modellink._n_par)))
+            par_hid = list(chain(range(0, par), range(par+1, self.__n_par)))
 
             # Generate list with values for projected parameter
             proj_sam_set = np.linspace(self._modellink._par_rng[par, 0],
@@ -944,7 +952,7 @@ class Projection(object):
                                        self.__res)
 
             # Generate latin hypercube of the remaining parameters
-            hidden_sam_set = lhd(self.__depth, self._modellink._n_par-1,
+            hidden_sam_set = lhd(depth, self.__n_par-1,
                                  self._modellink._par_rng[par_hid], 'fixed',
                                  self._criterion)
 
@@ -961,11 +969,11 @@ class Projection(object):
 
             # Create empty projection hypercube array
             proj_hcube = np.zeros([pow(self.__res, 2), self.__depth,
-                                   self._modellink._n_par])
+                                   self.__n_par])
 
             # Generate list that contains all the other parameters
             par_hid = list(chain(range(0, par1), range(par1+1, par2),
-                                 range(par2+1, self._modellink._n_par)))
+                                 range(par2+1, self.__n_par)))
 
             # Generate list with values for projected parameters
             proj_sam_set1 = np.linspace(self._modellink._par_rng[par1, 0],
@@ -976,7 +984,7 @@ class Projection(object):
                                         self.__res)
 
             # Generate Latin Hypercube of the remaining parameters
-            hidden_sam_set = lhd(self.__depth, self._modellink._n_par-2,
+            hidden_sam_set = lhd(self.__depth, self.__n_par-2,
                                  self._modellink._par_rng[par_hid], 'fixed',
                                  self._criterion)
 
@@ -1047,7 +1055,7 @@ class Projection(object):
         # For now, manually flatten the first two dimensions of proj_hcube
         gridsize = proj_hcube.shape[0]
         depth = proj_hcube.shape[1]
-        proj_hcube = proj_hcube.reshape(gridsize*depth, self._modellink._n_par)
+        proj_hcube = proj_hcube.reshape(gridsize*depth, self.__n_par)
 
         # Save current time
         start_time = time()
@@ -1061,8 +1069,8 @@ class Projection(object):
             impl_check, impl_cut = results
 
             # Unflatten the received results
-            impl_check = impl_check.reshape(gridsize, self.__depth)
-            impl_cut = impl_cut.reshape(gridsize, self.__depth)
+            impl_check = impl_check.reshape(gridsize, depth)
+            impl_cut = impl_cut.reshape(gridsize, depth)
 
             # Loop over all grid point results and save lowest impl and los
             for check_grid, cut_grid in zip(impl_check, impl_cut):
@@ -1070,7 +1078,7 @@ class Projection(object):
                 impl_min_hcube.append(min(cut_grid))
 
                 # Calculate impl line-of-sight in this grid point
-                impl_los_hcube.append(sum(check_grid)/self.__depth)
+                impl_los_hcube.append(sum(check_grid)/depth)
 
             # Log that analysis has been finished
             time_diff = time()-start_time
@@ -1085,7 +1093,11 @@ class Projection(object):
 
             # Save projection data to hdf5
             self.__save_data({
-                'nD_proj_hcube': [hcube_name, impl_min_hcube, impl_los_hcube]})
+                'nD_proj_hcube': {
+                    'hcube_name': hcube_name,
+                    'impl_min': impl_min_hcube,
+                    'impl_los': impl_los_hcube,
+                    'proj_depth': depth}})
 
         # Return the results for this proj_hcube
         return(np.array(impl_min_hcube), np.array(impl_los_hcube))
@@ -1146,6 +1158,8 @@ class Projection(object):
                 else:
                     kwargs_dict[key].update(value)
 
+            elif(self.__n_par == 2 and key == 'proj_type'):
+                pass
             else:
                 kwargs_dict[key] = value
         kwargs = kwargs_dict
@@ -1156,18 +1170,30 @@ class Projection(object):
         # Controller checking all other kwargs
         if self._is_controller:
             # Check if several parameters are bools
-            if(self._modellink._n_par == 2):
-                self.__proj_2D = 1
-            else:
-                self.__proj_2D = check_vals(kwargs['proj_2D'], 'proj_2D',
-                                            'bool')
             self.__figure = check_vals(kwargs['figure'], 'figure', 'bool')
             self.__show = check_vals(kwargs['show'], 'show', 'bool')
             self.__smooth = check_vals(kwargs['smooth'], 'smooth', 'bool')
             self.__force = check_vals(kwargs['force'], 'force', 'bool')
 
+            # Check if proj_type parameter is a valid string
+            proj_type =\
+                str(kwargs['proj_type'].replace("'", '').replace('"', ''))
+            if proj_type.lower() in ('2d', '1', 'one'):
+                self.__proj_2D = 1
+                self.__proj_3D = 0
+            elif proj_type.lower() in ('3d', '2', 'two'):
+                self.__proj_2D = 0
+                self.__proj_3D = 1
+            elif proj_type.lower() in ('nd', 'both'):
+                self.__proj_2D = 1
+                self.__proj_3D = 1
+            else:
+                err_msg = ("Input argument 'proj_type' is invalid (%r)!"
+                           % (proj_type))
+                raise_error(err_msg, ValueError, logger)
+
             # Check if align parameter is a valid string
-            align = str(kwargs['align'].replace("'", '').replace("'", ''))
+            align = str(kwargs['align'].replace("'", '').replace('"', ''))
             if align.lower() in ('r', 'row', 'h', 'horizontal'):
                 self.__align = 'row'
                 kwargs['fig_kwargs']['figsize'] =\
@@ -1269,6 +1295,9 @@ class Projection(object):
         # Create logger
         logger = getCLogger('PROJ_INIT')
 
+        # Save number of parameters as an attribute
+        self.__n_par = self._modellink._n_par
+
         # Combine received args and kwargs with default ones
         proj_par = self.__process_input_arguments(*args, **kwargs)
 
@@ -1331,15 +1360,15 @@ class Projection(object):
                 # ND_PROJ_HCUBE
                 if(keyword == 'nD_proj_hcube'):
                     # Get the data set of this projection hypercube
-                    data_set = group.create_group(data[0])
+                    data_set = group.create_group(data['hcube_name'])
 
                     # Save the projection data to file
-                    data_set.create_dataset('impl_min', data=data[1])
-                    data_set.create_dataset('impl_los', data=data[2])
+                    data_set.create_dataset('impl_min', data=data['impl_min'])
+                    data_set.create_dataset('impl_los', data=data['impl_los'])
                     data_set.attrs['impl_cut'] = self._impl_cut[self.__emul_i]
                     data_set.attrs['cut_idx'] = self._cut_idx[self.__emul_i]
                     data_set.attrs['proj_res'] = self.__res
-                    data_set.attrs['proj_depth'] = self.__depth
+                    data_set.attrs['proj_depth'] = data['proj_depth']
 
                 # INVALID KEYWORD
                 else:

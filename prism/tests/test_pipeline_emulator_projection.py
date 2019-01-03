@@ -153,7 +153,7 @@ class Test_Pipeline_Gaussian2D(object):
     def test_project_pre_anal(self, pipe):
         with pytest_mpl.plugin.switch_backend('Agg'):
             pipe.project(proj_par=(0), figure=False)
-            pipe.project(proj_par=(0), figure=True)
+            pipe.project(proj_par=(0), figure=True, proj_type='both')
             pipe.project(proj_par=(1), figure=True, align='row', smooth=True)
 
     # Check if first iteration can be projected again (unforced)
@@ -272,7 +272,7 @@ class Test_Pipeline_Gaussian3D(object):
     # Check if first iteration can be projected
     def test_project(self, pipe):
         with pytest_mpl.plugin.switch_backend('Agg'):
-            pipe.project(1, (0, 1), align='row', smooth=True, proj_2D=False)
+            pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D')
             os.remove(pipe._Projection__get_fig_path((0, 1))[1])
             pipe.project(1, (0, 1), align='col')
 
@@ -612,6 +612,13 @@ class Test_Pipeline_User_Exceptions(object):
     def test_too_many_args_project(self, pipe):
         with pytest.raises(InputError):
             pipe.project(1, 1, 1)
+
+    # Try to call project with incorrect proj_type parameter
+    def test_invalid_proj_type_val(self, pipe):
+        pipe._modellink._n_par = 3
+        with pytest.raises(ValueError):
+            pipe.project(proj_type='test')
+        pipe._modellink._n_par = 2
 
     # Try to call project with incorrect align parameter
     def test_invalid_align_val(self, pipe):

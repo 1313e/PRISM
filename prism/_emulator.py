@@ -1553,16 +1553,22 @@ class Emulator(object):
             poly_coef = np.insert(pipe.named_steps['linear'].coef_, 0,
                                   pipe.named_steps['linear'].intercept_, 0)
 
-            # Save everything to hdf5
+            # Create regression data dict
+            regr_data_dict = {
+                'active_par': new_active_par,
+                'rsdl_var': rsdl_var,
+                'regr_score': regr_score,
+                'poly_coef': poly_coef,
+                'poly_powers': poly_powers,
+                'poly_idx': poly_idx}
+
+            # If regression covariance is used, add it to regr_data_dict
             if self._use_regr_cov:
-                self._save_data(emul_i, emul_s, {
-                    'regression': [new_active_par, rsdl_var, regr_score,
-                                   poly_coef, poly_powers, poly_idx,
-                                   poly_coef_cov]})
-            else:
-                self._save_data(emul_i, emul_s, {
-                    'regression': [new_active_par, rsdl_var, regr_score,
-                                   poly_coef, poly_powers, poly_idx]})
+                regr_data_dict['poly_coef_cov'] = poly_coef_cov
+
+            # Save everything to hdf5
+            self._save_data(emul_i, emul_s, {
+                'regression': regr_data_dict})
 
         # Log that this is finished
         logger.info("Finished performing regression.")
@@ -1672,7 +1678,9 @@ class Emulator(object):
                                   (self._mod_set[emul_i][emul_s] -
                                    prior_exp_sam_set[i]))
             self._save_data(emul_i, emul_s, {
-                'exp_dot_term': [prior_exp_sam_set[i], exp_dot_term]})
+                'exp_dot_term': {
+                    'prior_exp_sam_set': prior_exp_sam_set[i],
+                    'exp_dot_term': exp_dot_term}})
 
         # Log again
         logger.info("Finished pre-calculating second adjustment dot-term "
@@ -1955,7 +1963,9 @@ class Emulator(object):
 
             # Save the covariance matrix and inverse to hdf5
             self._save_data(emul_i, emul_s, {
-                'cov_mat': [cov_mat[i], cov_mat_inv]})
+                'cov_mat': {
+                    'cov_mat': cov_mat[i],
+                    'cov_mat_inv': cov_mat_inv}})
 
         # Log that calculation has been finished
         logger.info("Finished calculating covariance matrix.")
@@ -2468,9 +2478,10 @@ class Emulator(object):
                 # COV_MAT
                 elif(keyword == 'cov_mat'):
                     # Save cov_mat data to file and memory
-                    data_set.create_dataset('cov_mat', data=data[0])
-                    data_set.create_dataset('cov_mat_inv', data=data[1])
-                    self._cov_mat_inv[emul_i][lemul_s] = data[1]
+                    data_set.create_dataset('cov_mat', data=data['cov_mat'])
+                    data_set.create_dataset('cov_mat_inv',
+                                            data=data['cov_mat_inv'])
+                    self._cov_mat_inv[emul_i][lemul_s] = data['cov_mat_inv']
 
                     # Remove cov_mat from respective ccheck
                     self._ccheck[emul_i][lemul_s].remove('cov_mat')
@@ -2478,9 +2489,11 @@ class Emulator(object):
                 # EXP_DOT_TERM
                 elif(keyword == 'exp_dot_term'):
                     # Save exp_dot_term data to file and memory
-                    data_set.create_dataset('prior_exp_sam_set', data=data[0])
-                    data_set.create_dataset('exp_dot_term', data=data[1])
-                    self._exp_dot_term[emul_i][lemul_s] = data[1]
+                    data_set.create_dataset('prior_exp_sam_set',
+                                            data=data['prior_exp_sam_set'])
+                    data_set.create_dataset('exp_dot_term',
+                                            data=data['exp_dot_term'])
+                    self._exp_dot_term[emul_i][lemul_s] = data['exp_dot_term']
 
                     # Remove exp_dot_term from respective ccheck
                     self._ccheck[emul_i][lemul_s].remove('exp_dot_term')
@@ -2491,14 +2504,14 @@ class Emulator(object):
                     dtype = [(n, float) for n in self._modellink._par_name]
 
                     # Convert sam_set to a compound dataset
-                    data_c = data[0].copy()
+                    data_c = data['sam_set'].copy()
                     data_c.dtype = dtype
 
                     # Save sam_set data to file and memory
                     data_set.create_dataset('sam_set', data=data_c)
-                    data_set.attrs['n_sam'] = np.shape(data[0])[0]
-                    self._sam_set[emul_i] = data[0]
-                    self._n_sam[emul_i] = np.shape(data[0])[0]
+                    data_set.attrs['n_sam'] = np.shape(data['sam_set'])[0]
+                    self._sam_set[emul_i] = data['sam_set']
+                    self._n_sam[emul_i] = np.shape(data['sam_set'])[0]
 
                     # Loop over all received mod_sets
                     for i, lemul_s in enumerate(self._active_emul_s[emul_i]):
@@ -2507,11 +2520,13 @@ class Emulator(object):
 
                         # Save mod_set data to file and memory
                         data_set_s = data_set['emul_%i' % (emul_s)]
-                        data_set_s.create_dataset('mod_set', data=data[1][i])
-                        self._mod_set[emul_i][lemul_s] = data[1][i]
+                        data_set_s.create_dataset('mod_set',
+                                                  data=data['mod_set'][i])
+                        self._mod_set[emul_i][lemul_s] = data['mod_set'][i]
 
                     # Save whether or not ext_real_set was used
-                    data_set.attrs['use_ext_real_set'] = bool(data[2])
+                    data_set.attrs['use_ext_real_set'] =\
+                        bool(data['use_ext_real_set'])
 
                     # Remove mod_real_set from ccheck
                     self._ccheck[emul_i].remove('mod_real_set')
@@ -2519,22 +2534,22 @@ class Emulator(object):
                 # MOD_REAL_SET (WORKER)
                 elif(self._is_worker and keyword == 'mod_real_set'):
                     # Save sam_set data to memory
-                    self._sam_set[emul_i] = data[0]
-                    self._n_sam[emul_i] = np.shape(data[0])[0]
+                    self._sam_set[emul_i] = data['sam_set']
+                    self._n_sam[emul_i] = np.shape(data['sam_set'])[0]
 
                     # Save mod_set data to file and memory
-                    data_set.create_dataset('mod_set', data=data[1])
-                    self._mod_set[emul_i][lemul_s] = data[1]
+                    data_set.create_dataset('mod_set', data=data['mod_set'])
+                    self._mod_set[emul_i][lemul_s] = data['mod_set']
 
                 # REGRESSION
                 elif(keyword == 'regression'):
                     # Determine the new active parameter names for this system
                     par_names = [self._modellink._par_name[i].encode(
-                        'ascii', 'ignore') for i in data[0]]
+                        'ascii', 'ignore') for i in data['active_par']]
 
                     # Save new active_par_data data to file and memory
                     data_set.attrs['active_par_data'] = par_names
-                    self._active_par_data[emul_i][lemul_s] = data[0]
+                    self._active_par_data[emul_i][lemul_s] = data['active_par']
 
                     # Determine dtype-list for compound dataset
                     names = [self._modellink._par_name[par] for par in
@@ -2542,22 +2557,25 @@ class Emulator(object):
                     dtype = [(n, 'int64') for n in names]
 
                     # Convert poly_powers to a compound dataset
-                    data_c = data[4].copy()
+                    data_c = data['poly_powers'].copy()
                     data_c.dtype = dtype
 
                     # Save all regression data to file and memory
-                    data_set.attrs['rsdl_var'] = data[1]
-                    data_set.attrs['regr_score'] = data[2]
-                    data_set.create_dataset('poly_coef', data=data[3])
+                    data_set.attrs['rsdl_var'] = data['rsdl_var']
+                    data_set.attrs['regr_score'] = data['regr_score']
+                    data_set.create_dataset('poly_coef',
+                                            data=data['poly_coef'])
                     data_set.create_dataset('poly_powers', data=data_c)
-                    data_set.create_dataset('poly_idx', data=data[5])
-                    self._rsdl_var[emul_i][lemul_s] = data[1]
-                    self._poly_coef[emul_i][lemul_s] = data[3]
-                    self._poly_powers[emul_i][lemul_s] = data[4]
-                    self._poly_idx[emul_i][lemul_s] = data[5]
+                    data_set.create_dataset('poly_idx', data=data['poly_idx'])
+                    self._rsdl_var[emul_i][lemul_s] = data['rsdl_var']
+                    self._poly_coef[emul_i][lemul_s] = data['poly_coef']
+                    self._poly_powers[emul_i][lemul_s] = data['poly_powers']
+                    self._poly_idx[emul_i][lemul_s] = data['poly_idx']
                     if self._use_regr_cov:
-                        data_set.create_dataset('poly_coef_cov', data=data[6])
-                        self._poly_coef_cov[emul_i][lemul_s] = data[6]
+                        data_set.create_dataset('poly_coef_cov',
+                                                data=data['poly_coef_cov'])
+                        self._poly_coef_cov[emul_i][lemul_s] =\
+                            data['poly_coef_cov']
 
                     # Remove regression from respective ccheck
                     self._ccheck[emul_i][lemul_s].remove('regression')
@@ -2585,6 +2603,18 @@ class Emulator(object):
 
         # Open hdf5-file
         with self._File('r', None) as file:
+            # Check if provided emulator is the same as requested
+            emul_type = file.attrs['emul_type'].decode('utf-8')
+            if(emul_type != self._emul_type):
+                err_msg = ("Provided emulator system type (%r) does not match "
+                           "the requested type (%r)!"
+                           % (emul_type, self._emul_type))
+                raise_error(err_msg, RequestError, logger)
+
+            # Obtain used PRISM version and check its compatibility
+            emul_version = file.attrs['prism_version'].decode('utf-8')
+            check_compatibility(emul_version)
+
             # Read in all the emulator parameters
             self._sigma = file.attrs['sigma']
             self._l_corr = file.attrs['l_corr']
@@ -2594,19 +2624,6 @@ class Emulator(object):
             self._n_cross_val = file.attrs['n_cross_val']
             modellink_name = file.attrs['modellink_name'].decode('utf-8')
             self._use_mock = int(file.attrs['use_mock'])
-
-            # Obtain used PRISM version and emulator type
-            emul_version = file.attrs['prism_version'].decode('utf-8')
-            emul_type = file.attrs['emul_type'].decode('utf-8')
-
-        # Check if provided emulator is the same as requested
-        if(emul_type != self._emul_type):
-            err_msg = ("Provided emulator system type (%r) does not match the "
-                       "requested type (%r)!" % (emul_type, self._emul_type))
-            raise_error(err_msg, RequestError, logger)
-
-        # Check if provided emul_version is compatible
-        check_compatibility(emul_version)
 
         # Log that reading is finished
         logger.info("Finished retrieving parameters.")
