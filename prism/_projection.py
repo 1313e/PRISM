@@ -90,6 +90,11 @@ class Projection(object):
 
         Keyword arguments
         -----------------
+        proj_2D : bool. Default: True
+            If :attr:`~prism.modellink.ModelLink.n_par` > 2, whether or not to
+            create 2D projections of all supplied active parameters in addition
+            to the standard 3D projections. Is always *True* if
+            :attr:`~prism.modellink.ModelLink.n_par` == 2.
         figure : bool. Default: True
             Whether or not to create the projection figures. If *False*, only
             the data required to create the figures is calculated and saved in
@@ -124,16 +129,26 @@ class Projection(object):
             Dict of keyword arguments to be used when creating the subplots
             figure. It takes all arguments that can be provided to the
             :func:`~matplotlib.pyplot.figure` function.
-        impl_kwargs : dict. Default: {} or {'cmap': 'rainforest_r'}
+        impl_kwargs_2D : dict. Default: {}
             Dict of keyword arguments to be used for making the minimum
-            implausibility (top/left) plot. It takes all arguments that can be
-            provided to the :func:`~matplotlib.pyplot.plot` (2D) or
-            :func:`~matplotlib.pyplot.hexbin` (3D) function.
-        los_kwargs : dict. Default: {} or {'cmap': 'blaze'}
+            implausibility (top/left) plot in the 2D projection figures. It
+            takes all arguments that can be provided to the
+            :func:`~matplotlib.pyplot.plot` function.
+        impl_kwargs_3D: dict. Default: {'cmap': 'rainforest_r'}
+            Dict of keyword arguments to be used for making the minimum
+            implausibility (top/left) plot in the 3D projection figures. It
+            takes all arguments that can be provided to the
+            :func:`~matplotlib.pyplot.hexbin` function.
+        los_kwargs_2D : dict. Default: {}
             Dict of keyword arguments to be used for making the line-of-sight
-            (bottom/right) plot. It takes all arguments that can be provided to
-            the :func:`~matplotlib.pyplot.plot` (2D) or
-            :func:`~matplotlib.pyplot.hexbin` (3D) function.
+            (bottom/right) plot in the 2D projection figures. It takes all
+            arguments that can be provided to the
+            :func:`~matplotlib.pyplot.plot` function.
+        los_kwargs_3D : dict. Default: {'cmap': 'blaze'}
+            Dict of keyword arguments to be used for making the line-of-sight
+            (bottom/right) plot in the 3D projection figures. It takes all
+            arguments that can be provided to the
+            :func:`~matplotlib.pyplot.hexbin` function.
         line_kwargs : dict. Default: {'linestyle': '--', 'color': 'grey'}
             Dict of keyword arguments to be used for drawing the parameter
             estimate lines in both plots. It takes all arguments that can be
@@ -142,17 +157,18 @@ class Projection(object):
         Generates
         ---------
         A series of projection figures detailing the behavior of the model.
-        The lay-out and output of the projection figures depend on the number
-        of model parameters :attr:`~prism.modellink.ModelLink.n_par`:
-            :attr:`~prism.modellink.ModelLink.n_par` == 2: The output
-            will feature two figures for the two model parameters with two
-            subplots each. Every figure gives details about the behavior of the
-            corresponding model parameter, by showing the minimum
-            implausibility value (top/left) and the line-of-sight depth
-            (bottom/right) obtained at the specified parameter value,
-            independent of the value of the other parameter.
+        The lay-out and output of the projection figures depend on the type of
+        figure:
+            2D projection figure: The output will feature a figure with two
+            subplots for every active model parameter (``n_par``). Every figure
+            gives details about the behavior of the corresponding model
+            parameter, by showing the minimum implausibility value (top/left)
+            and the line-of-sight depth (bottom/right) obtained at the
+            specified parameter value, independent of the values of the other
+            parameters.
 
-            :attr:`~prism.modellink.ModelLink.n_par` > 2: The output
+            3D projection figure (only if
+            :attr:`~prism.modellink.ModelLink.n_par` > 2): The output
             will feature a figure with two subplots for every combination of
             two active model parameters that can be made
             (``n_par*(n_par-1)/2``). Every figure gives details about the
@@ -225,7 +241,7 @@ class Projection(object):
                     proj_res = self.__res
 
                 # Draw projection figure
-                if(self._modellink._n_par == 2):
+                if(len(hcube) == 1):
                     self.__draw_2D_proj_fig(hcube, impl_min, impl_los,
                                             proj_res)
                 else:
@@ -304,7 +320,7 @@ class Projection(object):
         f_los = Rbf(x_proj, impl_los)
 
         # Set the size of the hexbin grid
-        gridsize = max(1000, self.__res)
+        gridsize = max(1000, proj_res)
 
         # Create parameter value array used in interpolation functions
         x = np.linspace(self._modellink._par_rng[par, 0],
@@ -349,7 +365,7 @@ class Projection(object):
                    fontsize='xx-large')
 
         # Plot minimum implausibility
-        ax0.plot(x, y_min, **self.__impl_kwargs)
+        ax0.plot(x, y_min, **self.__impl_kwargs_2D)
         draw_y = self._impl_cut[self.__emul_i][0]
         ax0.axis([self._modellink._par_rng[par, 0],
                   self._modellink._par_rng[par, 1],
@@ -361,7 +377,7 @@ class Projection(object):
         ax0.set_ylabel("Min. Implausibility", fontsize='large')
 
         # Plot line-of-sight depth
-        ax1.plot(x, y_los, **self.__los_kwargs)
+        ax1.plot(x, y_los, **self.__los_kwargs_2D)
         ax1.axis([self._modellink._par_rng[par, 0],
                   self._modellink._par_rng[par, 1],
                   0, min(1, np.max(y_los))])
@@ -425,7 +441,7 @@ class Projection(object):
         f_los = Rbf(x_proj, y_proj, impl_los)
 
         # Set the size of the hexbin grid
-        gridsize = max(1000, self.__res)
+        gridsize = max(1000, proj_res)
 
         # Create parameter value grid used in interpolation functions
         x = np.linspace(self._modellink._par_rng[par1, 0],
@@ -491,7 +507,7 @@ class Projection(object):
         # Plot minimum implausibility
         vmax = self._impl_cut[self.__emul_i][0]
         fig1 = ax0.hexbin(x, y, z_min, gridsize, vmin=0, vmax=vmax,
-                          **self.__impl_kwargs)
+                          **self.__impl_kwargs_3D)
         if self._modellink._par_est[par1] is not None:
             draw_textline(r"", x=self._modellink._par_est[par1], ax=ax0,
                           line_kwargs=self.__line_kwargs)
@@ -507,7 +523,7 @@ class Projection(object):
 
         # Plot line-of-sight depth
         fig2 = ax1.hexbin(x, y, z_los, gridsize, vmin=0,
-                          vmax=min(1, np.max(z_los)), **self.__los_kwargs)
+                          vmax=min(1, np.max(z_los)), **self.__los_kwargs_3D)
         if self._modellink._par_est[par1] is not None:
             draw_textline(r"", x=self._modellink._par_est[par1], ax=ax1,
                           line_kwargs=self.__line_kwargs)
@@ -641,7 +657,7 @@ class Projection(object):
                      i in proj_par])
 
                 # Make sure that there are still enough values left
-                if(self._modellink._n_par == 2 and len(proj_par) >= 1):
+                if(self.__proj_2D and len(proj_par) >= 1):
                     pass
                 elif(self._modellink._n_par > 2 and len(proj_par) >= 2):
                     pass
@@ -651,11 +667,13 @@ class Projection(object):
                     raise_error(err_msg, RequestError, logger)
 
             # Obtain list of hypercube names
-            if(self._modellink._n_par == 2):
+            hcubes = []
+            if self.__proj_2D:
                 hcube_idx = list(combinations(range(len(proj_par)), 1))
-            else:
+                hcubes.extend(proj_par[np.array(hcube_idx)].tolist())
+            if(self._modellink._n_par > 2):
                 hcube_idx = list(combinations(range(len(proj_par)), 2))
-            hcubes = proj_par[np.array(hcube_idx)].tolist()
+                hcubes.extend(proj_par[np.array(hcube_idx)].tolist())
 
             # Create empty list holding hcube_par that needs to be created
             create_hcubes = []
@@ -735,7 +753,7 @@ class Projection(object):
 
         """
 
-        if(self._modellink._n_par == 2):
+        if(len(hcube) == 1):
             return('%s' % (self._modellink._par_name[hcube[0]]))
         else:
             return('%s-%s' % (self._modellink._par_name[hcube[0]],
@@ -818,22 +836,27 @@ class Projection(object):
 
         # Create input argument dicts with default figure parameters
         fig_kwargs = {'dpi': 100}
-        impl_kwargs = {'cmap': 'rainforest_r'}
-        los_kwargs = {'cmap': 'blaze'}
+        impl_kwargs_2D = {}
+        impl_kwargs_3D = {'cmap': 'rainforest_r'}
+        los_kwargs_2D = {}
+        los_kwargs_3D = {'cmap': 'blaze'}
         line_kwargs = {'linestyle': '--',
                        'color': 'grey'}
 
         # Create input argument dict with default projection parameters
         kwargs_dict = {'emul_i': None,
                        'proj_par': None,
+                       'proj_2D': True,
                        'figure': True,
                        'show': False,
                        'align': 'col',
                        'smooth': False,
                        'force': False,
                        'fig_kwargs': fig_kwargs,
-                       'impl_kwargs': impl_kwargs,
-                       'los_kwargs': los_kwargs,
+                       'impl_kwargs_2D': impl_kwargs_2D,
+                       'impl_kwargs_3D': impl_kwargs_3D,
+                       'los_kwargs_2D': los_kwargs_2D,
+                       'los_kwargs_3D': los_kwargs_3D,
                        'line_kwargs': line_kwargs,
                        'figsize_c': figsize_c,
                        'figsize_r': figsize_r}
@@ -902,16 +925,18 @@ class Projection(object):
         logger = getCLogger('PROJ_HCUBE')
         logger.info("Creating projection hypercube %r." % (hcube_name))
 
-        # If n_par is 2, make 2D projection hypercube on controller
-        if(self._is_controller and self._modellink._n_par == 2):
+        # If hcube has 1 parameter, make 2D projection hypercube on controller
+        if(self._is_controller and len(hcube) == 1):
             # Identify projected parameter
             par = hcube[0]
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([self.__res, self.__depth, 2])
+            proj_hcube = np.zeros([self.__res, self.__depth,
+                                   self._modellink._n_par])
 
             # Create list that contains all the other parameters
-            par_hid = 1 if par == 0 else 0
+            par_hid = list(chain(range(0, par),
+                                 range(par+1, self._modellink._n_par)))
 
             # Generate list with values for projected parameter
             proj_sam_set = np.linspace(self._modellink._par_rng[par, 0],
@@ -919,16 +944,16 @@ class Projection(object):
                                        self.__res)
 
             # Generate latin hypercube of the remaining parameters
-            hidden_sam_set = lhd(self.__depth, 1,
+            hidden_sam_set = lhd(self.__depth, self._modellink._n_par-1,
                                  self._modellink._par_rng[par_hid], 'fixed',
-                                 self._criterion)[:, 0]
+                                 self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
             for i in range(self.__res):
                 proj_hcube[i, :, par] = proj_sam_set[i]
-                proj_hcube[i, :, par_hid] = hidden_sam_set
+                proj_hcube[i, :, par_hid] = hidden_sam_set.T
 
-        # If n_par is more than 2, make 3D projection hypercube on controller
+        # If hcube has 2 parameters, make 3D projection hypercube on controller
         elif self._is_controller:
             # Identify projected parameters
             par1 = hcube[0]
@@ -1112,8 +1137,8 @@ class Projection(object):
 
         # Update kwargs_dict with given kwargs
         for key, value in kwargs.items():
-            if key in ('fig_kwargs', 'impl_kwargs', 'los_kwargs',
-                       'line_kwargs'):
+            if key in ('fig_kwargs', 'impl_kwargs_2D', 'impl_kwargs_3D',
+                       'los_kwargs_2D', 'los_kwargs_3D', 'line_kwargs'):
                 if not isinstance(value, dict):
                     err_msg = ("Input argument %r is not of type 'dict'!"
                                % (key))
@@ -1130,7 +1155,12 @@ class Projection(object):
 
         # Controller checking all other kwargs
         if self._is_controller:
-            # Check if figure, show and force-parameters are bools
+            # Check if several parameters are bools
+            if(self._modellink._n_par == 2):
+                self.__proj_2D = 1
+            else:
+                self.__proj_2D = check_vals(kwargs['proj_2D'], 'proj_2D',
+                                            'bool')
             self.__figure = check_vals(kwargs['figure'], 'figure', 'bool')
             self.__show = check_vals(kwargs['show'], 'show', 'bool')
             self.__smooth = check_vals(kwargs['smooth'], 'smooth', 'bool')
@@ -1153,8 +1183,10 @@ class Projection(object):
 
             # Pop all specific kwargs dicts from kwargs
             fig_kwargs = kwargs['fig_kwargs']
-            impl_kwargs = kwargs['impl_kwargs']
-            los_kwargs = kwargs['los_kwargs']
+            impl_kwargs_2D = kwargs['impl_kwargs_2D']
+            impl_kwargs_3D = kwargs['impl_kwargs_3D']
+            los_kwargs_2D = kwargs['los_kwargs_2D']
+            los_kwargs_3D = kwargs['los_kwargs_3D']
             line_kwargs = kwargs['line_kwargs']
 
             # FIG_KWARGS
@@ -1167,41 +1199,47 @@ class Projection(object):
             # IMPL_KWARGS
             # Check if provided cmap is an actual cmap
             try:
-                impl_kwargs['cmap'] = cm.get_cmap(impl_kwargs['cmap'])
+                impl_kwargs_3D['cmap'] = cm.get_cmap(impl_kwargs_3D['cmap'])
             except Exception as error:
-                err_msg = ("Input argument 'impl_kwargs/cmap' is invalid! (%s)"
-                           % (error))
+                err_msg = ("Input argument 'impl_kwargs_3D/cmap' is invalid! "
+                           "(%s)" % (error))
                 raise_error(err_msg, InputError, logger)
 
             # Check if any forbidden kwargs are given and remove them
-            impl_keys = list(impl_kwargs.keys())
+            impl_keys = list(impl_kwargs_2D.keys())
+            for key in impl_keys:
+                if key in pop_plt_kwargs or (key == 'cmap'):
+                    impl_kwargs_2D.pop(key)
+            impl_keys = list(impl_kwargs_3D.keys())
             for key in impl_keys:
                 if key in pop_plt_kwargs:
-                    impl_kwargs.pop(key)
-            if(self._modellink._n_par == 2):
-                impl_kwargs.pop('cmap')
+                    impl_kwargs_3D.pop(key)
 
             # LOS_KWARGS
             # Check if provided cmap is an actual cmap
             try:
-                los_kwargs['cmap'] = cm.get_cmap(los_kwargs['cmap'])
+                los_kwargs_3D['cmap'] = cm.get_cmap(los_kwargs_3D['cmap'])
             except Exception as error:
-                err_msg = ("Input argument 'los_kwargs/cmap' is invalid! (%s)"
-                           % (error))
+                err_msg = ("Input argument 'los_kwargs_3D/cmap' is invalid! "
+                           "(%s)" % (error))
                 raise_error(err_msg, InputError, logger)
 
             # Check if any forbidden kwargs are given and remove them
-            los_keys = list(los_kwargs.keys())
+            los_keys = list(los_kwargs_2D.keys())
+            for key in los_keys:
+                if key in pop_plt_kwargs or (key == 'cmap'):
+                    los_kwargs_2D.pop(key)
+            los_keys = list(los_kwargs_3D.keys())
             for key in los_keys:
                 if key in pop_plt_kwargs:
-                    los_kwargs.pop(key)
-            if(self._modellink._n_par == 2):
-                los_kwargs.pop('cmap')
+                    los_kwargs_3D.pop(key)
 
             # Save kwargs dicts to memory
             self.__fig_kwargs = fig_kwargs
-            self.__impl_kwargs = impl_kwargs
-            self.__los_kwargs = los_kwargs
+            self.__impl_kwargs_2D = impl_kwargs_2D
+            self.__impl_kwargs_3D = impl_kwargs_3D
+            self.__los_kwargs_2D = los_kwargs_2D
+            self.__los_kwargs_3D = los_kwargs_3D
             self.__line_kwargs = line_kwargs
 
         # MPI Barrier

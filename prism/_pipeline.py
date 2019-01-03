@@ -2736,7 +2736,8 @@ class Pipeline(Projection, object):
                 n_active_par = len(self._emulator._active_par[emul_i])
 
                 # Calculate the maximum number of projections
-                n_proj_max = nCr(n_active_par, 1 if(n_par == 2) else 2)
+                n_proj_max = n_active_par
+                n_proj_max += nCr(n_active_par, 2) if(n_par > 2) else 0
 
                 # Flag details
                 print("{0: <{1}}\t{2}".format("Construction completed?", width,

@@ -276,12 +276,6 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         return(bool(self._multi_call))
 
-    @multi_call.setter
-    def multi_call(self, multi_call):
-        warn_msg = ("Setting property 'multi_call' is deprecated since v0.5.3."
-                    "Set the 'call_type' property instead.")
-        warnings.warn(warn_msg, DeprecationWarning, stacklevel=2)
-
     @property
     def call_type(self):
         """

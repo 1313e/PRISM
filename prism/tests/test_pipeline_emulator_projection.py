@@ -272,7 +272,7 @@ class Test_Pipeline_Gaussian3D(object):
     # Check if first iteration can be projected
     def test_project(self, pipe):
         with pytest_mpl.plugin.switch_backend('Agg'):
-            pipe.project(1, (0, 1), align='row', smooth=True)
+            pipe.project(1, (0, 1), align='row', smooth=True, proj_2D=False)
             os.remove(pipe._Projection__get_fig_path((0, 1))[1])
             pipe.project(1, (0, 1), align='col')
 
@@ -627,13 +627,13 @@ class Test_Pipeline_User_Exceptions(object):
     def test_invalid_impl_kwargs_dict(self, pipe):
         with pytest.raises(InputError):
             pipe.project(1, (0, 1), fig_kwargs={'nrows': 1},
-                         impl_kwargs={'cmap': 1})
+                         impl_kwargs_3D={'cmap': 1})
 
     # Try to call project with an invalid los_kwargs dict
     def test_invalid_los_kwargs_dict(self, pipe):
         with pytest.raises(InputError):
-            pipe.project(1, (0, 1), impl_kwargs={'x': 1},
-                         los_kwargs={'cmap': 1})
+            pipe.project(1, (0, 1), impl_kwargs_2D={'x': 1},
+                         impl_kwargs_3D={'x': 1}, los_kwargs_3D={'cmap': 1})
 
     # Try to load an emulator with invalid emulator iteration groups
     def test_invalid_iteration_groups(self, pipe):
@@ -769,7 +769,8 @@ class Test_Internal_Exceptions(object):
 
     # Try to save data using the wrong keyword for projection
     def test_invalid_proj_save_data_keyword(self, pipe):
-        pipe._Projection__prepare_projections(los_kwargs={'x': 1})
+        pipe._Projection__prepare_projections(los_kwargs_2D={'x': 1},
+                                              los_kwargs_3D={'x': 1})
         with pytest.raises(ValueError):
             pipe._Projection__save_data({'test': []})
 
