@@ -25,7 +25,8 @@ script:
   - python setup.py sdist bdist_wheel
   - twine check dist/*
   - pip install -e .
-  - if [ -n "$RUN_COVERAGE" ]; then
+  - |
+    if [ -n "$RUN_COVERAGE" ]; then
   	coverage run --rcfile=setup.cfg -p -m pytest prism
   	sudo apt-get install -y -q openmpi-bin libopenmpi-dev
   	pip --no-cache install mpi4py
@@ -35,13 +36,12 @@ script:
     	mpiexec -n 2 pytest prism
     fi
 after_script:
-  - if [ -n "$RUN_COVERAGE" ]; then
+  - |
+    if [ -n "$RUN_COVERAGE" ]; then
   	coverage combine
   	coverage report -m
     fi
 after_success:
-  - if [ -n "$RUN_COVERAGE" ]; then
-  	codecov -t 6a194e41-c88d-4b7e-af10-29d9f54f8d84
-    fi
+  - if [ -n "$RUN_COVERAGE" ]; then codecov -t 6a194e41-c88d-4b7e-af10-29d9f54f8d84; fi
 notifications:
   email: false
