@@ -17,10 +17,10 @@ from py.path import local
 import pytest
 
 # PRISM imports
-from ..mcmc import get_lnpost_fn, get_walkers
-from ...modellink.tests.modellink import GaussianLink2D
 from ..._internal import RequestError
 from ..._pipeline import Pipeline
+from ...modellink.tests.modellink import GaussianLink2D
+from ..mcmc import get_lnpost_fn, get_walkers
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
