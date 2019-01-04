@@ -27,19 +27,19 @@ script:
   - pip install -e .
   - |
     if [[ "$RUN_COVERAGE" == "1" ]]; then
-  	coverage run --rcfile=setup.cfg -p -m pytest prism
-  	sudo apt-get install -y -q openmpi-bin libopenmpi-dev
-  	pip --no-cache install mpi4py
-  	mpiexec -n 2 coverage run --rcfile=setup.cfg -p -m mpi4py -m pytest prism
+      coverage run --rcfile=setup.cfg -p -m pytest prism
+      sudo apt-get install -y -q openmpi-bin libopenmpi-dev
+      pip --no-cache install mpi4py
+      mpiexec -n 2 coverage run --rcfile=setup.cfg -p -m mpi4py -m pytest prism
     else
-    	pytest prism
-    	mpiexec -n 2 pytest prism
+      pytest prism
+      mpiexec -n 2 pytest prism
     fi
 after_script:
   - |
     if [[ "$RUN_COVERAGE" == "1" ]]; then
-  	coverage combine
-  	coverage report -m
+      coverage combine
+      coverage report -m
     fi
 after_success:
   - if [[ "$RUN_COVERAGE" == "1" ]]; then codecov -t 6a194e41-c88d-4b7e-af10-29d9f54f8d84; fi
