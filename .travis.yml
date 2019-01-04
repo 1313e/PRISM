@@ -19,7 +19,6 @@ matrix:
       env: RUN_COVERAGE=0
 install:
   - pip install -r requirements_dev.txt
-  - export OMP_NUM_THREADS=1
 script:
   - check-manifest --ignore appveyor.cmd,.appveyor.yml,.codecov.yml,prism_trash*,docs*,joss_paper*
   - python setup.py sdist bdist_wheel
