@@ -27,19 +27,19 @@ script:
   - pip install -e .
   - |
     if [[ "$RUN_COVERAGE" == "1" ]]; then
-      coverage run --rcfile=setup.cfg -p -m pytest prism
+      coverage run --rcfile=setup.cfg -m pytest
     else
-      pytest prism
+      pytest
     fi
   - sudo apt-get install -y -q openmpi-bin libopenmpi-dev
   - pip --no-cache install mpi4py
   - |
     if [[ "$RUN_COVERAGE" == "1" ]]; then
-      mpiexec -n 2 coverage run --rcfile=setup.cfg -p -m mpi4py -m pytest prism
+      mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
       coverage combine
       coverage report -m
     else
-      mpiexec -n 2 pytest prism
+      mpiexec -n 2 pytest
     fi
 after_success:
   - |
