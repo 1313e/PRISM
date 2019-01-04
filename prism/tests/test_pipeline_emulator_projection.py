@@ -13,6 +13,10 @@ import shutil
 from e13tools.core import InputError, ShapeError
 from e13tools.sampling import lhd
 import h5py
+try:
+    from mpi4py import MPI
+except ImportError:
+    from .. import _dummyMPI as MPI
 import numpy as np
 from py.path import local
 import pytest
@@ -232,10 +236,12 @@ class Test_Pipeline_Gaussian2D(object):
         pipe.worker_mode = False
         pipe._make_call('details')
         pipe.worker_mode = True
-        pipe._make_call(np.array, [1])
-        assert pipe._make_call('_emulator._get_emul_i', 1, 0) == 1
-        assert pipe._make_call('_evaluate_sam_set', 1, np.array([[2.5, 2]]),
-                               "", "", "", "", "") is None
+        if pipe._is_controller:
+            pipe._make_call(np.array, [1])
+            assert pipe._make_call('_emulator._get_emul_i', 1, 0) == 1
+            assert pipe._make_call('_evaluate_sam_set', 1,
+                                   np.array([[2.5, 2]]),
+                                   "", "", "", "", "") is None
         pipe.worker_mode = False
 
 
@@ -272,9 +278,12 @@ class Test_Pipeline_Gaussian3D(object):
     # Check if first iteration can be projected
     def test_project(self, pipe):
         with pytest_mpl.plugin.switch_backend('Agg'):
-            pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D')
-            os.remove(pipe._Projection__get_fig_path((0, 1))[1])
-            pipe.project(1, (0, 1), align='col')
+            pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
+                         fig_kwargs={'dpi': 10})
+            if pipe._is_controller:
+                os.remove(pipe._Projection__get_fig_path((0, 1))[1])
+            pipe._comm.Barrier()
+            pipe.project(1, (0, 1), align='col', fig_kwargs={'dpi': 10})
 
     # Check if details overview of first iteration can be given
     def test_details(self, pipe):
@@ -295,6 +304,8 @@ class Test_Pipeline_Gaussian3D(object):
 
 
 # Pytest for Pipeline class exception handling during initialization
+@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                    reason="Cannot be pytested in MPI")
 class Test_Pipeline_Init_Exceptions(object):
     # Create a model_link object used in some test functions
     @pytest.fixture(scope='function')
@@ -508,6 +519,8 @@ class Test_Pipeline_Init_Exceptions(object):
 
 
 # Pytest for Pipeline class user exception handling
+@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                    reason="Cannot be pytested in MPI")
 class Test_Pipeline_User_Exceptions(object):
     # Create a universal Pipeline object for testing request exceptions
     @pytest.fixture(scope='class')
@@ -644,16 +657,21 @@ class Test_Pipeline_User_Exceptions(object):
 
     # Try to load an emulator with invalid emulator iteration groups
     def test_invalid_iteration_groups(self, pipe):
-        with h5py.File(pipe._hdf5_file, 'r+') as file:
-            file.create_group('test')
+        if pipe._is_controller:
+            with h5py.File(pipe._hdf5_file, 'r+') as file:
+                file.create_group('test')
+        pipe._comm.Barrier()
         with pytest.raises(InputError):
             model_link = GaussianLink2D()
             pipe._emulator._load_emulator(model_link)
-        with h5py.File(pipe._hdf5_file, 'r+') as file:
-            del file['test']
+        if pipe._is_controller:
+            with h5py.File(pipe._hdf5_file, 'r+') as file:
+                del file['test']
 
 
 # Pytest for Pipeline class request exception handling
+@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                    reason="Cannot be pytested in MPI")
 class Test_Pipeline_Request_Exceptions(object):
     # Create a universal Pipeline object for testing request exceptions
     @pytest.fixture(scope='class')
@@ -766,20 +784,23 @@ class Test_Internal_Exceptions(object):
     # Try to save data using the wrong keyword for pipeline
     def test_invalid_pipe_save_data_keyword(self, pipe):
         pipe.construct(1, 0)
-        with pytest.raises(ValueError):
-            pipe._save_data({'test': []})
+        if pipe._is_controller:
+            with pytest.raises(ValueError):
+                pipe._save_data({'test': []})
 
     # Try to save data using the wrong keyword for emulator
     def test_invalid_emul_save_data_keyword(self, pipe):
-        with pytest.raises(ValueError):
-            pipe._emulator._save_data(1, None, {'test': []})
+        if pipe._is_controller:
+            with pytest.raises(ValueError):
+                pipe._emulator._save_data(1, None, {'test': []})
 
     # Try to save data using the wrong keyword for projection
     def test_invalid_proj_save_data_keyword(self, pipe):
         pipe._Projection__prepare_projections(los_kwargs_2D={'x': 1},
                                               los_kwargs_3D={'x': 1})
-        with pytest.raises(ValueError):
-            pipe._Projection__save_data({'test': []})
+        if pipe._is_controller:
+            with pytest.raises(ValueError):
+                pipe._Projection__save_data({'test': []})
 
 
 # Pytest for trying to initialize a lone Projection class
@@ -891,7 +912,8 @@ class Test_Pipeline_ModelLink_Versatility(object):
     # Test if interrupted construction can be continued
     def test_continue_interrupt(self, pipe2D):
         pipe2D.construct(1, 0)
-        pipe2D._emulator._ccheck[1].append('active_par')
+        if pipe2D._is_controller:
+            pipe2D._emulator._ccheck[1].append('active_par')
         pipe2D._emulator._emul_i = 0
         pipe2D.construct(1, 0)
 
@@ -924,9 +946,11 @@ class Test_Pipeline_ModelLink_Versatility(object):
         pipe2D._modellink._par_est[1] = temp1
 
         # Inactive parameters
-        pipe2D._emulator._active_par[1][1] = 0
+        if pipe2D._is_controller:
+            pipe2D._emulator._active_par[1][1] = 0
         pipe2D.details()
-        pipe2D._emulator._active_par[1][1] = 1
+        if pipe2D._is_controller:
+            pipe2D._emulator._active_par[1][1] = 1
 
     # Test if mock data takes log10 value spaces into account correctly
     def test_mock_data_spaces_log(self, pipe3D):

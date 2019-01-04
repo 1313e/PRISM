@@ -129,6 +129,7 @@ class Pipeline(Projection, object):
         # Remaining workers obtain paths from controller
         else:
             # Obtain paths
+            logger = getCLogger('INIT')
             self._get_paths(root_dir, working_dir, prefix, prism_file)
 
         # MPI Barrier

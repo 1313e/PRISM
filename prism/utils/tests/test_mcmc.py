@@ -90,7 +90,10 @@ class Test_get_lnpost_fn(object):
     # Try to provide a bound ModelLink object solely requesting multi-calls
     def test_multi_call_ModelLink(self, pipe):
         pipe._modellink.call_type = 'multi'
-        with pytest.warns(UserWarning):
+        if pipe._is_controller:
+            with pytest.warns(UserWarning):
+                get_lnpost_fn(lnpost, pipe)
+        else:
             get_lnpost_fn(lnpost, pipe)
         pipe._modellink.call_type = 'hybrid'
 
@@ -106,8 +109,9 @@ class Test_get_lnpost_fn(object):
 class Test_get_walkers(object):
     # Try to obtain the default walkers
     def test_default(self, pipe):
-        with pytest.raises(RequestError):
-            get_walkers(pipe)
+        if(pipe._comm._size == 1):
+            with pytest.raises(RequestError):
+                get_walkers(pipe)
         pipe.analyze()
         get_walkers(pipe)
         pipe.construct()
@@ -154,3 +158,4 @@ def test_hybrid_sampling(pipe):
         sampler = EnsembleSampler(n_walkers, pipe._modellink._n_par,
                                   get_lnpost, args=[pipe])
         sampler.run_mcmc(p0, 10)
+    pipe.worker_mode = False

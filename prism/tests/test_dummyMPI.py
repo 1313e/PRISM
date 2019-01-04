@@ -11,9 +11,10 @@ from sys import platform, version_info
 
 # Package imports
 import numpy as np
+import pytest
 
 # PRISM imports
-from .._dummyMPI import Comm, COMM_WORLD as comm
+from .._dummyMPI import Comm, Intracomm, COMM_WORLD as comm
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
@@ -35,6 +36,12 @@ class CommTest(Comm):
 def test_CommTest():
     test_comm = CommTest()
     assert test_comm.name == 'CommTest'
+
+
+# Pytest for custom Intracomm class
+def test_Intracomm():
+    with pytest.raises(TypeError):
+        Intracomm(1)
 
 
 # Pytest for COMM_WORLD instance

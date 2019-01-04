@@ -52,6 +52,10 @@ class ImproperModelLink(ModelLink):
 
 # Custom ModelLink class with no call_model
 class NoCallModelLink(ModelLink):
+    def __init__(self, *args, **kwargs):
+        self.MPI_call = True
+        super(NoCallModelLink, self).__init__(*args, **kwargs)
+
     def call_model(self, *args, **kwargs):
         super(NoCallModelLink, self).call_model(*args, **kwargs)
 

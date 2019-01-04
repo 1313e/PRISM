@@ -249,6 +249,12 @@ class Test_check_val(object):
         assert lst2 == [1.0, 2.0]
         assert type(lst2[0]) == float
 
+        # Check for tuple
+        tpl = (1, 2)
+        tpl2 = check_vals(tpl, 'tuple', 'float')
+        assert tpl2 == (1.0, 2.0)
+        assert type(tpl2[0]) == float
+
         # Check for NumPy array
         array = np.array([1, 2])
         assert (check_vals(array, 'array', 'pos') == [1, 2]).all()

@@ -59,8 +59,10 @@ build: false
 
 test_script:
   # Run the project tests
-  - "%CMD_IN_ENV% check-manifest --ignore .travis.yml,appveyor.cmd,.appveyor.yml,.codecov.yml,prism_trash*,docs*,test_scripts*"
+  - "%CMD_IN_ENV% check-manifest --ignore .travis.yml,appveyor.cmd,.appveyor.yml,.codecov.yml,prism_trash*,docs*,joss_paper*"
   - "%CMD_IN_ENV% python setup.py sdist bdist_wheel"
   - "%CMD_IN_ENV% twine check dist/*"
   - "%CMD_IN_ENV% pip install -e ."
-  - "%CMD_IN_ENV% py.test prism"
+  - "%CMD_IN_ENV% coverage run --rcfile=setup.cfg -p -m py.test prism"
+  - "%CMD_IN_ENV% coverage combine"
+  - "%CMD_IN_ENV% coverage report -m"
