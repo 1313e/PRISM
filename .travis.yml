@@ -36,16 +36,15 @@ script:
   - |
     if [[ "$RUN_COVERAGE" == "1" ]]; then
       mpiexec -n 2 coverage run --rcfile=setup.cfg -p -m mpi4py -m pytest prism
+      coverage combine
+      coverage report -m
     else
       mpiexec -n 2 pytest prism
     fi
-after_script:
+after_success:
   - |
     if [[ "$RUN_COVERAGE" == "1" ]]; then
-      coverage combine
-      coverage report -m
+      codecov -t 6a194e41-c88d-4b7e-af10-29d9f54f8d84
     fi
-after_success:
-  - if [[ "$RUN_COVERAGE" == "1" ]]; then codecov -t 6a194e41-c88d-4b7e-af10-29d9f54f8d84; fi
 notifications:
   email: false
