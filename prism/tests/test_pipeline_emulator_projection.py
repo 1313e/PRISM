@@ -186,6 +186,11 @@ class Test_Pipeline_Gaussian2D(object):
         with pytest_mpl.plugin.switch_backend('Agg'):
             pipe.project(force=True, smooth=True)
 
+    # Check if figure data can be received
+    def test_project_fig_data(self, pipe):
+        with pytest_mpl.plugin.switch_backend('Agg'):
+            pipe.project(smooth=True, figure=False)
+
     # Check if details overview of first iteration can be given
     def test_details(self, pipe):
         pipe.details()
@@ -280,6 +285,8 @@ class Test_Pipeline_Gaussian3D(object):
         with pytest_mpl.plugin.switch_backend('Agg'):
             pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
                          fig_kwargs={'dpi': 10})
+            pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
+                         figure=False)
             if pipe._is_controller:
                 os.remove(pipe._Projection__get_fig_path((0, 1))[1])
             pipe._comm.Barrier()

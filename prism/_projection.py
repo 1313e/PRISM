@@ -96,9 +96,9 @@ class Projection(object):
             If :attr:`~prism.modellink.ModelLink.n_par` == 2, this is always
             '2D' (and cannot be modified).
         figure : bool. Default: True
-            Whether or not to create the projection figures. If *False*, only
-            the data required to create the figures is calculated and saved in
-            the HDF5-file, but the figures themselves are not made.
+            Whether or not to create the projection figures. If *True*, the
+            figures are calculated, drawn and saved. If *False*, the figures
+            are calculated and their data is returned in a dict.
         align : {'row'/'horizontal', 'col'/'column'/'vertical'}. Default: 'col'
             If `figure` is *True*, string indicating how to position the two
             subplots.
@@ -151,8 +151,8 @@ class Projection(object):
             estimate lines in both plots. It takes all arguments that can be
             provided to the :func:`~matplotlib.pyplot.draw` function.
 
-        Generates
-        ---------
+        Generates (if `figure` is *True*)
+        ---------------------------------
         A series of projection figures detailing the behavior of the model.
         The lay-out and output of the projection figures depend on the type of
         figure:
@@ -174,6 +174,16 @@ class Projection(object):
             implausibility (top/left) and the line-of-sight depth
             (bottom/right) obtained at the specified parameter values,
             independent of the values of the remaining model parameters.
+
+        Returns (if `figure` is *False*)
+        --------------------------------
+        fig_data : dict of dicts
+            Dict containing the data for every requested projection figure,
+            split up into the 'impl_min' and 'impl_los' dicts. For 2D
+            projections, every dict contains a list with the x and y values.
+            For 3D projections, it contains the x, y and z values.
+            Note that due to the figures being interpolations, the y/z values
+            can be below zero or the line-of-sight values being above unity.
 
         Notes
         -----
@@ -220,10 +230,11 @@ class Projection(object):
                 impl_min, impl_los = self.__analyze_proj_hcube(hcube)
 
             # PLOTTING (CONTROLLER ONLY)
-            # Draw projection figure if requested
-            if self._is_controller and self.__figure:
-                # Skip making figure if it already exists
-                if path.exists(self.__get_fig_path(hcube)[self.__smooth]):
+            # Create projection figure
+            if self._is_controller:
+                # Skip making figure if it already exists and figure is True
+                if(path.exists(self.__get_fig_path(hcube)[self.__smooth]) and
+                   self.__figure):
                     logger.info("Projection figure %r already exists. "
                                 "Skipping figure creation." % (hcube_name))
                     self._comm.Barrier()
@@ -261,6 +272,10 @@ class Projection(object):
 
         # Show details
         self.details(self.__emul_i)
+
+        # If figure is False, return figure data on controller
+        if self._is_controller and not self.__figure:
+            return(self.__fig_data)
 
     # %% CLASS PROPERTIES
     @property
@@ -300,7 +315,7 @@ class Projection(object):
 
         # Start logger
         logger = getCLogger('PROJECTION')
-        logger.info("Drawing projection figure %r." % (hcube_name))
+        logger.info("Calculating projection figure %r." % (hcube_name))
 
         # Get the parameter this hypercube is about
         par = hcube[0]
@@ -336,75 +351,85 @@ class Projection(object):
                 if(min_i < self._impl_cut[self.__emul_i][0] and los_i <= 0):
                     y_min[i] = self._impl_cut[self.__emul_i][0]
 
-        # Create figure object
-        if(self.__align == 'row'):
-            f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
-            w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
+        # Create figure object if the figure is requested
+        if self.__figure:
+            if(self.__align == 'row'):
+                f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
+                w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
 
-            # Create GridSpec objects including a dummy Axes object
-            gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
-            ax0 = f.add_subplot(gsarr[0, 0])
-            ax1 = f.add_subplot(gsarr[0, 1])
-            label_ax = f.add_subplot(gsarr[1, :])
+                # Create GridSpec objects including a dummy Axes object
+                gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
+                ax0 = f.add_subplot(gsarr[0, 0])
+                ax1 = f.add_subplot(gsarr[0, 1])
+                label_ax = f.add_subplot(gsarr[1, :])
 
-            # Set padding to the bare minimum
-            f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
-                                          wspace=wspace, hspace=0)
+                # Set padding to the bare minimum
+                f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
+                                              wspace=wspace, hspace=0)
+            else:
+                f, (ax0, ax1) = plt.subplots(2, constrained_layout=True,
+                                             **self.__fig_kwargs)
+                w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
+
+                # Set padding to the bare minimum
+                f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
+                                              wspace=0, hspace=hspace)
+
+            # Set super title
+            f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
+                       fontsize='xx-large')
+
+            # Plot minimum implausibility
+            ax0.plot(x, y_min, **self.__impl_kwargs_2D)
+            draw_y = self._impl_cut[self.__emul_i][0]
+            ax0.axis([self._modellink._par_rng[par, 0],
+                      self._modellink._par_rng[par, 1],
+                      0, 1.5*draw_y])
+            if self._modellink._par_est[par] is not None:
+                draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
+                              line_kwargs=self.__line_kwargs)
+            draw_textline(r"", y=draw_y, ax=ax0, line_kwargs={'color': 'r'})
+            ax0.set_ylabel("Min. Implausibility", fontsize='large')
+
+            # Plot line-of-sight depth
+            ax1.plot(x, y_los, **self.__los_kwargs_2D)
+            ax1.axis([self._modellink._par_rng[par, 0],
+                      self._modellink._par_rng[par, 1],
+                      0, min(1, np.max(y_los))])
+            if self._modellink._par_est[par] is not None:
+                draw_textline(r"", x=self._modellink._par_est[par], ax=ax1,
+                              line_kwargs=self.__line_kwargs)
+            ax1.set_ylabel("Line-of-Sight Depth", fontsize='large')
+
+            # Make super axis label using dummy Axes object as an empty plot
+            if(self.__align == 'row'):
+                label_ax.set_frame_on(False)
+                label_ax.get_xaxis().set_ticks([])
+                label_ax.get_yaxis().set_ticks([])
+                label_ax.autoscale(tight=True)
+                label_ax.set_xlabel("Model parameter %s" % (par_name),
+                                    fontsize='x-large', labelpad=0)
+            else:
+                ax1.set_xlabel("Model parameter %s" % (par_name),
+                               fontsize='x-large')
+
+            # Save the figure
+            plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
+
+            # Close the figure
+            plt.close(f)
+
+            # Log that this hypercube has been drawn
+            logger.info("Finished calculating and drawing projection figure "
+                        "%r." % (hcube_name))
+
+        # If the figure data has been requested instead
         else:
-            f, (ax0, ax1) = plt.subplots(2, constrained_layout=True,
-                                         **self.__fig_kwargs)
-            w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
-
-            # Set padding to the bare minimum
-            f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
-                                          wspace=0, hspace=hspace)
-
-        # Set super title
-        f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
-                   fontsize='xx-large')
-
-        # Plot minimum implausibility
-        ax0.plot(x, y_min, **self.__impl_kwargs_2D)
-        draw_y = self._impl_cut[self.__emul_i][0]
-        ax0.axis([self._modellink._par_rng[par, 0],
-                  self._modellink._par_rng[par, 1],
-                  0, 1.5*draw_y])
-        if self._modellink._par_est[par] is not None:
-            draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
-                          line_kwargs=self.__line_kwargs)
-        draw_textline(r"", y=draw_y, ax=ax0, line_kwargs={'color': 'r'})
-        ax0.set_ylabel("Min. Implausibility", fontsize='large')
-
-        # Plot line-of-sight depth
-        ax1.plot(x, y_los, **self.__los_kwargs_2D)
-        ax1.axis([self._modellink._par_rng[par, 0],
-                  self._modellink._par_rng[par, 1],
-                  0, min(1, np.max(y_los))])
-        if self._modellink._par_est[par] is not None:
-            draw_textline(r"", x=self._modellink._par_est[par], ax=ax1,
-                          line_kwargs=self.__line_kwargs)
-        ax1.set_ylabel("Line-of-Sight Depth", fontsize='large')
-
-        # Make super axis label using the dummy Axes object as an empty plot
-        if(self.__align == 'row'):
-            label_ax.set_frame_on(False)
-            label_ax.get_xaxis().set_ticks([])
-            label_ax.get_yaxis().set_ticks([])
-            label_ax.autoscale(tight=True)
-            label_ax.set_xlabel("Model parameter %s" % (par_name),
-                                fontsize='x-large', labelpad=0)
-        else:
-            ax1.set_xlabel("Model parameter %s" % (par_name),
-                           fontsize='x-large')
-
-        # Save the figure
-        plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
-
-        # Close the figure
-        plt.close(f)
-
-        # Log that this hypercube has been drawn
-        logger.info("Finished drawing projection figure %r." % (hcube_name))
+            self.__fig_data[hcube_name] = {
+                'impl_min': [x, y_min],
+                'impl_los': [x, y_los]}
+            logger.info("Finished calculating projection figure %r."
+                        % (hcube_name))
 
     # This function draws the 3D projection figure
     @docstring_append(draw_proj_fig_doc.format("3D", "2"))
@@ -414,7 +439,7 @@ class Projection(object):
 
         # Start logger
         logger = getCLogger('PROJECTION')
-        logger.info("Drawing projection figure %r." % (hcube_name))
+        logger.info("Calculating projection figure %r." % (hcube_name))
 
         # Get the parameter on x-axis and y-axis this hcube is about
         par1 = hcube[0]
@@ -475,93 +500,104 @@ class Projection(object):
                    los_i <= min_los):
                     z_min[i] = self._impl_cut[self.__emul_i][0]
 
-        # Create figure object
-        f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
-        w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
+        # Create figure object if the figure is requested
+        if self.__figure:
+            f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
+            w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
 
-        # Create GridSpec objects including a dummy Axes object
-        if(self.__align == 'row'):
-            gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
-            ax0 = f.add_subplot(gsarr[0, 0])
-            ax1 = f.add_subplot(gsarr[0, 1])
-            label_ax = f.add_subplot(gsarr[1, :])
+            # Create GridSpec objects including a dummy Axes object
+            if(self.__align == 'row'):
+                gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
+                ax0 = f.add_subplot(gsarr[0, 0])
+                ax1 = f.add_subplot(gsarr[0, 1])
+                label_ax = f.add_subplot(gsarr[1, :])
 
-            # Set padding to the bare minimum
-            f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
-                                          wspace=wspace, hspace=0)
+                # Set padding to the bare minimum
+                f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
+                                              wspace=wspace, hspace=0)
+            else:
+                gsarr = gs.GridSpec(2, 2, figure=f, width_ratios=[0.00001, 1])
+                label_ax = f.add_subplot(gsarr[:, 0])
+                ax0 = f.add_subplot(gsarr[0, 1])
+                ax1 = f.add_subplot(gsarr[1, 1])
+
+                # Set padding to the bare minimum
+                f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
+                                              wspace=0, hspace=hspace)
+
+            # Set super title
+            f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
+                       fontsize='xx-large')
+
+            # Plot minimum implausibility
+            vmax = self._impl_cut[self.__emul_i][0]
+            fig1 = ax0.hexbin(x, y, z_min, gridsize, vmin=0, vmax=vmax,
+                              **self.__impl_kwargs_3D)
+            if self._modellink._par_est[par1] is not None:
+                draw_textline(r"", x=self._modellink._par_est[par1], ax=ax0,
+                              line_kwargs=self.__line_kwargs)
+            if self._modellink._par_est[par2] is not None:
+                draw_textline(r"", y=self._modellink._par_est[par2], ax=ax0,
+                              line_kwargs=self.__line_kwargs)
+            ax0.axis([self._modellink._par_rng[par1, 0],
+                      self._modellink._par_rng[par1, 1],
+                      self._modellink._par_rng[par2, 0],
+                      self._modellink._par_rng[par2, 1]])
+            plt.colorbar(fig1, ax=ax0).set_label("Min. Implausibility",
+                                                 fontsize='large')
+
+            # Plot line-of-sight depth
+            fig2 = ax1.hexbin(x, y, z_los, gridsize, vmin=0,
+                              vmax=min(1, np.max(z_los)),
+                              **self.__los_kwargs_3D)
+            if self._modellink._par_est[par1] is not None:
+                draw_textline(r"", x=self._modellink._par_est[par1], ax=ax1,
+                              line_kwargs=self.__line_kwargs)
+            if self._modellink._par_est[par2] is not None:
+                draw_textline(r"", y=self._modellink._par_est[par2], ax=ax1,
+                              line_kwargs=self.__line_kwargs)
+            ax1.axis([self._modellink._par_rng[par1, 0],
+                      self._modellink._par_rng[par1, 1],
+                      self._modellink._par_rng[par2, 0],
+                      self._modellink._par_rng[par2, 1]])
+            plt.colorbar(fig2, ax=ax1).set_label("Line-of-Sight Depth",
+                                                 fontsize='large')
+
+            # Make super axis labels using dummy Axes object as an empty plot
+            if(self.__align == 'row'):
+                ax0.set_ylabel("%s" % (par2_name), fontsize='x-large')
+                label_ax.set_frame_on(False)
+                label_ax.get_xaxis().set_ticks([])
+                label_ax.get_yaxis().set_ticks([])
+                label_ax.autoscale(tight=True)
+                label_ax.set_xlabel("%s" % (par1_name), fontsize='x-large',
+                                    labelpad=0)
+            else:
+                ax1.set_xlabel("%s" % (par1_name), fontsize='x-large')
+                label_ax.set_frame_on(False)
+                label_ax.get_xaxis().set_ticks([])
+                label_ax.get_yaxis().set_ticks([])
+                label_ax.autoscale(tight=True)
+                label_ax.set_ylabel("%s" % (par2_name), fontsize='x-large',
+                                    labelpad=0)
+
+            # Save the figure
+            plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
+
+            # Close the figure
+            plt.close(f)
+
+            # Log that this hypercube has been drawn
+            logger.info("Finished calculating and drawing projection figure"
+                        "%r." % (hcube_name))
+
+        # If the figure data has been requested instead
         else:
-            gsarr = gs.GridSpec(2, 2, figure=f, width_ratios=[0.00001, 1])
-            label_ax = f.add_subplot(gsarr[:, 0])
-            ax0 = f.add_subplot(gsarr[0, 1])
-            ax1 = f.add_subplot(gsarr[1, 1])
-
-            # Set padding to the bare minimum
-            f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
-                                          wspace=0, hspace=hspace)
-
-        # Set super title
-        f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
-                   fontsize='xx-large')
-
-        # Plot minimum implausibility
-        vmax = self._impl_cut[self.__emul_i][0]
-        fig1 = ax0.hexbin(x, y, z_min, gridsize, vmin=0, vmax=vmax,
-                          **self.__impl_kwargs_3D)
-        if self._modellink._par_est[par1] is not None:
-            draw_textline(r"", x=self._modellink._par_est[par1], ax=ax0,
-                          line_kwargs=self.__line_kwargs)
-        if self._modellink._par_est[par2] is not None:
-            draw_textline(r"", y=self._modellink._par_est[par2], ax=ax0,
-                          line_kwargs=self.__line_kwargs)
-        ax0.axis([self._modellink._par_rng[par1, 0],
-                  self._modellink._par_rng[par1, 1],
-                  self._modellink._par_rng[par2, 0],
-                  self._modellink._par_rng[par2, 1]])
-        plt.colorbar(fig1, ax=ax0).set_label("Min. Implausibility",
-                                             fontsize='large')
-
-        # Plot line-of-sight depth
-        fig2 = ax1.hexbin(x, y, z_los, gridsize, vmin=0,
-                          vmax=min(1, np.max(z_los)), **self.__los_kwargs_3D)
-        if self._modellink._par_est[par1] is not None:
-            draw_textline(r"", x=self._modellink._par_est[par1], ax=ax1,
-                          line_kwargs=self.__line_kwargs)
-        if self._modellink._par_est[par2] is not None:
-            draw_textline(r"", y=self._modellink._par_est[par2], ax=ax1,
-                          line_kwargs=self.__line_kwargs)
-        ax1.axis([self._modellink._par_rng[par1, 0],
-                  self._modellink._par_rng[par1, 1],
-                  self._modellink._par_rng[par2, 0],
-                  self._modellink._par_rng[par2, 1]])
-        plt.colorbar(fig2, ax=ax1).set_label("Line-of-Sight Depth",
-                                             fontsize='large')
-
-        # Make super axis labels using the dummy Axes object as an empty plot
-        if(self.__align == 'row'):
-            ax0.set_ylabel("%s" % (par2_name), fontsize='x-large')
-            label_ax.set_frame_on(False)
-            label_ax.get_xaxis().set_ticks([])
-            label_ax.get_yaxis().set_ticks([])
-            label_ax.autoscale(tight=True)
-            label_ax.set_xlabel("%s" % (par1_name), fontsize='x-large',
-                                labelpad=0)
-        else:
-            ax1.set_xlabel("%s" % (par1_name), fontsize='x-large')
-            label_ax.set_frame_on(False)
-            label_ax.get_xaxis().set_ticks([])
-            label_ax.get_yaxis().set_ticks([])
-            label_ax.autoscale(tight=True)
-            label_ax.set_ylabel("%s" % (par2_name), fontsize='x-large',
-                                labelpad=0)
-
-        # Save the figure
-        plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
-
-        # Close the figure
-        plt.close(f)
-
-        # Log that this hypercube has been drawn
-        logger.info("Finished drawing projection figure %r." % (hcube_name))
+            self.__fig_data[hcube_name] = {
+                'impl_min': [x, y, z_min],
+                'impl_los': [x, y, z_los]}
+            logger.info("Finished calculating projection figure %r."
+                        % (hcube_name))
 
     # This function returns the projection data belonging to a proj_hcube
     @docstring_substitute(hcube=hcube_doc, proj_data=proj_data_doc)
@@ -1319,6 +1355,10 @@ class Projection(object):
                     file.create_group('%i/proj_hcube' % (self.__emul_i))
                 except ValueError:
                     pass
+
+            # If projection data has been requested, initialize dict
+            if not self.__figure:
+                self.__fig_data = {}
 
             # Read in projection parameters
             self.__read_parameters()
