@@ -99,9 +99,6 @@ class Projection(object):
             Whether or not to create the projection figures. If *False*, only
             the data required to create the figures is calculated and saved in
             the HDF5-file, but the figures themselves are not made.
-        show : bool. Default: False
-            If `figure` is *True*, whether or not to show a figure after it has
-            been created.
         align : {'row'/'horizontal', 'col'/'column'/'vertical'}. Default: 'col'
             If `figure` is *True*, string indicating how to position the two
             subplots.
@@ -403,8 +400,8 @@ class Projection(object):
         # Save the figure
         plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
 
-        # If show is set to True, show the figure
-        f.show() if self.__show else plt.close(f)
+        # Close the figure
+        plt.close(f)
 
         # Log that this hypercube has been drawn
         logger.info("Finished drawing projection figure %r." % (hcube_name))
@@ -560,8 +557,8 @@ class Projection(object):
         # Save the figure
         plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
 
-        # If show is set to True, show the figure
-        f.show() if self.__show else plt.close(f)
+        # Close the figure
+        plt.close(f)
 
         # Log that this hypercube has been drawn
         logger.info("Finished drawing projection figure %r." % (hcube_name))
@@ -850,7 +847,6 @@ class Projection(object):
                        'proj_par': None,
                        'proj_type': '2D' if(self.__n_par == 2) else 'both',
                        'figure': 1,
-                       'show': 0,
                        'align': 'col',
                        'smooth': 0,
                        'force': 0,
@@ -1171,7 +1167,6 @@ class Projection(object):
         if self._is_controller:
             # Check if several parameters are bools
             self.__figure = check_vals(kwargs['figure'], 'figure', 'bool')
-            self.__show = check_vals(kwargs['show'], 'show', 'bool')
             self.__smooth = check_vals(kwargs['smooth'], 'smooth', 'bool')
             self.__force = check_vals(kwargs['force'], 'force', 'bool')
 
