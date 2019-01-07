@@ -29,7 +29,7 @@ As a result, scientific models that attempt to address these questions are becom
 However, as the number of available models increases, they also tend to become more distinct, making it difficult to keep track of their individual qualities.
 A full analysis of every model would be required in order to recognize these qualities.
 We commonly employ Markov chain Monte Carlo (MCMC) methods and Bayesian statistics for performing this task.
-However, as these methods are meant to be used for comparing models with each other, we think there is a more efficient way of analyzing them.
+However, as these methods are meant to be used for making approximations of the posterior probability distribution function, we think there is a more efficient way of analyzing them.
 
 We have built *PRISM*, a publicly available _Probabilistic Regression Instrument for Simulating Models_ for Python 2/3.
 *PRISM* uses the Bayes linear approach [@BLA], emulation technique [@Craig96, @Craig97] and history matching [@Raftery95, @Craig96, @Craig97] to construct an approximation (`emulator') of any given model, by combining limited model evaluations with advanced regression techniques, covariances and probability calculations.
@@ -51,7 +51,8 @@ The source code for *PRISM* can be found at https://github.com/1313e/PRISM
 
 # Acknowledgements
 
-EV would like to thank Chris Blake, Colin Jacobs and Theo Steininger for fruitful discussions and valuable suggestions.
+EV would like to thank Alan Duffy, Darren Croton, Simon Mutch and Manodeep Sinha for being a great help with writing the code.
+EV would also like to thank Chris Blake, Colin Jacobs and Theo Steininger for fruitful discussions and valuable suggestions.
 Parts of this research were supported by the Australian Research Council Centre of Excellence for All Sky Astrophysics in 3 Dimensions (ASTRO 3D), through project number CE170100013.
 Parts of this work were performed on the OzSTAR national facility at Swinburne University of Technology. OzSTAR is funded by Swinburne University of Technology and the National Collaborative Research Infrastructure Strategy (NCRIS).
 
