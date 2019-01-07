@@ -238,16 +238,13 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if the workers can start listening
     def test_worker_mode(self, pipe):
-        pipe.worker_mode = False
-        pipe._make_call('details')
-        pipe.worker_mode = True
-        if pipe._is_controller:
-            pipe._make_call(np.array, [1])
-            assert pipe._make_call('_emulator._get_emul_i', 1, 0) == 1
-            assert pipe._make_call('_evaluate_sam_set', 1,
-                                   np.array([[2.5, 2]]),
-                                   "", "", "", "", "") is None
-        pipe.worker_mode = False
+        with pipe.worker_mode:
+            if pipe._is_controller:
+                pipe._make_call(np.array, [1])
+                assert pipe._make_call('_emulator._get_emul_i', 1, 0) == 1
+                assert pipe._make_call('_evaluate_sam_set', 1,
+                                       np.array([[2.5, 2]]),
+                                       "", "", "", "", "") is None
 
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model

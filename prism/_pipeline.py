@@ -15,6 +15,7 @@ from __future__ import (absolute_import, division, print_function,
                         with_statement)
 
 # Built-in imports
+from contextlib import contextmanager
 from inspect import isclass
 import logging
 import os
@@ -299,49 +300,42 @@ class Pipeline(Projection, object):
         return(bool(self._is_worker))
 
     @property
+    @contextmanager
     def worker_mode(self):
         """
-        bool: Whether or not all MPI ranks are in worker mode, in which all
-        worker ranks are listening for calls from the controller rank. If
-        *True*, all workers are continuously listening for calls made with
-        :meth:`~_make_call` until set to *False*.
-        By default, this is *False*.
+        :obj:`~contextlib._GeneratorContextManager`: Special context manager
+        within which all code is executed in worker mode. In worker mode, all
+        worker ranks are continuously listening for calls from the controller
+        rank made with :meth:`~_make_call`.
 
-        Setting this value to *True* allows for easier use of *PRISM* in
+        Using this context manager allows for easier use of *PRISM* in
         combination with serial/OpenMP codes (like MCMC methods).
 
         """
 
-        return(bool(self._worker_mode))
-
-    @worker_mode.setter
-    def worker_mode(self, flag):
         # Make logger
         logger = getCLogger('WORKER_M')
 
-        # Check if provided value is a bool
-        flag = check_vals(flag, 'worker_mode', 'bool')
+        # Set worker_mode to 1
+        self._worker_mode = 1
 
-        # If flag and worker_mode are the same, skip
-        if flag is self._worker_mode:
-            pass
-        # If worker mode is turned off, turn it on
-        elif flag:
-            # Set worker_mode to 1
-            self._worker_mode = 1
+        # Workers start listening for calls
+        self._listen_for_calls()
 
-            # Workers start listening for calls
-            self._listen_for_calls()
+        # Log that workers are now listening
+        logger.info("Workers are now listening for calls.")
 
-            # Log that workers are now listening
-            logger.info("Workers are now listening for calls.")
-        # If worker mode is turned on, turn it off
-        else:
-            # Make workers stop listening for calls
-            self._make_call(None)
+        # Execute code block within context manager
+        yield
 
-            # Log that workers are no longer listening for calls
-            logger.info("Workers are no longer listening for calls.")
+        # Make workers stop listening for calls
+        self._make_call(None)
+
+        # Log that workers are no longer listening for calls
+        logger.info("Workers are no longer listening for calls.")
+
+        # MPI Barrier
+        self._comm.Barrier()
 
     # Pipeline Settings/Attributes/Details
     @property
@@ -580,7 +574,10 @@ class Pipeline(Projection, object):
         All worker ranks in the :attr:`~comm` communicator start listening for
         calls from the corresponding controller rank and will attempt to
         execute the received message. Listening for calls continues until
-        :attr:`~worker_mode` is set to *False*.
+        :attr:`~_worker_mode` is set to *False*.
+
+        This method is automatically initialized and finalized when using the
+        :attr:`~worker_mode`.
 
         """
 
@@ -607,16 +604,17 @@ class Pipeline(Projection, object):
         `args` and `kwargs`. All ranks that call this function will execute
         `exec_fn` as well.
 
-        If :attr:`~worker_mode` is *True*, this function should only be
-        called by the controller. If it is *False*, it should be called by all
-        ranks that must execute `exec_fn`.
+        If used within the :attr:`~worker_mode` context manager, this function
+        should only be called by the controller. If not, it should be called by
+        all ranks that must execute `exec_fn`.
 
         Parameters
         ----------
         exec_fn : str, callable or None
             If string, a callable attribute of this :obj:`~Pipeline` instance
             or a callable object that the workers should execute if not.
-            If *None*, the workers stop listening for calls.
+            If *None*, the workers stop listening for calls instead (disables
+            worker mode).
         args : tuple
             Positional arguments that need to be provided to `exec_fn`.
         kwargs : dict

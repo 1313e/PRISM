@@ -58,8 +58,8 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
         Function definition that needs to be called if the provided `par_set`
         is plausible in iteration `emul_i` of `pipeline_obj`. The used call
         signature is ``ext_lnpost(par_set, *args, **kwargs)``. All MPI ranks
-        will call this function unless
-        :attr:`~prism.Pipeline.worker_mode` is *True*.
+        will call this function unless called within the
+        :attr:`~prism.Pipeline.worker_mode` context manager.
     pipeline_obj : :obj:`~prism.Pipeline` object
         The instance of the :class:`~prism.Pipeline` class that needs
         to be used for determining the validity of the proposed sampling step.
@@ -85,6 +85,8 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
     --------
     :func:`~get_walkers`: Analyzes proposed `init_walkers` and returns valid \
         `p0_walkers`.
+    :attr:`~prism.Pipeline.worker_mode`: Special context manager within which \
+        all code is executed in worker mode.
 
     Warning
     -------
@@ -145,8 +147,8 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
         `par_set` using the provided function `ext_lnpost`, in addition to
         constraining it first with the emulator defined in the `pipeline_obj`.
 
-        This function needs to be called by all MPI ranks unless
-        :attr:`~prism.Pipeline.worker_mode` is *True*.
+        This function needs to be called by all MPI ranks unless called within
+        the :attr:`~prism.Pipeline.worker_mode` context manager.
 
         Parameters
         ----------
@@ -269,6 +271,8 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
     --------
     :func:`~get_lnpost_fn`: Returns a function definition \
         ``get_lnpost(par_set, *args, **kwargs)``.
+    :attr:`~prism.Pipeline.worker_mode`: Special context manager within which \
+        all code is executed in worker mode.
 
     Notes
     -----

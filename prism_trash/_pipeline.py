@@ -176,3 +176,52 @@ def _close_hdf5(self, file):
 
     # Log about closing the file
     logger.info("Closed HDF5-file.")
+
+
+# %% REMOVED IN v1.0.0rc5
+
+@property
+def worker_mode(self):
+    """
+    bool: Whether or not all MPI ranks are in worker mode, in which all
+    worker ranks are listening for calls from the controller rank. If
+    *True*, all workers are continuously listening for calls made with
+    :meth:`~_make_call` until set to *False*.
+    By default, this is *False*.
+
+    Setting this value to *True* allows for easier use of *PRISM* in
+    combination with serial/OpenMP codes (like MCMC methods).
+
+    """
+
+    return(bool(self._worker_mode))
+
+
+@worker_mode.setter
+def worker_mode(self, flag):
+    # Make logger
+    logger = getCLogger('WORKER_M')
+
+    # Check if provided value is a bool
+    flag = check_vals(flag, 'worker_mode', 'bool')
+
+    # If flag and worker_mode are the same, skip
+    if flag is self._worker_mode:
+        pass
+    # If worker mode is turned off, turn it on
+    elif flag:
+        # Set worker_mode to 1
+        self._worker_mode = 1
+
+        # Workers start listening for calls
+        self._listen_for_calls()
+
+        # Log that workers are now listening
+        logger.info("Workers are now listening for calls.")
+    # If worker mode is turned on, turn it off
+    else:
+        # Make workers stop listening for calls
+        self._make_call(None)
+
+        # Log that workers are no longer listening for calls
+        logger.info("Workers are no longer listening for calls.")

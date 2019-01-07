@@ -153,9 +153,8 @@ def test_hybrid_sampling(pipe):
                                             lnpost_fn=lnpost)
     n_walkers *= 2
     p0 = np.concatenate([p0, p0])
-    pipe.worker_mode = True
-    if pipe._is_controller:
-        sampler = EnsembleSampler(n_walkers, pipe._modellink._n_par,
-                                  get_lnpost, args=[pipe])
-        sampler.run_mcmc(p0, 10)
-    pipe.worker_mode = False
+    with pipe.worker_mode:
+        if pipe._is_controller:
+            sampler = EnsembleSampler(n_walkers, pipe._modellink._n_par,
+                                      get_lnpost, args=[pipe])
+            sampler.run_mcmc(p0, 10)
