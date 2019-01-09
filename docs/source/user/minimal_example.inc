@@ -16,7 +16,7 @@ The use of either one will add the provided parameters/data to the default param
 Since the :class:`~prism.modellink.GaussianLink` class does not have default data defined, it is required to supply it with some data during initialization (using an array, dict or external file)::
 
     >>> # f(3) = 3.0 +- 0.1, f(5) = 5.0 +- 0.1, f(7) = 3.0 +- 0.1
-    >>> model_data = {3: [3.0, 0.1], 5: [5.0, 0.1],	7: [3.0, 0.1]}
+    >>> model_data = {3: [3.0, 0.1], 5: [5.0, 0.1], 7: [3.0, 0.1]}
     >>> modellink_obj = GaussianLink(model_data=model_data)
 
 Here, the :class:`~prism.modellink.GaussianLink` class was initialized by giving it three custom data points and using its default parameters.
@@ -41,7 +41,7 @@ Since it has already been initialized above, the :class:`~prism.Pipeline` class 
 Since no working directory was provided to the :class:`~prism.Pipeline` class and none already existed, it automatically created one (``prism_0``).
 
 *PRISM* is now completely ready to start emulating the model.
-The :class:`~prism.Pipeline` allows for all steps in a full cycle (see :ref:`prism_pipeline`) to be executed automatically::
+The :class:`~prism.Pipeline` allows for all steps in a full cycle (see :ref:`PRISM pipeline <PRISM>`) to be executed automatically::
 
     >>> pipe.run()
 

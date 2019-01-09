@@ -75,8 +75,7 @@ call_model_doc =\
 call_model_doc_s = call_model_doc.format("par_set", "mod_out", "1D", "", "")
 call_model_doc_m = call_model_doc.format(
     "sam_set", "mod_set", "2D", " set",
-    "\n\tThis is a multi-version of "
-    ":meth:`~prism.pipeline.Pipeline._call_model`.\n")
+    "\n\tThis is a multi-version of :meth:`~prism.Pipeline._call_model`.\n")
 
 # Descriptions for the ext_real_set parameters
 ext_mod_set_doc =\

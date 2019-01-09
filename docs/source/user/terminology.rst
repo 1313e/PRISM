@@ -150,7 +150,7 @@ ModelLink (subclass) [`modellink`]
 
 Model discrepancy variance [`md_var`]
     A user-defined value that includes all contributions to the overall variance on a model output that is created/caused by the model itself.
-    More information on this can be found :ref:`here<md_var>`.
+    More information on this can be found in :ref:`md_var`.
 
 Model evaluation samples [`add_sam_set`]
     The sample set (to be) used for evaluating the model.
@@ -217,7 +217,7 @@ Prior variance [`prior_var`]
     The variance value of a parameter set as determined by an emulator system, without taking the adjustment term (from the BLA) into account.
 
 Projection/Project
-    The process of analyzing a specific set of active parameters in an iteration to determine the correlation between the two parameters.
+    The process of analyzing a specific set of active parameters in an iteration to determine the correlation between the parameters.
 
 Projection figure
     The visual representation of a projection.

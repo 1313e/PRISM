@@ -50,8 +50,9 @@ extensions = [
 
 # Autodoc configuration
 autodoc_default_options = {'members': None,
-			   'private-members': None}
+                           'private-members': None}
 autodoc_member_order = 'groupwise'
+autodoc_inherit_docstrings = False
 
 # Napoleon configuration
 napoleon_include_init_with_doc = True
@@ -105,6 +106,14 @@ pygments_style = 'sphinx'
 add_function_parentheses = True
 add_module_names = True
 show_authors = True
+numfig = True
+
+# Reference formatting
+numfig_format = {
+    'figure': "Fig. %s",
+    'table': "Tab. %s",
+    'code-block': "Lst. %s",
+    'section': "Sec. %s"}
 
 
 # -- Options for HTML output -------------------------------------------------

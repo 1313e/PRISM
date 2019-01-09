@@ -185,10 +185,10 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             self.MPI_call = False
 
         # Generate model parameter properties
-        self._set_model_parameters(model_parameters)
+        self.__set_model_parameters(model_parameters)
 
         # Generate model data properties
-        self._set_model_data(model_data)
+        self.__set_model_data(model_data)
 
     # Define the representation of a ModelLink object
     def __repr__(self):
@@ -635,7 +635,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         return(self._default_model_parameters)
 
-    def _set_model_parameters(self, add_model_parameters):
+    def __set_model_parameters(self, add_model_parameters):
         """
         Generates the model parameter properties from the default model
         parameters and the additional input argument `add_model_parameters`.
@@ -765,7 +765,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         return(self._default_model_data)
 
-    def _set_model_data(self, add_model_data):
+    def __set_model_data(self, add_model_data):
         """
         Generates the model data properties from the default model data and the
         additional input argument `add_model_data`.
@@ -865,14 +865,14 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             idx = list(idx)
 
             # Save data value
-            self._data_val.append(check_vals(data[0], 'data_val[%s]' % (idx),
+            self._data_val.append(check_vals(data[0], 'data_val%s' % (idx),
                                              'float'))
 
             # Save data error and extract space
             # If length is two, centered error and no data space were given
             if(len(data) == 2):
                 self._data_err.append(
-                    [check_vals(data[1], 'data_err[%s]' % (idx), 'float')]*2)
+                    [check_vals(data[1], 'data_err%s' % (idx), 'float')]*2)
                 spc = 'lin'
 
             # If length is three, there are two possibilities
@@ -880,20 +880,19 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                 # If the third column contains a string, it is the data space
                 if isinstance(data[2], (str, unicode)):
                     self._data_err.append(
-                        [check_vals(data[1], 'data_err[%s]' % (idx),
-                                    'float')]*2)
+                        [check_vals(data[1], 'data_err%s' % (idx), 'float')]*2)
                     spc = data[2]
 
                 # If the third column contains no string, it is error interval
                 else:
                     self._data_err.append(
-                        check_vals(data[1:3], 'data_err[%s]' % (idx), 'float'))
+                        check_vals(data[1:3], 'data_err%s' % (idx), 'float'))
                     spc = 'lin'
 
             # If length is four+, error interval and data space were given
             else:
                 self._data_err.append(
-                    check_vals(data[1:3], 'data_err[%s]' % (idx), 'float'))
+                    check_vals(data[1:3], 'data_err%s' % (idx), 'float'))
                 spc = data[3]
 
             # Save data space
@@ -906,8 +905,8 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             elif spc.lower() in ('ln', 'loge', 'log_e'):
                 self._data_spc.append('ln')
             else:
-                raise ValueError("Input argument 'data_spc[%s]' is "
-                                 "invalid (%r)!" % (idx, spc))
+                raise ValueError("Input argument 'data_spc%s' is invalid (%r)!"
+                                 % (idx, spc))
 
             # Save data identifier as tuple or single element
             if(len(idx) == 1):
@@ -1042,6 +1041,11 @@ def test_subclass(subclass, *args, **kwargs):
     if not isclass(subclass):
         raise InputError("Input argument 'subclass' must be a class!")
 
+    # Check if provided subclass is a subclass of ModelLink
+    if not issubclass(subclass, ModelLink):
+        raise TypeError("Input argument 'subclass' must be a subclass of the "
+                        "ModelLink class!")
+
     # Try to initialize provided subclass
     try:
         modellink_obj = subclass(*args, **kwargs)
@@ -1049,20 +1053,13 @@ def test_subclass(subclass, *args, **kwargs):
         raise InputError("Input argument 'subclass' cannot be initialized! "
                          "(%s)" % (error))
 
-    # Try to check the initialized modellink_obj
-    try:
-        # Check if modellink_obj was initialized properly
-        if not check_instance(modellink_obj, ModelLink):
-            obj_name = modellink_obj.__class__.__name__
-            raise InputError("Provided ModelLink subclass %r was not "
-                             "initialized properly! Make sure that %r calls "
-                             "the super constructor during initialization!"
-                             % (obj_name, obj_name))
-
-    # If this fails, modellink_obj is not an instance of ModelLink
-    except TypeError:
-        raise TypeError("Input argument 'subclass' must be a subclass of the "
-                        "ModelLink class!")
+    # Check if modellink_obj was initialized properly
+    if not check_instance(modellink_obj, ModelLink):
+        obj_name = modellink_obj.__class__.__name__
+        raise InputError("Provided ModelLink subclass %r was not "
+                         "initialized properly! Make sure that %r calls "
+                         "the super constructor during initialization!"
+                         % (obj_name, obj_name))
 
     # Set MPI intra-communicator
     comm = PRISM_Comm()

@@ -1,19 +1,19 @@
 codecov:
-  token: 6a194e41-c88d-4b7e-af10-29d9f54f8d84
-  ci:
-    - !appveyor
-  notify:
-    require_ci_to_pass: yes
-  strict_yaml_branch: master
+    token: 6a194e41-c88d-4b7e-af10-29d9f54f8d84
+    ci:
+        - !appveyor
+    notify:
+        require_ci_to_pass: yes
+    strict_yaml_branch: master
   
 
 coverage:
-  range: 0..100
-  round: down
-  precision: 2
-  status:
-    project:
-      default:
-      	target: 95%
-
+    range: 0..100
+    round: down
+    precision: 2
+    status:
+        project:
+            default:
+              	target: 95%
+        patch: false
 comment: off

@@ -74,7 +74,7 @@ class Pipeline(Projection, object):
 
     @docstring_substitute(paths=paths_doc_d)
     def __init__(self, modellink_obj, root_dir=None, working_dir=None,
-                 prefix=None, prism_file=None, emul_type='default', comm=None):
+                 prefix=None, prism_file=None, emul_type=None, comm=None):
         """
         Initialize an instance of the :class:`~Pipeline` class.
 
@@ -87,12 +87,10 @@ class Pipeline(Projection, object):
         Optional
         --------
         %(paths)s
-        emul_type : {'default'} or :class:`~prism.Emulator` subclass.\
-            Default: 'default'
-            String indicating which emulator type to use. In the
-            :class:`~Pipeline` base class, only 'default' is supported.
-            If :class:`~prism.Emulator` subclass, the supplied
-            :class:`~prism.Emulator` subclass will be used instead.
+        emul_type : :class:`~prism.Emulator` subclass or None. Default: None
+            The type of :class:`~prism.Emulator` to use in this
+            :obj:`~prism.Pipeline` instance. If *None*, use the default
+            emulator instead.
         comm : :obj:`~MPI.Intracomm` object or None. Default: None
             The MPI intra-communicator to use in this :class:`~Pipeline`
             instance or :obj:`MPI.COMM_WORLD` if `comm` is *None*.
@@ -143,19 +141,20 @@ class Pipeline(Projection, object):
             start_logger(path.join(self._working_dir, 'prism_log.log'), 'a')
 
         # Initialize Emulator class
-        # If emul_type is a subclass of Emulator, try to initialize it
-        if isclass(emul_type) and issubclass(emul_type, Emulator):
+        # If emul_type is None, use default emulator
+        if emul_type is None:
+            Emulator(self, modellink_obj)
+
+        # Else if emul_type is a subclass of Emulator, try to initialize it
+        elif isclass(emul_type) and issubclass(emul_type, Emulator):
             try:
                 emul_type(self, modellink_obj)
                 self._emulator
+                self._modellink
             except Exception as error:
                 err_msg = ("Input argument 'emul_type' is invalid! (%s)"
                            % (error))
                 raise_error(err_msg, InputError, logger)
-
-        # If not, initialize a registered Emulator class
-        elif(emul_type == 'default'):
-            Emulator(self, modellink_obj)
 
         # If anything else is given, it is invalid
         else:
@@ -178,8 +177,8 @@ class Pipeline(Projection, object):
     def __call__(self, emul_i=None, force=False):
         """
         Calls the :meth:`~construct` method to start the construction of the
-        given iteration of the emulator system and creates the projection
-        figures right afterward if this construction was successful.
+        given iteration of the emulator and creates the projection figures
+        right afterward if this construction was successful.
 
         Optional
         --------
@@ -2527,8 +2526,11 @@ class Pipeline(Projection, object):
             The relative path to the working directory of the emulator starting
             at the current working directory.
         Emulator type
-            The type of this emulator, corresponding to the provided
-            `emul_type` during :class:`~Pipeline` initialization.
+            The type of this emulator, corresponding to the
+            :attr:`~prism.Emulator.emul_type` of the provided `emul_type`
+            during :class:`~Pipeline` initialization.
+            If no emulator type was provided during initialization, this is
+            'default'.
         ModelLink subclass
             Name of the :class:`~prism.modellink.ModelLink` subclass
             used to construct this emulator.

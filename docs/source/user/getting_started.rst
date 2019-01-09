@@ -23,7 +23,7 @@ The *PRISM* package comes with several test scripts, data files and ModelLink su
 These test scripts work out-of-the-box and can be used to see how *PRISM* works, and what the typical lay-outs of the required files are.
 
 Dependencies
-++++++++++++
+------------
 *PRISM* requires ``python == 2.7`` or ``python >= 3.5`` and the following non-standard dependencies (installed automatically):
 
 - ``e13tools >= 0.4.7a1``;

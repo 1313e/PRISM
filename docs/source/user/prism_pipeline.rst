@@ -2,9 +2,12 @@
 
 The PRISM pipeline
 ==================
-.. image:: images/PRISM.png
+.. figure:: images/PRISM.png
+    :name: PRISM
     :alt: The *PRISM* pipeline
     :width: 100%
     :align: center
-    :name: PRISM
 
+    The structure of the *PRISM* pipeline.
+
+.. include:: mpi.inc

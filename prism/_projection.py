@@ -34,9 +34,10 @@ from scipy.interpolate import Rbf
 from tqdm import tqdm
 
 # PRISM imports
-from prism._docstrings import (def_par_doc, draw_proj_fig_doc, hcube_doc,
-                               proj_data_doc, proj_par_doc_d, proj_par_doc_s,
-                               read_par_doc, save_data_doc_pr, user_emul_i_doc)
+from prism._docstrings import (def_par_doc, draw_proj_fig_doc, get_emul_i_doc,
+                               hcube_doc, proj_data_doc, proj_par_doc_d,
+                               proj_par_doc_s, read_par_doc, save_data_doc_pr,
+                               user_emul_i_doc)
 from prism._internal import (RequestError, RequestWarning, check_vals,
                              convert_str_seq, docstring_append,
                              docstring_substitute, getCLogger, raise_error,
@@ -75,7 +76,7 @@ class Projection(object):
 
     # Function that creates all projection figures
     @docstring_substitute(emul_i=user_emul_i_doc, proj_par=proj_par_doc_d)
-    def project(self, *args, **kwargs):
+    def project(self, emul_i=None, proj_par=None, **kwargs):
         """
         Analyzes the emulator iteration `emul_i` and constructs a series of
         projection figures detailing the behavior of the model parameters
@@ -83,8 +84,8 @@ class Projection(object):
         The input and output depend on the number of model parameters
         :attr:`~prism.modellink.ModelLink.n_par`.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         %(emul_i)s
         %(proj_par)s
 
@@ -121,7 +122,8 @@ class Projection(object):
             If *False*, it will use the previously acquired projection data to
             create the projection figure.
             If *True*, it will recalculate all the data required to create the
-            projection figure.
+            projection figure. Note that this will also delete all associated
+            projection figures.
         fig_kwargs : dict. Default: {'figsize': (6.4, 4.8), 'dpi': 100}
             Dict of keyword arguments to be used when creating the subplots
             figure. It takes all arguments that can be provided to the
@@ -202,7 +204,7 @@ class Projection(object):
         start_time1 = time()
 
         # Prepare for making projections
-        self.__prepare_projections(*args, **kwargs)
+        self.__prepare_projections(emul_i, proj_par, **kwargs)
 
         # Save current time again
         start_time2 = time()
@@ -709,7 +711,8 @@ class Projection(object):
                 hcubes.extend(proj_par[np.array(hcube_idx)].tolist())
             if self.__proj_3D:
                 hcube_idx = list(combinations(range(len(proj_par)), 2))
-                hcubes.extend(proj_par[np.array(hcube_idx)].tolist())
+                if len(hcube_idx):
+                    hcubes.extend(proj_par[np.array(hcube_idx)].tolist())
 
             # Create empty list holding hcube_par that needs to be created
             create_hcubes = []
@@ -881,9 +884,7 @@ class Projection(object):
                        'color': 'grey'}
 
         # Create input argument dict with default projection parameters
-        kwargs_dict = {'emul_i': None,
-                       'proj_par': None,
-                       'proj_type': '2D' if(self.__n_par == 2) else 'both',
+        kwargs_dict = {'proj_type': '2D' if(self.__n_par == 2) else 'both',
                        'figure': 1,
                        'align': 'col',
                        'smooth': 0,
@@ -1137,22 +1138,21 @@ class Projection(object):
         return(np.array(impl_min_hcube), np.array(impl_los_hcube))
 
     # This function processes the input arguments of project
-    def __process_input_arguments(self, *args, **kwargs):
+    @docstring_substitute(emul_i=get_emul_i_doc)
+    def __process_input_arguments(self, emul_i, **kwargs):
         """
         Processes the input arguments given to the :meth:`~project` method.
 
         Parameters
         ----------
-        args : list
-            List of positional arguments that were provided to
-            :meth:`~project`.
+        %(emul_i)s
         kwargs : dict
             Dict of keyword arguments that were provided to :meth:`~project`.
 
         Generates
         ---------
-        All default and provided `args` and `kwargs` are saved to their
-        respective properties.
+        All default and provided arguments are saved to their respective
+        properties.
 
         """
 
@@ -1167,19 +1167,6 @@ class Projection(object):
         pop_fig_kwargs = ['num', 'ncols', 'nrows', 'sharex', 'sharey',
                           'constrained_layout']
         pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax']
-
-        # Check if not more than two args have been provided
-        if(len(args) > 2):
-            err_msg = ("The project()-method takes a maximum of 2 positional "
-                       "arguments, but %i have been provided!" % (len(args)))
-            raise_error(err_msg, InputError, logger)
-
-        # Update emul_i and proj_par by given args
-        try:
-            kwargs_dict['emul_i'] = args[0]
-            kwargs_dict['proj_par'] = args[1]
-        except IndexError:
-            pass
 
         # Update kwargs_dict with given kwargs
         for key, value in kwargs.items():
@@ -1199,7 +1186,7 @@ class Projection(object):
         kwargs = kwargs_dict
 
         # Get emul_i
-        self.__emul_i = self._emulator._get_emul_i(kwargs['emul_i'], True)
+        self.__emul_i = self._emulator._get_emul_i(emul_i, True)
 
         # Controller checking all other kwargs
         if self._is_controller:
@@ -1307,19 +1294,16 @@ class Projection(object):
         # Log again
         logger.info("Finished processing input arguments.")
 
-        # Return proj_par
-        return(kwargs['proj_par'])
-
     # This function prepares for projections to be made
-    def __prepare_projections(self, *args, **kwargs):
+    @docstring_substitute(emul_i=get_emul_i_doc, proj_par=proj_par_doc_s)
+    def __prepare_projections(self, emul_i, proj_par, **kwargs):
         """
         Prepares the pipeline for the creation of the requested projections.
 
         Parameters
         ----------
-        args : list
-            List of positional arguments that were provided to
-            :meth:`~project`.
+        %(emul_i)s
+        %(proj_par)s
         kwargs : dict
             Dict of keyword arguments that were provided to :meth:`~project`.
 
@@ -1332,7 +1316,7 @@ class Projection(object):
         self.__n_par = self._modellink._n_par
 
         # Combine received args and kwargs with default ones
-        proj_par = self.__process_input_arguments(*args, **kwargs)
+        self.__process_input_arguments(emul_i, **kwargs)
 
         # Controller doing some preparations
         if self._is_controller:

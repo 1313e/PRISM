@@ -6,4 +6,3 @@ Using PRISM
 .. include:: projections.inc
 .. include:: dual_nature.inc
 .. include:: hybrid_sampling.inc
-.. include:: mpi.inc

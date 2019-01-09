@@ -23,9 +23,9 @@ The documentation of *PRISM* is spread out over several sections:
    
     introduction
     user/getting_started
+    user/prism_pipeline
     user/modellink_crash_course
     user/using_prism
-    user/prism_pipeline
     user/descriptions
     user/terminology
     user/tips_tricks
@@ -38,10 +38,11 @@ The documentation of *PRISM* is spread out over several sections:
     :maxdepth: 4
     :caption: API Reference
    
-    api/classes
-    api/prism._internal
+    api/prism.Pipeline
+    api/prism.Emulator
     api/prism.modellink
     api/prism.utils
+    api/prism._internal
 
 .. role:: pycode(code)
     :language: python

@@ -1,4 +1,4 @@
 Pipeline
 ========
 .. autoclass:: prism.Pipeline
-    :members:
+    :inherited-members:
