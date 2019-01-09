@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 # PRISM imports
-from .._dummyMPI import Comm, Intracomm, COMM_WORLD as comm
+from prism._dummyMPI import Comm, Intracomm, COMM_WORLD as comm
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)

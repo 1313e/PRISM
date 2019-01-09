@@ -27,10 +27,10 @@ from six import with_metaclass
 from sortedcontainers import SortedDict, SortedSet
 
 # PRISM imports
-from .._docstrings import std_emul_i_doc
-from .._internal import (PRISM_Comm, RequestWarning, check_instance,
-                         check_vals, convert_str_seq, docstring_substitute,
-                         getCLogger, raise_error)
+from prism._docstrings import std_emul_i_doc
+from prism._internal import (PRISM_Comm, RequestWarning, check_instance,
+                             check_vals, convert_str_seq, docstring_substitute,
+                             getCLogger, raise_error)
 
 # All declaration
 __all__ = ['ModelLink', 'test_subclass']
@@ -629,7 +629,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         """
         Returns the default model parameters to use for every instance of this
         :class:`~ModelLink` subclass. By default, returns
-        :attr:`~_default_model_parameters`.
+        :attr:`~ModelLink._default_model_parameters`.
 
         """
 
@@ -645,7 +645,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         add_model_parameters : array_like, dict, str or None
             Anything that can be converted to a dict that provides non-default
             model parameters information or *None* if only default information
-            is used from :meth:`~get_default_model_parameters`.
+            is used from :meth:`~ModelLink.get_default_model_parameters`.
 
         Generates
         ---------
@@ -759,7 +759,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         """
         Returns the default model data to use for every instance of this
         :class:`~ModelLink` subclass. By default, returns
-        :attr:`~_default_model_data`.
+        :attr:`~ModelLink._default_model_data`.
 
         """
 
@@ -775,7 +775,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         add_model_data : array_like, dict, str or None
             Anything that can be converted to a dict that provides non-default
             model data information or *None* if only default data is used from
-            :meth:`~get_default_model_data`.
+            :meth:`~ModelLink.get_default_model_data`.
 
         Generates
         ---------

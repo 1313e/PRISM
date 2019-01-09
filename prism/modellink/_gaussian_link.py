@@ -19,8 +19,8 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 # PRISM imports
-from .._internal import check_vals
-from ._modellink import ModelLink
+from prism._internal import check_vals
+from prism.modellink import ModelLink
 
 # All declaration
 __all__ = ['GaussianLink']

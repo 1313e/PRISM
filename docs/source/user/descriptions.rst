@@ -2,6 +2,6 @@
 
 Descriptions
 ============
-.. include:: parameters.rst
-.. include:: hdf5.rst
-.. include:: general_rules.rst
+.. include:: parameters.inc
+.. include:: hdf5.inc
+.. include:: general_rules.inc

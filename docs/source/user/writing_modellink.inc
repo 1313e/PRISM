@@ -8,11 +8,11 @@ Here, the basic steps for making a custom :class:`~prism.modellink.ModelLink` su
 ----
 
 .. topic:: example_link.py
-   :name: example_link.py
+    :name: example_link.py
 
-   .. include:: scripts/example_link.py
-      :literal:
-      :code: python
+    .. include:: scripts/example_link.py
+        :literal:
+        :code: python
 
 ----
 
@@ -27,9 +27,9 @@ During the initialization of the :class:`~prism.Emulator` class, it is checked w
 
 Besides executing custom code, three properties/flags can be set in :meth:`~prism.modellink.ModelLink.__init__`, which have the following default values if the extended constructor does not set them::
 
-	self.name = self.__class__.__name__	# Set instance name to the name of the class
-	self.call_type = 'single'		# Request single model calls
-	self.MPI_call = False			# Request only controller calls
+    self.name = self.__class__.__name__ # Set instance name to the name of the class
+    self.call_type = 'single'           # Request single model calls
+    self.MPI_call = False               # Request only controller calls
 
 The first property, :attr:`~prism.modellink.ModelLink.name`, defines the name of the :obj:`~prism.modellink.ModelLink` instance.
 This name is used by the :class:`~prism.Emulator` class during initialization to check if a constructed emulator is linked to the proper :obj:`~prism.modellink.ModelLink` instance, in order to avoid causing mismatches.
@@ -43,8 +43,8 @@ Therefore, :attr:`~prism.modellink.ModelLink.call_type` can be set to accept sol
 In the same way, :attr:`~prism.modellink.ModelLink.MPI_call` can be set to *True* or *False* to identify that the model needs to be executed in serial or in MPI.
 
 .. note::
-	If a model uses OpenMP parallelization, it is recommended to set :attr:`~prism.modellink.ModelLink.MPI_call` to *False* in the :class:`~prism.modellink.ModelLink` subclass and set :attr:`~prism.Pipeline.worker_mode` to *True* after initializing the :class:`~prism.Pipeline` class.
-	This way, *PRISM* can operate in MPI while the model itself can operate in OpenMP.
+    If a model uses OpenMP parallelization, it is recommended to set :attr:`~prism.modellink.ModelLink.MPI_call` to *False* in the :class:`~prism.modellink.ModelLink` subclass and set :attr:`~prism.Pipeline.worker_mode` to *True* after initializing the :class:`~prism.Pipeline` class.
+    This way, *PRISM* can operate in MPI while the model itself can operate in OpenMP.
 
 Finally, the :class:`~prism.modellink.ModelLink` class has three methods that can be overridden for adding utility to the class (of which two are shown in example_link.py_).
 The :meth:`~prism.modellink.ModelLink.get_default_model_parameters` and :meth:`~prism.modellink.ModelLink.get_default_model_data` methods return dictionaries containing the default model parameters and model data to use in this class instance, respectively.
@@ -53,24 +53,24 @@ Additionally, if a default parameter or data point is also provided during initi
 
 .. admonition:: Example
 
-	The :class:`~prism.modellink.GaussianLink` class has default parameters defined::
+    The :class:`~prism.modellink.GaussianLink` class has default parameters defined::
 	
-		>>> from prism.modellink import GaussianLink
-		>>> model_data = {3: [3.0, 0.1]}
-		>>> modellink_obj = GaussianLink(model_data=model_data)
-		>>> modellink_obj
-		GaussianLink(model_parameters={'A1': [1.0, 10.0, 5.0], 'B1': [0.0, 10.0, 5.0],
-					       'C1': [0.0, 5.0, 2.0]},
-			     model_data={3: [3.0, 0.1]})
+        >>> from prism.modellink import GaussianLink
+        >>> model_data = {3: [3.0, 0.1]}
+        >>> modellink_obj = GaussianLink(model_data=model_data)
+        >>> modellink_obj
+        GaussianLink(model_parameters={'A1': [1.0, 10.0, 5.0], 'B1': [0.0, 10.0, 5.0],
+                                       'C1': [0.0, 5.0, 2.0]},
+                     model_data={3: [3.0, 0.1]})
 
-	Providing a custom set of parameters will override the coded defaults::
+    Providing a custom set of parameters will override the coded defaults::
 	
-		>>> model_parameters = {'A1': [-5, 7, 2]}
-		>>> modellink_obj = GaussianLink(model_parameters=model_parameters, model_data=model_data)
-		>>> modellink_obj
-		GaussianLink(model_parameters={'A1': [-5.0, 7.0, 2.0], 'B1': [0.0, 10.0, 5.0],
-					       'C1': [0.0, 5.0, 2.0]},
-			     model_data={3: [3.0, 0.1]})
+        >>> model_parameters = {'A1': [-5, 7, 2]}
+        >>> modellink_obj = GaussianLink(model_parameters=model_parameters, model_data=model_data)
+        >>> modellink_obj
+        GaussianLink(model_parameters={'A1': [-5.0, 7.0, 2.0], 'B1': [0.0, 10.0, 5.0],
+                                       'C1': [0.0, 5.0, 2.0]},
+                     model_data={3: [3.0, 0.1]})
 
 The third method, :meth:`~prism.modellink.ModelLink.get_str_repr`, is a simple function that returns a list containing the representations of all non-default input arguments the :class:`~prism.modellink.ModelLink` subclass takes.
 It can be overridden to add the missing input arguments to the full representation of the class, which is automatically called whenever the representation is requested.
@@ -79,11 +79,11 @@ The :class:`~prism.modellink.GaussianLink` class overrides this method to add it
 ----
 
 .. topic:: line_link.py
-   :name: line_link.py
+    :name: line_link.py
 
-   .. include:: scripts/line_link.py
-      :literal:
-      :code: python
+    .. include:: scripts/line_link.py
+        :literal:
+        :code: python
 
 ----
 
@@ -96,15 +96,15 @@ Therefore, only single evaluation samples in serial are requested.
 It returns an instance of the subclass if the test passes, or raises a specific error if not.
 We can use this function to initialize our newly written subclass::
 
-	>>> from line_link import LineLink
-	>>> from prism.modellink import test_subclass
-	>>> modellink_obj = test_subclass(LineLink)
-	>>> modellink_obj
-	LineLink(model_parameters={'A': [-10.0, 10.0, 3.0], 'B': [0.0, 5.0, 1.5]},
-		 model_data={2.5: [6.8, 0.1], -2: [0.0, 0.1], 1: [4.5, 0.1]})
+    >>> from line_link import LineLink
+    >>> from prism.modellink import test_subclass
+    >>> modellink_obj = test_subclass(LineLink)
+    >>> modellink_obj
+    LineLink(model_parameters={'A': [-10.0, 10.0, 3.0], 'B': [0.0, 5.0, 1.5]},
+             model_data={2.5: [6.8, 0.1], -2: [0.0, 0.1], 1: [4.5, 0.1]})
 
 Since no errors were raised, we can now use the initialized :class:`~prism.modellink.ModelLink` subclass to initialize the :class:`~prism.Pipeline` class::
 
-	>>> from prism import Pipeline
-	>>> pipe = Pipeline(modellink_obj)
+    >>> from prism import Pipeline
+    >>> pipe = Pipeline(modellink_obj)
 

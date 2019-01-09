@@ -6,13 +6,13 @@ Installation
 ------------
 *PRISM* can be easily installed by either cloning the `repository`_ and executing the following::
 
-	$ git clone https://github.com/1313e/PRISM
-	$ cd PRISM
-	$ pip install .
+    $ git clone https://github.com/1313e/PRISM
+    $ cd PRISM
+    $ pip install .
 
 or by installing it directly from `PyPI`_ with::
 
-	$ pip install prism
+    $ pip install prism
 
 *PRISM* can now be imported as a package with :pycode:`import prism`.
 

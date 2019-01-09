@@ -8,5 +8,5 @@ Copyright Notice
 
 Citation
 --------
-.. Note::
-   Put reference to *PRISM* paper here!
+.. note::
+    Put reference to *PRISM* paper here!

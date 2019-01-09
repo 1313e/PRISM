@@ -39,13 +39,13 @@ Installation
 ------------
 *PRISM* can be easily installed by either cloning the `repository`_ and executing the following::
 
-	$ git clone https://github.com/1313e/PRISM
-	$ cd PRISM
-	$ pip install .
+    $ git clone https://github.com/1313e/PRISM
+    $ cd PRISM
+    $ pip install .
 
 or by installing it directly from `PyPI`_ with::
 
-	$ pip install prism
+    $ pip install prism
 
 *PRISM* can now be imported as a package with ``import prism``.
 
@@ -70,23 +70,23 @@ For running *PRISM* in MPI, the following packages are also required (not instal
 
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/prism.svg?label=PyPI
-   :target: https://pypi.python.org/pypi/prism
-   :alt: PyPI - Release
+    :target: https://pypi.python.org/pypi/prism
+    :alt: PyPI - Release
 .. |Python| image:: https://img.shields.io/pypi/pyversions/prism.svg?logo=python&logoColor=white&label=Python
-   :target: https://pypi.python.org/pypi/prism
-   :alt: PyPi - Python Versions
+    :target: https://pypi.python.org/pypi/prism
+    :alt: PyPi - Python Versions
 .. |License| image:: https://img.shields.io/pypi/l/prism.svg?colorB=blue&label=License
-   :target: https://github.com/1313e/PRISM/raw/master/LICENSE
-   :alt: PyPI - License
+    :target: https://github.com/1313e/PRISM/raw/master/LICENSE
+    :alt: PyPI - License
 .. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis&label=Travis%20CI
-   :target: https://travis-ci.com/1313e/PRISM
-   :alt: Travis CI - Build Status
+    :target: https://travis-ci.com/1313e/PRISM
+    :alt: Travis CI - Build Status
 .. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/master.svg?logo=appveyor&label=AppVeyor
-   :target: https://ci.appveyor.com/project/1313e/PRISM
-   :alt: AppVeyor - Build Status
+    :target: https://ci.appveyor.com/project/1313e/PRISM
+    :alt: AppVeyor - Build Status
 .. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/master.svg?logo=codecov&logoColor=white&label=Coverage
-   :target: https://codecov.io/gh/1313e/PRISM?branch=master
-   :alt: CodeCov - Coverage Status
+    :target: https://codecov.io/gh/1313e/PRISM?branch=master
+    :alt: CodeCov - Coverage Status
 .. |ReadTheDocs| image:: https://img.shields.io/readthedocs/prism-tool/latest.svg?logo=read%20the%20docs&logoColor=white&label=ReadTheDocs
-   :target: https://prism-tool.readthedocs.io/en/latest
-   :alt: ReadTheDocs - Status
+    :target: https://prism-tool.readthedocs.io/en/latest
+    :alt: ReadTheDocs - Status

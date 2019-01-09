@@ -33,11 +33,11 @@ from matplotlib.colors import LinearSegmentedColormap as LSC
 try:
     from mpi4py import MPI
 except ImportError:
-    from . import _dummyMPI as MPI
+    import prism._dummyMPI as MPI
 import numpy as np
 
 # PRISM imports
-from .__version__ import compat_version, prism_version
+from prism.__version__ import compat_version, prism_version
 
 # All declaration
 __all__ = ['CFilter', 'CLogger', 'PRISM_Comm', 'RFilter', 'RLogger',
@@ -432,7 +432,7 @@ def check_instance(instance, cls):
 
     Parameters
     ----------
-    instance : :obj:`~object`
+    instance : object
         Class instance that needs to be checked.
     cls : class
         The class which `instance` needs to be properly initialized from.
@@ -948,7 +948,7 @@ def import_cmaps(cmap_dir):
 
     Notes
     -----
-    All colormap files in `cmap_dir` must have names starting with 'cm_'. The
+    All colormap files in `cmap_dir` must have names starting with 'cm\\_'. The
     resulting colormaps will have the name of their file without the prefix and
     extension.
 

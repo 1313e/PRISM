@@ -18,30 +18,31 @@ The documentation of *PRISM* is spread out over several sections:
 .. _user-docs:
 
 .. toctree::
-   :maxdepth: 3
-   :caption: User Documentation
+    :maxdepth: 3
+    :caption: User Documentation
    
-   introduction
-   user/getting_started
-   user/usage
-   user/prism_pipeline
-   user/descriptions
-   user/terminology
-   user/tips_tricks
-   user/FAQ
-   licenses_citation
+    introduction
+    user/getting_started
+    user/modellink_crash_course
+    user/using_prism
+    user/prism_pipeline
+    user/descriptions
+    user/terminology
+    user/tips_tricks
+    user/FAQ
+    licenses_citation
    
 .. _api-docs:
 
 .. toctree::
-   :maxdepth: 4
-   :caption: API Reference
+    :maxdepth: 4
+    :caption: API Reference
    
-   api/classes
-   api/prism._internal
-   api/prism.modellink
-   api/prism.utils
+    api/classes
+    api/prism._internal
+    api/prism.modellink
+    api/prism.utils
 
 .. role:: pycode(code)
-   :language: python
-   :class: highlight
+    :language: python
+    :class: highlight

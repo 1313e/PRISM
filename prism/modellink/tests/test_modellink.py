@@ -13,9 +13,9 @@ import numpy as np
 import pytest
 
 # PRISM imports
-from ..._internal import RequestWarning
-from .._modellink import ModelLink, test_subclass as _test_subclass
-from .modellink.simple_gaussian_link import GaussianLink2D, GaussianLink3D
+from prism._internal import RequestWarning
+from prism.modellink import ModelLink, test_subclass as _test_subclass
+from prism.modellink.tests.modellink import GaussianLink2D, GaussianLink3D
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)

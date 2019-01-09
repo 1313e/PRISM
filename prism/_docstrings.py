@@ -117,8 +117,8 @@ paths_doc =\
         prefix : str or None{0}{3}
             String containing a prefix that is used for naming new working
             directories or scan for existing ones. If *None*, all directories
-            in `root_dir` are considered working directories and 'prism_' will
-            be used as a prefix for new ones.
+            in `root_dir` are considered working directories and 'prism\\_'
+            will be used as a prefix for new ones.
         prism_file : str or None{0}{4}
             String containing the absolute or relative path to the TXT-file
             containing the *PRISM* parameters that need to be changed from
@@ -254,7 +254,7 @@ proj_par_doc =\
             of provided model parameters that are active, with a string
             referring to the name of the model parameter and an integer
             referring to the position in which the model parameter is shown in
-            the :meth:`~details` method.
+            the :meth:`~prism.Pipeline.details` method.
             If *None*, projection figures are made for all active model
             parameters."""
 proj_par_doc_s = proj_par_doc.format("", "")
@@ -294,7 +294,7 @@ save_data_doc =\
         data_dict : dict
             Dict containing the data that needs to be saved to the HDF5-file.
 
-        Dict Variables
+        Dict variables
         --------------
         keyword : {2}
             String specifying the type of data that needs to be saved.

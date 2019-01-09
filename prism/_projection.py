@@ -34,13 +34,13 @@ from scipy.interpolate import Rbf
 from tqdm import tqdm
 
 # PRISM imports
-from ._docstrings import (def_par_doc, draw_proj_fig_doc, hcube_doc,
-                          proj_data_doc, proj_par_doc_d, proj_par_doc_s,
-                          read_par_doc, save_data_doc_pr, user_emul_i_doc)
-from ._internal import (RequestError, RequestWarning, check_vals,
-                        convert_str_seq, docstring_append,
-                        docstring_substitute, getCLogger, raise_error,
-                        raise_warning)
+from prism._docstrings import (def_par_doc, draw_proj_fig_doc, hcube_doc,
+                               proj_data_doc, proj_par_doc_d, proj_par_doc_s,
+                               read_par_doc, save_data_doc_pr, user_emul_i_doc)
+from prism._internal import (RequestError, RequestWarning, check_vals,
+                             convert_str_seq, docstring_append,
+                             docstring_substitute, getCLogger, raise_error,
+                             raise_warning)
 
 # All declaration
 __all__ = ['Projection']
@@ -151,11 +151,22 @@ class Projection(object):
             estimate lines in both plots. It takes all arguments that can be
             provided to the :func:`~matplotlib.pyplot.draw` function.
 
+        Returns (if `figure` is *False*)
+        --------------------------------
+        fig_data : dict of dicts
+            Dict containing the data for every requested projection figure,
+            split up into the 'impl_min' and 'impl_los' dicts. For 2D
+            projections, every dict contains a list with the x and y values.
+            For 3D projections, it contains the x, y and z values.
+            Note that due to the figures being interpolations, the y/z values
+            can be below zero or the line-of-sight values being above unity.
+
         Generates (if `figure` is *True*)
         ---------------------------------
         A series of projection figures detailing the behavior of the model.
         The lay-out and output of the projection figures depend on the type of
         figure:
+
             2D projection figure: The output will feature a figure with two
             subplots for every active model parameter (``n_par``). Every figure
             gives details about the behavior of the corresponding model
@@ -174,16 +185,6 @@ class Projection(object):
             implausibility (top/left) and the line-of-sight depth
             (bottom/right) obtained at the specified parameter values,
             independent of the values of the remaining model parameters.
-
-        Returns (if `figure` is *False*)
-        --------------------------------
-        fig_data : dict of dicts
-            Dict containing the data for every requested projection figure,
-            split up into the 'impl_min' and 'impl_los' dicts. For 2D
-            projections, every dict contains a list with the x and y values.
-            For 3D projections, it contains the x, y and z values.
-            Note that due to the figures being interpolations, the y/z values
-            can be below zero or the line-of-sight values being above unity.
 
         Notes
         -----
@@ -807,7 +808,8 @@ class Projection(object):
         hcube : 1D array_like of int of length {1, 2} or str
             Array containing the internal integer identifiers of the main model
             parameters that require a projection hypercube.
-            If str, the name of `hcube` instead (:meth:`~__get_hcube_name`).
+            If str, the name of `hcube` instead
+            (:meth:`~_Projection__get_hcube_name`).
 
         Optional
         --------

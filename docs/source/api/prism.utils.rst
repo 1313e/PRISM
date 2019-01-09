@@ -1,3 +1,2 @@
 .. automodule:: prism.utils
     :members:
-

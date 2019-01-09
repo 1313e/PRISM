@@ -35,16 +35,17 @@ from sklearn.preprocessing import PolynomialFeatures as PF
 from sortedcontainers import SortedSet
 
 # PRISM imports
-from .__version__ import prism_version as _prism_version
-from ._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
-                          emul_s_seq_doc, eval_doc, full_cov_doc,
-                          get_emul_i_doc, read_par_doc, regr_cov_doc,
-                          save_data_doc_e, std_emul_i_doc)
-from ._internal import (RequestError, RequestWarning, check_compatibility,
-                        check_instance, check_vals, convert_str_seq, delist,
-                        docstring_append, docstring_substitute, getCLogger,
-                        getRLogger, raise_error, raise_warning)
-from .modellink import ModelLink
+from prism import __version__
+from prism._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
+                               emul_s_seq_doc, eval_doc, full_cov_doc,
+                               get_emul_i_doc, read_par_doc, regr_cov_doc,
+                               save_data_doc_e, std_emul_i_doc)
+from prism._internal import (RequestError, RequestWarning, check_compatibility,
+                             check_instance, check_vals, convert_str_seq,
+                             delist, docstring_append, docstring_substitute,
+                             getCLogger, getRLogger, raise_error,
+                             raise_warning)
+from prism.modellink import ModelLink
 
 # All declaration
 __all__ = ['Emulator']
@@ -542,7 +543,7 @@ class Emulator(object):
                 file.attrs['modellink_name'] =\
                     self._modellink._name.encode('ascii', 'ignore')
                 file.attrs['prism_version'] =\
-                    _prism_version.encode('ascii', 'ignore')
+                    __version__.encode('ascii', 'ignore')
                 file.attrs['emul_type'] = self._emul_type.encode('ascii',
                                                                  'ignore')
                 file.attrs['use_mock'] = bool(self._use_mock)

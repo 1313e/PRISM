@@ -2,4 +2,4 @@
 
 Tips & tricks
 =============
-.. include:: speed_optimization.rst
+.. include:: speed_optimization.inc

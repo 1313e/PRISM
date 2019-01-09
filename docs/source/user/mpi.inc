@@ -1,0 +1,5 @@
+.. _mpi:
+
+MPI implementation
+++++++++++++++++++
+

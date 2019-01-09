@@ -25,9 +25,9 @@ from e13tools.sampling import lhd
 import numpy as np
 
 # PRISM imports
-from .._docstrings import user_emul_i_doc
-from .._internal import (RequestError, check_vals, docstring_substitute)
-from .._pipeline import Pipeline
+from prism._docstrings import user_emul_i_doc
+from prism._internal import (RequestError, check_vals, docstring_substitute)
+from prism._pipeline import Pipeline
 
 # All declaration
 __all__ = ['get_lnpost_fn', 'get_walkers']

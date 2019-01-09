@@ -16,19 +16,19 @@ import h5py
 try:
     from mpi4py import MPI
 except ImportError:
-    from .. import _dummyMPI as MPI
+    import prism._dummyMPI as MPI
 import numpy as np
 from py.path import local
 import pytest
 import pytest_mpl
 
 # PRISM imports
-from .._emulator import Emulator
-from .._internal import RequestError, check_instance
-from .._pipeline import Pipeline
-from .._projection import Projection
-from ..modellink._modellink import ModelLink
-from ..modellink.tests.modellink import GaussianLink2D, GaussianLink3D
+from prism._emulator import Emulator
+from prism._internal import RequestError, check_instance
+from prism._pipeline import Pipeline
+from prism._projection import Projection
+from prism.modellink import ModelLink
+from prism.modellink.tests.modellink import GaussianLink2D, GaussianLink3D
 
 
 # Save the path to this directory

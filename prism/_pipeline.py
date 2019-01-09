@@ -32,19 +32,21 @@ import numpy as np
 from numpy.random import normal, random
 
 # PRISM imports
-from ._docstrings import (call_emul_i_doc, call_model_doc_s, call_model_doc_m,
-                          def_par_doc, emul_s_seq_doc, ext_mod_set_doc,
-                          ext_real_set_doc_d, ext_real_set_doc_s,
-                          ext_sam_set_doc, impl_cut_doc, impl_temp_doc,
-                          paths_doc_d, paths_doc_s, read_par_doc,
-                          save_data_doc_p, std_emul_i_doc, user_emul_i_doc)
-from ._emulator import Emulator
-from ._internal import (PRISM_Comm, RequestError, RequestWarning, check_vals,
-                        convert_str_seq, delist, docstring_append,
-                        docstring_copy, docstring_substitute, exec_code_anal,
-                        getCLogger, get_PRISM_File, getRLogger, move_logger,
-                        raise_error, raise_warning, start_logger)
-from ._projection import Projection
+from prism._docstrings import (call_emul_i_doc, call_model_doc_s,
+                               call_model_doc_m, def_par_doc, emul_s_seq_doc,
+                               ext_mod_set_doc, ext_real_set_doc_d,
+                               ext_real_set_doc_s, ext_sam_set_doc,
+                               impl_cut_doc, impl_temp_doc, paths_doc_d,
+                               paths_doc_s, read_par_doc, save_data_doc_p,
+                               std_emul_i_doc, user_emul_i_doc)
+from prism._emulator import Emulator
+from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
+                             check_vals, convert_str_seq, delist,
+                             docstring_append, docstring_copy,
+                             docstring_substitute, exec_code_anal, getCLogger,
+                             get_PRISM_File, getRLogger, move_logger,
+                             raise_error, raise_warning, start_logger)
+from prism._projection import Projection
 
 # All declaration
 __all__ = ['Pipeline']
@@ -307,6 +309,11 @@ class Pipeline(Projection, object):
         within which all code is executed in worker mode. In worker mode, all
         worker ranks are continuously listening for calls from the controller
         rank made with :meth:`~_make_call`.
+
+        Note that all code within the context manager is executed by all ranks,
+        with the worker ranks executing it after the controller rank exited.
+        It is therefore advised to use an if-statement inside to make sure only
+        the controller rank executes the code.
 
         Using this context manager allows for easier use of *PRISM* in
         combination with serial/OpenMP codes (like MCMC methods).
@@ -1308,7 +1315,7 @@ class Pipeline(Projection, object):
         ----------
         %(emul_i)s
 
-        Dict Variables
+        Dict variables
         --------------
         keyword : str
             String containing the name/keyword of the statistic that is being
