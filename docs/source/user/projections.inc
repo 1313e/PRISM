@@ -94,7 +94,7 @@ The `smooth` argument is also a bool, that determines what to do if a grid point
 If *False*, which is the default, these values are kept in the figure, which may show up as artifact-like features.
 If *True*, these values are set to the first cut-off, basically removing them from the projection figure.
 This may however also remove interesting features.
-Below are two identical projections, one that is smoothed and one that is not, to showcase this difference (these projections are from iteration 2, since this effect can only happen in iterations after the first).
+Below are two identical projections, one that is smoothed and one that is not, to showcase this difference (these projections are from the second iteration, since this effect rarely occurs in the first iteration).
 
 .. figure:: images/2_proj__A1-B1_.png
     :alt: Non-smoothed 3D projection figure of model parameters A1 and B1.
@@ -116,7 +116,7 @@ In these figures, one can see that the non-smoothed projection shows many featur
 These features are however not artifacts, but caused by a sample (or samples) having its highest implausibility value being below the first implausibility cut-off, but still being implausible due to failing a later cut-off.
 For example, if the implausibility cut-offs are `[4.0, 3.7, 3.5]` and a sample has implausibility values `[3.9, 3.8, 3.2]`, it is found implausible due to failing to meet the second cut-off.
 However, since the first value is still the highest implausibility value, that value is used in the projection figure.
-Smoothing figures usually allows for 3D projections (2D projections usually do not have these problems) to become less crowded, but they do throw away information.
+Smoothing figures usually allows for 3D projections (2D projections rarely show this) to become less crowded, but they do throw away information.
 It should therefore only be used when necessary.
 
 The `force` argument is a bool, which controls what to do if a projection is requested for which data already exists.

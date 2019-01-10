@@ -125,7 +125,7 @@ class Test_get_walkers(object):
     # Try to provide a non-callable function
     def test_non_callable(self, pipe):
         with pytest.raises(InputError):
-            get_walkers(pipe, lnpost_fn=np.array(1))
+            get_walkers(pipe, ext_lnpost=np.array(1))
 
     # Try to provide a custom set of init_walkers
     def test_init_walkers_set(self, pipe):
@@ -144,13 +144,13 @@ class Test_get_walkers(object):
 
     # Try to provide a custom lnpost function
     def test_custom_lnpost(self, pipe):
-        get_walkers(pipe, lnpost_fn=lnpost)
+        get_walkers(pipe, ext_lnpost=lnpost)
 
 
 # Pytest for connecting to emcee
 def test_hybrid_sampling(pipe):
     n_walkers, p0, get_lnpost = get_walkers(pipe, unit_space=False,
-                                            lnpost_fn=lnpost)
+                                            ext_lnpost=lnpost)
     n_walkers *= 2
     p0 = np.concatenate([p0, p0])
     with pipe.worker_mode:

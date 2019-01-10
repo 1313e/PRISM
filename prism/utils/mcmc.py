@@ -120,6 +120,7 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
     hybrid = check_vals(hybrid, 'hybrid', 'bool')
 
     # If hybrid sampling is requested, define the various code snippets
+    # TODO: Find a way to avoid having to rebroadcast and recompile them
     if hybrid:
         # Define the various code snippets
         pre_code = "lnprior = 0"
@@ -216,7 +217,7 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
 # This function returns a set of valid MCMC walkers
 @docstring_substitute(emul_i=user_emul_i_doc)
 def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
-                lnpost_fn=None, **kwargs):
+                ext_lnpost=None, **kwargs):
     """
     Analyzes proposed `init_walkers` and returns valid `p0_walkers`.
 
@@ -249,12 +250,11 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
     unit_space : bool. Default: True
         Bool determining whether or not the provided samples and returned
         walkers are given in unit space.
-    lnpost_fn : function or None. Default: None
+    ext_lnpost : function or None. Default: None
         If function, call :func:`~get_lnpost_fn` function factory using
-        `lnpost_fn` as the `ext_lnpost` input argument and the same values for
-        `pipeline_obj`, `emul_i` and `unit_space`, and return the resulting
-        function definition `get_lnpost`. Any additionally provided `kwargs`
-        are also passed to it.
+        `ext_lnpost` and the same values for `pipeline_obj`, `emul_i` and
+        `unit_space`, and return the resulting function definition
+        `get_lnpost`. Any additionally provided `kwargs` are also passed to it.
 
     Returns
     -------
@@ -262,10 +262,10 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         Number of returned MCMC walkers.
     p0_walkers : 2D :obj:`~numpy.ndarray` object
         Array containing starting positions of valid MCMC walkers.
-    get_lnpost : function (if `lnpost_fn` is a function)
+    get_lnpost : function (if `ext_lnpost` is a function)
         The function returned by :func:`~get_lnpost_fn` function factory using
-        `lnpost_fn`, `pipeline_obj`, `emul_i`, `unit_space` and `kwargs` as the
-        input values.
+        `ext_lnpost`, `pipeline_obj`, `emul_i`, `unit_space` and `kwargs` as
+        the input values.
 
     See also
     --------
@@ -295,13 +295,13 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
     # Check if unit_space is a bool
     unit_space = check_vals(unit_space, 'unit_space', 'bool')
 
-    # Check if lnpost_fn is None and try to obtain lnpost function if not
-    if lnpost_fn is not None:
+    # Check if ext_lnpost is None and try to obtain lnpost function if not
+    if ext_lnpost is not None:
         try:
-            lnpost_fn = get_lnpost_fn(lnpost_fn, pipe, emul_i, unit_space,
+            lnpost_fn = get_lnpost_fn(ext_lnpost, pipe, emul_i, unit_space,
                                       **kwargs)
         except InputError:
-            raise InputError("Input argument 'lnpost_fn' is invalid!")
+            raise InputError("Input argument 'ext_lnpost' is invalid!")
 
     # If init_walkers is None, use impl_sam of emul_i
     if init_walkers is None:
@@ -367,7 +367,7 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         p0_walkers = pipe._modellink._to_unit_space(p0_walkers)
 
     # Check if lnpost_fn was requested and return it as well if so
-    if lnpost_fn is not None:
+    if ext_lnpost is not None:
         return(n_walkers, p0_walkers, lnpost_fn)
     else:
         return(n_walkers, p0_walkers)
