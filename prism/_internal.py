@@ -823,6 +823,11 @@ def get_info():
     # Create info list
     info_list = []
 
+    # Add header to info_list
+    info_list.append(dedent("""
+        PRISM configuration information
+        -------------------------------"""))
+
     # Add platform to info_list
     info_list.append("Platform: %s" % (sys.platform))
 
@@ -852,16 +857,11 @@ def get_info():
         dist = get_distribution(req)
         info_list.append("%s: %s" % (req, dist.version))
 
-    # Add start of info_str to info_list
-    info_list.insert(0, dedent("""
-        PRISM configuration information
-        -------------------------------"""))
-
     # Combine all strings in info_list to info_str
     info_str = '\n'.join(info_list)
 
-    # Return info_str
-    return(info_str)
+    # Return info_str, stripping any additional whitespaces
+    return(info_str.strip())
 
 
 # Define class factory that returns a specialized h5py.File class

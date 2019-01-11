@@ -1327,9 +1327,7 @@ class Projection(object):
                                 "analyzed yet. Creating projections may not be"
                                 " useful." % (self.__emul_i))
                     raise_warning(warn_msg, RequestWarning, logger, 2)
-                elif self._prc:
-                    pass
-                else:
+                elif not self._n_impl_sam[self.__emul_i]:
                     err_msg = ("Requested emulator iteration %i has no "
                                "plausible regions. Creating projections has no"
                                " use." % (self.__emul_i))

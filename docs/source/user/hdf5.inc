@@ -32,12 +32,12 @@ The general file contains:
 ----
 
 An iteration data group (``'i'``) contains:
-    - Attributes (10): Describe the general properties and results of this iteration, including:
+    - Attributes (9): Describe the general properties and results of this iteration, including:
 
         - Active parameters for this emulator iteration;
         - Implausibility cut-off parameters;
         - Number of emulated data points, emulator systems, emulator evaluation samples, plausible samples and model realization samples;
-        - Bools stating whether this emulator iteration contains plausible regions or used an external model realization set.
+        - Bool stating whether this emulator iteration used an external model realization set.
 
     - ``'emul_n'``: The data group that contains all data for a specific emulator system in this iteration.
       The value of ``'n'`` indicates which emulator system it is, not the data point.

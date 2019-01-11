@@ -504,6 +504,7 @@ class Pipeline(Projection, object):
         int: The number of evaluation samples used to analyze an emulator
         iteration of the emulator systems. The number of plausible evaluation
         samples is stored in :attr:`~n_impl_sam`.
+        It is zero if the specified iteration has not been analyzed yet.
 
         """
 
@@ -543,21 +544,12 @@ class Pipeline(Projection, object):
         return(self._cut_idx)
 
     @property
-    def prc(self):
-        """
-        bool: Whether or not plausible regions have been found in the last
-        constructed emulator iteration. If *False*, the next iteration cannot
-        be constructed.
-
-        """
-
-        return(bool(self._prc))
-
-    @property
     def n_impl_sam(self):
         """
         int: Number of model evaluation samples that passed the implausibility
         checks during the analysis of an emulator iteration.
+        It is zero if the specified iteration has not been analyzed yet or has
+        no plausible samples.
 
         """
 
@@ -1214,7 +1206,6 @@ class Pipeline(Projection, object):
                         self._n_eval_sam.append(emul.attrs['n_eval_sam'])
 
                 # Read in the samples that survived the implausibility check
-                self._prc = int(emul.attrs['prc'])
                 self._impl_sam = emul['impl_sam'][()]
                 self._impl_sam.dtype = float
 
@@ -1265,7 +1256,6 @@ class Pipeline(Projection, object):
                 elif(keyword == 'impl_sam'):
                     # Check if any plausible regions have been found at all
                     n_impl_sam = np.shape(data)[0]
-                    prc = 1 if(n_impl_sam != 0) else 0
 
                     # Convert data to a compound data set
                     dtype = [(n, float) for n in self._modellink._par_name]
@@ -1282,9 +1272,7 @@ class Pipeline(Projection, object):
                         del data_set['impl_sam']
                         data_set.create_dataset('impl_sam', data=data_c)
                     finally:
-                        self._prc = prc
                         self._impl_sam = data
-                        data_set.attrs['prc'] = bool(prc)
                         data_set.attrs['n_impl_sam'] = n_impl_sam
 
                 # N_EVAL_SAM
@@ -2157,9 +2145,6 @@ class Pipeline(Projection, object):
         impl_sam : 2D :obj:`~numpy.ndarray` object
             Array containing all emulator evaluation samples that survived the
             implausibility checks.
-        prc : bool
-            Bool indicating whether or not plausible regions have been found
-            during this analysis.
 
         """
 
@@ -2375,110 +2360,86 @@ class Pipeline(Projection, object):
             self.details(emul_i)
             return
 
-        # Log that construction of emulator iteration is being started
-        logger.info("Starting construction of emulator iteration %i."
-                    % (emul_i))
-
         # If iteration needs to be constructed from the beginning
         if c_from_start:
-            # Initialize data sets
-            add_sam_set = []
-            ext_sam_set = []
-            ext_mod_set = []
+            # Log that construction of emulator iteration is being started
+            logger.info("Starting construction of emulator iteration %i."
+                        % (emul_i))
 
-            # If this is the first iteration
-            if(emul_i == 1):
-                # Controller only
+            # Activate worker mode
+            with self.worker_mode:
                 if self._is_controller:
-                    # Process ext_real_set
-                    ext_sam_set, ext_mod_set =\
-                        self._get_ext_real_set(ext_real_set)
+                    # If this is the first iteration
+                    if(emul_i == 1):
+                        # Process ext_real_set
+                        ext_sam_set, ext_mod_set =\
+                            self._get_ext_real_set(ext_real_set)
 
-                    # Obtain number of externally provided model realizations
-                    n_ext_sam = np.shape(ext_sam_set)[0]
+                        # Obtain number of externally given model realizations
+                        n_ext_sam = np.shape(ext_sam_set)[0]
 
-                    # Create a new emulator
-                    self._emulator._create_new_emulator()
+                        # Create a new emulator
+                        self._make_call('_emulator._create_new_emulator')
 
-                    # Reload the data
-                    self._load_data()
-
-                    # Create initial set of model evaluation samples
-                    n_sam_init = max(0, self._n_sam_init-n_ext_sam)
-                    if n_sam_init:
-                        logger.info("Creating initial model evaluation sample "
-                                    "set of size %i." % (n_sam_init))
-                        add_sam_set = lhd(n_sam_init, self._modellink._n_par,
-                                          self._modellink._par_rng, 'center',
-                                          self._criterion,
-                                          constraints=ext_sam_set)
-                        logger.info("Finished creating initial sample set.")
-                    else:
-                        add_sam_set = np.array([])
-
-                # Remaining workers
-                else:
-                    # Create a new emulator
-                    self._emulator._create_new_emulator()
-
-            # If this is any other iteration
-            else:
-                # Controller only
-                if self._is_controller:
-                    # Get dummy ext_real_set
-                    ext_sam_set, ext_mod_set = self._get_ext_real_set(None)
-
-                    # Check if previous iteration was analyzed, do so if not
-                    if not self._n_eval_sam[emul_i-1]:
-                        # Let workers know that emulator needs analyzing
-                        self._comm.bcast(1, 0)
-
-                        # Analyze previous iteration
-                        logger.info("Previous emulator iteration has not been "
-                                    "analyzed. Performing analysis first.")
-                        self.analyze()
-                    else:
-                        # If not, let workers know
-                        self._comm.bcast(0, 0)
-
-                    # Check if a new emulator iteration can be constructed
-                    if(not self._prc and self._emulator._emul_i != emul_i):
-                        err_msg = ("No plausible regions were found in the "
-                                   "analysis of the previous emulator "
-                                   "iteration. Construction is not possible!")
-                        raise_error(err_msg, RequestError, logger)
-
-                    # Make the emulator prepare for a new iteration
-                    reload = self._emulator._prepare_new_iteration(emul_i)
-
-                    # Make sure the correct pipeline data is loaded in
-                    if reload:
+                        # Reload the data
                         self._load_data()
 
-                    # Obtain additional sam_set
-                    add_sam_set = self._impl_sam
+                        # Create initial set of model evaluation samples
+                        n_sam_init = max(0, self._n_sam_init-n_ext_sam)
+                        if n_sam_init:
+                            logger.info("Creating initial model evaluation "
+                                        "sample set of size %i."
+                                        % (n_sam_init))
+                            add_sam_set =\
+                                lhd(n_sam_init, self._modellink._n_par,
+                                    self._modellink._par_rng, 'center',
+                                    self._criterion, constraints=ext_sam_set)
+                            logger.info("Finished creating initial sample "
+                                        "set.")
+                        else:
+                            add_sam_set = np.array([])
 
-                # Remaining workers
-                else:
-                    # Listen for calls from controller for analysis
-                    do_analyze = self._comm.bcast(0, 0)
+                    # If this is any other iteration
+                    else:
+                        # Get dummy ext_real_set
+                        ext_sam_set, ext_mod_set = self._get_ext_real_set(None)
 
-                    # If previous iteration needs analyzing, call analyze()
-                    if do_analyze:
-                        self.analyze()
+                        # Check if last iteration was analyzed, do so if not
+                        if not self._n_eval_sam[emul_i-1]:
+                            # Analyze previous iteration
+                            logger.info("Previous emulator iteration has not "
+                                        "been analyzed. Performing analysis "
+                                        "first.")
+                            self._make_call('analyze')
 
-                    # Make the emulator prepare for a new iteration
-                    self._emulator._prepare_new_iteration(emul_i)
+                        # Check if a new emulator iteration can be constructed
+                        if not self._n_impl_sam[emul_i-1]:
+                            err_msg = ("No plausible regions were found in the"
+                                       " analysis of the previous emulator "
+                                       "iteration. Construction is not "
+                                       "possible!")
+                            raise_error(err_msg, RequestError, logger)
 
-            # MPI Barrier to free up workers
-            self._comm.Barrier()
+                        # Make the emulator prepare for a new iteration
+                        reload = self._make_call(
+                            '_emulator._prepare_new_iteration', emul_i)
 
-            # Broadcast add_sam_set to workers
-            add_sam_set = self._comm.bcast(add_sam_set, 0)
+                        # Make sure the correct pipeline data is loaded in
+                        if reload:
+                            self._load_data()
 
-            # Obtain corresponding set of model evaluations
-            self._get_iteration_data(emul_i, add_sam_set, ext_sam_set,
-                                     ext_mod_set)
+                        # Obtain additional sam_set
+                        add_sam_set = self._impl_sam
+
+                    # Obtain corresponding set of model evaluations
+                    self._make_call('_get_iteration_data', emul_i, add_sam_set,
+                                    ext_sam_set, ext_mod_set)
+
+        # If iteration needs to be constructed from midway
+        else:
+            # Log that construction of emulator iteration is continued
+            logger.info("Continuing construction of emulator iteration %i."
+                        % (emul_i))
 
         # Construct emulator iteration
         self._emulator._construct_iteration(emul_i)
@@ -2762,7 +2723,7 @@ class Pipeline(Projection, object):
                 else:
                     print("{0: <{1}}\t{2}".format(
                         "Plausible regions?", width,
-                        "Yes" if self._prc else "No"))
+                        "Yes" if self._n_impl_sam[emul_i] else "No"))
                 if not proj:
                     print("{0: <{1}}\t{2}".format("Projections available?",
                                                   width, "No"))
