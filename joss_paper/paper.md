@@ -41,7 +41,7 @@ With *PRISM*, the time spent on evaluating a model is minimized, providing devel
 The API for *PRISM* was designed to work well for both simple and advanced projects, with every class being written as a base class, but also almost every user-method solely taking optional arguments.
 This allows for the user to quickly get started with *PRISM*, while still being able to make adjustments to various routines with minimal effort.
 Its ``Pipeline`` class features a user-friendly environment that connects all of *PRISM*'s methods together, whereas the ``ModelLink`` abstract base class helps users wrapping (`linking') their model to *PRISM*.
-*PRISM* relies heavily on popular existing Python packages for its expensive computations, like ``NumPy``, ``Scikit-learn`` [@Sklearn] and ``Mlxtend`` [@Mlxtend], making it more robust and future-proof.
+*PRISM* relies heavily on popular existing Python packages for its expensive computations, like ``NumPy`` [@NumPy], ``Scikit-learn`` [@Sklearn] and ``Mlxtend`` [@Mlxtend], making it more robust and future-proof.
 
 Test applications of *PRISM* (which can be found in *PRISM*'s online documentation at https://prism-tool.readthedocs.io) show that *PRISM* can provide a qualitative parameter estimation over $15$ times faster than stand-alone MCMC methods, while also being able to give insight into the model's behavior (which MCMC cannot provide).
 In future work, *PRISM* will be used together with the MCMC package ``mhysa`` (Mutch et al. in prep.) to analyze and explore the parameter space of the semi-analytic model ``Meraxes`` [@Meraxes].

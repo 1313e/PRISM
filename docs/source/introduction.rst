@@ -1,28 +1,22 @@
 Introduction
 ============
-Typically we probe the universe by making models that try to reconstruct reality based on our scientific knowledge.
-Since our knowledge is limited, models tend to only tell part of the story.
-Commonly we utilize MCMC methods in order to check how closely this resembles reality.
-Although MCMC can precisely return the model realization that does this, it has a few drawbacks: It is slow, requires much additional knowledge about the model for a full Bayesian analysis, is vulnerable to irregularities and its convergence probability vs. speed depends on the initial conditions.
-This makes MCMC hard to use for complex models, eliminating the possibility for developers to discover additional details about their model, be it new physics, interesting effects or errors.
+Rapid technological advancements allow for both computational resources and observational/experimental instruments to become better, faster and more precise with every passing year.
+This leads to an ever-increasing amount of scientific data being available and more research questions being raised.
+As a result, scientific models that attempt to address these questions are becoming more abundant, and are pushing the available resources to the limit as these models incorporate more complex science and more closely resemble reality.
 
-*PRISM* tries to tackle this problem by providing a different way for analyzing models.
-Instead of evaluating a model millions of times, often in regions of parameter space that do not contain interesting model realizations, *PRISM* constructs an approximate version of the model with polynomial functions based on a few thousand model evaluations.
-By utilizing this system, *PRISM* is capable of identifying large parts of parameter space as 'implausible' with only limited model knowledge.
-Additionally, *PRISM* will map out the behavior of a model, allowing developers to study its properties.
-This makes *PRISM* an excellent alternative to ordinary MCMC methods for developers that seek to analyze and optimize their models.
+However, as the number of available models increases, they also tend to become more distinct, making it difficult to keep track of their individual qualities.
+A full analysis of every model would be required in order to recognize these qualities.
+It is common to employ Markov chain Monte Carlo (MCMC) methods and Bayesian statistics for performing this task.
+However, as these methods are meant to be used for making approximations of the posterior probability distribution function, there must be a more efficient way of analyzing them.
 
-What can *PRISM* do for your model?
------------------------------------
-- Rapid analysis of your model, being several magnitudes faster than ordinary MCMC methods;
-- Provide an approximated version of the model;
-- Analyze and map out its physical behavior;
-- Detect inaccuracies and flaws;
-- Advise on important missing constraining data;
-- Massively reduce relevant parameter space by factors up to 100,000, allowing existing MCMC methods to explore and obtain the optimal model realizations much faster.
+*PRISM* tries to tackle this problem by using the Bayes linear approach, the emulation technique and history matching to construct an approximation ('emulator') of any given model.
+The use of these techniques can be seen as special cases of Bayesian statistics, where limited model evaluations are combined with advanced regression techniques, covariances and probability calculations.
+*PRISM* is designed to easily facilitate and enhance existing MCMC methods by restricting plausible regions and exploring parameter space efficiently.
+However, *PRISM* can additionally be used as a standalone alternative to MCMC for model analysis, providing insight into the bahvior of complex scientific models.
+*PRISM* aims to provide developers with an advanced model analysis for a fraction of the time required by more traditional methods.
 
-What characterizes *PRISM*?
----------------------------
+Why use *PRISM*?
+----------------
 - Written in pure Python 2/3, for versatility;
 - Stores results in `HDF5-files`_, allowing for easy user-access;
 - Can be executed in serial or MPI, on any number of processes;
@@ -30,7 +24,7 @@ What characterizes *PRISM*?
 - Accepts any type of model and comparison data;
 - Built as a plug-and-play tool: all main classes can also be used as base classes;
 - Easily linked to any model by writing a single custom ModelLink class;
-- Extensively documented;
-- Suited for both simple and advanced projects.
+- Capable of reducing relevant parameter space by factors over 100,000 using only a few thousand model evaluations;
+- Can be used alone for analyzing models, or combined with MCMC for efficient model parameter estimations.
 
 .. _HDF5-files: https://portal.hdfgroup.org/display/HDF5/HDF5

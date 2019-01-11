@@ -4,7 +4,7 @@ Getting started
 ===============
 Installation
 ------------
-*PRISM* can be easily installed by either cloning the `repository`_ and executing the following::
+*PRISM* can be easily installed by either cloning the `repository`_ and installing it manually::
 
     $ git clone https://github.com/1313e/PRISM
     $ cd PRISM
@@ -14,23 +14,36 @@ or by installing it directly from `PyPI`_ with::
 
     $ pip install prism
 
-*PRISM* can now be imported as a package with :pycode:`import prism`.
+*PRISM* can now be imported as a package with ``import prism``.
+For using *PRISM* in MPI, ``mpi4py >= 3.0.0`` is required (not installed automatically).
+
+The *PRISM* package comes with two ModelLink subclasses.
+These ModelLink subclasses can be used to experiment with *PRISM* to see how it works.
+:ref:`using_prism` has several examples explaining the different functionalities of the package.
 
 .. _repository: https://github.com/1313e/PRISM
 .. _PyPI: https://pypi.org/project/prism
 
-The *PRISM* package comes with several test scripts, data files and ModelLink subclasses.
-These test scripts work out-of-the-box and can be used to see how *PRISM* works, and what the typical lay-outs of the required files are.
 
-Dependencies
-------------
-*PRISM* requires ``python == 2.7`` or ``python >= 3.5`` and the following non-standard dependencies (installed automatically):
+Example usage
+-------------
+See :ref:`minimal_example` for a documented explanation on this example.
 
-- ``e13tools >= 0.4.7a1``;
-- ``mlxtend >= 0.9.1``;
-- ``scikit-learn >= 0.19.1``;
-- ``sortedcontainers >= 1.5.9``.
+::
 
-For running *PRISM* in MPI, the following packages are also required (not installed automatically):
+    # Imports
+    from prism import Pipeline
+    from prism.modellink import GaussianLink
 
-- ``mpi4py >= 3.0.0``.
+    # Define model data and create ModelLink object
+    model_data = {3: [3.0, 0.1], 5: [5.0, 0.1], 7: [3.0, 0.1]}
+    modellink_obj = GaussianLink(model_data=model_data)
+
+    # Create Pipeline object
+    pipe = Pipeline(modellink_obj)
+
+    # Construct first iteration of the emulator
+    pipe.construct()
+
+    # Create projections
+    pipe.project()

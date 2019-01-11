@@ -1,8 +1,16 @@
 include LICENSE
 include README.rst
+include MANIFEST.in
 include requirements*.txt
 recursive-include prism *.txt
-recursive-include prism/data *
-recursive-include prism/tests *
-recursive-include prism/modellink/tests *
+recursive-include prism/* data *
 
+exclude docs joss_paper prism_trash .github
+recursive-exclude docs *
+recursive-exclude joss_paper *
+recursive-exclude prism_trash *
+recursive-exclude .github *
+exclude *.yml
+exclude appveyor.cmd
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]

@@ -28,9 +28,8 @@ The documentation of *PRISM* is spread out over several sections:
     user/using_prism
     user/descriptions
     user/terminology
-    user/tips_tricks
     user/FAQ
-    licenses_citation
+    community_guidelines
    
 .. _api-docs:
 
