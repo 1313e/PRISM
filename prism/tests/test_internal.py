@@ -20,10 +20,9 @@ from prism._internal import (compat_version, prism_version, CLogger, RLogger,
                              RequestError, RequestWarning, docstring_append,
                              docstring_copy, docstring_substitute,
                              check_instance, check_vals, check_compatibility,
-                             convert_str_seq, delist, getCLogger,
-                             get_PRISM_File, getRLogger, import_cmaps,
-                             move_logger, raise_error, raise_warning, rprint,
-                             start_logger)
+                             convert_str_seq, delist, get_PRISM_File, get_info,
+                             getCLogger, getRLogger, import_cmaps, move_logger,
+                             raise_error, raise_warning, rprint, start_logger)
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
@@ -303,6 +302,12 @@ def test_delist():
 
     # Check if provided list is delisted correctly
     assert delist([[], (), [np.array(1)], [7], 8]) == [[np.array(1)], [7], 8]
+
+
+# Pytest for the get_info function
+def test_get_info():
+    # Print the output of the get_info() function
+    print(get_info())
 
 
 # Pytest for the getCLogger function

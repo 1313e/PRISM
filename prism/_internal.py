@@ -18,11 +18,13 @@ from __future__ import (absolute_import, division, print_function,
 from inspect import isclass
 import logging
 import logging.config
+from pkg_resources import get_distribution
 import os
 from os import path
 import shutil
 import sys
 from tempfile import mkstemp
+from textwrap import dedent
 import warnings
 
 # Package imports
@@ -44,9 +46,10 @@ __all__ = ['CFilter', 'CLogger', 'PRISM_Comm', 'RFilter', 'RLogger',
            'RequestError', 'RequestWarning', 'aux_char_list',
            'check_compatibility', 'check_instance', 'check_vals',
            'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
-           'docstring_substitute', 'exec_code_anal', 'getCLogger',
-           'get_PRISM_File', 'getRLogger', 'import_cmaps', 'move_logger',
-           'raise_error', 'raise_warning', 'rprint', 'start_logger']
+           'docstring_substitute', 'exec_code_anal', 'get_PRISM_File',
+           'get_info', 'getCLogger', 'getRLogger', 'import_cmaps',
+           'move_logger', 'raise_error', 'raise_warning', 'rprint',
+           'start_logger']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -807,6 +810,58 @@ def getCLogger(name=None):
     logger = logging.getLogger(name)
     logging.setLoggerClass(logging.Logger)
     return(logger)
+
+
+# Define function that returns a string with all PRISM package information
+def get_info():
+    """
+    Returns a string that, when printed, gives an overview of all information
+    relevant to the PRISM package distribution.
+
+    """
+
+    # Create info list
+    info_list = []
+
+    # Add platform to info_list
+    info_list.append("Platform: %s" % (sys.platform))
+
+    # Add python version to info_list
+    py_version = sys.version_info
+    info_list.append("Python: %i.%i.%i"
+                     % (py_version.major, py_version.minor, py_version.micro))
+
+    # Access PRISM metadata
+    prism_dist = get_distribution('prism')
+
+    # Add PRISM version to info_list
+    info_list.append("prism: %s" % (prism_dist.version))
+
+    # Get list of all PRISM requirements
+    req_list = [req.name for req in prism_dist.requires()]
+
+    # If imported MPI is mpi4py, add it to the list as well
+    if(MPI.__name__ == 'mpi4py.MPI'):
+        req_list.append('mpi4py')
+
+    # Sort the requirements list
+    req_list.sort()
+
+    # Get distribution version of every requirement of PRISM
+    for req in req_list:
+        dist = get_distribution(req)
+        info_list.append("%s: %s" % (req, dist.version))
+
+    # Add start of info_str to info_list
+    info_list.insert(0, dedent("""
+        PRISM configuration information
+        -------------------------------"""))
+
+    # Combine all strings in info_list to info_str
+    info_str = '\n'.join(info_list)
+
+    # Return info_str
+    return(info_str)
 
 
 # Define class factory that returns a specialized h5py.File class

@@ -66,6 +66,8 @@ Example usage
 -------------
 See `online docs`_ for a documented explanation on this example.
 
+::
+
     # Imports
     from prism import Pipeline
     from prism.modellink import GaussianLink

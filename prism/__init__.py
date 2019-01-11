@@ -43,11 +43,12 @@ from .__version__ import prism_version as __version__
 from . import modellink
 from . import utils
 from ._emulator import Emulator
-from ._internal import import_cmaps
+from ._internal import get_info, import_cmaps
 from ._pipeline import Pipeline
 
 # All declaration
-__all__ = ['modellink', 'utils', 'Emulator', 'Pipeline', 'import_cmaps']
+__all__ = ['modellink', 'utils', 'Emulator', 'Pipeline', 'get_info',
+           'import_cmaps']
 
 # Author declaration
 __author__ = "Ellert van der Velden (@1313e)"
