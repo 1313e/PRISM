@@ -1,7 +1,7 @@
 ---
 name: Bug report
 about: Report a problem to help us improve PRISM
-title: "[BUG] "
+title: ''
 labels: bug
 assignees: ''
 
