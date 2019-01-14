@@ -32,7 +32,7 @@ from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
 from sklearn.preprocessing import PolynomialFeatures as PF
-from sortedcontainers import SortedSet
+from sortedcontainers import SortedSet as sset
 
 # PRISM imports
 from prism import __version__
@@ -1237,11 +1237,11 @@ class Emulator(object):
 
         # Allow the controller to save them
         if self._is_controller and 'active_par' in self._ccheck[emul_i]:
-            active_par = SortedSet()
+            active_par = sset()
             for active_par_rank in active_par_data:
                 active_par.update(*active_par_rank)
             self._save_data(emul_i, None, {
-                'active_par': np.array(list(active_par))})
+                'active_par': np.array(active_par)})
 
             # Set current emul_i to constructed emul_i
             self._emul_i = emul_i
@@ -1342,7 +1342,7 @@ class Emulator(object):
         # Loop over all emulator systems and determine active parameters
         for emul_s in emul_s_seq:
             # Initialize active parameters data set
-            active_par_data = SortedSet()
+            active_par_data = sset()
 
             # Check if previously active parameters must be active again
             if(self._pipeline._freeze_active_par and
@@ -1359,7 +1359,7 @@ class Emulator(object):
             # If requested, perform a sequential backward stepwise regression
             else:
                 # Obtain frozen+potentially active parameters list
-                frz_pot_par = SortedSet(active_par_data)
+                frz_pot_par = sset(active_par_data)
                 frz_pot_par.update(self._pipeline._pot_active_par)
                 frz_pot_par = list(frz_pot_par)
                 frz_pot_idx = list(range(len(frz_pot_par)))
@@ -1436,7 +1436,7 @@ class Emulator(object):
 
             # Convert active_par_data to a NumPy array and save
             self._save_data(emul_i, emul_s, {
-                'active_par_data': np.array(list(active_par_data))})
+                'active_par_data': np.array(active_par_data)})
 
         # Log that active parameter determination is finished
         logger.info("Finished determining active parameters.")

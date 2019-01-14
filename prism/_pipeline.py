@@ -30,6 +30,7 @@ from e13tools.math import nCr
 from e13tools.sampling import lhd
 import numpy as np
 from numpy.random import normal, random
+from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism._docstrings import (call_emul_i_doc, call_model_doc_s,
@@ -708,7 +709,7 @@ class Pipeline(Projection, object):
         # Obtain model output
         mod_out = self._modellink.call_model(
             emul_i=emul_i,
-            par_set=dict(zip(self._modellink._par_name, sam)),
+            par_set=sdict(zip(self._modellink._par_name, sam)),
             data_idx=data_idx)
 
         # Log that calling model has been finished
@@ -731,7 +732,7 @@ class Pipeline(Projection, object):
         # Obtain set of model outputs
         mod_set = self._modellink.call_model(
             emul_i=emul_i,
-            par_set=dict(zip(self._modellink._par_name, sam_set.T)),
+            par_set=sdict(zip(self._modellink._par_name, sam_set.T)),
             data_idx=data_idx)
 
         # Log that multi-calling model has been finished
@@ -1631,7 +1632,7 @@ class Pipeline(Projection, object):
         try:
             md_var = self._modellink.get_md_var(
                 emul_i=emul_i,
-                par_set=dict(zip(self._modellink._par_name, par_set)),
+                par_set=sdict(zip(self._modellink._par_name, par_set)),
                 data_idx=delist(self._emulator._data_idx[emul_i]))
 
         # If it was not user-defined, use a default value
@@ -2865,7 +2866,7 @@ class Pipeline(Projection, object):
 
         Parameters
         ----------
-        sam_set : 1D or 2D array_like
+        sam_set : 1D or 2D array_like or dict
             Array containing model parameter value sets to be evaluated in the
             emulator up to emulator iteration `emul_i`.
 
@@ -2881,15 +2882,15 @@ class Pipeline(Projection, object):
         emul_i_stop : list of int
             List containing the last emulator iterations at which the given
             samples are still within the plausible region of the emulator.
-        adj_exp_val : list of 1D :obj:`~numpy.ndarray` objects
-            List of arrays containing the adjusted expectation values for all
-            given samples.
-        adj_var_val : list of 1D :obj:`~numpy.ndarray` objects
-            List of arrays containing the adjusted variance values for all
-            given samples.
-        uni_impl_val : list of 1D :obj:`~numpy.ndarray` objects
-            List of arrays containing the univariate implausibility values for
-            all given samples.
+        adj_exp_val : 2D :obj:`~numpy.ndarray` object
+            Array containing the adjusted expectation values for all given
+            samples.
+        adj_var_val : 2D :obj:`~numpy.ndarray` object
+            Array containing the adjusted variance values for all given
+            samples.
+        uni_impl_val : 2D :obj:`~numpy.ndarray` object
+            Array containing the univariate implausibility values for all given
+            samples.
 
         Prints (if ndim(sam_set) == 1)
         ------------------------------
@@ -2923,6 +2924,14 @@ class Pipeline(Projection, object):
         logger = getCLogger('EVALUATE')
         logger.info("Evaluating emulator iteration %i for provided set of "
                     "model parameter samples." % (emul_i))
+
+        # Check if sam_set was provided as a dict
+        if isinstance(sam_set, dict):
+            # Make sure that sam_set is a SortedDict
+            sam_set = sdict(sam_set)
+
+            # Return it to normal
+            sam_set = np.array(sam_set.values()).T
 
         # Controller checking the contents of sam_set
         if self._is_controller:
@@ -3008,8 +3017,11 @@ class Pipeline(Projection, object):
                 self._comm.Barrier()
 
                 # Return results
-                return(impl_check.tolist(), emul_i_stop, adj_exp_val,
-                       adj_var_val, uni_impl_val)
+                return({'impl_check': impl_check.tolist(),
+                        'emul_i_stop': emul_i_stop,
+                        'adj_exp_val': adj_exp_val,
+                        'adj_var_val': adj_var_val,
+                        'uni_impl_val': uni_impl_val})
 
         # MPI Barrier
         self._comm.Barrier()

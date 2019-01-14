@@ -39,12 +39,12 @@ An example of this can be found in the definition of the :class:`~prism.modellin
 The other two properties, :attr:`~prism.modellink.ModelLink.call_type` and :attr:`~prism.modellink.ModelLink.MPI_call`, are flags that tell *PRISM* how the :meth:`~prism.modellink.ModelLink.call_model` method should be used.
 By default, every model evaluation sample is requested individually in serial, since this would be the most expected behavior.
 However, this is most likely not enough for sophisticated models, as they can require some preparation (e.g., having to read in data files) or more than a single core (in MPI) to function.
-Therefore, :attr:`~prism.modellink.ModelLink.call_type` can be set to accept solely individual samples (``'single'``), solely entire sample sets (``'multi'``) or both (``'hybrid'``).
-In the same way, :attr:`~prism.modellink.ModelLink.MPI_call` can be set to *True* or *False* to identify that the model needs to be executed in serial or in MPI.
+Therefore, :attr:`~prism.modellink.ModelLink.call_type` can be set to accept solely individual samples (:pycode:`'single'`), solely entire sample sets (:pycode:`'multi'`) or both (:pycode:`'hybrid'`).
+In the same way, :attr:`~prism.modellink.ModelLink.MPI_call` can be set to :pycode:`True` or :pycode:`False` to identify that the model needs to be executed in serial or in MPI.
 
 .. note::
-    If a model uses OpenMP parallelization, it is recommended to set :attr:`~prism.modellink.ModelLink.MPI_call` to *False* in the :class:`~prism.modellink.ModelLink` subclass and set :attr:`~prism.Pipeline.worker_mode` to *True* after initializing the :class:`~prism.Pipeline` class.
-    This way, *PRISM* can operate in MPI while the model itself can operate in OpenMP.
+    If a model uses OpenMP parallelization, it is recommended to set :attr:`~prism.modellink.ModelLink.MPI_call` to :pycode:`False` in the :class:`~prism.modellink.ModelLink` subclass.
+    This allows for all worker ranks to be used in OpenMP threads, while only the controller rank calls the model.
 
 Finally, the :class:`~prism.modellink.ModelLink` class has three methods that can be overridden for adding utility to the class (of which two are shown in example_link.py_).
 The :meth:`~prism.modellink.ModelLink.get_default_model_parameters` and :meth:`~prism.modellink.ModelLink.get_default_model_data` methods return dictionaries containing the default model parameters and model data to use in this class instance, respectively.

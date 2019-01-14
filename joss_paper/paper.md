@@ -43,7 +43,7 @@ This allows for the user to quickly get started with *PRISM*, while still being 
 Its ``Pipeline`` class features a user-friendly environment that connects all of *PRISM*'s methods together, whereas the ``ModelLink`` abstract base class helps users wrapping (`linking') their model to *PRISM*.
 *PRISM* relies heavily on popular existing Python packages for its expensive computations, like ``NumPy`` [@NumPy], ``Scikit-learn`` [@Sklearn] and ``Mlxtend`` [@Mlxtend], making it more robust and future-proof.
 
-Test applications of *PRISM* (which can be found in *PRISM*'s online documentation at https://prism-tool.readthedocs.io) show that *PRISM* can provide a qualitative parameter estimation over $15$ times faster than stand-alone MCMC methods, while also being able to give insight into the model's behavior (which MCMC cannot provide).
+Test applications of *PRISM* (see accompanying AAS submission) show that *PRISM* can provide a qualitative parameter estimation over $15$ times faster than stand-alone MCMC methods, while also being able to give insight into the model's behavior (which MCMC cannot provide).
 In future work, *PRISM* will be used together with the MCMC package ``mhysa`` (Mutch et al. in prep.) to analyze and explore the parameter space of the semi-analytic model ``Meraxes`` [@Meraxes].
 Also, several smaller application projects with *PRISM* are currently being planned.
 The source code for *PRISM* can be found at https://github.com/1313e/PRISM

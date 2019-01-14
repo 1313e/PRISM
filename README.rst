@@ -66,7 +66,7 @@ Example usage
 -------------
 See `online docs`_ for a documented explanation on this example.
 
-::
+.. code:: python
 
     # Imports
     from prism import Pipeline
@@ -95,7 +95,8 @@ As with contributions, if you find a problem or issue with *PRISM*, please do no
 
 And, finally, if you use *PRISM* as part of your workflow in a scientific publication, please consider citing the *PRISM* pipeline paper (and starring the `repository`_):
 
-.. note::
+::
+
     Put reference to *PRISM* paper here!
 
 

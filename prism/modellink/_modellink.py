@@ -24,7 +24,7 @@ from e13tools import InputError, ShapeError
 import numpy as np
 from numpy.random import rand
 from six import with_metaclass
-from sortedcontainers import SortedDict, SortedSet
+from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
 from prism._docstrings import std_emul_i_doc
@@ -363,7 +363,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         """
 
-        return(SortedDict(zip(self._par_name, self._par_est)))
+        return(sdict(zip(self._par_name, self._par_est)))
 
     # Model Data
     @property
@@ -495,7 +495,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         # If everything went without exceptions, check if list is not empty and
         # remove duplicates
         if len(par_seq):
-            par_seq = list(SortedSet(par_seq))
+            par_seq = list(sset(par_seq))
         else:
             err_msg = "Input argument %r is empty!" % (name)
             raise_error(err_msg, ValueError, logger)
@@ -623,7 +623,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         """
 
-        return(SortedDict())
+        return(sdict())
 
     def get_default_model_parameters(self):
         """
@@ -664,7 +664,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         """
 
         # Obtain default model parameters
-        model_parameters = SortedDict(self.get_default_model_parameters())
+        model_parameters = sdict(self.get_default_model_parameters())
 
         # If no additional model parameters information is given
         if add_model_parameters is None:
@@ -693,7 +693,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         else:
             # Check if it can be converted to a dict
             try:
-                par_dict = SortedDict(add_model_parameters)
+                par_dict = sdict(add_model_parameters)
             except Exception:
                 raise TypeError("Input model parameters cannot be converted to"
                                 " type 'dict'!")
@@ -1082,7 +1082,7 @@ def test_subclass(subclass, *args, **kwargs):
             if modellink_obj._multi_call:
                 mod_set = modellink_obj.call_model(
                     emul_i=0,
-                    par_set=dict(zip(modellink_obj._par_name, sam_set.T)),
+                    par_set=sdict(zip(modellink_obj._par_name, sam_set.T)),
                     data_idx=modellink_obj._data_idx)
 
             # Single-call
@@ -1094,7 +1094,7 @@ def test_subclass(subclass, *args, **kwargs):
                 for i, par_set in enumerate(sam_set):
                     mod_set[i] = modellink_obj.call_model(
                         emul_i=0,
-                        par_set=dict(zip(modellink_obj._par_name, par_set)),
+                        par_set=sdict(zip(modellink_obj._par_name, par_set)),
                         data_idx=modellink_obj._data_idx)
 
     # If call_model was not overridden, catch NotImplementedError
@@ -1115,7 +1115,7 @@ def test_subclass(subclass, *args, **kwargs):
     try:
         md_var = modellink_obj.get_md_var(
             emul_i=0,
-            par_set=dict(zip(modellink_obj._par_name, sam_set[0])),
+            par_set=sdict(zip(modellink_obj._par_name, sam_set[0])),
             data_idx=modellink_obj._data_idx)
 
     # If get_md_var was not overridden, catch NotImplementedError

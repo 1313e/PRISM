@@ -13,8 +13,8 @@ When making a contribution, please keep in mind that it must be compatible with 
 .. _GitHub issue: https://github.com/1313e/PRISM/issues
 
 
-How do I report an issue?
--------------------------
+How do I report a bug/problem?
+------------------------------
 By opening a `GitHub issue`_ and using the `Bug report` template.
 
 What does the term `...` mean?

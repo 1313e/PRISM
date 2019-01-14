@@ -15,6 +15,7 @@ from emcee import EnsembleSampler
 import numpy as np
 from py.path import local
 import pytest
+from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism._internal import RequestError
@@ -54,7 +55,7 @@ def lnpost(par_set, pipe):
             return(-np.infty)
 
     emul_i = pipe._emulator._emul_i
-    par_dict = dict(zip(pipe._modellink._par_name, par_set))
+    par_dict = sdict(zip(pipe._modellink._par_name, par_set))
     mod_out = pipe._modellink.call_model(emul_i, par_dict,
                                          pipe._modellink._data_idx)
 

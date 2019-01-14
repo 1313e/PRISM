@@ -24,7 +24,7 @@ If applicable (e.g., projections), add screenshots to help explain your problem.
 If applicable, include the error traceback.
 
 **System information:**
-Please execute `python -c "import prism; print(prism.get_info())"` and put the result here.
+Please execute `python -c "import prism; prism.get_info()"` and put the result here.
 
 **Additional context**
 Add any other context about the problem here.

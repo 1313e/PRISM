@@ -74,8 +74,8 @@ However, for nD models, this can be set to `'2D'` (only 2D projections), `'3D'` 
 By default, it is set to `'both'`.
 
 The `figure` argument is a bool, that determines whether or not the projection figures should be created after calculating the projection data.
-If *True*, the projection figures will be created and saved, which is done by default.
-If *False*, the data that is contained within the projection figures will be calculated and returned in a dict.
+If :pycode:`True`, the projection figures will be created and saved, which is done by default.
+If :pycode:`False`, the data that is contained within the projection figures will be calculated and returned in a dict.
 This allows the user to either let *PRISM* create the projection figures using the standard template or create the figures themselves.
 
 The `align` argument controls the alignment of the subplots in every projection figure.
@@ -91,8 +91,8 @@ Aligning the subplots in a row (`'row'`) would give :numref:`1_proj_A1` as the f
     2D projection figure of model parameter :math:`A_1` with the `'row'` alignment.
 
 The `smooth` argument is also a bool, that determines what to do if a grid point in the projection figure contains no plausible samples, but does contain a minimum implausibility value below the first non-wildcard cut-off.
-If *False*, which is the default, these values are kept in the figure, which may show up as artifact-like features.
-If *True*, these values are set to the first cut-off, basically removing them from the projection figure.
+If :pycode:`False`, which is the default, these values are kept in the figure, which may show up as artifact-like features.
+If :pycode:`True`, these values are set to the first cut-off, basically removing them from the projection figure.
 This may however also remove interesting features.
 Below are two identical projections, one that is smoothed and one that is not, to showcase this difference (these projections are from the second iteration, since this effect rarely occurs in the first iteration).
 
@@ -120,8 +120,8 @@ Smoothing figures usually allows for 3D projections (2D projections rarely show 
 It should therefore only be used when necessary.
 
 The `force` argument is a bool, which controls what to do if a projection is requested for which data already exists.
-If *False* (default), it will use the previously acquired projection data to create the projection figure if it does not exist, skip if it does or return the figure data if `figure` is *False*.
-If *True*, the projection data and all associated projection figures will be deleted, and the projection will be recalculated.
+If :pycode:`False` (default), it will use the previously acquired projection data to create the projection figure if it does not exist, skip if it does or return the figure data if `figure` is :pycode:`False`.
+If :pycode:`True`, the projection data and all associated projection figures will be deleted, and the projection will be recalculated.
 
 The remaining six arguments are keyword argument dicts, that need to be passed to the various different plotting functions that are used for creating the projection figures.
 The `fig_kwargs` dict is passed to the :func:`~matplotlib.pyplot.figure` function when creating the projection figure instance.

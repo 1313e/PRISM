@@ -204,7 +204,7 @@ PRISM
 
 PRISM (parameters) file [`prism_file`]
     (Path to) The text-file that contains non-default values for the :ref:`PRISM parameters<parameters>` that need to be used for the currently used :obj:`~prism.Pipeline` instance.
-    It is *None* if no such file is used.
+    It is :pycode:`None` if no such file is used.
 
 Prior covariance [`prior_cov`]
     The covariance value between two parameter sets as determined by an emulator system.

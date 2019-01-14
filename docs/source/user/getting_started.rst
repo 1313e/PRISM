@@ -14,7 +14,7 @@ or by installing it directly from `PyPI`_ with::
 
     $ pip install prism
 
-*PRISM* can now be imported as a package with ``import prism``.
+*PRISM* can now be imported as a package with :pycode:`import prism`.
 For using *PRISM* in MPI, ``mpi4py >= 3.0.0`` is required (not installed automatically).
 
 The *PRISM* package comes with two ModelLink subclasses.

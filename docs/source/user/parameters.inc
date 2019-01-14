@@ -23,7 +23,7 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
 
 :attr:`~prism.Emulator.sigma` (Default: 0.8)
     The Gaussian sigma/standard deviation that is used when determining the Gaussian contribution to the overall emulator variance.
-    This value is only required when :attr:`~prism.Emulator.method` == ``'gaussian'``, as the Gaussian sigma is obtained from the residual variance left after the regression optimization if regression is included.
+    This value is only required when :attr:`~prism.Emulator.method` == :pycode:`'gaussian'`, as the Gaussian sigma is obtained from the residual variance left after the regression optimization if regression is included.
     This value must be non-zero.
 
 :attr:`~prism.Emulator.l_corr` (Default: 0.3)
@@ -38,22 +38,22 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
     This must be a sorted list of positive values (excluding zeros).
 
 :attr:`~prism.Pipeline.criterion` (Default: 'multi')
-    The criterion to use for determining the quality of the LHDs that are used, represented by an integer, float, string or *None*.
+    The criterion to use for determining the quality of the LHDs that are used, represented by an integer, float, string or :pycode:`None`.
     This parameter is the only non-*PRISM* parameter. Instead, it is used in the lhd()-function of the `e13Tools`_ package.
-    By default, ``'multi'`` is used to give equal priority to maximizing minimum distances and minimizing the maximum correlation between pair-wise samples.
+    By default, :pycode:`'multi'` is used to give equal priority to maximizing minimum distances and minimizing the maximum correlation between pair-wise samples.
 
 :attr:`~prism.Emulator.method` (Default: 'full')
     The method to use for constructing the emulator.
-    ``'gaussian'`` will only include Gaussian processes (no regression), which is much faster, but also less accurate.
-    ``'regression'`` will only include regression processes (no Gaussian), which is more accurate than Gaussian only, but underestimates the emulator variance by multiple orders of magnitude.
-    ``'full'`` includes both Gaussian and regression processes, which is slower than Gaussian only, but by far the most accurate both in terms of expectation and variance values.
+    :pycode:`'gaussian'` will only include Gaussian processes (no regression), which is much faster, but also less accurate.
+    :pycode:`'regression'` will only include regression processes (no Gaussian), which is more accurate than Gaussian only, but underestimates the emulator variance by multiple orders of magnitude.
+    :pycode:`'full'` includes both Gaussian and regression processes, which is slower than Gaussian only, but by far the most accurate both in terms of expectation and variance values.
 
-    ``'gaussian'`` can be used for faster exploration especially for simple models.
-    ``'regression'`` should only be used when the polynomial representation of a model is important and enough model realizations are available.
-    ``'full'`` should be used by default.
+    :pycode:`'gaussian'` can be used for faster exploration especially for simple models.
+    :pycode:`'regression'` should only be used when the polynomial representation of a model is important and enough model realizations are available.
+    :pycode:`'full'` should be used by default.
 	
     .. warning::
-        When using *PRISM* on a model that can be described completely by the regression function (anything that has an analytical, polynomial form up to order :attr:`~prism.Emulator.poly_order` like a straight line or a quadratic function), use the ``'gaussian'`` method unless unavoidable (in which case :attr:`~prism.Pipeline.n_sam_init` and :attr:`~prism.Pipeline.base_eval_sam` must be set to very low values).
+        When using *PRISM* on a model that can be described completely by the regression function (anything that has an analytical, polynomial form up to order :attr:`~prism.Emulator.poly_order` like a straight line or a quadratic function), use the :pycode:`'gaussian'` method unless unavoidable (in which case :attr:`~prism.Pipeline.n_sam_init` and :attr:`~prism.Pipeline.base_eval_sam` must be set to very low values).
 
         When using the regression method on such a model, *PRISM* will be able to capture the behavior of the model perfectly given enough samples, in which case the residual (unexplained) variance will be approximately zero and therefore :attr:`~prism.Emulator.sigma` as well.
         This can occassionally cause floating point errors when calculating emulator variances, which in turn can give unexplainable artifacts in the adjustment terms, therefore causing answers to be incorrect.
@@ -64,36 +64,36 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
     Whether or not the regression variance should be taken into account for the variance calculations.
     The regression variance is the variance on the regression process itself and is only significant if a low number of model realizations (:attr:`~prism.Pipeline.n_sam_init` and :attr:`~prism.Pipeline.base_eval_sam`) is used to construct the emulator systems.
     Including it usually only has a very small effect on the overall variance value, while it can slow down the emulator evaluation rate by as much as a factor of 3.
-    This value is not required if :attr:`~prism.Emulator.method` == ``'gaussian'`` and is automatically set to *True* if :attr:`~prism.Emulator.method` == ``'regression'``.
+    This value is not required if :attr:`~prism.Emulator.method` == :pycode:`'gaussian'` and is automatically set to :pycode:`True` if :attr:`~prism.Emulator.method` == :pycode:`'regression'`.
     This value must be a bool.
 
 :attr:`~prism.Emulator.poly_order` (Default: 3)
     Up to which order all polynomial terms of all model parameters should be included in the active parameters and regression processes.
-    This value is not required if :attr:`~prism.Emulator.method` == ``'gaussian'`` and :attr:`~prism.Pipeline.do_active_anal` == *False*.
+    This value is not required if :attr:`~prism.Emulator.method` == :pycode:`'gaussian'` and :attr:`~prism.Pipeline.do_active_anal` is :pycode:`False`.
     This value must be a positive integer.
 
 :attr:`~prism.Emulator.n_cross_val` (Default: 5)
     Number of (k-fold) cross-validations that must be used for determining the quality of the active parameters analysis and regression process fits.
     If this parameter is zero, cross-validations are not used.
-    This value is not required if :attr:`~prism.Emulator.method` == ``'gaussian'`` and :attr:`~prism.Pipeline.do_active_anal` == *False*.
+    This value is not required if :attr:`~prism.Emulator.method` == :pycode:`'gaussian'` and :attr:`~prism.Pipeline.do_active_anal` is :pycode:`False`.
     This value must be a non-negative integer and not equal to 1.
 
 :attr:`~prism.Pipeline.do_active_anal` (Default: True)
     Whether or not an active parameters analysis must be carried out for every iteration of every emulator system.
-    If *False*, all potentially active parameters listed in :attr:`~prism.Pipeline.pot_active_par` will be active.
+    If :pycode:`False`, all potentially active parameters listed in :attr:`~prism.Pipeline.pot_active_par` will be active.
     This value must be a bool.
 
 :attr:`~prism.Pipeline.freeze_active_par` (Default: True)
     Whether or not active parameters should be frozen in their active state.
-    If *True*, parameters that have been considered active in a previous iteration of an emulator system, will automatically be active again (and skip any active parameters analysis).
+    If :pycode:`True`, parameters that have been considered active in a previous iteration of an emulator system, will automatically be active again (and skip any active parameters analysis).
     This value must be a bool.
 
 :attr:`~prism.Pipeline.pot_active_par` (Default: None)
     A list of parameter names that indicate which parameters are potentially active.
-    Potentially active parameters are the only parameters that will enter the active parameters analysis (or will all be active if :attr:`~prism.Pipeline.do_active_anal` == *False*).
+    Potentially active parameters are the only parameters that will enter the active parameters analysis (or will all be active if :attr:`~prism.Pipeline.do_active_anal` is :pycode:`False`).
     Therefore, all parameters not listed will never be considered active.
-    If all parameters should be potentially active, then a *None* can be given.
-    This must either be a list of parameter names or *None*.
+    If all parameters should be potentially active, then a :pycode:`None` can be given.
+    This must either be a list of parameter names or :pycode:`None`.
 
 :attr:`~prism.Emulator.use_mock` (Default: False)
     Whether or not mock data must be used as comparison data when constructing a new emulator.

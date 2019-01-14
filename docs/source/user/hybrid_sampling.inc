@@ -50,7 +50,7 @@ By default, it uses the available :attr:`~prism.Pipeline.impl_sam` of the last c
     >>> n, p0 = get_walkers(pipe, init_walkers=init_walkers)
 
 Given that most sampling methods operate in unit space (all parameter values are between zero and unity), the :func:`~prism.utils.get_walkers` function automatically assumes that all samples are defined in unit space (and therefore using :func:`~numpy.random.rand` works).
-It can however be disabled by setting the `unit_space` input argument to *False*.
+It can however be disabled by setting the `unit_space` input argument to :pycode:`False`.
 One has to keep in mind that, because of the way the emulator works, there is no guarantee for a specific number of valid walkers to be obtained.
 Having the desired emulator iteration already analyzed may give an indication how many samples in total need to be proposed to be left with a specific number.
 
@@ -120,7 +120,7 @@ Since we want to do hybrid sampling, we can obtain the `get_lnpost` function at 
     >>> n, p0, get_lnpost = get_walkers(pipe, unit_space=False,
                                         ext_lnpost=ext_lnpost, hybrid=True)
 
-By setting `hybrid` to *True*, we use the implausibility cut-off value as an additional prior.
+By setting `hybrid` to :pycode:`True`, we use the implausibility cut-off value as an additional prior.
 Now we only still need the :class:`~emcee.EnsembleSampler` class and NumPy (for the `ext_lnpost` function)::
 
     >>> import numpy as np

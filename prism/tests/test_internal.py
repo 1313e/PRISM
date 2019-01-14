@@ -307,7 +307,7 @@ def test_delist():
 # Pytest for the get_info function
 def test_get_info():
     # Print the output of the get_info() function
-    print(get_info())
+    get_info()
 
 
 # Pytest for the getCLogger function

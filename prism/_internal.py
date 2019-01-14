@@ -815,8 +815,8 @@ def getCLogger(name=None):
 # Define function that returns a string with all PRISM package information
 def get_info():
     """
-    Returns a string that, when printed, gives an overview of all information
-    relevant to the PRISM package distribution.
+    Prints a string that gives an overview of all information relevant to the
+    PRISM package distribution.
 
     """
 
@@ -860,8 +860,8 @@ def get_info():
     # Combine all strings in info_list to info_str
     info_str = '\n'.join(info_list)
 
-    # Return info_str, stripping any additional whitespaces
-    return(info_str.strip())
+    # Print info_str, stripping any additional whitespaces
+    print(info_str.strip())
 
 
 # Define class factory that returns a specialized h5py.File class

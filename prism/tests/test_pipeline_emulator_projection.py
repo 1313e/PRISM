@@ -21,6 +21,7 @@ import numpy as np
 from py.path import local
 import pytest
 import pytest_mpl
+from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism._emulator import Emulator
@@ -179,9 +180,17 @@ class Test_Pipeline_Gaussian2D(object):
     def test_evaluate_1D(self, pipe):
         pipe.evaluate([2.5, 2])
 
+    # Check if first iteration can be evaluated with a single parameter dict
+    def test_evaluate_dict_1D(self, pipe):
+        pipe.evaluate({'A': 2.5, 'B': 2})
+
     # Check if first iteration can be evaluated for more than one parameter set
-    def test_evaluate_ND(self, pipe):
+    def test_evaluate_nD(self, pipe):
         pipe.evaluate([[2.5, 2]])
+
+    # Check if first iteration can be evaluated for more than one par_dict
+    def test_evaluate_dict_nD(self, pipe):
+        pipe.evaluate({'A': [2.5], 'B': [2]})
 
     # Check if first iteration can be reprojected (forced)
     def test_reproject_forced(self, pipe):
@@ -967,7 +976,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         # Create ext_real_set larger than n_sam_init
         sam_set = lhd(pipe2D._n_sam_init*2, pipe2D._modellink._n_par,
                       pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
-        sam_dict = dict(zip(pipe2D._modellink._par_name, sam_set.T))
+        sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
         mod_set = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
@@ -979,7 +988,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         # Create ext_real_set smaller than n_sam_init
         sam_set = lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
                       pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
-        sam_dict = dict(zip(pipe2D._modellink._par_name, sam_set.T))
+        sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
         mod_set = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
@@ -991,7 +1000,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         # Create ext_real_set dict
         sam_set = lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
                       pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
-        sam_dict = dict(zip(pipe2D._modellink._par_name, sam_set.T))
+        sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
         mod_set = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
