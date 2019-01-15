@@ -24,6 +24,7 @@ script:
   - python setup.py sdist bdist_wheel
   - twine check dist/*
   - pip install -e .
+  - python -c "import prism; prism.get_info()"
   - |
     if [[ "$RUN_COVERAGE" == "1" ]]; then
       coverage run --rcfile=setup.cfg -m pytest

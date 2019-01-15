@@ -281,6 +281,8 @@ class Test_check_val(object):
             check_vals({}, 'dict', 'float')
         with pytest.raises(InputError):
             check_vals([1, [2]], 'seq_list', 'float')
+        with pytest.raises(InputError):
+            check_vals([[1, 2], [3, 4, 5]], 'seq_list', 'float')
 
     # Check if providing incorrect arguments raises an error
     def test_args(self):

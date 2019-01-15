@@ -10,7 +10,7 @@ environment:
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7.x"
       PYTHON_ARCH: "64"
-    
+
     - PYTHON: "C:\\Python35"
       PYTHON_VERSION: "3.5.x"
       PYTHON_ARCH: "32"
@@ -18,7 +18,7 @@ environment:
     - PYTHON: "C:\\Python35-x64"
       PYTHON_VERSION: "3.5.x"
       PYTHON_ARCH: "64"
-    
+
     - PYTHON: "C:\\Python36"
       PYTHON_VERSION: "3.6.x"
       PYTHON_ARCH: "32"
@@ -63,4 +63,5 @@ test_script:
   - "%CMD_IN_ENV% python setup.py sdist bdist_wheel"
   - "%CMD_IN_ENV% twine check dist/*"
   - "%CMD_IN_ENV% pip install -e ."
+  - "%CMD_IN_ENV% python -c \"import prism; prism.get_info()\""
   - "%CMD_IN_ENV% pytest prism"

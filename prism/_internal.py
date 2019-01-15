@@ -530,6 +530,13 @@ def check_vals(values, name, *args):
         err_msg = ("Input argument %r cannot be converted to a NumPy array! "
                    "(%s)" % (name, error))
         raise_error(err_msg, InputError, logger)
+    else:
+        # Since NumPy v1.16.0, sequenced lists can be converted to NumPy arrays
+        # So, check if the dtype is not np.object_
+        if issubclass(values.dtype.type, np.object_):
+            err_msg = ("Input argument %r cannot be a sequenced container!"
+                       % (name))
+            raise_error(err_msg, InputError, logger)
 
     # Loop over all criteria
     while len(args):
@@ -698,7 +705,7 @@ def check_vals(values, name, *args):
     elif(arr_type == 'list'):
         values = values.tolist()
     elif(arr_type == 'scalar'):
-        values = np.asscalar(values)
+        values = values.item()
 
     # Return values
     return(values)
