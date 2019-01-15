@@ -1,7 +1,7 @@
 .. _terminology:
 
 Terminology
-===========
++++++++++++
 Below is a list of the most commonly used terms/abbreviations in *PRISM* and their meaning.
 If a term is also a variable within the *PRISM* code, its name is given in brackets.
 
@@ -15,15 +15,17 @@ Active parameters [`active_par`/`active_par_data`]
 
 Adjusted expectation [`adj_exp`]
     The prior expectation of a parameter set, with the adjustment term taken into account.
+    It is equal to the prior expectation if the emulator system has perfect accuracy.
 
 Adjusted values [`adj_val`]
     The adjusted expectation and variance values of a parameter set.
 
 Adjusted variance [`adj_var`]
-    The prior variance of a parameter set, with the adjustment term taken into account. 
+    The prior variance of a parameter set, with the adjustment term taken into account.
+    It is zero if the emulator system has perfect accuracy.
 
 Adjustment term
-    The extra term (as determined by the BLA) that is added to the prior expectation and variance values that describes all correlation between model realization samples.
+    The extra term (as determined by the BLA) that is added to the prior expectation and variance values that describes all additional correlation knowledge between model realization samples.
 
 Analysis/Analyze
     The process of evaluating a set of emulator evaluation samples in the last emulator iteration and determining which samples should be used to construct the next iteration.
@@ -115,6 +117,7 @@ Implausibility cut-offs [`impl_cut`]
 
 (Univariate) Implausibility value [`uni_impl_val`]
     The number of sigmas an emulator system expects the (real) model output corresponding to a given parameter set, to be away from the data point it is compared against, given its adjusted values.
+    It takes into account all variances associated with the parameter set, which are the observational variance (given by `data_err`), adjusted emulator variance (`adj_var`) and the model discrepancy variance (`md_var`).
 
 Implausibility wildcard
     A maximum implausibility value, preceding the implausibility cut-offs, that is not taken into account during the implausibility cut-off check.
@@ -145,7 +148,7 @@ Model
 2+D/nD model
     A model that has/takes more than 2 model parameters.
 
-ModelLink (subclass) [`modellink`]
+ModelLink (subclass) [`modellink`/`modellink_obj`]
     The user-provided wrapper around the model that needs to be emulated, provided by a :obj:`~prism.modellink.ModelLink` object.
 
 Model discrepancy variance [`md_var`]
@@ -203,7 +206,7 @@ PRISM
     It is also a one-word description of what *PRISM* does (splitting up a model into individually emulated model outputs).
 
 PRISM (parameters) file [`prism_file`]
-    (Path to) The text-file that contains non-default values for the :ref:`PRISM parameters<parameters>` that need to be used for the currently used :obj:`~prism.Pipeline` instance.
+    (Path to) The text-file that contains non-default values for the :ref:`parameters` that need to be used for the currently used :obj:`~prism.Pipeline` instance.
     It is :pycode:`None` if no such file is used.
 
 Prior covariance [`prior_cov`]
@@ -211,7 +214,8 @@ Prior covariance [`prior_cov`]
 
 Prior expectation [`prior_exp`]
     The expectation value of a parameter set as determined by an emulator system, without taking the adjustment term (from the BLA) into account.
-    It is zero if regression is not used.
+    It is a measure of how much information is captured by an emulator system.
+    It is zero if regression is not used, as no information is captured.
 
 Prior variance [`prior_var`]
     The variance value of a parameter set as determined by an emulator system, without taking the adjustment term (from the BLA) into account.
@@ -245,10 +249,9 @@ Sample set [`sam_set`]
 
 Worker (rank)
     An MPI process that receives its calls/orders from a controller and performs the heavy-duty operations in *PRISM*.
-    By default, workers are not in worker mode.
 
 Working directory [`working_dir`]
-    (Path to) The directory/folder on the current machine in which the *PRISM* master file and logfile of the currently loaded emulator are stored.
+    (Path to) The directory/folder on the current machine in which the *PRISM* master file, log-file and all projection figures of the currently loaded emulator are stored.
 
 Worker mode [`worker_mode`]
     A mode initialized by :attr:`~prism.Pipeline.worker_mode`, where all workers are continuously listening for calls made by the controller rank and execute the received messages.

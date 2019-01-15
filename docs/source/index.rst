@@ -27,7 +27,6 @@ The documentation of *PRISM* is spread out over several sections:
     user/modellink_crash_course
     user/using_prism
     user/descriptions
-    user/terminology
     user/FAQ
     community_guidelines
    
@@ -44,5 +43,6 @@ The documentation of *PRISM* is spread out over several sections:
     api/prism._internal
 
 .. role:: pycode(code)
-    :language: python
+    :language: python3
     :class: highlight
+

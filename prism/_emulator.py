@@ -2067,7 +2067,7 @@ class Emulator(object):
         """
         Sets the :obj:`~prism.modellink.ModelLink` object that will
         be used for constructing this emulator. If a constructed emulator is
-        present, checks if provided `modellink` argument matches the
+        present, checks if provided `modellink_obj` argument matches the
         :class:`~prism.modellink.ModelLink` subclass used to
         construct it.
 

@@ -7,12 +7,9 @@ Here, the basic steps for making a custom :class:`~prism.modellink.ModelLink` su
 
 ----
 
-.. topic:: example_link.py
+.. literalinclude:: scripts/example_link.py
     :name: example_link.py
-
-    .. include:: scripts/example_link.py
-        :literal:
-        :code: python
+    :caption: example_link.py
 
 ----
 
@@ -78,12 +75,9 @@ The :class:`~prism.modellink.GaussianLink` class overrides this method to add it
 
 ----
 
-.. topic:: line_link.py
+.. literalinclude:: scripts/line_link.py
     :name: line_link.py
-
-    .. include:: scripts/line_link.py
-        :literal:
-        :code: python
+    :caption: line_link.py
 
 ----
 

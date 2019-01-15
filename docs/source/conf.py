@@ -101,6 +101,7 @@ language = None
 exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
+highlight_language = 'default'
 pygments_style = 'sphinx'
 
 add_function_parentheses = True

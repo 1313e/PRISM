@@ -1,5 +1,4 @@
-# name			: lower_bndry		upper_bndry		estimate
-A1			: 1			10			5
-B1			: 0			10			5
-C1			: 0			5			2
-
+# name  : lower_bndry   upper_bndry     estimate
+  A1    : 1             10              5
+  B1    : 0             10              5
+  C1    : 0             5               2

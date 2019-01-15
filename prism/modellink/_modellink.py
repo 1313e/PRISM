@@ -784,7 +784,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         data_val : list
             List with values of provided data points.
         data_err : list of lists
-            List with lower and upper :math:`1\\sigma`-confidence levels of
+            List with upper and lower :math:`1\\sigma`-confidence levels of
             provided data points.
         data_spc : list
             List with types of value space ({'lin', 'log', 'ln'}) of provided
@@ -985,7 +985,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             Array containing the linear model discrepancy variance values
             corresponding to the requested data points. If 1D array_like, data
             is assumed to have a centered one sigma confidence interval. If 2D
-            array_like, the values determine the lower and upper variances and
+            array_like, the values determine the upper and lower variances and
             the array is of shape ``(n_data, 2)``.
 
         Notes

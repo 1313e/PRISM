@@ -2,7 +2,7 @@
 
 HDF5
 ++++
-Whenever *PRISM* constructs an emulator, it automatically stores all the calculated data for it in an `HDF5-file`_ named ``'prism.hdf5'`` (default) in the designated working directory.
+Whenever *PRISM* constructs an emulator, it automatically stores all the calculated data for it in an `HDF5-file`_ named ``'prism.hdf5'`` in the designated working directory.
 This file contains all the data that is required in order to recreate all emulator systems that have been constructed for the emulator belonging to this run.
 If the :class:`~prism.Pipeline` class is initialized by using an HDF5-file made by *PRISM*, it will load in this data and return a :obj:`~prism.Pipeline` object in the same state as described in the file.
 

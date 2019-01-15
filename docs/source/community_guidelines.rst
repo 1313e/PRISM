@@ -19,4 +19,5 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 
 License
 -------
-.. include:: ../../LICENSE
+.. literalinclude:: ../../LICENSE
+    :language: none
