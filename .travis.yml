@@ -35,9 +35,9 @@ before_deploy:
     - rm -r build
 deploy:
     provider: pypi
-    user: "1313e"
+    user: 1313e
     password:
-        secure: "KyO+gZmGeqd2OP59Tb+V1KEocawATq78WDG4L9gNCGloEFUfD3KoIQ3ffMm+xeIcOiciG1I51GaknxNcix9LjYdPUNodwkvXCCI2FzaFFwtaoA49UGE9cse0GCsALZ++caTc8nyUDZ/URHD0kw/WG0F5oBLB/16Vzxgmh1DVrQ6HDQiRBJMWqrVt3zW8/27CGPMbfjcLIjzmWn0dlI1LCyp7eFE7EXcYt2FazMnFLDQF/h4mn9vMTzm9qMz+PXmp2x7I97nRJ9/62Clh7VnDAwRR9JC4SFBgaooNspmltDC49U/gpVcS5ndnqKzyyQiuIODQpvAyQWREN7jDeSjeZRYFipFU8/lS2Xc9uKTLdOzP5RCIWL8MEwoI9vAbEboUcFdCpoDJUWkNSItPCfDelC7YDDBqxJYGpyQ7RhOfCyqk/J/fikX72sDrn/A1H0xy2vsQaWipHiqTyN+d0UsJJUFLfNguLpjzVsq5e0eNlaBk8/rieWCnVZfdxd7ZHPseZtlO7JXpyowSQBo6f4SZ+OgktZnaPz+BEOAYkmUZCru+dYi2+xesrIYC4G/MhSSF8H69NEjGyf8cc+fPhn7/4M+cO4Gm2y4O/yjcXa3cV/u4GsDydM2sjRdYw4zsaHlE91JZwaXckDAdJJsMzv40MVptsBOuuLtMYMQjED1cI9c="
+        secure: "uovgLXvtHjkEARx+81EqX5aL32xInyK34uyxBhOTKNLfC6/OxM0DNr2jPYNwClCrSBe2Hrq2RsTqNI28SBtP7fn4sBk6SxKI1hI0PBWLoXWznOSv/LzN9W3QqzAXWmC1pFs1cPM+omzzAEMal9TISsF24boRFNBu/sVbkPwV3vW3ERjnLP84AhBUdn5gNxQXgBTMbuKKXFihEHIP18zHtOhY9dNwWpI/iNpV6zcIbPiitl697d9kjzqkB17fQvI9Fjej6pGJICRExwDvuEjPTiHpV13kBOjfvnoKnufxnmTFLBjoSO0v5Ec+ba1sLDi7qdzuT+YSEq9WmKfEaBJPa98slBZCrzAN1vyFToYGh94mUolI/QvaRKSjJu4SZRr0BLVTxykniMx9yddfesuMPmtintp9MK/OVuc76UAfwHtBGFRg+JTfFthyKSL5FNDKFcIKaOtkErVtZRs087AfmwV8bc/1veDJ5Zm+EwfavdhOLrHP4vRTpbbpYaA70jUbFtOQ5/uaYjbRQvvxgnPePkesst8KhzgYeDIJrplDIlmhSWEXO34k84mOKFXorPwA7bM+21MnUU1ER98Q+cIMbeKazH1isRyOtzJd8bhvXIO/tsA8rs9dByhCDmMoqJrXH1MRubdiQs3U4w+LO5bgJaP0h+RVllhgjOAphxFcBvI="
     distributions: "sdist bdist_wheel"
     skip_existing: true
     on:
