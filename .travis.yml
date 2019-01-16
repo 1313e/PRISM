@@ -47,14 +47,14 @@ after_success:
       codecov
     fi
 deploy:
-  - provider: pypi
-  - user: "1313e"
-  - password:
-      - secure: "c3q4zYmxX/5duK26MBsXNQDxLaeCwsaoV2OjAQ7yFapoY4WOlTdgntGFVsmfeSWuzW3sE/JPt+V4ghZHoZ6epaaT6IGJqgAyIFBOx0JAva3Um8lejl+d/rNq/MGnavDmhQgcuH7SG6AZzYtZH1e/waiY637bfVWi3az4ojkKMW42A/70gVzhv7Hh58frTKggmMQQIAs6VRrXiaHItLPcvs6jW9fi/HYkTclQtsMryPR0B7gJ4TkP7Y3OZ3KV7IkYawJ6uBZ2wEP/kWMzF5aCvutiQ+37sggkITMTyDRCgg5V/ka5hjvAnRXwTl0OcYn1gb6cPJUtfktG9Jf31bq8DYAU+T9uAoAyN/TMIhGysy55l9t7zPEkbN+f4PoM8gHWHHvBaE8BpyROm65frgtl+7k166Wt+8CYDtopPujBKRCN9KsFOrN8aEmYv7Vh6xPxGIl75dBoqvslyufi+pWEjpf5RTn56zb/D07HSUXDxTUc07n2zF6rSo7pbC64jBYCDeVAJ82Lh9p0Q5VGxe5htjMnn0ItSH9R8jn7qlu/dlRFDrps4bHAXWgJSqoAe0FhQuoBQ8yF4Su90b+k6VIX9I+1Fv/KJ1dgaZ2MwfMO96giBkN2kdJP3BkYle1+tGOZrEHKb1WUTYDHI6dQR4Iixeydn5dez13EJMGT5+f2Icw="
-  - distributions: "sdist bdist_wheel"
-  - skip_existing: true
-  - on:
-    - branch: master
+    provider: pypi
+    user: "1313e"
+    password:
+        secure: "c3q4zYmxX/5duK26MBsXNQDxLaeCwsaoV2OjAQ7yFapoY4WOlTdgntGFVsmfeSWuzW3sE/JPt+V4ghZHoZ6epaaT6IGJqgAyIFBOx0JAva3Um8lejl+d/rNq/MGnavDmhQgcuH7SG6AZzYtZH1e/waiY637bfVWi3az4ojkKMW42A/70gVzhv7Hh58frTKggmMQQIAs6VRrXiaHItLPcvs6jW9fi/HYkTclQtsMryPR0B7gJ4TkP7Y3OZ3KV7IkYawJ6uBZ2wEP/kWMzF5aCvutiQ+37sggkITMTyDRCgg5V/ka5hjvAnRXwTl0OcYn1gb6cPJUtfktG9Jf31bq8DYAU+T9uAoAyN/TMIhGysy55l9t7zPEkbN+f4PoM8gHWHHvBaE8BpyROm65frgtl+7k166Wt+8CYDtopPujBKRCN9KsFOrN8aEmYv7Vh6xPxGIl75dBoqvslyufi+pWEjpf5RTn56zb/D07HSUXDxTUc07n2zF6rSo7pbC64jBYCDeVAJ82Lh9p0Q5VGxe5htjMnn0ItSH9R8jn7qlu/dlRFDrps4bHAXWgJSqoAe0FhQuoBQ8yF4Su90b+k6VIX9I+1Fv/KJ1dgaZ2MwfMO96giBkN2kdJP3BkYle1+tGOZrEHKb1WUTYDHI6dQR4Iixeydn5dez13EJMGT5+f2Icw="
+    distributions: "sdist bdist_wheel"
+    skip_existing: true
+    on:
+        branch: master
     
 notifications:
   email: false
