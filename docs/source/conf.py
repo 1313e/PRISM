@@ -148,7 +148,7 @@ html_last_updated_fmt = '%a %d %b %Y'
 html_static_path = ['_static']
 
 # OpenSearch. Requires documentation to be online.
-html_use_opensearch = ''
+html_use_opensearch = 'https://prism-tool.readthedocs.io/en/latest'
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.

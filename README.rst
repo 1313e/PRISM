@@ -106,7 +106,7 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/prism.svg?label=PyPI
     :target: https://pypi.python.org/pypi/prism
-    :alt: PyPI - Release
+    :alt: PyPI - Latest Release
 .. |Python| image:: https://img.shields.io/pypi/pyversions/prism.svg?logo=python&logoColor=white&label=Python
     :target: https://pypi.python.org/pypi/prism
     :alt: PyPi - Python Versions
@@ -122,6 +122,6 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 .. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/master.svg?logo=codecov&logoColor=white&label=Coverage
     :target: https://codecov.io/gh/1313e/PRISM?branch=master
     :alt: CodeCov - Coverage Status
-.. |ReadTheDocs| image:: https://img.shields.io/readthedocs/prism-tool/latest.svg?logo=read%20the%20docs&logoColor=white&label=ReadTheDocs
+.. |ReadTheDocs| image:: https://img.shields.io/readthedocs/prism-tool/latest.svg?logo=read%20the%20docs&logoColor=white&label=Docs
     :target: https://prism-tool.readthedocs.io/en/latest
-    :alt: ReadTheDocs - Status
+    :alt: ReadTheDocs - Build Status

@@ -46,6 +46,9 @@ after_success:
     if [[ "$RUN_COVERAGE" == "1" ]]; then
       codecov
     fi
+before_deploy:
+    - rm -r dist
+    - rm -r build
 deploy:
     provider: pypi
     user: "1313e"
