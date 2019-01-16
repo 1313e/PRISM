@@ -25,22 +25,6 @@ script:
   - twine check dist/*
   - pip install -e .
   - python -c "import prism; prism.get_info()"
-  - |
-    if [[ "$RUN_COVERAGE" == "1" ]]; then
-      coverage run --rcfile=setup.cfg -m pytest
-    else
-      pytest
-    fi
-  - sudo apt-get install -y -q openmpi-bin libopenmpi-dev
-  - pip --no-cache install mpi4py
-  - |
-    if [[ "$RUN_COVERAGE" == "1" ]]; then
-      mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
-      coverage combine
-      coverage report -m
-    else
-      mpiexec -n 2 pytest
-    fi
 after_success:
   - |
     if [[ "$RUN_COVERAGE" == "1" ]]; then
@@ -53,7 +37,7 @@ deploy:
     provider: pypi
     user: "1313e"
     password:
-        secure: "FDNYxLxDbfzRawTpvib11G44RRGr/T7WAPcPKbzjzQodJXrHTpkW/+gttuDh7eyCCEGW/4zZ00fMnGmlVciXA7xXOYG1F7n6F9OiH+jLCBFrujdU4X4z7VlBqo1OdOHbF9Aw4HnnrWg4fhnnC46Hqd36g6O5ugUjBPmLbpvrEyZ/uSdb31CCx9x30Ugdl6dPiMyNm9kCQTv15widVGM/GZHK8Dru8qILygxHt60WW0MEG+JyUyKxhpgz3yY/a/Yea9YU2kPwrUamOumoT+p3/WOOLjY7ZuX3CvdbWkYOoVVhGgueEzzXYedleiFKbGF3WFSSTzFkEfcohivhvqicYX9Z/mV4+26Uzp23DGL2rhm7T2ctnKTFmlyp6KgDKBSIcb0D3mH/WfMdOZRKgsP/SHD1TKrwvSkC3EZWIKTCtPOQHs06cbY/bAj7R1hI7Pr78jPCa125lRj3wHH96ONXLDAcKKU3kcDYjL9EtDMGQDyDUg1fORBxVmXrqm8GKrBoBCiwFJ70nw8vaAsT3Pa/QO2x9Ng5nhrujjiIJ8U6h35aepgoSxk3fDEqXxRcp/B4gaWXas+tbZk9AkcGQEOkfZyVpW8BrsEhyUN9K2yEPQFD009fRmBOYJBLcYAvKgcvDhj9IsPSP+P+CBe5yV7tf+YCBroILgs6d5O/r9yAtYI="
+        secure: "KyO+gZmGeqd2OP59Tb+V1KEocawATq78WDG4L9gNCGloEFUfD3KoIQ3ffMm+xeIcOiciG1I51GaknxNcix9LjYdPUNodwkvXCCI2FzaFFwtaoA49UGE9cse0GCsALZ++caTc8nyUDZ/URHD0kw/WG0F5oBLB/16Vzxgmh1DVrQ6HDQiRBJMWqrVt3zW8/27CGPMbfjcLIjzmWn0dlI1LCyp7eFE7EXcYt2FazMnFLDQF/h4mn9vMTzm9qMz+PXmp2x7I97nRJ9/62Clh7VnDAwRR9JC4SFBgaooNspmltDC49U/gpVcS5ndnqKzyyQiuIODQpvAyQWREN7jDeSjeZRYFipFU8/lS2Xc9uKTLdOzP5RCIWL8MEwoI9vAbEboUcFdCpoDJUWkNSItPCfDelC7YDDBqxJYGpyQ7RhOfCyqk/J/fikX72sDrn/A1H0xy2vsQaWipHiqTyN+d0UsJJUFLfNguLpjzVsq5e0eNlaBk8/rieWCnVZfdxd7ZHPseZtlO7JXpyowSQBo6f4SZ+OgktZnaPz+BEOAYkmUZCru+dYi2+xesrIYC4G/MhSSF8H69NEjGyf8cc+fPhn7/4M+cO4Gm2y4O/yjcXa3cV/u4GsDydM2sjRdYw4zsaHlE91JZwaXckDAdJJsMzv40MVptsBOuuLtMYMQjED1cI9c="
     distributions: "sdist bdist_wheel"
     skip_existing: true
     on:
