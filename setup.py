@@ -46,7 +46,6 @@ setup(name='prism',
                    "models"),
       long_description=long_description,
       download_url="https://pypi.org/project/prism",
-      url="https://github.com/1313e/PRISM",
       project_urls={
           'Documentation': "https://prism-tool.readthedocs.io",
           'Home Page': "https://github.com/1313e/PRISM",

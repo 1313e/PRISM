@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 # -- Project information -----------------------------------------------------
 
 project = 'PRISM'
-copyright = '2018, Ellert van der Velden'
+copyright = '2019, Ellert van der Velden'
 author = 'Ellert van der Velden'
 
 # The short X.Y version

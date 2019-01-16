@@ -19,6 +19,7 @@ from collections import Counter
 import os
 from os import path
 from time import time
+from struct import calcsize
 import sys
 
 # Package imports
@@ -53,6 +54,9 @@ __all__ = ['Emulator']
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
     unicode = str
+
+# Windows 32-bit/64-bit compatibility
+int_size = 'int64' if (calcsize('P') == 8) else 'int32'
 
 
 # %% EMULATOR CLASS DEFINITION
@@ -2349,7 +2353,7 @@ class Emulator(object):
                         else:
                             poly_coef_cov.append([])
                         poly_powers.append(data_set['poly_powers'][()])
-                        poly_powers[-1].dtype = 'int64'
+                        poly_powers[-1].dtype = int_size
                         poly_idx.append(data_set['poly_idx'][()])
                     except KeyError:
                         rsdl_var.append([])
@@ -2555,7 +2559,7 @@ class Emulator(object):
                     # Determine dtype-list for compound dataset
                     names = [self._modellink._par_name[par] for par in
                              self._active_par_data[emul_i][lemul_s]]
-                    dtype = [(n, 'int64') for n in names]
+                    dtype = [(n, int_size) for n in names]
 
                     # Convert poly_powers to a compound dataset
                     data_c = data['poly_powers'].copy()

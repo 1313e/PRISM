@@ -64,4 +64,4 @@ test_script:
   - "%CMD_IN_ENV% twine check dist/*"
   - "%CMD_IN_ENV% pip install -e ."
   - "%CMD_IN_ENV% python -c \"import prism; prism.get_info()\""
-  - "%CMD_IN_ENV% pytest prism"
+  - "%CMD_IN_ENV% pytest"
