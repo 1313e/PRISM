@@ -45,7 +45,7 @@ from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
                              check_vals, convert_str_seq, delist,
                              docstring_append, docstring_copy,
                              docstring_substitute, exec_code_anal, getCLogger,
-                             get_PRISM_File, getRLogger, move_logger,
+                             get_PRISM_File, getRLogger, move_logger, np_array,
                              raise_error, raise_warning, start_logger)
 from prism._projection import Projection
 
@@ -671,7 +671,7 @@ class Pipeline(Projection, object):
         logger.info("Evaluating model samples.")
 
         # Make sure that sam_set is at least 2D and a NumPy array
-        sam_set = np.array(sam_set, ndmin=2)
+        sam_set = np_array(sam_set, ndmin=2)
 
         # Check who needs to call the model
         if self._is_controller or self._modellink._MPI_call:
@@ -700,7 +700,7 @@ class Pipeline(Projection, object):
     @docstring_append(call_model_doc_s)
     def _call_model(self, emul_i, par_set, data_idx):
         # Make sure par_set is at least 1D and a NumPy array
-        sam = np.array(par_set, ndmin=1)
+        sam = np_array(par_set, ndmin=1)
 
         # Log that model is being called
         logger = getCLogger('CALL_MODEL')
@@ -716,13 +716,13 @@ class Pipeline(Projection, object):
         logger.info("Model returned %s." % (mod_out))
 
         # Return it
-        return(np.array(mod_out))
+        return(np_array(mod_out))
 
     # Function containing the model output for a given set of parameter samples
     @docstring_append(call_model_doc_m)
     def _multi_call_model(self, emul_i, sam_set, data_idx):
         # Make sure sam_set is at least 2D and a NumPy array
-        sam_set = np.array(sam_set, ndmin=2)
+        sam_set = np_array(sam_set, ndmin=2)
 
         # Log that model is being multi-called
         logger = getCLogger('CALL_MODEL')
@@ -739,7 +739,7 @@ class Pipeline(Projection, object):
         logger.info("Finished model multi-call.")
 
         # Return it
-        return(np.array(mod_set))
+        return(np_array(mod_set))
 
     # This function returns default pipeline parameters
     @docstring_append(def_par_doc.format("pipeline"))
@@ -772,7 +772,7 @@ class Pipeline(Projection, object):
                                      delimiter=':', autostrip=True)
 
             # Make sure that pipe_par is 2D
-            pipe_par = np.array(pipe_par, ndmin=2)
+            pipe_par = np_array(pipe_par, ndmin=2)
 
             # Combine default parameters with read-in parameters
             par_dict.update(pipe_par)
@@ -827,7 +827,7 @@ class Pipeline(Projection, object):
         # Check which parameters can potentially be active
         # If pot_active_par is None, save all model parameters
         if(par_dict['pot_active_par'].lower() == 'none'):
-            self._pot_active_par = np.array(range(self._modellink._n_par))
+            self._pot_active_par = np_array(range(self._modellink._n_par))
 
         # If pot_active_par is a bool, raise error
         elif par_dict['pot_active_par'].lower() in ('false', 'true'):
@@ -838,7 +838,7 @@ class Pipeline(Projection, object):
         # If anything else is given, it must be a sequence of model parameters
         else:
             # Convert the given sequence to an array of indices
-            self._pot_active_par = np.array(self._modellink._get_model_par_seq(
+            self._pot_active_par = np_array(self._modellink._get_model_par_seq(
                 par_dict['pot_active_par'], 'pot_active_par'))
 
         # Log that reading has been finished
@@ -1666,12 +1666,12 @@ class Pipeline(Projection, object):
                     raise NotImplementedError
 
             # Make sure that md_var is a NumPy array
-            md_var = np.array(md_var, ndmin=2)
+            md_var = np_array(md_var, ndmin=2)
 
         # If it was user-defined, check if the values are compatible
         else:
             # Make sure that md_var is a NumPy array
-            md_var = np.array(md_var)
+            md_var = np_array(md_var)
 
             # Check if md_var contains n_data values
             if not(md_var.shape[0] == self._emulator._n_data[emul_i]):
@@ -1683,7 +1683,7 @@ class Pipeline(Projection, object):
 
             # Check if single or dual values were given
             if(md_var.ndim == 1):
-                md_var = np.array([md_var]*2).T
+                md_var = np_array([md_var]*2).T
             elif(md_var.shape[1] == 2):
                 pass
             else:
@@ -1764,7 +1764,7 @@ class Pipeline(Projection, object):
             raise_error(err_msg, ValueError, logger)
 
         # Save both impl_cut and cut_idx
-        impl_cut = np.array(impl_cut)[cut_idx:]
+        impl_cut = np_array(impl_cut)[cut_idx:]
         if temp:
             # If they need to be stored temporarily
             self._impl_cut.append(impl_cut)
@@ -1813,7 +1813,7 @@ class Pipeline(Projection, object):
                                          delimiter=':', autostrip=True)
 
                 # Make sure that pipe_par is 2D
-                pipe_par = np.array(pipe_par, ndmin=2)
+                pipe_par = np_array(pipe_par, ndmin=2)
 
                 # Combine default parameters with read-in parameters
                 par_dict.update(pipe_par)
@@ -1854,7 +1854,7 @@ class Pipeline(Projection, object):
 
         # If no ext_real_set is provided, return empty arrays without logging
         if ext_real_set is None:
-            return(np.array([]), np.array([]))
+            return(np_array([]), np_array([]))
 
         # Do some logging
         logger = getCLogger('INIT')
@@ -1909,8 +1909,8 @@ class Pipeline(Projection, object):
                                                      'ext_mod_set')
 
         # Make sure that ext_sam_set and ext_mod_set are 2D
-        ext_sam_set = np.array(ext_sam_set, ndmin=2)
-        ext_mod_set = np.array(ext_mod_set, ndmin=2)
+        ext_sam_set = np_array(ext_sam_set, ndmin=2)
+        ext_mod_set = np_array(ext_mod_set, ndmin=2)
 
         # Check if both arrays contain the same number of samples
         if not(ext_sam_set.shape[0] == ext_mod_set.shape[0]):
@@ -2025,7 +2025,7 @@ class Pipeline(Projection, object):
         impl_check = np.ones(n_sam, dtype=bool)
 
         # Make a list of plausible sample indices
-        sam_idx_full = np.array(list(range(n_sam)))
+        sam_idx_full = np_array(range(n_sam))
         sam_idx = sam_idx_full[impl_check]
 
         # Mark all samples as plausible
@@ -2073,7 +2073,7 @@ class Pipeline(Projection, object):
 
                 # Gather the results on the controller after evaluating
 #                uni_impl_vals_list = self._comm.gather(uni_impl_vals, 0)
-                uni_impl_vals_list = self._comm.gather(np.array(uni_impl_vals),
+                uni_impl_vals_list = self._comm.gather(np_array(uni_impl_vals),
                                                        0)
 
                 # Controller performs implausibility analysis
@@ -2398,7 +2398,7 @@ class Pipeline(Projection, object):
                             logger.info("Finished creating initial sample "
                                         "set.")
                         else:
-                            add_sam_set = np.array([])
+                            add_sam_set = np_array([])
 
                     # If this is any other iteration
                     else:
@@ -2449,7 +2449,7 @@ class Pipeline(Projection, object):
         if self._is_controller:
             # Save that emulator iteration has not been analyzed yet
             self._save_data({
-                'impl_sam': np.array([]),
+                'impl_sam': np_array([]),
                 'n_eval_sam': 0})
 
             # Log that construction has been completed
@@ -2931,7 +2931,7 @@ class Pipeline(Projection, object):
             sam_set = sdict(sam_set)
 
             # Return it to normal
-            sam_set = np.array(sam_set.values()).T
+            sam_set = np_array(sam_set.values()).T
 
         # Controller checking the contents of sam_set
         if self._is_controller:
@@ -2940,7 +2940,7 @@ class Pipeline(Projection, object):
 
             # If ndim == 1, convert to 2D array and print output later
             if(sam_set.ndim == 1):
-                sam_set = np.array(sam_set, ndmin=2)
+                sam_set = np_array(sam_set, ndmin=2)
                 print_output = 1
             # If ndim == 2, return output later
             else:
@@ -2948,7 +2948,7 @@ class Pipeline(Projection, object):
 
         # The workers make sure that sam_set is also two-dimensional
         else:
-            sam_set = np.array(sam_set, ndmin=2)
+            sam_set = np_array(sam_set, ndmin=2)
 
         # MPI Barrier
         self._comm.Barrier()
@@ -2967,9 +2967,9 @@ class Pipeline(Projection, object):
             """), '<string>', 'exec')
         anal_code = compile("emul_i_stop[sam_idx[j]] = i", '<string>', 'exec')
         post_code = compile(dedent("""
-            adj_exp_val_list = self._comm.gather(np.array(adj_exp_val), 0)
-            adj_var_val_list = self._comm.gather(np.array(adj_var_val), 0)
-            uni_impl_val_list = self._comm.gather(np.array(uni_impl_val_list),
+            adj_exp_val_list = self._comm.gather(np_array(adj_exp_val), 0)
+            adj_var_val_list = self._comm.gather(np_array(adj_var_val), 0)
+            uni_impl_val_list = self._comm.gather(np_array(uni_impl_val_list),
                                                   0)
             """), '<string>', 'exec')
         exit_code = compile(dedent("""

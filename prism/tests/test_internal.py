@@ -22,7 +22,8 @@ from prism._internal import (compat_version, prism_version, CLogger, RLogger,
                              check_instance, check_vals, check_compatibility,
                              convert_str_seq, delist, get_PRISM_File, get_info,
                              getCLogger, getRLogger, import_cmaps, move_logger,
-                             raise_error, raise_warning, rprint, start_logger)
+                             np_array, raise_error, raise_warning, rprint,
+                             start_logger)
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
@@ -371,6 +372,12 @@ def test_movestart_logger(tmpdir):
 
     # Check if both logfiles can be combined correctly
     move_logger(dest.strpath, filename_src)
+
+
+# Pytest for the np_array function
+def test_np_array():
+    array = np.array([1, 2])
+    assert np_array(array) is array
 
 
 # Pytest for the raise_error function

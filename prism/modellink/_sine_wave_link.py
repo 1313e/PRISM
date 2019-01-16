@@ -19,6 +19,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 # PRISM imports
+from prism._internal import np_array
 from prism.modellink._modellink import ModelLink
 
 # All declaration
@@ -62,7 +63,7 @@ class SineWaveLink(ModelLink):
         for i, idx in enumerate(data_idx):
             mod_set[i] = par['A']+0.1*par['B']*np.sin(par['C']*idx+par['D'])
 
-        return(np.array(mod_set).T)
+        return(np_array(mod_set).T)
 
     def get_md_var(self, emul_i, par_set, data_idx):
         return(pow(0.1*np.ones_like(data_idx), 2))

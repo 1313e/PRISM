@@ -43,7 +43,7 @@ from prism._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
 from prism._internal import (RequestError, RequestWarning, check_compatibility,
                              check_instance, check_vals, convert_str_seq,
                              delist, docstring_append, docstring_substitute,
-                             getCLogger, getRLogger, raise_error,
+                             getCLogger, getRLogger, np_array, raise_error,
                              raise_warning)
 from prism.modellink import ModelLink
 
@@ -1241,7 +1241,7 @@ class Emulator(object):
             for active_par_rank in active_par_data:
                 active_par.update(*active_par_rank)
             self._save_data(emul_i, None, {
-                'active_par': np.array(active_par)})
+                'active_par': np_array(active_par)})
 
             # Set current emul_i to constructed emul_i
             self._emul_i = emul_i
@@ -1426,7 +1426,7 @@ class Emulator(object):
                             act_idx.append(i)
 
                     # Update the active parameters for this emulator system
-                    active_par_data.update(np.array(frz_pot_par)[act_idx])
+                    active_par_data.update(np_array(frz_pot_par)[act_idx])
 
             # Log the resulting active parameters
             logger.info("Active parameters for emulator system %i: %s"
@@ -1436,7 +1436,7 @@ class Emulator(object):
 
             # Convert active_par_data to a NumPy array and save
             self._save_data(emul_i, emul_s, {
-                'active_par_data': np.array(active_par_data)})
+                'active_par_data': np_array(active_par_data)})
 
         # Log that active parameter determination is finished
         logger.info("Finished determining active parameters.")
@@ -1507,7 +1507,7 @@ class Emulator(object):
             pipe.fit(active_sam_set, self._mod_set[emul_i][emul_s])
 
             # Obtain the corresponding polynomial indices
-            poly_idx = np.array(pipe.named_steps['SFS'].k_feature_idx_)
+            poly_idx = np_array(pipe.named_steps['SFS'].k_feature_idx_)
 
             # Extract sam_set_poly
             sam_set_poly = pipe.named_steps['poly'].transform(
@@ -1536,7 +1536,7 @@ class Emulator(object):
             new_powers = new_pf_obj.powers_
             new_powers_list = new_powers.tolist()
             poly_powers_list = poly_powers.tolist()
-            poly_idx = np.array([i for i, powers in enumerate(new_powers_list)
+            poly_idx = np_array([i for i, powers in enumerate(new_powers_list)
                                  if powers in poly_powers_list])
 
             # If regression covariances is requested, calculate it
@@ -2268,7 +2268,7 @@ class Emulator(object):
                     try:
                         par_i = [self._modellink._par_name.index(par.decode(
                                 'utf-8')) for par in group.attrs['active_par']]
-                        self._active_par.append(np.array(par_i))
+                        self._active_par.append(np_array(par_i))
                     except KeyError:
                         self._active_par.append([])
                         ccheck.append('active_par')
@@ -2334,7 +2334,7 @@ class Emulator(object):
                         par_i = [self._modellink._par_name.index(
                             par.decode('utf-8')) for par in
                             data_set.attrs['active_par_data']]
-                        active_par_data.append(np.array(par_i))
+                        active_par_data.append(np_array(par_i))
                     except KeyError:
                         active_par_data.append([])
                         ccheck_s.append('active_par_data')
@@ -2664,7 +2664,7 @@ class Emulator(object):
                                      delimiter=':', autostrip=True)
 
             # Make sure that emul_par is 2D
-            emul_par = np.array(emul_par, ndmin=2)
+            emul_par = np_array(emul_par, ndmin=2)
 
             # Combine default parameters with read-in parameters
             par_dict.update(emul_par)

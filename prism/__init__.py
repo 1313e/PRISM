@@ -32,7 +32,7 @@ from __future__ import absolute_import, division, print_function
 
 # Built-in imports
 import os
-from sys import platform
+import platform
 import warnings
 
 # Package imports
@@ -77,10 +77,10 @@ else:
         if(os.environ.get('OMP_NUM_THREADS') != '1'):
             # Get platform-dependent string on how to set environment variable
             # Windows
-            if platform.startswith('win'):
+            if (platform.system().lower() == 'windows'):
                 set_str = " (\">set OMP_NUM_THREADS=1\")"
             # Linux/MacOS-X
-            elif platform.startswith(('linux', 'darwin')):
+            elif (platform.system().lower() in ('linux', 'darwin')):
                 set_str = " (\"$ export OMP_NUM_THREADS=1\")"
             # Anything else
             else:

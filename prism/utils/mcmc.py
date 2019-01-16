@@ -26,7 +26,8 @@ import numpy as np
 
 # PRISM imports
 from prism._docstrings import user_emul_i_doc
-from prism._internal import (RequestError, check_vals, docstring_substitute)
+from prism._internal import (RequestError, check_vals, docstring_substitute,
+                             np_array)
 from prism._pipeline import Pipeline
 
 # All declaration
@@ -189,11 +190,11 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
         # Check what sampling is requested and analyze par_set
         if hybrid:
             impl_sam, lnprior = pipe._make_call('_evaluate_sam_set', emul_i,
-                                                np.array(sam, ndmin=2),
+                                                np_array(sam, ndmin=2),
                                                 *exec_code)
         else:
             impl_sam = pipe._make_call('_get_impl_sam', emul_i,
-                                       np.array(sam, ndmin=2))
+                                       np_array(sam, ndmin=2))
             lnprior = 0
 
         # If par_set is plausible, call ext_lnpost
@@ -338,7 +339,7 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
             # If init_walkers is not an int, it must be array_like
             else:
                 # Make sure that init_walkers is a NumPy array
-                init_walkers = np.array(init_walkers, ndmin=2)
+                init_walkers = np_array(init_walkers, ndmin=2)
 
                 # If unit_space is True, convert init_walkers to par_space
                 if unit_space:

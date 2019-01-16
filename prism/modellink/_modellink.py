@@ -30,7 +30,7 @@ from sortedcontainers import SortedDict as sdict, SortedSet as sset
 from prism._docstrings import std_emul_i_doc
 from prism._internal import (PRISM_Comm, RequestWarning, check_instance,
                              check_vals, convert_str_seq, docstring_substitute,
-                             getCLogger, raise_error)
+                             getCLogger, np_array, raise_error)
 
 # All declaration
 __all__ = ['ModelLink', 'test_subclass']
@@ -533,7 +533,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         logger.info("Validating provided set of model outputs %r." % (name))
 
         # Make sure that mod_set is a NumPy array
-        mod_set = np.array(mod_set)
+        mod_set = np_array(mod_set)
 
         # Raise error if mod_set is not 1D or 2D
         if not(mod_set.ndim == 1 or mod_set.ndim == 2):
@@ -584,7 +584,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                     % (name))
 
         # Make sure that sam_set is a NumPy array
-        sam_set = np.array(sam_set)
+        sam_set = np_array(sam_set)
 
         # Raise error if sam_set is not 1D or 2D
         if not(sam_set.ndim == 1 or sam_set.ndim == 2):
@@ -680,7 +680,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                                  autostrip=True)
 
             # Make sure that pars is 2D
-            pars = np.array(pars, ndmin=2)
+            pars = np_array(pars, ndmin=2)
 
             # Combine default parameters with read-in parameters
             model_parameters.update(pars)
@@ -811,7 +811,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
                                         delimiter=':', autostrip=True)
 
             # Make sure that data_points is 2D
-            data_points = np.array(data_points, ndmin=2)
+            data_points = np_array(data_points, ndmin=2)
 
             # Combine default data with read-in data
             model_data.update(data_points)

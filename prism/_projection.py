@@ -40,8 +40,8 @@ from prism._docstrings import (def_par_doc, draw_proj_fig_doc, get_emul_i_doc,
                                user_emul_i_doc)
 from prism._internal import (RequestError, RequestWarning, check_vals,
                              convert_str_seq, docstring_append,
-                             docstring_substitute, getCLogger, raise_error,
-                             raise_warning)
+                             docstring_substitute, getCLogger, np_array,
+                             raise_error, raise_warning)
 
 # All declaration
 __all__ = ['Projection']
@@ -690,7 +690,7 @@ class Projection(object):
                                                               'proj_par')
 
                 # Check which values in proj_par are also in active_par
-                proj_par = np.array(
+                proj_par = np_array(
                     [i for i in self._emulator._active_par[self.__emul_i] if
                      i in proj_par])
 
@@ -708,11 +708,11 @@ class Projection(object):
             hcubes = []
             if self.__proj_2D:
                 hcube_idx = list(combinations(range(len(proj_par)), 1))
-                hcubes.extend(proj_par[np.array(hcube_idx)].tolist())
+                hcubes.extend(proj_par[np_array(hcube_idx)].tolist())
             if self.__proj_3D:
                 hcube_idx = list(combinations(range(len(proj_par)), 2))
                 if len(hcube_idx):
-                    hcubes.extend(proj_par[np.array(hcube_idx)].tolist())
+                    hcubes.extend(proj_par[np_array(hcube_idx)].tolist())
 
             # Create empty list holding hcube_par that needs to be created
             create_hcubes = []
@@ -917,7 +917,7 @@ class Projection(object):
                                      delimiter=':', autostrip=True)
 
             # Make sure that pipe_par is 2D
-            pipe_par = np.array(pipe_par, ndmin=2)
+            pipe_par = np_array(pipe_par, ndmin=2)
 
             # Combine default parameters with read-in parameters
             par_dict.update(pipe_par)
@@ -1135,7 +1135,7 @@ class Projection(object):
                     'proj_depth': depth}})
 
         # Return the results for this proj_hcube
-        return(np.array(impl_min_hcube), np.array(impl_los_hcube))
+        return(np_array(impl_min_hcube), np_array(impl_los_hcube))
 
     # This function processes the input arguments of project
     @docstring_substitute(emul_i=get_emul_i_doc)

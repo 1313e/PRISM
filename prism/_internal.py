@@ -18,9 +18,10 @@ from __future__ import (absolute_import, division, print_function,
 from inspect import isclass
 import logging
 import logging.config
-from pkg_resources import get_distribution
 import os
 from os import path
+from pkg_resources import get_distribution
+import platform
 import shutil
 import sys
 from tempfile import mkstemp
@@ -48,7 +49,7 @@ __all__ = ['CFilter', 'CLogger', 'PRISM_Comm', 'RFilter', 'RLogger',
            'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
            'docstring_substitute', 'exec_code_anal', 'get_PRISM_File',
            'get_info', 'getCLogger', 'getRLogger', 'import_cmaps',
-           'move_logger', 'raise_error', 'raise_warning', 'rprint',
+           'move_logger', 'np_array', 'raise_error', 'raise_warning', 'rprint',
            'start_logger']
 
 # Python2/Python3 compatibility
@@ -836,12 +837,10 @@ def get_info():
         -------------------------------"""))
 
     # Add platform to info_list
-    info_list.append("Platform: %s" % (sys.platform))
+    info_list.append("Platform: %s" % (platform.system()))
 
     # Add python version to info_list
-    py_version = sys.version_info
-    info_list.append("Python: %i.%i.%i"
-                     % (py_version.major, py_version.minor, py_version.micro))
+    info_list.append("Python: %s" % (platform.python_version()))
 
     # Access PRISM metadata
     prism_dist = get_distribution('prism')
@@ -1099,6 +1098,17 @@ def move_logger(working_dir, filename):
 
     # Restart the logger
     start_logger(filename=destination, mode='a')
+
+
+# This function automatically does not make a copy of a NumPy array
+def np_array(obj, *args, **kwargs):
+    """
+    Returns ``np.array(obj, *args, copy=False, **kwargs)``.
+
+    """
+
+    # Return NumPy array with copy=False
+    return(np.array(obj, *args, copy=False, **kwargs))
 
 
 # This function raises a given error after logging the error

@@ -50,7 +50,7 @@ An iteration data group (``'i'``) contains:
 
         - Size of the MPI communicator during various construction steps;
         - Average evaluation rate/time of the emulator and model;
-        - Total time cost of most construction steps;
+        - Total time cost of most construction steps (note that this value may be incorrect if a construction was interrupted);
         - Percentage of parameter space that is still plausible within the iteration.
 
 ----

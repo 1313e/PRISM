@@ -19,7 +19,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 # PRISM imports
-from prism._internal import check_vals
+from prism._internal import check_vals, np_array
 from prism.modellink._modellink import ModelLink
 
 # All declaration
@@ -98,7 +98,7 @@ class GaussianLink(ModelLink):
                     par['A%i' % (j)]*np.exp(-1*((idx-par['B%i' % (j)])**2 /
                                                 (2*par['C%i' % (j)]**2)))
 
-        return(np.array(mod_set).T)
+        return(np_array(mod_set).T)
 
     def get_md_var(self, emul_i, par_set, data_idx):
         return(pow(0.1*np.ones_like(data_idx), 2))
