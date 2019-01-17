@@ -731,7 +731,6 @@ class Emulator(object):
         return(data_idx)
 
     # This function matches data points with those in a previous iteration
-    # TODO: Give every unique data_idx its own emul_s?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _assign_data_idx(self, emul_i):
         """
@@ -1375,7 +1374,6 @@ class Emulator(object):
 
                 # If non_frz_par has at least 1 element, carry out analysis
                 if len(non_frz_par):
-                    # TODO: Find a consistent way to use cross-validation
                     # Create SequentialFeatureSelector object
                     sfs_obj = SFS(LR(), k_features='parsimonious',
                                   forward=False, floating=False, scoring='r2',
@@ -1486,7 +1484,6 @@ class Emulator(object):
         logger = getRLogger('REGRESSION')
         logger.info("Performing regression.")
 
-        # TODO: Find a consistent way to use cross-validation
         # Create SequentialFeatureSelector object
         sfs_obj = SFS(LR(), k_features='best', forward=True, floating=False,
                       scoring='neg_mean_squared_error',

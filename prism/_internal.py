@@ -47,10 +47,9 @@ __all__ = ['CFilter', 'CLogger', 'PRISM_Comm', 'RFilter', 'RLogger',
            'RequestError', 'RequestWarning', 'aux_char_list',
            'check_compatibility', 'check_instance', 'check_vals',
            'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
-           'docstring_substitute', 'exec_code_anal', 'get_PRISM_File',
-           'get_info', 'getCLogger', 'getRLogger', 'import_cmaps',
-           'move_logger', 'np_array', 'raise_error', 'raise_warning', 'rprint',
-           'start_logger']
+           'docstring_substitute', 'get_PRISM_File', 'get_info', 'getCLogger',
+           'getRLogger', 'import_cmaps', 'move_logger', 'np_array',
+           'raise_error', 'raise_warning', 'rprint', 'start_logger']
 
 # Python2/Python3 compatibility
 if(sys.version_info.major >= 3):
@@ -1246,16 +1245,3 @@ def start_logger(filename=None, mode='w'):
 aux_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/', '{', '}', '<',
                  '>', '´', '¨', '`', '\\', '?', '!', '%', ';', '=', '$', '~',
                  '#', '@', '^', '&', '*']
-
-
-# %% COMPILED CODE OBJECT DEFINITIONS
-# Code tuple for analyzing
-_pre_code_anal = compile("", '<string>', 'exec')
-_eval_code_anal = compile("", '<string>', 'exec')
-_anal_code_anal = compile("", '<string>', 'exec')
-_post_code_anal = compile("self.results = sam_set[sam_idx]", '<string>',
-                          'exec')
-_exit_code_anal = compile("", '<string>', 'exec')
-
-exec_code_anal = (_pre_code_anal, _eval_code_anal, _anal_code_anal,
-                  _post_code_anal, _exit_code_anal)

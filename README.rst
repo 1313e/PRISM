@@ -19,7 +19,7 @@ However, as these methods are meant to be used for making approximations of the 
 The use of these techniques can be seen as special cases of Bayesian statistics, where limited model evaluations are combined with advanced regression techniques, covariances and probability calculations.
 *PRISM* is designed to easily facilitate and enhance existing MCMC methods by restricting plausible regions and exploring parameter space efficiently.
 However, *PRISM* can additionally be used as a standalone alternative to MCMC for model analysis, providing insight into the bahvior of complex scientific models.
-*PRISM* aims to provide developers with an advanced model analysis for a fraction of the time required by more traditional methods.
+With *PRISM*, the time spent on evaluating a model is minimized, providing developers with an advanced model analysis for a fraction of the time required by more traditional methods.
 
 Why use *PRISM*?
 ----------------
@@ -109,7 +109,7 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
     :alt: PyPI - Latest Release
 .. |Python| image:: https://img.shields.io/pypi/pyversions/prism.svg?logo=python&logoColor=white&label=Python
     :target: https://pypi.python.org/pypi/prism
-    :alt: PyPi - Python Versions
+    :alt: PyPI - Python Versions
 .. |License| image:: https://img.shields.io/pypi/l/prism.svg?colorB=blue&label=License
     :target: https://github.com/1313e/PRISM/raw/master/LICENSE
     :alt: PyPI - License

@@ -16,7 +16,6 @@ from __future__ import absolute_import, division, print_function
 # Built-in imports
 from inspect import isfunction
 import sys
-from textwrap import dedent
 import warnings
 
 # Package imports
@@ -120,25 +119,6 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
     # Check if hybrid is a bool
     hybrid = check_vals(hybrid, 'hybrid', 'bool')
 
-    # If hybrid sampling is requested, define the various code snippets
-    # TODO: Find a way to avoid having to rebroadcast and recompile them
-    if hybrid:
-        # Define the various code snippets
-        pre_code = "lnprior = 0"
-        eval_code = ""
-        anal_code = dedent("""
-            lnprior = (np.log(1-impl_cut_val/self._impl_cut[i][0]) if
-                       impl_check_val else -np.infty)
-            """)
-        post_code = dedent("""
-            lnprior = self._comm.bcast(lnprior, 0)
-            self.results = (sam_set[sam_idx], lnprior)
-            """)
-        exit_code = ""
-
-        # Combine code snippets into a tuple
-        exec_code = (pre_code, eval_code, anal_code, post_code, exit_code)
-
     # Disable PRISM logging
     pipe.do_logging = False
 
@@ -191,10 +171,10 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
         if hybrid:
             impl_sam, lnprior = pipe._make_call('_evaluate_sam_set', emul_i,
                                                 np_array(sam, ndmin=2),
-                                                *exec_code)
+                                                'hybrid')
         else:
-            impl_sam = pipe._make_call('_get_impl_sam', emul_i,
-                                       np_array(sam, ndmin=2))
+            impl_sam = pipe._make_call('_evaluate_sam_set', emul_i,
+                                       np_array(sam, ndmin=2), 'analyze')
             lnprior = 0
 
         # If par_set is plausible, call ext_lnpost
@@ -353,7 +333,7 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         init_walkers = pipe._comm.bcast(init_walkers, 0)
 
         # Analyze init_walkers and save them as p0_walkers
-        p0_walkers = pipe._get_impl_sam(emul_i, init_walkers)
+        p0_walkers = pipe._evaluate_sam_set(emul_i, init_walkers, 'analyze')
 
     # Calculate n_walkers
     n_walkers = len(p0_walkers)

@@ -44,9 +44,9 @@ from prism._emulator import Emulator
 from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
                              check_vals, convert_str_seq, delist,
                              docstring_append, docstring_copy,
-                             docstring_substitute, exec_code_anal, getCLogger,
-                             get_PRISM_File, getRLogger, move_logger, np_array,
-                             raise_error, raise_warning, start_logger)
+                             docstring_substitute, getCLogger, get_PRISM_File,
+                             getRLogger, move_logger, np_array, raise_error,
+                             raise_warning, start_logger)
 from prism._projection import Projection
 
 # All declaration
@@ -60,7 +60,6 @@ if(sys.version_info.major >= 3):
 # %% PIPELINE CLASS DEFINITION
 # TODO: Allow user to switch between emulation and modelling
 # TODO: Implement multivariate implausibilities
-# OPTIMIZE: Overlap plausible regions to remove boundary artifacts?
 # TODO: Think of a way to allow no ModelLink instance to be provided.
 # This could be done with a DummyLink, but md_var is then uncallable.
 class Pipeline(Projection, object):
@@ -165,6 +164,9 @@ class Pipeline(Projection, object):
 
         # Let everybody read in the pipeline parameters
         self._read_parameters()
+
+        # Compile pre-defined code snippets
+        self._compile_code_snippets()
 
         # Let controller load in the data
         if self._is_controller:
@@ -446,6 +448,16 @@ class Pipeline(Projection, object):
         """
 
         return(self._emulator)
+
+    @property
+    def code_objects(self):
+        """
+        dict of code objects: Collection of pre-compiled built-in code snippets
+        that are used in the :meth:`~_evaluate_sam_set` method.
+
+        """
+
+        return(self._code_objects)
 
     @property
     def criterion(self):
@@ -1832,7 +1844,6 @@ class Pipeline(Projection, object):
 
     # This function processes an externally provided real_set
     # TODO: Additionally allow for an old PRISM master file to be provided
-    # TODO: This part may be outdated due to the made data_idx changes
     @docstring_substitute(ext_set=ext_real_set_doc_s, ext_sam=ext_sam_set_doc,
                           ext_mod=ext_mod_set_doc)
     def _get_ext_real_set(self, ext_real_set):
@@ -1926,44 +1937,115 @@ class Pipeline(Projection, object):
         # If all checks are passed, return ext_sam_set and ext_mod_set
         return(ext_sam_set, ext_mod_set.T)
 
-    # This function evaluates sam_set using the default exec_code_anal
-    @docstring_substitute(emul_i=std_emul_i_doc)
-    def _get_impl_sam(self, emul_i, sam_set):
+    # This function compiles pre-defined built-in code snippets and saves them
+    def _compile_code_snippets(self):
         """
-        Analyzes a provided set of emulator evaluation samples `sam_set` at a
-        given emulator iteration `emul_i` and returns the samples that pass the
-        implausibility cut-off check.
-
-        Parameters
-        ----------
-        %(emul_i)s
-        sam_set : 2D :obj:`~numpy.ndarray` object
-            Array containing model parameter value sets to be analyzed in all
-            emulator systems in emulator iteration `emul_i`.
-
-        Returns
-        -------
-        impl_sam : 2D :obj:`~numpy.ndarray` object
-            Array containing all samples from `sam_set` that survived the
-            implausibility cut-off check.
+        Compiles all pre-defined built-in code snippets to code objects and
+        saves them to :attr:`~code_objects`. These code objects are used for
+        performing standard operations in the :meth:`~_evaluate_sam_set`
+        method.
 
         """
 
-        # Call evaluate_sam_set with correct parameters
-        return(self._evaluate_sam_set(emul_i, sam_set, *exec_code_anal))
+        # Log that code snippets are being compiled
+        logger = getCLogger('INIT')
+        logger.info("Compiling built-in code snippets.")
+
+        # Define dict of code snippet tuples
+        code_objects = {}
+
+        # ANALYZE
+        # Define the various code snippets
+        pre_code = compile("", '<string>', 'exec')
+        eval_code = compile("", '<string>', 'exec')
+        anal_code = compile("", '<string>', 'exec')
+        post_code = compile("self.results = sam_set[sam_idx]", '<string>',
+                            'exec')
+        exit_code = compile("", '<string>', 'exec')
+
+        # Combine code snippets into a tuple and add to dict
+        code_objects['analyze'] = (pre_code, eval_code, anal_code, post_code,
+                                   exit_code)
+
+        # EVALUATE
+        # Define the various code snippets
+        # We have to use lists here to account for n_data differing with emul_i
+        pre_code = compile(dedent("""
+            adj_exp_val = [[] for _ in range(n_sam)]
+            adj_var_val = [[] for _ in range(n_sam)]
+            uni_impl_val_list = [[] for _ in range(n_sam)]
+            emul_i_stop = np.zeros([n_sam])
+            """), '<string>', 'exec')
+        eval_code = compile(dedent("""
+            adj_exp_val[sam_idx[j]] = adj_val[0]
+            adj_var_val[sam_idx[j]] = adj_val[1]
+            uni_impl_val_list[sam_idx[j]] = uni_impl_vals[j]
+            """), '<string>', 'exec')
+        anal_code = compile("emul_i_stop[sam_idx[j]] = i", '<string>', 'exec')
+        post_code = compile(dedent("""
+            adj_exp_val = self._comm.gather(np_array(adj_exp_val), 0)
+            adj_var_val = self._comm.gather(np_array(adj_var_val), 0)
+            uni_impl_val_list = self._comm.gather(np_array(uni_impl_val_list),
+                                                  0)
+            """), '<string>', 'exec')
+        exit_code = compile(dedent("""
+            adj_exp_val = np.concatenate(*[adj_exp_val], axis=1)
+            adj_var_val = np.concatenate(*[adj_var_val], axis=1)
+            uni_impl_val = np.concatenate(*[uni_impl_val_list], axis=1)
+            self.results = (adj_exp_val, adj_var_val, uni_impl_val,
+                            emul_i_stop, impl_check)
+            """), '<string>', 'exec')
+
+        # Combine code snippets into a tuple and add to dict
+        code_objects['evaluate'] = (pre_code, eval_code, anal_code, post_code,
+                                    exit_code)
+
+        # HYBRID
+        # Define the various code snippets
+        pre_code = compile("lnprior = 0", '<string>', 'exec')
+        eval_code = compile("", '<string>', 'exec')
+        anal_code = compile(dedent("""
+            lnprior = (np.log(1-impl_cut_val/self._impl_cut[i][0]) if
+                       impl_check_val else -np.infty)
+            """), '<string>', 'exec')
+        post_code = compile(dedent("""
+            lnprior = self._comm.bcast(lnprior, 0)
+            self.results = (sam_set[sam_idx], lnprior)
+            """), '<string>', 'exec')
+        exit_code = compile("", '<string>', 'exec')
+
+        # Combine code snippets into a tuple and add to dict
+        code_objects['hybrid'] = (pre_code, eval_code, anal_code, post_code,
+                                  exit_code)
+
+        # PROJECT
+        # Define the various code snippets
+        pre_code = compile("impl_cut = np.zeros([n_sam])", '<string>', 'exec')
+        eval_code = compile("", '<string>', 'exec')
+        anal_code = compile("impl_cut[sam_idx[j]] = impl_cut_val", '<string>',
+                            'exec')
+        post_code = compile("", '<string>', 'exec')
+        exit_code = compile("self.results = (impl_check, impl_cut)",
+                            '<string>', 'exec')
+
+        # Combine code snippets into a tuple
+        code_objects['project'] = (pre_code, eval_code, anal_code, post_code,
+                                   exit_code)
+
+        # Save code_objects dict to memory
+        self._code_objects = code_objects
+
+        # Log again
+        logger.info("Finished compiling code snippets.")
 
     # This function evaluates given sam_set in the emulator using code snippets
-    # TODO: Determine whether using arrays or lists is faster
-    # OPTIMIZE: Reduce memory usage by limiting number of arrays required
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def _evaluate_sam_set(self, emul_i, sam_set, pre_code, eval_code,
-                          anal_code, post_code, exit_code):
+    def _evaluate_sam_set(self, emul_i, sam_set, exec_code):
         """
         Evaluates a provided set of emulator evaluation samples `sam_set` at a
         given emulator iteration `emul_i`.
-        The provided code snippets `pre_code`; `eval_code`; `anal_code`;
-        `post_code` and `exit_code` are executed using Python's :func:`~exec`
-        function at specific points during the analysis.
+        The provided tuple of code snippets `exec_code` are executed using
+        Python's :func:`~exec` function at specific points during the analysis.
 
         Parameters
         ----------
@@ -1971,6 +2053,15 @@ class Pipeline(Projection, object):
         sam_set : 2D :obj:`~numpy.ndarray` object
             Array containing model parameter value sets to be evaluated in all
             emulator systems in emulator iteration `emul_i`.
+        exec_code : {'analyze', 'evaluate', 'hybrid', 'project'} or tuple
+            Tuple of five code snippets ``(pre_code, eval_code, anal_code,
+            post_code, exit_code)`` to be executed at specific points during
+            the analysis.
+            If string, use one of the built-in tuples in :attr:`~code_objects`
+            instead.
+
+        Other parameters
+        ----------------
         pre_code : str or code object
             Code snippet to be executed before the evaluation of `sam_set`
             starts.
@@ -2009,17 +2100,26 @@ class Pipeline(Projection, object):
         logger = getCLogger('EVAL_SS')
         logger.info("Starting evaluation of sample set of size %i." % (n_sam))
 
-        # Compile any code snippets that were provided as a string
-        if isinstance(pre_code, (str, unicode)):
-            pre_code = compile(pre_code, '<string>', 'exec')
-        if isinstance(eval_code, (str, unicode)):
-            eval_code = compile(eval_code, '<string>', 'exec')
-        if isinstance(anal_code, (str, unicode)):
-            anal_code = compile(anal_code, '<string>', 'exec')
-        if isinstance(post_code, (str, unicode)):
-            post_code = compile(post_code, '<string>', 'exec')
-        if isinstance(exit_code, (str, unicode)):
-            exit_code = compile(exit_code, '<string>', 'exec')
+        # Obtain code snippets
+        if isinstance(exec_code, (str, unicode)):
+            # If string is provided, use built-in tuple of code snippets
+            pre_code, eval_code, anal_code, post_code, exit_code =\
+                self._code_objects[exec_code]
+        else:
+            # If not, use provided code snippets
+            pre_code, eval_code, anal_code, post_code, exit_code = exec_code
+
+            # Compile any code snippets that were provided as a string
+            if isinstance(pre_code, (str, unicode)):
+                pre_code = compile(pre_code, '<string>', 'exec')
+            if isinstance(eval_code, (str, unicode)):
+                eval_code = compile(eval_code, '<string>', 'exec')
+            if isinstance(anal_code, (str, unicode)):
+                anal_code = compile(anal_code, '<string>', 'exec')
+            if isinstance(post_code, (str, unicode)):
+                post_code = compile(post_code, '<string>', 'exec')
+            if isinstance(exit_code, (str, unicode)):
+                exit_code = compile(exit_code, '<string>', 'exec')
 
         # Make a filled bool list containing which samples are plausible
         impl_check = np.ones(n_sam, dtype=bool)
@@ -2052,8 +2152,7 @@ class Pipeline(Projection, object):
                 active_emul_s = self._emulator._active_emul_s[i]
 
                 # Make empty uni_impl_vals list
-#                uni_impl_vals = np.zeros([n_sam, self._emulator._n_data[i]])
-                uni_impl_vals = []
+                uni_impl_vals = np.zeros([n_sam, self._emulator._n_data[i]])
 
                 # Loop over all still plausible samples in sam_set
                 for j, par_set in enumerate(eval_sam_set):
@@ -2062,19 +2161,14 @@ class Pipeline(Projection, object):
                                                        par_set)
 
                     # Calculate univariate implausibility value
-#                    uni_impl_val[j] = self._get_uni_impl(i, active_emul_s,
-#                                                         par_set, *adj_val)
-                    uni_impl_val = self._get_uni_impl(i, active_emul_s,
-                                                      par_set, *adj_val)
-                    uni_impl_vals.append(uni_impl_val)
+                    uni_impl_vals[j] = self._get_uni_impl(i, active_emul_s,
+                                                          par_set, *adj_val)
 
                     # Execute the eval_code snippet
                     exec(eval_code)
 
                 # Gather the results on the controller after evaluating
-#                uni_impl_vals_list = self._comm.gather(uni_impl_vals, 0)
-                uni_impl_vals_list = self._comm.gather(np_array(uni_impl_vals),
-                                                       0)
+                uni_impl_vals_list = self._comm.gather(uni_impl_vals, 0)
 
                 # Controller performs implausibility analysis
                 if self._is_controller:
@@ -2133,7 +2227,6 @@ class Pipeline(Projection, object):
 
     # %% VISIBLE CLASS METHODS
     # This function analyzes the emulator and determines the plausible regions
-    # TODO: Implement check if impl_idx is big enough to be used in next emul_i
     def analyze(self):
         """
         Analyzes the emulator at the last emulator iteration for a large number
@@ -2197,7 +2290,7 @@ class Pipeline(Projection, object):
         start_time2 = time()
 
         # Analyze eval_sam_set
-        impl_sam = self._get_impl_sam(emul_i, eval_sam_set)
+        impl_sam = self._evaluate_sam_set(emul_i, eval_sam_set, 'analyze')
 
         # Controller finishing up
         if self._is_controller:
@@ -2953,38 +3046,8 @@ class Pipeline(Projection, object):
         # MPI Barrier
         self._comm.Barrier()
 
-        # Define the various code snippets
-        pre_code = compile(dedent("""
-            adj_exp_val = [[] for _ in range(n_sam)]
-            adj_var_val = [[] for _ in range(n_sam)]
-            uni_impl_val_list = [[] for _ in range(n_sam)]
-            emul_i_stop = [[] for _ in range(n_sam)]
-            """), '<string>', 'exec')
-        eval_code = compile(dedent("""
-            adj_exp_val[sam_idx[j]] = adj_val[0]
-            adj_var_val[sam_idx[j]] = adj_val[1]
-            uni_impl_val_list[sam_idx[j]] = uni_impl_val
-            """), '<string>', 'exec')
-        anal_code = compile("emul_i_stop[sam_idx[j]] = i", '<string>', 'exec')
-        post_code = compile(dedent("""
-            adj_exp_val_list = self._comm.gather(np_array(adj_exp_val), 0)
-            adj_var_val_list = self._comm.gather(np_array(adj_var_val), 0)
-            uni_impl_val_list = self._comm.gather(np_array(uni_impl_val_list),
-                                                  0)
-            """), '<string>', 'exec')
-        exit_code = compile(dedent("""
-            adj_exp_val = np.concatenate(*[adj_exp_val_list], axis=1)
-            adj_var_val = np.concatenate(*[adj_var_val_list], axis=1)
-            uni_impl_val = np.concatenate(*[uni_impl_val_list], axis=1)
-            self.results = (adj_exp_val, adj_var_val, uni_impl_val,
-                            emul_i_stop, impl_check)
-            """), '<string>', 'exec')
-
-        # Combine code snippets into a tuple
-        exec_code = (pre_code, eval_code, anal_code, post_code, exit_code)
-
         # Analyze sam_set
-        results = self._evaluate_sam_set(emul_i, sam_set, *exec_code)
+        results = self._evaluate_sam_set(emul_i, sam_set, 'evaluate')
 
         # Do more logging
         logger.info("Finished evaluating emulator.")

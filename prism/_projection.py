@@ -1075,18 +1075,6 @@ class Projection(object):
         impl_min_hcube = []
         impl_los_hcube = []
 
-        # Define the various code snippets
-        pre_code = compile("impl_cut = np.zeros([n_sam])", '<string>', 'exec')
-        eval_code = compile("", '<string>', 'exec')
-        anal_code = compile("impl_cut[sam_idx[j]] = impl_cut_val", '<string>',
-                            'exec')
-        post_code = compile("", '<string>', 'exec')
-        exit_code = compile("self.results = (impl_check, impl_cut)",
-                            '<string>', 'exec')
-
-        # Combine code snippets into a tuple
-        exec_code = (pre_code, eval_code, anal_code, post_code, exit_code)
-
         # For now, manually flatten the first two dimensions of proj_hcube
         gridsize = proj_hcube.shape[0]
         depth = proj_hcube.shape[1]
@@ -1096,7 +1084,7 @@ class Projection(object):
         start_time = time()
 
         # Analyze all samples in proj_hcube
-        results = self._evaluate_sam_set(self.__emul_i, proj_hcube, *exec_code)
+        results = self._evaluate_sam_set(self.__emul_i, proj_hcube, 'project')
 
         # Controller only
         if self._is_controller:
