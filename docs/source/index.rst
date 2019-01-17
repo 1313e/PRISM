@@ -2,9 +2,10 @@ Model dispersion with *PRISM*; an alternative to MCMC for rapid analysis of mode
 ==================================================================================
 
 This is the documentation for the *PRISM* package, an efficient and rapid alternative to MCMC methods for optimizing and analyzing scientific models.
-*PRISM* was made by **Ellert van der Velden** as part of a Ph.D under supervision of `A/Prof. Alan Duffy`_ at `Swinburne University of Technology`_.
+*PRISM* was made by **Ellert van der Velden** (`@1313e`_) as part of a Ph.D under supervision of `A/Prof. Alan Duffy`_ at `Swinburne University of Technology`_.
 It is written in pure `Python 2/3`_ and `publicly available on GitHub`_.
 
+.. _@1313e: https://github.com/1313e
 .. _A/Prof. Alan Duffy: https://www.alanrduffy.com
 .. _Swinburne University of Technology: https://www.swinburne.edu.au
 .. _Python 2/3: https://www.python.org
