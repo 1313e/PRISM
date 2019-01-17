@@ -1128,7 +1128,7 @@ def raise_error(err_msg, err_type=Exception, logger=None):
         The type of error that needs to be raised.
     logger : :obj:`~logging.Logger` object or None. Default: None
         The logger to which the error message must be written.
-        If *None*, the :obj:`~logging.root` logger is used instead.
+        If *None*, the :obj:`~logging.RootLogger` logger is used instead.
 
     """
 
@@ -1155,7 +1155,7 @@ def raise_warning(warn_msg, warn_type=UserWarning, logger=None, stacklevel=1):
         The type of warning that needs to be raised.
     logger : :obj:`~logging.Logger` object or None. Default: None
         The logger to which the warning message must be written.
-        If *None*, the :obj:`~logging.root` logger is used instead.
+        If *None*, the :obj:`~logging.RootLogger` logger is used instead.
     stacklevel : int. Default: 1
         The stack level of the warning message at the location of this function
         call. The actual used stack level is increased by one.

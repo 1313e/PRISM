@@ -45,8 +45,16 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon'
+    'sphinx.ext.napoleon',
+    'sphinx.ext.intersphinx'
 ]
+
+# Intersphinx configuration
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
+                       'numpy': ('https://docs.scipy.org/doc/numpy', None),
+                       'mpi4py': ('https://mpi4py.readthedocs.io/en/stable', None),
+                       'matplotlib': ('https://matplotlib.org', None),
+                       'h5py': ('https://h5py.readthedocs.io/en/stable', None)}
 
 # Autodoc configuration
 autodoc_default_options = {'members': None,
@@ -163,6 +171,8 @@ html_use_opensearch = 'https://prism-tool.readthedocs.io/en/latest'
 html_split_index = True
 
 html_favicon = 'py.png'
+
+html_baseurl = 'https://prism-tool.readthedocs.io/en/latest'
 
 
 # -- Options for HTMLHelp output ---------------------------------------------

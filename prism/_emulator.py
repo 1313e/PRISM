@@ -682,7 +682,7 @@ class Emulator(object):
 
         Parameters
         ----------
-        emul_s_group : :obj:`~h5py._hl.group.Group` object
+        emul_s_group : :obj:`~h5py.Group` object
             The HDF5-group from which the data point identifier needs to be
             read in.
 

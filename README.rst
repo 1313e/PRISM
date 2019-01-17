@@ -1,4 +1,4 @@
-|PyPI| |Python| |License| |Travis| |AppVeyor| |Coverage| |ReadTheDocs|
+|PyPI| |Python| |License| |Travis| |AppVeyor| |ReadTheDocs| |Coverage|
 
 Model dispersion with *PRISM*; an alternative to MCMC for rapid analysis of models
 ==================================================================================
@@ -119,9 +119,9 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 .. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/master.svg?logo=appveyor&label=AppVeyor
     :target: https://ci.appveyor.com/project/1313e/PRISM
     :alt: AppVeyor - Build Status
-.. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/master.svg?logo=codecov&logoColor=white&label=Coverage
-    :target: https://codecov.io/gh/1313e/PRISM?branch=master
-    :alt: CodeCov - Coverage Status
 .. |ReadTheDocs| image:: https://img.shields.io/readthedocs/prism-tool/latest.svg?logo=read%20the%20docs&logoColor=white&label=Docs
     :target: https://prism-tool.readthedocs.io/en/latest
     :alt: ReadTheDocs - Build Status
+.. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/master.svg?logo=codecov&logoColor=white&label=Coverage
+    :target: https://codecov.io/gh/1313e/PRISM?branch=master
+    :alt: CodeCov - Coverage Status
