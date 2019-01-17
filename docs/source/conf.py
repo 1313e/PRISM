@@ -174,6 +174,8 @@ html_favicon = 'py.png'
 
 html_baseurl = 'https://prism-tool.readthedocs.io/en/latest'
 
+html_extra_path = ['_static/google3ccf0e77d0aa4c22.html']
+
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
