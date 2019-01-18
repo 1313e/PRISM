@@ -89,7 +89,7 @@ deploy:
     skip_existing: true
     on:
         branch: master
-        condition: "$TRAVIS_OS_NAME" == "linux"
+        condition: $TRAVIS_OS_NAME == linux
     
 notifications:
   email: false
