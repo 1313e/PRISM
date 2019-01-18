@@ -1,51 +1,82 @@
 language: python
+os: linux
 dist: xenial
 sudo: true
+
 matrix:
-  include:
-    - python: 2.7
-      env: RUN_COVERAGE=0
-    - python: 3.5
-      env: RUN_COVERAGE=1
-    - python: 3.5-dev
-      env: RUN_COVERAGE=0
-    - python: 3.6
-      env: RUN_COVERAGE=0
-    - python: 3.6-dev
-      env: RUN_COVERAGE=0
-    - python: 3.7
-      env: RUN_COVERAGE=0
-    - python: 3.7-dev
-      env: RUN_COVERAGE=0
+    include:
+        - os: osx
+          language: generic
+          env: RUN_COVERAGE=0 PY=2
+          python: 2
+        - os: osx
+          language: generic
+          env: RUN_COVERAGE=0 PY=3
+          python: 3
+        - python: 2.7
+          env: RUN_COVERAGE=0
+        - python: 3.5
+          env: RUN_COVERAGE=1
+        - python: 3.5-dev
+          env: RUN_COVERAGE=0
+        - python: 3.6
+          env: RUN_COVERAGE=0
+        - python: 3.6-dev
+          env: RUN_COVERAGE=0
+        - python: 3.7
+          env: RUN_COVERAGE=0
+        - python: 3.7-dev
+          env: RUN_COVERAGE=0
+
+branches:
+    only:
+        - master
+
+before_install:
+    - |
+      if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+          sudo apt-get update -q
+      else
+          brew update
+          if [[ "$PY" == "3" ]]; then
+              brew upgrade python
+          fi
+      fi
+    - python$PY -m pip install --upgrade pip setuptools wheel
+    - python$PY -m pip install -r requirements_dev.txt
 install:
-  - pip install -r requirements_dev.txt
+    - check-manifest
+    - python$PY setup.py sdist bdist_wheel
+    - twine check dist/*
+    - python$PY -m pip install -e .
+    - python$PY -c "import prism; prism.get_info()"
 script:
-  - check-manifest
-  - python setup.py sdist bdist_wheel
-  - twine check dist/*
-  - pip install -e .
-  - python -c "import prism; prism.get_info()"
-  - |
-    if [[ "$RUN_COVERAGE" == "1" ]]; then
-      coverage run --rcfile=setup.cfg -m pytest
-    else
-      pytest
-    fi
-  - sudo apt-get install -y -q openmpi-bin libopenmpi-dev
-  - pip --no-cache install mpi4py
-  - |
-    if [[ "$RUN_COVERAGE" == "1" ]]; then
-      mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
-      coverage combine
-      coverage report -m
-    else
-      mpiexec -n 2 pytest
-    fi
+    - |
+      if [[ "$RUN_COVERAGE" == "1" ]]; then
+          coverage run --rcfile=setup.cfg -m pytest
+      else
+          pytest
+      fi
+    - |
+      if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+          sudo apt-get install -y -q openmpi-bin libopenmpi-dev
+      else
+          brew install openmpi
+      fi
+    - python$PY -m pip --no-cache install mpi4py
+    - |
+      if [[ "$RUN_COVERAGE" == "1" ]]; then
+          mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
+          coverage combine
+          coverage report -m
+      else
+          mpiexec -n 2 pytest
+      fi
 after_success:
-  - |
-    if [[ "$RUN_COVERAGE" == "1" ]]; then
-      codecov
-    fi
+    - |
+      if [[ "$RUN_COVERAGE" == "1" ]]; then
+          codecov
+      fi
 before_deploy:
     - rm -r dist
     - rm -r build
@@ -58,6 +89,7 @@ deploy:
     skip_existing: true
     on:
         branch: master
+        condition: "$TRAVIS_OS_NAME" == "linux"
     
 notifications:
   email: false
