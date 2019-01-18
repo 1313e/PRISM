@@ -38,6 +38,7 @@ before_install:
           sudo apt-get update -q
       else
           brew update
+          brew cask uninstall oclint
           if [[ "$PY" == "3" ]]; then
               brew upgrade python
           fi
