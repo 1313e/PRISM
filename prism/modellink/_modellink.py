@@ -16,14 +16,13 @@ from __future__ import absolute_import, division, print_function
 import abc
 from inspect import isclass
 from os import path
-import sys
 import warnings
 
 # Package imports
 from e13tools import InputError, ShapeError
 import numpy as np
 from numpy.random import rand
-from six import with_metaclass
+from six import string_types, with_metaclass
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
@@ -34,10 +33,6 @@ from prism._internal import (PRISM_Comm, RequestWarning, check_instance,
 
 # All declaration
 __all__ = ['ModelLink', 'test_subclass']
-
-# Python2/Python3 compatibility
-if(sys.version_info.major >= 3):
-    unicode = str
 
 
 # %% MODELLINK CLASS DEFINITION
@@ -481,7 +476,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         for i, par_idx in enumerate(par_seq):
             try:
                 # If par_idx is a string, try to use it as a parameter name
-                if isinstance(par_idx, (str, unicode)):
+                if isinstance(par_idx, string_types):
                     par_seq[i] = self._par_name.index(par_idx)
                 # If not, try to use it as a parameter index
                 else:
@@ -671,7 +666,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             pass
 
         # If a parameter file is given
-        elif isinstance(add_model_parameters, (str, unicode)):
+        elif isinstance(add_model_parameters, string_types):
             # Obtain absolute path to given file
             par_file = path.abspath(add_model_parameters)
 
@@ -802,7 +797,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             pass
 
         # If a data file is given
-        elif isinstance(add_model_data, (str, unicode)):
+        elif isinstance(add_model_data, string_types):
             # Obtain absolute path to given file
             data_file = path.abspath(add_model_data)
 
@@ -878,7 +873,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             # If length is three, there are two possibilities
             elif(len(data) == 3):
                 # If the third column contains a string, it is the data space
-                if isinstance(data[2], (str, unicode)):
+                if isinstance(data[2], string_types):
                     self._data_err.append(
                         [check_vals(data[1], 'data_err%s' % (idx), 'float')]*2)
                     spc = data[2]

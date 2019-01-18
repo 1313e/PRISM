@@ -23,7 +23,6 @@ from os import path
 from pkg_resources import get_distribution
 import platform
 import shutil
-import sys
 from tempfile import mkstemp
 from textwrap import dedent
 import warnings
@@ -38,6 +37,7 @@ try:
 except ImportError:
     import prism._dummyMPI as MPI
 import numpy as np
+from six import string_types
 
 # PRISM imports
 from prism.__version__ import compat_version, prism_version
@@ -50,10 +50,6 @@ __all__ = ['CFilter', 'CLogger', 'PRISM_Comm', 'RFilter', 'RLogger',
            'docstring_substitute', 'get_PRISM_File', 'get_info', 'getCLogger',
            'getRLogger', 'import_cmaps', 'move_logger', 'np_array',
            'raise_error', 'raise_warning', 'rprint', 'start_logger']
-
-# Python2/Python3 compatibility
-if(sys.version_info.major >= 3):
-    unicode = str
 
 # Determine MPI size and ranks
 size = MPI.COMM_WORLD.Get_size()
@@ -569,7 +565,7 @@ def check_vals(values, name, *args):
         # Check for string
         elif 'str' in args:
             # Check if str is provided and break if so
-            if issubclass(values.dtype.type, (str, np.string_, unicode)):
+            if issubclass(values.dtype.type, string_types):
                 break
             else:
                 err_msg = "Input argument %r is not of type 'str'!" % (name)
@@ -578,8 +574,7 @@ def check_vals(values, name, *args):
         # Check for float
         elif 'float' in args:
             # Check if float is provided and continue if so
-            if issubclass(values.dtype.type, (int, float, np.integer,
-                                              np.floating)):
+            if issubclass(values.dtype.type, (np.integer, np.floating)):
                 # Remove 'float' from args and check it again
                 args.remove('float')
                 values = np.asanyarray(values, dtype=float)
@@ -591,7 +586,7 @@ def check_vals(values, name, *args):
         # Check for integer
         elif 'int' in args:
             # Check if int is provided and continue if so
-            if issubclass(values.dtype.type, (int, np.integer)):
+            if issubclass(values.dtype.type, np.integer):
                 # Remove 'int' from args and check it again
                 args.remove('int')
                 continue

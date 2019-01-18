@@ -20,7 +20,6 @@ from itertools import chain, combinations
 import os
 from os import path
 from time import time
-import sys
 
 # Package imports
 from e13tools import InputError
@@ -31,6 +30,7 @@ import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import Rbf
+from six import string_types
 from tqdm import tqdm
 
 # PRISM imports
@@ -45,10 +45,6 @@ from prism._internal import (RequestError, RequestWarning, check_vals,
 
 # All declaration
 __all__ = ['Projection']
-
-# Python2/Python3 compatibility
-if(sys.version_info.major >= 3):
-    unicode = str
 
 
 # %% PROJECTION CLASS DEFINITION
@@ -836,7 +832,7 @@ class Projection(object):
         fig_prefix = path.join(self._working_dir, fig_prefix)
 
         # Obtain name of this projection hypercube
-        if isinstance(hcube, (str, unicode)):
+        if isinstance(hcube, string_types):
             hcube_name = hcube
         else:
             hcube_name = self.__get_hcube_name(hcube)

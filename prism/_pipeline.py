@@ -30,6 +30,7 @@ from e13tools.math import nCr
 from e13tools.sampling import lhd
 import numpy as np
 from numpy.random import normal, random
+from six import integer_types, string_types
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
@@ -51,10 +52,6 @@ from prism._projection import Projection
 
 # All declaration
 __all__ = ['Pipeline']
-
-# Python2/Python3 compatibility
-if(sys.version_info.major >= 3):
-    unicode = str
 
 
 # %% PIPELINE CLASS DEFINITION
@@ -598,7 +595,7 @@ class Pipeline(Projection, object):
                 exec_fn, args, kwargs = self._comm.bcast([], 0)
                 if exec_fn is None:
                     self._worker_mode = 0
-                elif isinstance(exec_fn, (str, unicode)):
+                elif isinstance(exec_fn, string_types):
                     attrs = exec_fn.split('.')
                     obj = self
                     for attr in attrs:
@@ -640,7 +637,7 @@ class Pipeline(Projection, object):
         # Execute exec_fn as well
         if exec_fn is None:
             self._worker_mode = 0
-        elif isinstance(exec_fn, (str, unicode)):
+        elif isinstance(exec_fn, string_types):
             attrs = exec_fn.split('.')
             obj = self
             for attr in attrs:
@@ -911,7 +908,7 @@ class Pipeline(Projection, object):
                             % (self._root_dir))
 
             # If one specified a root directory, use it
-            elif isinstance(root_dir, (str, unicode)):
+            elif isinstance(root_dir, string_types):
                 self._root_dir = path.abspath(root_dir)
                 logger.info("Root directory set to %r." % (self._root_dir))
 
@@ -933,7 +930,7 @@ class Pipeline(Projection, object):
                 prefix_scan = ''
                 prefix_new = 'prism_'
                 prefix_len = 0
-            elif isinstance(prefix, (str, unicode)):
+            elif isinstance(prefix, string_types):
                 prefix_scan = prefix
                 prefix_new = prefix
                 prefix_len = len(prefix)
@@ -981,7 +978,7 @@ class Pipeline(Projection, object):
                                 % (path.basename(self._working_dir)))
 
             # If one requested a new working directory
-            elif isinstance(working_dir, (int, np.integer)):
+            elif isinstance(working_dir, integer_types):
                 # Obtain list of working directories that satisfy naming scheme
                 dirnames = next(os.walk(self._root_dir))[1]
                 n_dirs = 0
@@ -1014,7 +1011,7 @@ class Pipeline(Projection, object):
                             % (path.basename(working_dir)))
 
             # If one specified a working directory, use it
-            elif isinstance(working_dir, (str, unicode)):
+            elif isinstance(working_dir, string_types):
                 self._working_dir = path.join(self._root_dir, working_dir)
                 logger.info("Working directory set to %r." % (working_dir))
 
@@ -1040,7 +1037,7 @@ class Pipeline(Projection, object):
                 self._prism_file = None
 
             # If a PRISM parameter file was provided
-            elif isinstance(prism_file, (str, unicode)):
+            elif isinstance(prism_file, string_types):
                 # Check if prism_file was given as an absolute path
                 if path.exists(prism_file):
                     self._prism_file = path.abspath(prism_file)
@@ -2101,7 +2098,7 @@ class Pipeline(Projection, object):
         logger.info("Starting evaluation of sample set of size %i." % (n_sam))
 
         # Obtain code snippets
-        if isinstance(exec_code, (str, unicode)):
+        if isinstance(exec_code, string_types):
             # If string is provided, use built-in tuple of code snippets
             pre_code, eval_code, anal_code, post_code, exit_code =\
                 self._code_objects[exec_code]
@@ -2110,15 +2107,15 @@ class Pipeline(Projection, object):
             pre_code, eval_code, anal_code, post_code, exit_code = exec_code
 
             # Compile any code snippets that were provided as a string
-            if isinstance(pre_code, (str, unicode)):
+            if isinstance(pre_code, string_types):
                 pre_code = compile(pre_code, '<string>', 'exec')
-            if isinstance(eval_code, (str, unicode)):
+            if isinstance(eval_code, string_types):
                 eval_code = compile(eval_code, '<string>', 'exec')
-            if isinstance(anal_code, (str, unicode)):
+            if isinstance(anal_code, string_types):
                 anal_code = compile(anal_code, '<string>', 'exec')
-            if isinstance(post_code, (str, unicode)):
+            if isinstance(post_code, string_types):
                 post_code = compile(post_code, '<string>', 'exec')
-            if isinstance(exit_code, (str, unicode)):
+            if isinstance(exit_code, string_types):
                 exit_code = compile(exit_code, '<string>', 'exec')
 
         # Make a filled bool list containing which samples are plausible

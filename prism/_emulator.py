@@ -20,7 +20,6 @@ import os
 from os import path
 from time import time
 from struct import calcsize
-import sys
 
 # Package imports
 from e13tools import InputError
@@ -29,6 +28,7 @@ import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
 from numpy.linalg import inv, norm
+from six import string_types
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
@@ -50,10 +50,6 @@ from prism.modellink import ModelLink
 
 # All declaration
 __all__ = ['Emulator']
-
-# Python2/Python3 compatibility
-if(sys.version_info.major >= 3):
-    unicode = str
 
 # Windows 32-bit/64-bit compatibility
 int_size = 'int64' if (calcsize('P') == 8) else 'int32'
@@ -1140,7 +1136,7 @@ class Emulator(object):
                             # Loop over all parts
                             for j, idx in enumerate(data_idx):
                                 # If part is a string, encode and save it
-                                if isinstance(idx, (str, unicode)):
+                                if isinstance(idx, string_types):
                                     data_set.attrs['data_idx_%i' % (j)] =\
                                         idx.encode('ascii', 'ignore')
                                 # Else, save it normally
@@ -1150,7 +1146,7 @@ class Emulator(object):
                         # If data_idx contains a single part, save it
                         else:
                             # If part is a string, encode and save it
-                            if isinstance(data_idx, (str, unicode)):
+                            if isinstance(data_idx, string_types):
                                 data_set.attrs['data_idx'] =\
                                     data_idx.encode('ascii', 'ignore')
                             # Else, save it normally

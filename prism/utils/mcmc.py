@@ -15,13 +15,13 @@ from __future__ import absolute_import, division, print_function
 
 # Built-in imports
 from inspect import isfunction
-import sys
 import warnings
 
 # Package imports
 from e13tools import InputError
 from e13tools.sampling import lhd
 import numpy as np
+from six import integer_types
 
 # PRISM imports
 from prism._docstrings import user_emul_i_doc
@@ -31,10 +31,6 @@ from prism._pipeline import Pipeline
 
 # All declaration
 __all__ = ['get_lnpost_fn', 'get_walkers']
-
-# Python2/Python3 compatibility
-if(sys.version_info.major >= 3):
-    unicode = str
 
 
 # %% FUNCTION DEFINITIONS
@@ -307,7 +303,7 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         # Controller checking if init_walkers is valid
         if pipe._is_controller:
             # If init_walkers is an int, create LHD of provided size
-            if isinstance(init_walkers, (int, np.integer)):
+            if isinstance(init_walkers, integer_types):
                 # Check if provided integer is positive
                 n_sam = check_vals(init_walkers, 'init_walkers', 'pos')
 
