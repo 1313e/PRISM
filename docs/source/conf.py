@@ -145,7 +145,7 @@ html_theme_options = {
 }
 
 # Title formatting
-html_title = "%s v%s documentation" % (project, release)
+html_title = "%s documentation" % (project, release)
 
 # Date formatting
 html_last_updated_fmt = '%a %d %b %Y'
