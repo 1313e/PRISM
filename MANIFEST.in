@@ -10,6 +10,5 @@ recursive-exclude joss_paper *
 recursive-exclude prism_trash *
 recursive-exclude .github *
 exclude *.yml
-exclude appveyor.cmd
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
