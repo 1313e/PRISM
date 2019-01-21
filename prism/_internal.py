@@ -23,6 +23,7 @@ from os import path
 from pkg_resources import get_distribution
 import platform
 import shutil
+from struct import calcsize
 from tempfile import mkstemp
 from textwrap import dedent
 import warnings
@@ -831,7 +832,8 @@ def get_info():
         -------------------------------"""))
 
     # Add platform to info_list
-    info_list.append("Platform: %s" % (platform.system()))
+    info_list.append("Platform: %s %i-bit"
+                     % (platform.system(), calcsize('P')*8))
 
     # Add python version to info_list
     info_list.append("Python: %s" % (platform.python_version()))
