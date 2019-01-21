@@ -23,5 +23,6 @@ Below are some bigger ideas/improvements that may be added to *PRISM* if there i
     - If :attr:`~prism.modellink.ModelLink.MPI_call` is :pycode:`False` for the :class:`~prism.modellink.ModelLink` subclass, use all MPI ranks to evaluate a part of :pycode:`sam_set` in the model simultaneously.
       This will require a check or flag that the model can be called in multiple instances simultaneously (to accommodate for models that, for example, need to read files during evaluations).
       Added benefit of this is that it would become possible to add the option for the user to set a preferred number of MPI processes calling the model (in MPI), allowing *PRISM* to split up the available processes if more efficient;
-    - GPU acceleration.
+    - GPU acceleration;
+    - Adding the theory behind *PRISM* to the docs.
 

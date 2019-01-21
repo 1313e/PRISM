@@ -32,7 +32,7 @@ We commonly employ Markov chain Monte Carlo (MCMC) methods and Bayesian statisti
 However, as these methods are meant to be used for making approximations of the posterior probability distribution function, we think there is a more efficient way of analyzing them.
 
 We have built *PRISM*, a publicly available _Probabilistic Regression Instrument for Simulating Models_ for Python 2/3.
-*PRISM* uses the Bayes linear approach [@BLA], emulation technique [@Craig96, @Craig97] and history matching [@Raftery95, @Craig96, @Craig97] to construct an approximation (`emulator') of any given model, by combining limited model evaluations with advanced regression techniques, covariances and probability calculations.
+*PRISM* uses the Bayes linear approach [@BLA], emulation technique [@Craig96, @Craig97] and history matching [@Raftery95, @Craig96, @Craig97] to construct an approximation ('emulator') of any given model, by combining limited model evaluations with advanced regression techniques, covariances and probability calculations.
 It is designed to easily facilitate and enhance existing MCMC methods by restricting plausible regions and exploring parameter space more efficiently.
 However, *PRISM* can additionally be used as a standalone alternative to MCMC for model analysis, providing insight into the behavior of complex scientific models.
 These techniques have been used successfully in the past [@Bower10, @Vernon10, @Vernon18] to speed up model analyses, but their algorithms are typically written for a specific application and are not publicly available.
@@ -40,7 +40,7 @@ With *PRISM*, the time spent on evaluating a model is minimized, providing devel
 
 The API for *PRISM* was designed to work well for both simple and advanced projects, with every class being written as a base class, but also almost every user-method solely taking optional arguments.
 This allows for the user to quickly get started with *PRISM*, while still being able to make adjustments to various routines with minimal effort.
-Its ``Pipeline`` class features a user-friendly environment that connects all of *PRISM*'s methods together, whereas the ``ModelLink`` abstract base class helps users wrapping (`linking') their model to *PRISM*.
+Its ``Pipeline`` class features a user-friendly environment that connects all of *PRISM*'s methods together, whereas the ``ModelLink`` abstract base class helps users wrapping ('linking') their model to *PRISM*.
 *PRISM* relies heavily on popular existing Python packages for its expensive computations, like ``NumPy`` [@NumPy], ``Scikit-learn`` [@Sklearn] and ``Mlxtend`` [@Mlxtend], making it more robust and future-proof.
 
 Test applications of *PRISM* (see accompanying AAS submission) show that *PRISM* can provide a qualitative parameter estimation over $15$ times faster than stand-alone MCMC methods, while also being able to give insight into the model's behavior (which MCMC cannot provide).
