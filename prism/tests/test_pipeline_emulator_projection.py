@@ -50,7 +50,6 @@ model_parameters_3D = path.join(dirpath, 'data/parameters_gaussian_3D.txt')
 
 
 # %% CUSTOM CLASSES
-# TODO: See if it is possible to run some methods in parallel
 # Custom invalid Emulator class
 class InvalidEmulator(Emulator):
     _emul_type = 'invalid'
@@ -403,7 +402,7 @@ class Test_Pipeline_Init_Exceptions(object):
     # Create a Pipeline object using an invalid string for criterion
     def test_nnormal_criterion(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_invalid_str_criterion.txt')
-        with pytest.raises(Exception):
+        with pytest.raises(InputError):
             Pipeline(model_link, *root_working_dir,
                      prism_file=prism_file)
 

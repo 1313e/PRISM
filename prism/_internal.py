@@ -20,7 +20,6 @@ import logging
 import logging.config
 import os
 from os import path
-from pkg_resources import get_distribution
 import platform
 import shutil
 from struct import calcsize
@@ -33,14 +32,15 @@ from e13tools import InputError, compare_versions
 import h5py
 from matplotlib.cm import register_cmap
 from matplotlib.colors import LinearSegmentedColormap as LSC
+import numpy as np
+from pkg_resources import get_distribution
+from six import string_types
+
+# PRISM imports
 try:
     from mpi4py import MPI
 except ImportError:
     import prism._dummyMPI as MPI
-import numpy as np
-from six import string_types
-
-# PRISM imports
 from prism.__version__ import compat_version, prism_version
 
 # All declaration
@@ -66,8 +66,9 @@ class CFilter(logging.Filter):
 
     """
 
-    def __init__(self, rank):
-        self.is_controller = 1 if not rank else 0
+    def __init__(self, MPI_rank):
+        self.is_controller = 1 if not MPI_rank else 0
+        super(CFilter, self).__init__('CFilter')
 
     def filter(self, record):
         return(self.is_controller)
@@ -276,8 +277,9 @@ class RFilter(logging.Filter):
 
     """
 
-    def __init__(self, rank):
-        self.prefix = "Rank %i:" % (rank)
+    def __init__(self, MPI_rank):
+        self.prefix = "Rank %i:" % (MPI_rank)
+        super(RFilter, self).__init__('RFilter')
 
     def filter(self, record):
         record.msg = " ".join([self.prefix, record.msg])
@@ -956,7 +958,7 @@ def get_PRISM_File(prism_hdf5_file):
             super(PRISM_File, self).__init__(filename, mode, **hdf5_kwargs)
 
         # Override __exit__() to include logging
-        def __exit__(self, *args, **kwargs):
+        def __exit__(self, *args):
             # Log that an HDF5-file will be closed
             if self.emul_s is None:
                 logger = getCLogger('M-HDF5')
@@ -966,7 +968,7 @@ def get_PRISM_File(prism_hdf5_file):
                 logger.info("Closing system HDF5-file %i." % (self.emul_s))
 
             # Inheriting File __exit__()
-            super(PRISM_File, self).__exit__(*args, **kwargs)
+            super(PRISM_File, self).__exit__(*args)
 
     # Return PRISM_File class definition
     return(PRISM_File)

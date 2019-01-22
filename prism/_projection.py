@@ -25,7 +25,7 @@ from time import time
 from e13tools import InputError
 from e13tools.pyplot import draw_textline
 from e13tools.sampling import lhd
-import matplotlib.cm as cm
+from matplotlib import cm
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import numpy as np

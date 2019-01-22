@@ -192,16 +192,11 @@ class Pipeline(Projection, object):
 
         """
 
-        # Try to do one cycle
-        try:
-            # Perform construction
-            self.construct(emul_i, force=force)
+        # Perform construction
+        self.construct(emul_i, force=force)
 
-            # Perform projection
-            self.project()
-        # Raise any error that occurs
-        except Exception:
-            raise
+        # Perform projection
+        self.project()
 
     # Define the representation of a Pipeline object
     # TODO: Find out if there is a way to represent an MPI intra-communicator
@@ -819,8 +814,10 @@ class Pipeline(Projection, object):
             # Try to use criterion to check validity
             try:
                 lhd(3, 2, criterion=criterion)
-            except Exception:
-                raise
+            except Exception as error:
+                err_msg = ("Input argument 'criterion' is invalid! (%s)"
+                           % (error))
+                raise_error(err_msg, InputError, logger)
             else:
                 self._criterion = criterion
 
@@ -964,7 +961,7 @@ class Pipeline(Projection, object):
                 emul_dirs.sort(key=lambda x: x[1], reverse=True)
 
                 # If no working directory exists, create a new one
-                if(len(emul_dirs) == 0):
+                if not len(emul_dirs):
                     working_dir = ''.join([prefix_new, '0'])
                     self._working_dir = path.join(self._root_dir, working_dir)
                     os.mkdir(self._working_dir)
@@ -1190,8 +1187,9 @@ class Pipeline(Projection, object):
         self._impl_cut = [[]]
         self._cut_idx = [[]]
         self._n_eval_sam = [[]]
+        self._impl_sam = []
 
-        # If an emulator system currently exists, load in all data
+        # If an emulator currently exists, load in all data
         if self._emulator._emul_i:
             # Open hdf5-file
             with self._File('r', None) as file:
@@ -1437,13 +1435,16 @@ class Pipeline(Projection, object):
 
                 # Save which data parts have already been sent
                 s_idx += n_data
-            else:
-                # If workers received their data, save controller data
-                self._emulator._save_data(emul_i, None, {
-                    'mod_real_set': {
-                        'sam_set': sam_set,
-                        'mod_set': mod_set[0:data_idx_len[0]],
-                        'use_ext_real_set': use_ext_real_set}})
+
+            # MPI Barrier to make sure that workers have saved their data
+            self._comm.Barrier()
+
+            # Save controller data
+            self._emulator._save_data(emul_i, None, {
+                'mod_real_set': {
+                    'sam_set': sam_set,
+                    'mod_set': mod_set[0:data_idx_len[0]],
+                    'use_ext_real_set': use_ext_real_set}})
 
         # Workers waiting for controller to send them their data values
         else:
@@ -1455,6 +1456,9 @@ class Pipeline(Projection, object):
                     'mod_real_set': {
                         'sam_set': sam_set,
                         'mod_set': mod_set[i]}})
+
+            # MPI Barrier to let controller know data was saved
+            self._comm.Barrier()
 
         # Controller finishing up
         if self._is_controller:
@@ -1654,8 +1658,8 @@ class Pipeline(Projection, object):
             md_var = []
 
             # Loop over all data points and check their values spaces
-            for data_val, data_spc in\
-                zip(delist(self._emulator._data_val[emul_i]),
+            for data_val, data_spc in zip(
+                    delist(self._emulator._data_val[emul_i]),
                     delist(self._emulator._data_spc[emul_i])):
                 # If value space is linear, take 1/6th of the data value
                 if(data_spc == 'lin'):
@@ -2258,11 +2262,11 @@ class Pipeline(Projection, object):
             else:
                 # If it has been evaluated, reanalysis is not possible
                 if 'mod_real_set' not in self._emulator._ccheck[emul_i+1]:
-                        err_msg = ("Construction of next emulator iteration "
-                                   "(%i) has already been started. Reanalysis "
-                                   "of the current iteration is not possible."
-                                   % (emul_i+1))
-                        raise_error(err_msg, RequestError, logger)
+                    err_msg = ("Construction of next emulator iteration (%i) "
+                               "has already been started. Reanalysis of the "
+                               "current iteration is not possible."
+                               % (emul_i+1))
+                    raise_error(err_msg, RequestError, logger)
 
         # Controller obtaining the emulator evaluation sample set
         if self._is_controller:

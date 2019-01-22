@@ -600,7 +600,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         # Check if all samples are within parameter space
         for i, par_set in enumerate(self._to_unit_space(sam_set)):
             # If not, raise an error
-            if not ((0 <= par_set)*(par_set <= 1)).all():
+            if not ((par_set >= 0)*(par_set <= 1)).all():
                 err_msg = ("Input argument %r contains a sample outside of "
                            "parameter space at index %i!" % (name, i))
                 raise_error(err_msg, ValueError, logger)
@@ -1098,10 +1098,6 @@ def test_subclass(subclass, *args, **kwargs):
                                   "user-written 'call_model()'-method!"
                                   % (modellink_obj._name))
 
-    # Raise any other exception normally
-    except Exception:
-        raise
-
     # If successful, check if obtained mod_set has correct shape
     if not comm._rank:
         mod_set = modellink_obj._check_mod_set(mod_set, 'mod_set')
@@ -1120,10 +1116,6 @@ def test_subclass(subclass, *args, **kwargs):
                     "description would be used instead!"
                     % (modellink_obj._name))
         warnings.warn(warn_msg, RequestWarning, stacklevel=2)
-
-    # Raise any other exception normally
-    except Exception:
-        raise
 
     # If successful, check if obtained md_var has correct shape
     else:

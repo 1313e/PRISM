@@ -52,7 +52,7 @@ from prism.modellink import ModelLink
 __all__ = ['Emulator']
 
 # Windows 32-bit/64-bit compatibility
-int_size = 'int64' if (calcsize('P') == 8) else 'int32'
+int_size = 'int%i' % (calcsize('P')*8)
 
 
 # %% EMULATOR CLASS DEFINITION
@@ -809,8 +809,8 @@ class Emulator(object):
             for i in range(1, emul_i):
                 # Obtain the active emulator systems for this iteration
                 active_emul_s_list.append(
-                        [int(key[5:]) for key in file['%i' % (i)].keys() if
-                         key[:5] == 'emul_'])
+                    [int(key[5:]) for key in file['%i' % (i)].keys() if
+                     key[:5] == 'emul_'])
 
             # Loop over all active emulator systems in the last iteration
             for emul_s in active_emul_s_list[-1]:
@@ -962,7 +962,7 @@ class Emulator(object):
             while(sum(iter_core_cntr) != size):
                 # Determine cores that have minimum number of assignments
                 min_cores = [j for j, num in enumerate(iter_core_cntr) if(
-                            num == min_count)]
+                    num == min_count)]
 
                 # If no core has this minimum size, increase it by 1
                 if(len(min_cores) == 0):
@@ -1498,7 +1498,7 @@ class Emulator(object):
         for emul_s in emul_s_seq:
             # Extract active_sam_set
             active_sam_set = self._sam_set[emul_i][
-                    :, self._active_par_data[emul_i][emul_s]]
+                :, self._active_par_data[emul_i][emul_s]]
 
             # Perform regression for this emulator system
             pipe.fit(active_sam_set, self._mod_set[emul_i][emul_s])
@@ -1516,7 +1516,7 @@ class Emulator(object):
 
             # Log the score of the regression process
             regr_score = pipe.named_steps['linear'].score(
-                    sam_set_poly, self._mod_set[emul_i][emul_s])
+                sam_set_poly, self._mod_set[emul_i][emul_s])
             logger.info("Regression score for emulator system %i: %f."
                         % (self._emul_s[emul_s], regr_score))
 
@@ -1630,8 +1630,8 @@ class Emulator(object):
                 prior_exp += 0
             if self._method.lower() in ('regression', 'full'):
                 for i, emul_s in enumerate(emul_s_seq):
-                    poly_terms = np.product(pow(par_set[
-                        self._active_par_data[emul_i][emul_s]],
+                    poly_terms = np.product(pow(
+                        par_set[self._active_par_data[emul_i][emul_s]],
                         self._poly_powers[emul_i][emul_s]), axis=-1)
                     prior_exp[i] += np.sum(
                         self._poly_coef[emul_i][emul_s]*poly_terms, axis=-1)
@@ -1853,8 +1853,8 @@ class Emulator(object):
 
                 # Obtain the polynomial terms for both parameter sets
                 poly_terms1 =\
-                    np.product(pow(par_set1[
-                        self._active_par_data[emul_i][emul_s]],
+                    np.product(pow(
+                        par_set1[self._active_par_data[emul_i][emul_s]],
                         self._poly_powers[emul_i][emul_s]), axis=-1)
                 poly_terms2 = pf_obj.fit_transform(
                     self._sam_set[emul_i][
@@ -1877,12 +1877,12 @@ class Emulator(object):
             for i, emul_s in enumerate(emul_s_seq):
                 # Obtain the polynomial terms for both parameter sets
                 poly_terms1 =\
-                    np.product(pow(par_set1[
-                        self._active_par_data[emul_i][emul_s]],
+                    np.product(pow(
+                        par_set1[self._active_par_data[emul_i][emul_s]],
                         self._poly_powers[emul_i][emul_s]), axis=-1)
                 poly_terms2 =\
-                    np.product(pow(par_set2[
-                        self._active_par_data[emul_i][emul_s]],
+                    np.product(pow(
+                        par_set2[self._active_par_data[emul_i][emul_s]],
                         self._poly_powers[emul_i][emul_s]), axis=-1)
 
                 # Obtain the combined product polynomial terms
@@ -2264,7 +2264,7 @@ class Emulator(object):
                 if self._is_controller:
                     try:
                         par_i = [self._modellink._par_name.index(par.decode(
-                                'utf-8')) for par in group.attrs['active_par']]
+                            'utf-8')) for par in group.attrs['active_par']]
                         self._active_par.append(np_array(par_i))
                     except KeyError:
                         self._active_par.append([])
@@ -2330,7 +2330,7 @@ class Emulator(object):
                     try:
                         par_i = [self._modellink._par_name.index(
                             par.decode('utf-8')) for par in
-                            data_set.attrs['active_par_data']]
+                                 data_set.attrs['active_par_data']]
                         active_par_data.append(np_array(par_i))
                     except KeyError:
                         active_par_data.append([])

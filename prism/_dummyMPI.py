@@ -16,10 +16,10 @@ from __future__ import absolute_import, division, print_function
 
 # Built-in imports
 from copy import copy
-import sys
 
 # Package imports
 import numpy as np
+from six import string_types
 
 # All declaration
 __all__ = ['COMM_SELF', 'COMM_WORLD', 'Comm', 'Datatype', 'Intracomm', 'AINT',
@@ -43,10 +43,6 @@ __all__ = ['COMM_SELF', 'COMM_WORLD', 'Comm', 'Datatype', 'Intracomm', 'AINT',
            'UNSIGNED_CHAR', 'UNSIGNED_INT', 'UNSIGNED_LONG',
            'UNSIGNED_LONG_LONG', 'UNSIGNED_SHORT', 'WCHAR']
 
-# Python2/Python3 compatibility
-if(sys.version_info.major >= 3):
-    unicode = str
-
 
 # %% COMM CLASS DEFINITION
 # Make dummy Comm class
@@ -69,7 +65,7 @@ class Comm(object):
 
     @name.setter
     def name(self, name):
-        if isinstance(name, (str, np.string_, unicode)):
+        if isinstance(name, string_types):
             self._name = name
         else:
             raise TypeError("Input argument 'name' is not of type 'str'!")
