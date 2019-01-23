@@ -175,22 +175,6 @@ class Test_Pipeline_Gaussian2D(object):
     def test_analyze(self, pipe):
         pipe.analyze()
 
-    # Check if first iteration can be evaluated for a single parameter set
-    def test_evaluate_1D(self, pipe):
-        pipe.evaluate([2.5, 2])
-
-    # Check if first iteration can be evaluated with a single parameter dict
-    def test_evaluate_dict_1D(self, pipe):
-        pipe.evaluate({'A': 2.5, 'B': 2})
-
-    # Check if first iteration can be evaluated for more than one parameter set
-    def test_evaluate_nD(self, pipe):
-        pipe.evaluate([[2.5, 2]])
-
-    # Check if first iteration can be evaluated for more than one par_dict
-    def test_evaluate_dict_nD(self, pipe):
-        pipe.evaluate({'A': [2.5], 'B': [2]})
-
     # Check if first iteration can be reprojected (forced)
     def test_reproject_forced(self, pipe):
         with pytest_mpl.plugin.switch_backend('Agg'):
@@ -234,6 +218,22 @@ class Test_Pipeline_Gaussian2D(object):
     # Check if second iteration can be reconstructed
     def test_reconstruct_iteration2(self, pipe):
         pipe.construct(2, 0, None, 1)
+
+    # Check if first iteration can be evaluated for a single parameter set
+    def test_evaluate_1D(self, pipe):
+        pipe.evaluate(pipe._emulator._sam_set[2][0], 1)
+
+    # Check if first iteration can be evaluated with a single parameter dict
+    def test_evaluate_dict_1D(self, pipe):
+        pipe.evaluate({'A': 2.5, 'B': 2}, 1)
+
+    # Check if first iteration can be evaluated for more than one parameter set
+    def test_evaluate_nD(self, pipe):
+        pipe.evaluate(pipe._emulator._sam_set[2], 1)
+
+    # Check if first iteration can be evaluated for more than one par_dict
+    def test_evaluate_dict_nD(self, pipe):
+        pipe.evaluate({'A': [2.5], 'B': [2]}, 1)
 
     # Check if representation can be called
     def test_repr2(self, pipe):

@@ -206,7 +206,7 @@ class Projection(object):
         start_time2 = time()
 
         # Loop over all requested projection hypercubes
-        if self._is_controller:
+        if self._is_controller and self._do_logging:
             hcubes_bar = tqdm(self.__hcubes, desc="Creating projections",
                               unit='hcube', dynamic_ncols=True)
         else:
@@ -220,7 +220,7 @@ class Projection(object):
             hcube_name = self.__get_hcube_name(hcube)
 
             # ANALYZE PROJECTION HYPERCUBE
-            # Analyze projection hypercube containing all samples if required
+            # Create and analyze projection hypercube if required
             if hcube in self.__create_hcubes:
                 # Log that projection data is being created
                 logger.info("Calculating projection data %r." % (hcube_name))
@@ -312,6 +312,9 @@ class Projection(object):
         # Obtain name of this projection hypercube
         hcube_name = self.__get_hcube_name(hcube)
 
+        # Make abbreviation for first implausibility cut-off value
+        impl_cut = self._impl_cut[self.__emul_i][0]
+
         # Start logger
         logger = getCLogger('PROJECTION')
         logger.info("Calculating projection figure %r." % (hcube_name))
@@ -343,12 +346,22 @@ class Projection(object):
         y_min = f_min(x)
         y_los = f_los(x)
 
+        # Check for every interpolated grid point if the corresponding y_los is
+        # non-zero due to interpolation artifacts
+        for i, xi in enumerate(x):
+            # Obtain the 1D indices of the two corner projected grid points
+            corner_1D = [
+                max(x_proj.searchsorted(xi)-1, 0),
+                min(x_proj.searchsorted(xi, side='right'), proj_res-1)]
+
+            # If both corner points are zero, a point in between should be zero
+            if not (impl_los[corner_1D] > 0).any():
+                y_los[i] = 0
+
         # Check if y_min is requested to be smoothed
         if self.__smooth:
             # Loop over all grid points
-            for i, (min_i, los_i) in enumerate(zip(y_min, y_los)):
-                if(min_i < self._impl_cut[self.__emul_i][0] and los_i <= 0):
-                    y_min[i] = self._impl_cut[self.__emul_i][0]
+            y_min[y_los <= 0] = impl_cut
 
         # Create figure object if the figure is requested
         if self.__figure:
@@ -380,14 +393,13 @@ class Projection(object):
 
             # Plot minimum implausibility
             ax0.plot(x, y_min, **self.__impl_kwargs_2D)
-            draw_y = self._impl_cut[self.__emul_i][0]
             ax0.axis([self._modellink._par_rng[par, 0],
                       self._modellink._par_rng[par, 1],
-                      0, 1.5*draw_y])
+                      0, 1.5*impl_cut])
             if self._modellink._par_est[par] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
                               line_kwargs=self.__line_kwargs)
-            draw_textline(r"", y=draw_y, ax=ax0, line_kwargs={'color': 'r'})
+            draw_textline(r"", y=impl_cut, ax=ax0, line_kwargs={'color': 'r'})
             ax0.set_ylabel("Min. Implausibility", fontsize='large')
 
             # Plot line-of-sight depth
@@ -436,6 +448,9 @@ class Projection(object):
         # Obtain name of this projection hypercube
         hcube_name = self.__get_hcube_name(hcube)
 
+        # Make abbreviation for first implausibility cut-off value
+        impl_cut = self._impl_cut[self.__emul_i][0]
+
         # Start logger
         logger = getCLogger('PROJECTION')
         logger.info("Calculating projection figure %r." % (hcube_name))
@@ -453,15 +468,13 @@ class Projection(object):
                              self._modellink._par_rng[par1, 1], proj_res)
         y_proj = np.linspace(self._modellink._par_rng[par2, 0],
                              self._modellink._par_rng[par2, 1], proj_res)
-        X_proj, Y_proj = np.meshgrid(x_proj, y_proj)
-        x_proj = X_proj.ravel()
-        y_proj = Y_proj.ravel()
+        X_proj, Y_proj = np.meshgrid(x_proj, y_proj, indexing='ij')
 
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # grid point
-        f_min = Rbf(x_proj, y_proj, impl_min)
-        f_los = Rbf(x_proj, y_proj, impl_los)
+        f_min = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_min)
+        f_los = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_los)
 
         # Set the size of the hexbin grid
         gridsize = max(10*self.__fig_kwargs['dpi'], proj_res)
@@ -471,7 +484,7 @@ class Projection(object):
                         self._modellink._par_rng[par1, 1], gridsize)
         y = np.linspace(self._modellink._par_rng[par2, 0],
                         self._modellink._par_rng[par2, 1], gridsize)
-        X, Y = np.meshgrid(x, y)
+        X, Y = np.meshgrid(x, y, indexing='ij')
 
         # Calculate impl_min and impl_los for X, Y
         Z_min = np.zeros([gridsize, gridsize])
@@ -486,18 +499,36 @@ class Projection(object):
         z_min = Z_min.ravel()
         z_los = Z_los.ravel()
 
+        # Check for every interpolated grid point if the corresponding z_los is
+        # non-zero due to interpolation artifacts
+        for i, (xi, yi) in enumerate(zip(x, y)):
+            # Obtain the 2D indices of the four corner projected grid points
+            corner_2D = [
+                [max(x_proj.searchsorted(xi)-1, 0),
+                 min(x_proj.searchsorted(xi, side='right'), proj_res-1),
+                 max(x_proj.searchsorted(xi)-1, 0),
+                 min(x_proj.searchsorted(xi, side='right'), proj_res-1)],
+                [max(y_proj.searchsorted(yi)-1, 0),
+                 min(y_proj.searchsorted(yi, side='right'), proj_res-1),
+                 min(y_proj.searchsorted(yi, side='right'), proj_res-1),
+                 max(y_proj.searchsorted(yi)-1, 0)]]
+
+            # Convert 2D indices to 1D indices
+            corner_1D = np.ravel_multi_index(corner_2D, [proj_res, proj_res])
+
+            # If all corner points are zero, a point in between should be zero
+            if not (impl_los[corner_1D] > 0).any():
+                z_los[i] = 0
+
         # Check if z_min is requested to be smoothed
         if self.__smooth:
             # Calculate the highest z_los that corresponds to 0 in color
             # Matplotlib uses 256 segments in every colormap
             # Therefore, max(z_los)/256 gives the color for 0
-            min_los = np.max(z_los)/256
+            min_los = min(1, np.max(z_los))/256
 
             # Loop over all grid points
-            for i, (min_i, los_i) in enumerate(zip(z_min, z_los)):
-                if(min_i < self._impl_cut[self.__emul_i][0] and
-                   los_i <= min_los):
-                    z_min[i] = self._impl_cut[self.__emul_i][0]
+            z_min[z_los <= min_los] = impl_cut
 
         # Create figure object if the figure is requested
         if self.__figure:
@@ -529,8 +560,7 @@ class Projection(object):
                        fontsize='xx-large')
 
             # Plot minimum implausibility
-            vmax = self._impl_cut[self.__emul_i][0]
-            fig1 = ax0.hexbin(x, y, z_min, gridsize, vmin=0, vmax=vmax,
+            fig1 = ax0.hexbin(x, y, z_min, gridsize, vmin=0, vmax=impl_cut,
                               **self.__impl_kwargs_3D)
             if self._modellink._par_est[par1] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par1], ax=ax0,
@@ -937,8 +967,8 @@ class Projection(object):
     def __get_proj_hcube(self, hcube):
         """
         Generates a projection hypercube `hcube` containing emulator evaluation
-        samples The output of this function depends on the number of model
-        parameters.
+        samples The output of this function depends on the requested projection
+        type.
 
         Parameters
         ----------
@@ -948,6 +978,8 @@ class Projection(object):
         -------
         proj_hcube : 3D :obj:`~numpy.ndarray` object
             3D projection hypercube of emulator evaluation samples.
+            For 3D projections, the grid uses matrix indexing (second parameter
+            varies the fastest).
 
         """
 
@@ -1022,8 +1054,8 @@ class Projection(object):
             # Fill every cell in the projection hypercube accordingly
             for i in range(self.__res):
                 for j in range(self.__res):
-                    proj_hcube[i*self.__res+j, :, par1] = proj_sam_set1[j]
-                    proj_hcube[i*self.__res+j, :, par2] = proj_sam_set2[i]
+                    proj_hcube[i*self.__res+j, :, par1] = proj_sam_set1[i]
+                    proj_hcube[i*self.__res+j, :, par2] = proj_sam_set2[j]
                     proj_hcube[i*self.__res+j, :, par_hid] = hidden_sam_set.T
 
         # Workers get dummy proj_hcube

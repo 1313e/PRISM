@@ -344,6 +344,7 @@ class Pipeline(Projection, object):
         """
         bool: Whether or not to save all logging messages. If *False*, all
         logging messages of level :attr:`~logging.INFO` and below are ignored.
+        It also enables/disables the progress bar for making projections.
 
         """
 
@@ -1557,8 +1558,6 @@ class Pipeline(Projection, object):
 
     # This function calculates the univariate implausibility values
     # This is function 'I²(x)'
-    # TODO: Introduce check if emulator variance is much lower than other two
-    # TODO: Alternatively, remove covariance calculations when this happens
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
     def _get_uni_impl(self, emul_i, emul_s_seq, par_set, adj_exp_val,
                       adj_var_val):

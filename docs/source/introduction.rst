@@ -20,7 +20,7 @@ Why use PRISM?
 - Written in pure Python 2/3, for versatility;
 - Stores results in `HDF5-files`_, allowing for easy user-access;
 - Can be executed in serial or MPI, on any number of processes;
-- Compatible with Windows, MacOS and Unix-based machines;
+- Compatible with Windows, Mac OS and Unix-based machines;
 - Accepts any type of model and comparison data;
 - Built as a plug-and-play tool: all main classes can also be used as base classes;
 - Easily linked to any model by writing a single custom ModelLink subclass;
