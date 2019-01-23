@@ -17,7 +17,7 @@ With *PRISM*, the time spent on evaluating a model is minimized, providing devel
 
 Why use PRISM?
 --------------
-- Written in pure Python 2/3, for versatility;
+- Written in pure Python 3, for versatility;
 - Stores results in `HDF5-files`_, allowing for easy user-access;
 - Can be executed in serial or MPI, on any number of processes;
 - Compatible with Windows, Mac OS and Unix-based machines;

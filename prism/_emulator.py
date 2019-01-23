@@ -10,10 +10,6 @@ package, the :class:`~Emulator` class.
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import (absolute_import, division, print_function,
-                        with_statement)
-
 # Built-in imports
 from collections import Counter
 import os
@@ -28,7 +24,6 @@ import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
 from numpy.linalg import inv, norm
-from six import string_types
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
@@ -794,10 +789,7 @@ class Emulator(object):
         emul_s_counter = Counter()
 
         # Calculate the total number of active and passive emulator systems
-        if self._n_emul_s_tot:
-            n_emul_s = max(self._modellink._n_data, self._n_emul_s_tot)
-        else:
-            n_emul_s = self._modellink._n_data
+        n_emul_s = max(self._modellink._n_data, self._n_emul_s_tot)
 
         # Create some empty lists
         active_emul_s_list = [[]]
@@ -1136,7 +1128,7 @@ class Emulator(object):
                             # Loop over all parts
                             for j, idx in enumerate(data_idx):
                                 # If part is a string, encode and save it
-                                if isinstance(idx, string_types):
+                                if isinstance(idx, str):
                                     data_set.attrs['data_idx_%i' % (j)] =\
                                         idx.encode('ascii', 'ignore')
                                 # Else, save it normally
@@ -1146,7 +1138,7 @@ class Emulator(object):
                         # If data_idx contains a single part, save it
                         else:
                             # If part is a string, encode and save it
-                            if isinstance(data_idx, string_types):
+                            if isinstance(data_idx, str):
                                 data_set.attrs['data_idx'] =\
                                     data_idx.encode('ascii', 'ignore')
                             # Else, save it normally
@@ -2205,9 +2197,6 @@ class Emulator(object):
             # Controller saving which systems have been assigned to which rank
             self._emul_s_to_core = emul_s_to_core
 
-            # Initialize total number of emulator systems
-            self._n_emul_s_tot = 0
-
             # Assign the emulator systems to the various MPI ranks
             for rank, emul_s_seq in enumerate(emul_s_to_core):
                 # Log which systems are assigned to which rank
@@ -2255,7 +2244,7 @@ class Emulator(object):
                     self._sam_set.append(group['sam_set'][()])
                     self._sam_set[-1].dtype = float
                 except KeyError:
-                    self._n_sam.append([])
+                    self._n_sam.append(0)
                     self._sam_set.append([])
                     if self._is_controller:
                         ccheck.append('mod_real_set')
@@ -2531,10 +2520,6 @@ class Emulator(object):
 
                 # MOD_REAL_SET (WORKER)
                 elif(self._is_worker and keyword == 'mod_real_set'):
-                    # Save sam_set data to memory
-                    self._sam_set[emul_i] = data['sam_set']
-                    self._n_sam[emul_i] = np.shape(data['sam_set'])[0]
-
                     # Save mod_set data to file and memory
                     data_set.create_dataset('mod_set', data=data['mod_set'])
                     self._mod_set[emul_i][lemul_s] = data['mod_set']

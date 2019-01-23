@@ -10,9 +10,6 @@ applications.
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import absolute_import, division, print_function
-
 # Import utils modules
 from . import mcmc
 from .mcmc import *

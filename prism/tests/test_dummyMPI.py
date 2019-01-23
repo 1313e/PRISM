@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # %% IMPORTS
-# Future imports
-from __future__ import (absolute_import, division, print_function,
-                        with_statement)
-
 # Built-in imports
 from os import path
-from sys import platform, version_info
+from sys import platform
 
 # Package imports
 import numpy as np
@@ -18,9 +14,6 @@ from prism._dummyMPI import Comm, Intracomm, COMM_WORLD as comm
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
-
-# Save major version
-vmajor = version_info.major
 
 # Save if this platform is Windows
 win32 = platform.startswith('win')

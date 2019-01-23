@@ -10,9 +10,6 @@ to MCMC routines.
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import absolute_import, division, print_function
-
 # Built-in imports
 from inspect import isfunction
 import warnings
@@ -21,7 +18,6 @@ import warnings
 from e13tools import InputError
 from e13tools.sampling import lhd
 import numpy as np
-from six import integer_types
 
 # PRISM imports
 from prism._docstrings import user_emul_i_doc
@@ -303,7 +299,7 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
         # Controller checking if init_walkers is valid
         if pipe._is_controller:
             # If init_walkers is an int, create LHD of provided size
-            if isinstance(init_walkers, integer_types):
+            if isinstance(init_walkers, int):
                 # Check if provided integer is positive
                 n_sam = check_vals(init_walkers, 'init_walkers', 'pos')
 

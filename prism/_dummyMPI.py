@@ -11,15 +11,11 @@ https://gitlab.mpcdf.mpg.de/ift/mpi_dummy
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import absolute_import, division, print_function
-
 # Built-in imports
 from copy import copy
 
 # Package imports
 import numpy as np
-from six import string_types
 
 # All declaration
 __all__ = ['COMM_SELF', 'COMM_WORLD', 'Comm', 'Datatype', 'Intracomm', 'AINT',
@@ -65,7 +61,7 @@ class Comm(object):
 
     @name.setter
     def name(self, name):
-        if isinstance(name, string_types):
+        if isinstance(name, str):
             self._name = name
         else:
             raise TypeError("Input argument 'name' is not of type 'str'!")

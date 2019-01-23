@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
 
 # Simple Gaussian ModelLink
-# Compatible with Python 2.7 and 3.4+
+# Compatible with Python 3.5+
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import absolute_import, division, print_function
-
 # Package imports
 import numpy as np
 

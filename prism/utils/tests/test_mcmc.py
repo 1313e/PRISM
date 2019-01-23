@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 
 # %% IMPORTS
-# Future imports
-from __future__ import (absolute_import, division, print_function,
-                        with_statement)
-
 # Built-in imports
 from os import path
 

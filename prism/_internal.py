@@ -10,10 +10,6 @@ package.
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import (absolute_import, division, print_function,
-                        with_statement)
-
 # Built-in imports
 from inspect import isclass
 import logging
@@ -34,7 +30,6 @@ from matplotlib.cm import register_cmap
 from matplotlib.colors import LinearSegmentedColormap as LSC
 import numpy as np
 from pkg_resources import get_distribution
-from six import string_types
 
 # PRISM imports
 try:
@@ -225,6 +220,10 @@ class PRISM_Comm(object):
         if isinstance(obj, np.ndarray):
             # If so, gather the shapes of obj on the receiver
             shapes = self._comm.gather(obj.shape, root=root)
+
+            # If obj has an empty dimension anywhere, replace it with a dummy
+            if not np.all(obj.shape):
+                obj = np.empty([1]*obj.ndim)
 
             # Receiver sets up a buffer array and receives NumPy array
             if(self._rank == root):
@@ -568,7 +567,7 @@ def check_vals(values, name, *args):
         # Check for string
         elif 'str' in args:
             # Check if str is provided and break if so
-            if issubclass(values.dtype.type, string_types):
+            if issubclass(values.dtype.type, str):
                 break
             else:
                 err_msg = "Input argument %r is not of type 'str'!" % (name)

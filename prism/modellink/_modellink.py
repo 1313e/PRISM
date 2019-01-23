@@ -9,9 +9,6 @@ Provides the definition of the :class:`~ModelLink` abstract base class.
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import absolute_import, division, print_function
-
 # Built-in imports
 import abc
 from inspect import isclass
@@ -22,7 +19,6 @@ import warnings
 from e13tools import InputError, ShapeError
 import numpy as np
 from numpy.random import rand
-from six import string_types, with_metaclass
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
@@ -38,7 +34,7 @@ __all__ = ['ModelLink', 'test_subclass']
 # %% MODELLINK CLASS DEFINITION
 # TODO: Allow for inter-process methods?
 # Like, having a method that is called before/after construction.
-class ModelLink(with_metaclass(abc.ABCMeta, object)):
+class ModelLink(object, metaclass=abc.ABCMeta):
     """
     Provides an abstract base class definition that allows the
     :class:`~prism.Pipeline` class to be linked to any model/test
@@ -476,7 +472,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
         for i, par_idx in enumerate(par_seq):
             try:
                 # If par_idx is a string, try to use it as a parameter name
-                if isinstance(par_idx, string_types):
+                if isinstance(par_idx, str):
                     par_seq[i] = self._par_name.index(par_idx)
                 # If not, try to use it as a parameter index
                 else:
@@ -666,7 +662,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             pass
 
         # If a parameter file is given
-        elif isinstance(add_model_parameters, string_types):
+        elif isinstance(add_model_parameters, str):
             # Obtain absolute path to given file
             par_file = path.abspath(add_model_parameters)
 
@@ -797,7 +793,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             pass
 
         # If a data file is given
-        elif isinstance(add_model_data, string_types):
+        elif isinstance(add_model_data, str):
             # Obtain absolute path to given file
             data_file = path.abspath(add_model_data)
 
@@ -867,27 +863,31 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
             # If length is two, centered error and no data space were given
             if(len(data) == 2):
                 self._data_err.append(
-                    [check_vals(data[1], 'data_err%s' % (idx), 'float')]*2)
+                    [check_vals(data[1], 'data_err%s' % (idx), 'float',
+                                'pos')]*2)
                 spc = 'lin'
 
             # If length is three, there are two possibilities
             elif(len(data) == 3):
                 # If the third column contains a string, it is the data space
-                if isinstance(data[2], string_types):
+                if isinstance(data[2], str):
                     self._data_err.append(
-                        [check_vals(data[1], 'data_err%s' % (idx), 'float')]*2)
+                        [check_vals(data[1], 'data_err%s' % (idx), 'float',
+                                    'pos')]*2)
                     spc = data[2]
 
                 # If the third column contains no string, it is error interval
                 else:
                     self._data_err.append(
-                        check_vals(data[1:3], 'data_err%s' % (idx), 'float'))
+                        check_vals(data[1:3], 'data_err%s' % (idx), 'float',
+                                   'pos'))
                     spc = 'lin'
 
             # If length is four+, error interval and data space were given
             else:
                 self._data_err.append(
-                    check_vals(data[1:3], 'data_err%s' % (idx), 'float'))
+                    check_vals(data[1:3], 'data_err%s' % (idx), 'float',
+                               'pos'))
                 spc = data[3]
 
             # Save data space

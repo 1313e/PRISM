@@ -27,9 +27,6 @@ the *PRISM* pipeline and holds all information about this model.
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import absolute_import, division, print_function
-
 # Built-in imports
 import os
 import platform

@@ -10,10 +10,6 @@ Provides the definition of the main class of the *PRISM* package, the
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import (absolute_import, division, print_function,
-                        with_statement)
-
 # Built-in imports
 from contextlib import contextmanager
 from inspect import isclass
@@ -30,7 +26,6 @@ from e13tools.math import nCr
 from e13tools.sampling import lhd
 import numpy as np
 from numpy.random import normal, random
-from six import integer_types, string_types
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
@@ -591,7 +586,7 @@ class Pipeline(Projection, object):
                 exec_fn, args, kwargs = self._comm.bcast([], 0)
                 if exec_fn is None:
                     self._worker_mode = 0
-                elif isinstance(exec_fn, string_types):
+                elif isinstance(exec_fn, str):
                     attrs = exec_fn.split('.')
                     obj = self
                     for attr in attrs:
@@ -633,7 +628,7 @@ class Pipeline(Projection, object):
         # Execute exec_fn as well
         if exec_fn is None:
             self._worker_mode = 0
-        elif isinstance(exec_fn, string_types):
+        elif isinstance(exec_fn, str):
             attrs = exec_fn.split('.')
             obj = self
             for attr in attrs:
@@ -906,7 +901,7 @@ class Pipeline(Projection, object):
                             % (self._root_dir))
 
             # If one specified a root directory, use it
-            elif isinstance(root_dir, string_types):
+            elif isinstance(root_dir, str):
                 self._root_dir = path.abspath(root_dir)
                 logger.info("Root directory set to %r." % (self._root_dir))
 
@@ -928,7 +923,7 @@ class Pipeline(Projection, object):
                 prefix_scan = ''
                 prefix_new = 'prism_'
                 prefix_len = 0
-            elif isinstance(prefix, string_types):
+            elif isinstance(prefix, str):
                 prefix_scan = prefix
                 prefix_new = prefix
                 prefix_len = len(prefix)
@@ -976,7 +971,7 @@ class Pipeline(Projection, object):
                                 % (path.basename(self._working_dir)))
 
             # If one requested a new working directory
-            elif isinstance(working_dir, integer_types):
+            elif isinstance(working_dir, int):
                 # Obtain list of working directories that satisfy naming scheme
                 dirnames = next(os.walk(self._root_dir))[1]
                 n_dirs = 0
@@ -1009,7 +1004,7 @@ class Pipeline(Projection, object):
                             % (path.basename(working_dir)))
 
             # If one specified a working directory, use it
-            elif isinstance(working_dir, string_types):
+            elif isinstance(working_dir, str):
                 self._working_dir = path.join(self._root_dir, working_dir)
                 logger.info("Working directory set to %r." % (working_dir))
 
@@ -1035,7 +1030,7 @@ class Pipeline(Projection, object):
                 self._prism_file = None
 
             # If a PRISM parameter file was provided
-            elif isinstance(prism_file, string_types):
+            elif isinstance(prism_file, str):
                 # Check if prism_file was given as an absolute path
                 if path.exists(prism_file):
                     self._prism_file = path.abspath(prism_file)
@@ -1455,8 +1450,11 @@ class Pipeline(Projection, object):
             for i, lemul_s in enumerate(self._emulator._active_emul_s[emul_i]):
                 self._emulator._save_data(emul_i, lemul_s, {
                     'mod_real_set': {
-                        'sam_set': sam_set,
                         'mod_set': mod_set[i]}})
+
+            # Save sam_set data to memory
+            self._emulator._sam_set[emul_i] = sam_set
+            self._emulator._n_sam[emul_i] = np.shape(sam_set)[0]
 
             # MPI Barrier to let controller know data was saved
             self._comm.Barrier()
@@ -1469,8 +1467,8 @@ class Pipeline(Projection, object):
                    " in %.3g seconds, averaging %.3g seconds per model "
                    "evaluation." % (end_time, eval_rate))
             self._save_statistics(emul_i, {
-                'tot_model_eval_time': ['%.3g' % (end_time), 's'],
-                'avg_model_eval_time': ['%.3g' % (eval_rate), 's'],
+                'tot_model_eval_time': ['%#.3g' % (end_time), 's'],
+                'avg_model_eval_time': ['%#.3g' % (eval_rate), 's'],
                 'MPI_comm_size_model': ['%i' % (self._size), '']})
             logger.info(msg)
             print(msg)
@@ -2101,7 +2099,7 @@ class Pipeline(Projection, object):
         logger.info("Starting evaluation of sample set of size %i." % (n_sam))
 
         # Obtain code snippets
-        if isinstance(exec_code, string_types):
+        if isinstance(exec_code, str):
             # If string is provided, use built-in tuple of code snippets
             pre_code, eval_code, anal_code, post_code, exit_code =\
                 self._code_objects[exec_code]
@@ -2110,15 +2108,15 @@ class Pipeline(Projection, object):
             pre_code, eval_code, anal_code, post_code, exit_code = exec_code
 
             # Compile any code snippets that were provided as a string
-            if isinstance(pre_code, string_types):
+            if isinstance(pre_code, str):
                 pre_code = compile(pre_code, '<string>', 'exec')
-            if isinstance(eval_code, string_types):
+            if isinstance(eval_code, str):
                 eval_code = compile(eval_code, '<string>', 'exec')
-            if isinstance(anal_code, string_types):
+            if isinstance(anal_code, str):
                 anal_code = compile(anal_code, '<string>', 'exec')
-            if isinstance(post_code, string_types):
+            if isinstance(post_code, str):
                 post_code = compile(post_code, '<string>', 'exec')
-            if isinstance(exit_code, string_types):
+            if isinstance(exit_code, str):
                 exit_code = compile(exit_code, '<string>', 'exec')
 
         # Make a filled bool list containing which samples are plausible
@@ -2322,14 +2320,14 @@ class Pipeline(Projection, object):
             self._save_statistics(emul_i, {
                 'tot_analyze_time': ['%.2f' % (time_diff_total), 's'],
                 'avg_emul_eval_rate': ['%.2f' % (avg_eval_rate), '1/s'],
-                'par_space_remaining': ['%.3g' % (par_space_rem), '%'],
+                'par_space_remaining': ['%#.3g' % (par_space_rem), '%'],
                 'MPI_comm_size_anal': ['%i' % (self._size), '']})
 
             # Log that analysis has been finished
             msg1 = ("Finished analysis of emulator iteration in %.2f seconds, "
                     "averaging %.2f emulator evaluations per second."
                     % (time_diff_total, n_eval_sam/time_diff_eval))
-            msg2 = ("There is %.3g%% of parameter space remaining."
+            msg2 = ("There is %#.3g%% of parameter space remaining."
                     % (par_space_rem))
             logger.info(msg1)
             logger.info(msg2)
@@ -2845,7 +2843,7 @@ class Pipeline(Projection, object):
                     print("{0: <{1}}\t{2}/{3}".format(
                         "# of plausible/analyzed samples", width,
                         self._n_impl_sam[emul_i], self._n_eval_sam[emul_i]))
-                    print("{0: <{1}}\t{2:.3g}%".format(
+                    print("{0: <{1}}\t{2:#.3g}%".format(
                         "% of parameter space remaining", width,
                         (self._n_impl_sam[emul_i] /
                          self._n_eval_sam[emul_i])*100))

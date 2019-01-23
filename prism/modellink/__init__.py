@@ -10,9 +10,6 @@ and various default/example :class:`~ModelLink` subclasses.
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import absolute_import, division, print_function
-
 # Import modellink modules
 from ._gaussian_link import GaussianLink
 from ._modellink import ModelLink, test_subclass

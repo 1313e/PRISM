@@ -11,10 +11,6 @@ detailing a model's behavior to be created.
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import (absolute_import, division, print_function,
-                        with_statement)
-
 # Built-in imports
 from itertools import chain, combinations
 import os
@@ -30,7 +26,6 @@ import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import Rbf
-from six import string_types
 from tqdm import tqdm
 
 # PRISM imports
@@ -862,7 +857,7 @@ class Projection(object):
         fig_prefix = path.join(self._working_dir, fig_prefix)
 
         # Obtain name of this projection hypercube
-        if isinstance(hcube, string_types):
+        if isinstance(hcube, str):
             hcube_name = hcube
         else:
             hcube_name = self.__get_hcube_name(hcube)

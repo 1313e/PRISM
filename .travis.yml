@@ -7,14 +7,8 @@ matrix:
     include:
         - os: osx
           language: generic
-          env: RUN_COVERAGE=0 PY=2
-          python: 2
-        - os: osx
-          language: generic
-          env: RUN_COVERAGE=0 PY=3
-          python: 3
-        - python: 2.7
           env: RUN_COVERAGE=0
+          python: 3
         - python: 3.5
           env: RUN_COVERAGE=1
         - python: 3.5-dev
@@ -39,17 +33,15 @@ before_install:
       else
           brew update
           brew cask uninstall oclint
-          if [[ "$PY" == "3" ]]; then
-              brew upgrade python
-          fi
+          brew upgrade python
       fi
-    - python$PY -m pip install -r requirements_dev.txt
+    - python -m pip install -r requirements_dev.txt
 install:
     - check-manifest
-    - python$PY setup.py sdist bdist_wheel
+    - python setup.py sdist bdist_wheel
     - twine check dist/*
-    - python$PY -m pip install -e .
-    - python$PY -c "import prism; prism.get_info()"
+    - python -m pip install -e .
+    - python -c "import prism; prism.get_info()"
 script:
     - |
       if [[ "$RUN_COVERAGE" == "1" ]]; then
@@ -63,7 +55,7 @@ script:
       else
           brew install openmpi
       fi
-    - python$PY -m pip --no-cache-dir install mpi4py
+    - python -m pip --no-cache-dir install mpi4py
     - |
       if [[ "$RUN_COVERAGE" == "1" ]]; then
           mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest

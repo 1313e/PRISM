@@ -14,9 +14,6 @@ or anything equivalent.
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import absolute_import, with_statement
-
 # Built-in imports
 from codecs import open
 
@@ -64,8 +61,6 @@ setup(name='prism',
           'Operating System :: Microsoft :: Windows',
           'Operating System :: Unix',
           'Programming Language :: Python',
-          'Programming Language :: Python :: 2',
-          'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
           'Programming Language :: Python :: 3.5',
           'Programming Language :: Python :: 3.6',
@@ -75,7 +70,7 @@ setup(name='prism',
           ],
       keywords=('PRISM prism model analysis emulator regression MCMC '
                 'optimization'),
-      python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4',
+      python_requires='>=3.5, <4',
       packages=find_packages(),
       package_dir={'prism': "prism"},
       include_package_data=True,

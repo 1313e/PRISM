@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # Simple Sine Wave ModelLink
-# Compatible with Python 2.7 and 3.5+
+# Compatible with Python 3.5+
 
 """
 SineWaveLink
@@ -12,9 +12,6 @@ Provides the definition of the :class:`~SineWaveLink` class.
 
 
 # %% IMPORTS
-# Future imports
-from __future__ import absolute_import, division, print_function
-
 # Package imports
 import numpy as np
 

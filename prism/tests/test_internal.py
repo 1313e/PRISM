@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
 
 # %% IMPORTS
-# Future imports
-from __future__ import (absolute_import, division, print_function,
-                        with_statement)
-
 # Built-in imports
 import logging
 from os import path
-from sys import platform, version_info
+from sys import platform
 
 # Package imports
 from e13tools.core import InputError
@@ -27,9 +23,6 @@ from prism._internal import (compat_version, prism_version, CLogger, RLogger,
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
-
-# Save major version
-vmajor = version_info.major
 
 # Save if this platform is Windows
 win32 = platform.startswith('win')
@@ -275,7 +268,7 @@ class Test_check_val(object):
         # Check for NumPy array of strings
         array = np.array(['a', 'b'])
         array2 = check_vals(array, 'array', 'str')
-        assert array2.dtype.name == 'str32' if vmajor >= 3 else 'string8'
+        assert array2.dtype.name == 'str32'
 
         # Check if providing a dict or sequenced list raises an error
         with pytest.raises(InputError):
