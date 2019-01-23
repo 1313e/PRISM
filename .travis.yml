@@ -43,7 +43,6 @@ before_install:
               brew upgrade python
           fi
       fi
-    - python$PY -m pip install --upgrade pip setuptools wheel
     - python$PY -m pip install -r requirements_dev.txt
 install:
     - check-manifest
@@ -64,7 +63,7 @@ script:
       else
           brew install openmpi
       fi
-    - python$PY -m pip --no-cache install mpi4py
+    - python$PY -m pip --no-cache-dir install mpi4py
     - |
       if [[ "$RUN_COVERAGE" == "1" ]]; then
           mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
