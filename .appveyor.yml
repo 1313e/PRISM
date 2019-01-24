@@ -24,10 +24,6 @@ environment:
           PYTHON_VERSION: "3.7.x"
           PYTHON_ARCH: "64"
 
-branches:
-    only:
-        - master
-
 install:
     # Prepend newly installed Python to the PATH of this build (this cannot be
     # done from inside the powershell script as it would require to restart
