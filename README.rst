@@ -103,14 +103,14 @@ See `online docs`_ for a documented explanation on this example.
     :target: https://github.com/1313e/PRISM/raw/v1.0.x/LICENSE
     :alt: PyPI - License
 .. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/v1.0.x.svg?logo=travis&label=Travis%20CI
-    :target: https://travis-ci.com/1313e/PRISM?branch=v1.0.x
+    :target: https://travis-ci.com/1313e/PRISM
     :alt: Travis CI - Build Status
 .. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/v1.0.x.svg?logo=appveyor&label=AppVeyor
-    :target: https://ci.appveyor.com/project/1313e/PRISM?branch=v1.0.x
+    :target: https://ci.appveyor.com/project/1313e/PRISM/branch/v1.0.x
     :alt: AppVeyor - Build Status
 .. |ReadTheDocs| image:: https://img.shields.io/readthedocs/prism-tool/v1.0.x.svg?logo=read%20the%20docs&logoColor=white&label=Docs
     :target: https://prism-tool.readthedocs.io/en/v1.0.x
     :alt: ReadTheDocs - Build Status
 .. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/v1.0.x.svg?logo=codecov&logoColor=white&label=Coverage
-    :target: https://codecov.io/gh/1313e/PRISM?branch=v1.0.x
+    :target: https://codecov.io/gh/1313e/PRISM/branches/v1.0.x
     :alt: CodeCov - Coverage Status
