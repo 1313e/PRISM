@@ -317,6 +317,66 @@ class Test_Pipeline_Gaussian3D(object):
         assert pipe2._hdf5_file == pipe._hdf5_file
 
 
+# Pytest for standard Pipeline class for 3D model with a single data point
+class Test_Pipeline_Gaussian3D_1_data(object):
+    # Test a 3D Gaussian model
+    @pytest.fixture(scope='class')
+    def pipe(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test3D')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink3D(model_parameters=model_parameters_3D,
+                                    model_data={2: [2, 0.05]})
+        return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_file=prism_file_default))
+
+    # Check if representation can be called
+    def test_repr(self, pipe):
+        pipe2 = eval(repr(pipe))
+        assert pipe2._hdf5_file == pipe._hdf5_file
+
+    # Check if first iteration can be constructed
+    def test_construct(self, pipe):
+        pipe.construct(1, 0)
+
+    # Check if first iteration can be analyzed
+    def test_analyze(self, pipe):
+        pipe.analyze()
+
+    # Check if first iteration can be evaluated
+    def test_evaluate(self, pipe):
+        pipe.evaluate([2.5, 2, 1])
+
+    # Check if first iteration can be projected
+    def test_project(self, pipe):
+        with pytest_mpl.plugin.switch_backend('Agg'):
+            pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
+                         fig_kwargs={'dpi': 10})
+            pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
+                         figure=False)
+            if pipe._is_controller:
+                os.remove(pipe._Projection__get_fig_path((0, 1))[1])
+            pipe._comm.Barrier()
+            pipe.project(1, (0, 1), align='col', fig_kwargs={'dpi': 10})
+
+    # Check if details overview of first iteration can be given
+    def test_details(self, pipe):
+        pipe.details()
+
+    # Try to access all Pipeline properties
+    def test_access_pipe_props(self, pipe):
+        check_instance(pipe, Pipeline)
+
+    # Try to access all Emulator properties
+    def test_access_emul_props(self, pipe):
+        check_instance(pipe._emulator, Emulator)
+
+    # Check if representation can be called
+    def test_repr2(self, pipe):
+        pipe2 = eval(repr(pipe))
+        assert pipe2._hdf5_file == pipe._hdf5_file
+
+
 # Pytest for Pipeline class exception handling during initialization
 @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
                     reason="Cannot be pytested in MPI")

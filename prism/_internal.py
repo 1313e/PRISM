@@ -226,6 +226,10 @@ class PRISM_Comm(object):
             # If so, gather the shapes of obj on the receiver
             shapes = self._comm.gather(obj.shape, root=root)
 
+            # If obj has an empty dimension anywhere, replace it with a dummy
+            if not np.all(obj.shape):
+                obj = np.empty([1]*obj.ndim)
+
             # Receiver sets up a buffer array and receives NumPy array
             if(self._rank == root):
                 # Obtain the required shape of the buffer array

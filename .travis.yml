@@ -30,7 +30,7 @@ matrix:
 
 branches:
     only:
-        - master
+        - v1.0.x
 
 before_install:
     - |

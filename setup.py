@@ -46,16 +46,16 @@ setup(name='prism',
       description=("PRISM: An alternative to MCMC for rapid analysis of "
                    "models"),
       long_description=long_description,
-      download_url="https://pypi.org/project/prism",
-      url="https://github.com/1313e/PRISM",
+      download_url="https://pypi.org/project/prism/%s" % (prism_version),
+      url="https://github.com/1313e/PRISM?branch=v1.0.x",
       project_urls={
-          'Documentation': "https://prism-tool.readthedocs.io",
-          'Source Code': "https://github.com/1313e/PRISM"
+          'Documentation': "https://prism-tool.readthedocs.io/en/v1.0.x",
+          'Source Code': "https://github.com/1313e/PRISM?branch=v1.0.x"
           },
       license='BSD-3',
       platforms=['Windows', 'Mac OS-X', 'Linux', 'Unix'],
       classifiers=[
-          'Development Status :: 5 - Production/Stable',
+          'Development Status :: 7 - Inactive',
           'Intended Audience :: Developers',
           'Intended Audience :: Science/Research',
           'License :: OSI Approved :: BSD License',

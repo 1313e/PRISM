@@ -1,3 +1,10 @@
+NOTE
+====
+This is the v1.0.x branch of *PRISM*, which still supports Python 2.7.
+Starting with v1.1.0, *PRISM* no longer supports Python 2.7, and this branch will not be maintained.
+
+----
+
 |PyPI| |Python| |License| |Travis| |AppVeyor| |ReadTheDocs| |Coverage|
 
 Model dispersion with *PRISM*; an alternative to MCMC for rapid analysis of models
@@ -42,13 +49,13 @@ Installation
 ------------
 *PRISM* can be easily installed by either cloning the `repository`_ and installing it manually::
 
-    $ git clone https://github.com/1313e/PRISM
+    $ git clone https://github.com/1313e/PRISM?branch=v1.0.x
     $ cd PRISM
     $ pip install .
 
 or by installing it directly from `PyPI`_ with::
 
-    $ pip install prism
+    $ pip install prism==1.0
 
 *PRISM* can now be imported as a package with ``import prism``.
 For using *PRISM* in MPI, ``mpi4py >= 3.0.0`` is required (not installed automatically).
@@ -57,9 +64,9 @@ The *PRISM* package comes with two ModelLink subclasses.
 These ModelLink subclasses can be used to experiment with *PRISM* to see how it works.
 The `online docs`_ have several examples explaining the different functionalities of the package.
 
-.. _repository: https://github.com/1313e/PRISM
-.. _PyPI: https://pypi.org/project/prism
-.. _online docs: https://prism-tool.readthedocs.io
+.. _repository: https://github.com/1313e/PRISM?branch=v1.0.x
+.. _PyPI: https://pypi.org/project/prism/1.0.0
+.. _online docs: https://prism-tool.readthedocs.io/en/v1.0.x
 
 
 Example usage
@@ -86,42 +93,24 @@ See `online docs`_ for a documented explanation on this example.
     pipe.project()
 
 
-Community guidelines
-====================
-*PRISM* is an open-source and free-to-use software package (and it always will be), provided under the `BSD-3 license`_.
-Users are highly encouraged to make contributions to the package or request new features by opening a `GitHub issue`_.
-If you would like to contribute to the package, but do not know what, then there are quite a few ToDos in the code that may give you some inspiration.
-As with contributions, if you find a problem or issue with *PRISM*, please do not hesitate to open a `GitHub issue`_ about it.
-
-And, finally, if you use *PRISM* as part of your workflow in a scientific publication, please consider citing the *PRISM* pipeline paper (and starring the `repository`_):
-
-::
-
-    Put reference to *PRISM* paper here!
-
-
-.. _BSD-3 license: https://github.com/1313e/PRISM/raw/master/LICENSE
-.. _GitHub issue: https://github.com/1313e/PRISM/issues
-
-
-.. |PyPI| image:: https://img.shields.io/pypi/v/prism.svg?label=PyPI
-    :target: https://pypi.python.org/pypi/prism
-    :alt: PyPI - Latest Release
-.. |Python| image:: https://img.shields.io/pypi/pyversions/prism.svg?logo=python&logoColor=white&label=Python
-    :target: https://pypi.python.org/pypi/prism
+.. |PyPI| image:: https://img.shields.io/badge/PyPI-v1.0.0-blue.svg
+    :target: https://pypi.python.org/pypi/prism/v1.0.0
+    :alt: PyPI - Latest v1.0.x Release
+.. |Python| image:: https://img.shields.io/badge/Python-2.7%20%7C%203.5%20%7C%203.6%20%7C%203.7-blue.svg?logo=python&logoColor=white
+    :target: https://pypi.python.org/pypi/prism/v1.0.0
     :alt: PyPI - Python Versions
 .. |License| image:: https://img.shields.io/pypi/l/prism.svg?colorB=blue&label=License
-    :target: https://github.com/1313e/PRISM/raw/master/LICENSE
+    :target: https://github.com/1313e/PRISM/raw/v1.0.x/LICENSE
     :alt: PyPI - License
-.. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis&label=Travis%20CI
-    :target: https://travis-ci.com/1313e/PRISM
+.. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/v1.0.x.svg?logo=travis&label=Travis%20CI
+    :target: https://travis-ci.com/1313e/PRISM?branch=v1.0.x
     :alt: Travis CI - Build Status
-.. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/master.svg?logo=appveyor&label=AppVeyor
-    :target: https://ci.appveyor.com/project/1313e/PRISM
+.. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/v1.0.x.svg?logo=appveyor&label=AppVeyor
+    :target: https://ci.appveyor.com/project/1313e/PRISM?branch=v1.0.x
     :alt: AppVeyor - Build Status
-.. |ReadTheDocs| image:: https://img.shields.io/readthedocs/prism-tool/latest.svg?logo=read%20the%20docs&logoColor=white&label=Docs
-    :target: https://prism-tool.readthedocs.io/en/latest
+.. |ReadTheDocs| image:: https://img.shields.io/readthedocs/prism-tool/v1.0.x.svg?logo=read%20the%20docs&logoColor=white&label=Docs
+    :target: https://prism-tool.readthedocs.io/en/v1.0.x
     :alt: ReadTheDocs - Build Status
-.. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/master.svg?logo=codecov&logoColor=white&label=Coverage
-    :target: https://codecov.io/gh/1313e/PRISM?branch=master
+.. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/v1.0.x.svg?logo=codecov&logoColor=white&label=Coverage
+    :target: https://codecov.io/gh/1313e/PRISM?branch=v1.0.x
     :alt: CodeCov - Coverage Status

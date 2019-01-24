@@ -1455,8 +1455,11 @@ class Pipeline(Projection, object):
             for i, lemul_s in enumerate(self._emulator._active_emul_s[emul_i]):
                 self._emulator._save_data(emul_i, lemul_s, {
                     'mod_real_set': {
-                        'sam_set': sam_set,
                         'mod_set': mod_set[i]}})
+
+            # Save sam_set data to memory
+            self._emulator._sam_set[emul_i] = sam_set
+            self._emulator._n_sam[emul_i] = np.shape(sam_set)[0]
 
             # MPI Barrier to let controller know data was saved
             self._comm.Barrier()

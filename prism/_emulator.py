@@ -2205,9 +2205,6 @@ class Emulator(object):
             # Controller saving which systems have been assigned to which rank
             self._emul_s_to_core = emul_s_to_core
 
-            # Initialize total number of emulator systems
-            self._n_emul_s_tot = 0
-
             # Assign the emulator systems to the various MPI ranks
             for rank, emul_s_seq in enumerate(emul_s_to_core):
                 # Log which systems are assigned to which rank
@@ -2255,7 +2252,7 @@ class Emulator(object):
                     self._sam_set.append(group['sam_set'][()])
                     self._sam_set[-1].dtype = float
                 except KeyError:
-                    self._n_sam.append([])
+                    self._n_sam.append(0)
                     self._sam_set.append([])
                     if self._is_controller:
                         ccheck.append('mod_real_set')
@@ -2531,10 +2528,6 @@ class Emulator(object):
 
                 # MOD_REAL_SET (WORKER)
                 elif(self._is_worker and keyword == 'mod_real_set'):
-                    # Save sam_set data to memory
-                    self._sam_set[emul_i] = data['sam_set']
-                    self._n_sam[emul_i] = np.shape(data['sam_set'])[0]
-
                     # Save mod_set data to file and memory
                     data_set.create_dataset('mod_set', data=data['mod_set'])
                     self._mod_set[emul_i][lemul_s] = data['mod_set']

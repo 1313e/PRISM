@@ -25,7 +25,7 @@ copyright = '2019, Ellert van der Velden'
 author = 'Ellert van der Velden'
 
 # The short X.Y version
-version = 'latest'
+version = 'v1.0.x'
 # The full version, including alpha/beta/rc tags
 exec(open('../../prism/__version__.py', 'r').read())
 release = prism_version
@@ -156,7 +156,7 @@ html_last_updated_fmt = '%a %d %b %Y'
 html_static_path = ['_static']
 
 # OpenSearch. Requires documentation to be online.
-html_use_opensearch = 'https://prism-tool.readthedocs.io/en/latest'
+html_use_opensearch = 'https://prism-tool.readthedocs.io/en/v1.0.x'
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -172,9 +172,7 @@ html_split_index = True
 
 html_favicon = 'py.png'
 
-html_baseurl = 'https://prism-tool.readthedocs.io/en/latest'
-
-html_extra_path = ['_static/google3ccf0e77d0aa4c22.html']
+html_baseurl = 'https://prism-tool.readthedocs.io/en/v1.0.x'
 
 
 # -- Options for HTMLHelp output ---------------------------------------------
