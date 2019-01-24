@@ -66,10 +66,10 @@ class ImproperModelLink(ModelLink):
         pass
 
     def call_model(self, *args, **kwargs):
-        super(ImproperModelLink, self).call_model(*args, **kwargs)
+        super().call_model(*args, **kwargs)
 
     def get_md_var(self, *args, **kwargs):
-        super(ImproperModelLink, self).get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)
 
 
 # Custom ModelLink class with incorrect number of md_var values
@@ -118,7 +118,7 @@ class InvalidLen2List(list):
 # Custom Dict class that returns wrong items
 class InvalidDict(dict):
     def __getitem__(self, y):
-        super(InvalidDict, self).__getitem__(1)
+        super().__getitem__(1)
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -146,11 +146,11 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if first iteration can be constructed
     def test_construct(self, pipe):
-        pipe.construct(1, 0)
+        pipe.construct(1, analyze=0)
 
     # Check if first iteration can be reconstructed unforced
     def test_reconstruct_no_force(self, pipe):
-        pipe.construct(1, 0, None, 0)
+        pipe.construct(1, analyze=0, force=0)
 
     # Check if first iteration can be projected before analysis
     def test_project_pre_anal(self, pipe):
@@ -188,7 +188,7 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if first iteration can be reconstructed forced
     def test_reconstruct_force(self, pipe):
-        pipe.construct(1, 0, None, 1)
+        pipe.construct(1, analyze=0, force=1)
 
     # Check if entire second iteration can be created
     def test_run(self, pipe):
@@ -214,7 +214,7 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if second iteration can be reconstructed
     def test_reconstruct_iteration2(self, pipe):
-        pipe.construct(2, 0, None, 1)
+        pipe.construct(2, analyze=0, force=1)
 
     # Check if first iteration can be evaluated for a single parameter set
     def test_evaluate_1D(self, pipe):
@@ -274,7 +274,7 @@ class Test_Pipeline_Gaussian3D(object):
 
     # Check if first iteration can be constructed
     def test_construct(self, pipe):
-        pipe.construct(1, 0)
+        pipe.construct(1, analyze=0)
 
     # Check if first iteration can be analyzed
     def test_analyze(self, pipe):
@@ -334,7 +334,7 @@ class Test_Pipeline_Gaussian3D_1_data(object):
 
     # Check if first iteration can be constructed
     def test_construct(self, pipe):
-        pipe.construct(1, 0)
+        pipe.construct(1, analyze=0)
 
     # Check if first iteration can be analyzed
     def test_analyze(self, pipe):
@@ -386,31 +386,32 @@ class Test_Pipeline_Init_Exceptions(object):
     @pytest.fixture(scope='function')
     def root_working_dir(self, tmpdir_factory):
         tmpdir = tmpdir_factory.mktemp('test_init_exceptions')
-        return(path.dirname(tmpdir.strpath), path.basename(tmpdir.strpath))
+        return({'root_dir': path.dirname(tmpdir.strpath),
+                'working_dir': path.basename(tmpdir.strpath)})
 
     # Create a Pipeline object using an invalid Emulator class
     def test_invalid_Emulator(self, root_working_dir, model_link):
         with pytest.raises(InputError):
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file=prism_file_default, emul_type=InvalidEmulator)
 
     # Create a Pipeline object using not an Emulator class
     def test_no_Emulator(self, root_working_dir, model_link):
         with pytest.raises(InputError):
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file=prism_file_default, emul_type=Pipeline)
 
     # Create a Pipeline object using an improper ModelLink object
     def test_improper_ModelLink(self, root_working_dir):
         with pytest.raises(InputError):
             model_link = ImproperModelLink()
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file=prism_file_default)
 
     # Create a Pipeline object using not a ModelLink object
     def test_no_ModelLink(self, root_working_dir):
         with pytest.raises(TypeError):
-            Pipeline(np.array([1]), *root_working_dir,
+            Pipeline(np.array([1]), **root_working_dir,
                      prism_file=prism_file_default)
 
     # Create a Pipeline object using invalid number of md_var
@@ -418,7 +419,7 @@ class Test_Pipeline_Init_Exceptions(object):
         model_link =\
             InvalidNMdVarModelLink(model_parameters=model_parameters_3D,
                                    model_data=model_data_single)
-        pipe = Pipeline(model_link, *root_working_dir,
+        pipe = Pipeline(model_link, **root_working_dir,
                         prism_file=prism_file_default)
         with pytest.raises(ShapeError):
             pipe._emulator._create_new_emulator()
@@ -428,7 +429,7 @@ class Test_Pipeline_Init_Exceptions(object):
         model_link =\
             InvalidShapeMdVarModelLink(model_parameters=model_parameters_3D,
                                        model_data=model_data_single)
-        pipe = Pipeline(model_link, *root_working_dir,
+        pipe = Pipeline(model_link, **root_working_dir,
                         prism_file=prism_file_default)
         with pytest.raises(ShapeError):
             pipe._emulator._create_new_emulator()
@@ -438,7 +439,7 @@ class Test_Pipeline_Init_Exceptions(object):
     def test_invalid_pot_act_par(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_invalid_pot_act_par.txt')
         with pytest.raises(InputError):
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file=prism_file)
 
     # Create a Pipeline object using alternate values for criterion and
@@ -446,34 +447,34 @@ class Test_Pipeline_Init_Exceptions(object):
     def test_empty_pot_act_par(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_empty_pot_act_par.txt')
         with pytest.raises(ValueError):
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file=prism_file)
 
     # Create a Pipeline object using an invalid value for criterion (bool)
     def test_bool_criterion(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_bool_criterion.txt')
         with pytest.raises(TypeError):
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file=prism_file)
 
     # Create a Pipeline object using an invalid string for criterion
     def test_nnormal_criterion(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_invalid_str_criterion.txt')
         with pytest.raises(InputError):
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file=prism_file)
 
     # Create a Pipeline object using an invalid value for pot_active_par (bool)
     def test_bool_pot_act_par(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_bool_pot_act_par.txt')
         with pytest.raises(TypeError):
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file=prism_file)
 
     # Create a Pipeline object using a non_existent PRISM file
     def test_non_existent_prism_file(self, root_working_dir, model_link):
         with pytest.raises(OSError):
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file='test.txt')
 
     # Create a Pipeline object using an invalid root dir
@@ -493,19 +494,19 @@ class Test_Pipeline_Init_Exceptions(object):
     # Create a Pipeline object using an invalid PRISM file
     def test_invalid_prism_file(self, root_working_dir, model_link):
         with pytest.raises(InputError):
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file=1)
 
     # Create a Pipeline object using an invalid prefix
     def test_invalid_prefix(self, root_working_dir, model_link):
         with pytest.raises(TypeError):
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file=prism_file_default, prefix=1)
 
     # Create a Pipeline object using invalid mock data spaces
     def test_invalid_mock_data_spc_predef(self, root_working_dir, model_link):
         model_link._data_spc = ['A', 'B', 'C']
-        pipe = Pipeline(model_link, *root_working_dir,
+        pipe = Pipeline(model_link, **root_working_dir,
                         prism_file=prism_file_default)
         with pytest.raises(NotImplementedError):
             pipe._emulator._create_new_emulator()
@@ -515,7 +516,7 @@ class Test_Pipeline_Init_Exceptions(object):
         model_link = GaussianLink3D(model_parameters=model_parameters_3D,
                                     model_data=model_data_single)
         model_link._data_spc = ['A', 'B', 'C']
-        pipe = Pipeline(model_link, *root_working_dir,
+        pipe = Pipeline(model_link, **root_working_dir,
                         prism_file=prism_file_default)
         with pytest.raises(NotImplementedError):
             pipe._emulator._create_new_emulator()
@@ -523,7 +524,7 @@ class Test_Pipeline_Init_Exceptions(object):
     # Create a Pipeline object using an empty impl_cut list
     def test_empty_impl_cut(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_empty_impl_cut.txt')
-        pipe = Pipeline(model_link, *root_working_dir,
+        pipe = Pipeline(model_link, **root_working_dir,
                         prism_file=prism_file)
         with pytest.raises(ValueError):
             pipe._get_impl_par(True)
@@ -531,7 +532,7 @@ class Test_Pipeline_Init_Exceptions(object):
     # Create a Pipeline object using an impl_cut list with only wildcards
     def test_wildcard_impl_cut(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_wildcard_impl_cut.txt')
-        pipe = Pipeline(model_link, *root_working_dir,
+        pipe = Pipeline(model_link, **root_working_dir,
                         prism_file=prism_file)
         pipe._emulator._n_data_tot.append(model_link._n_data)
         with pytest.raises(ValueError):
@@ -540,7 +541,7 @@ class Test_Pipeline_Init_Exceptions(object):
     # Create a Pipeline object using an invalid impl_cut list
     def test_invalid_impl_cut(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_invalid_impl_cut.txt')
-        pipe = Pipeline(model_link, *root_working_dir,
+        pipe = Pipeline(model_link, **root_working_dir,
                         prism_file=prism_file)
         with pytest.raises(ValueError):
             pipe._get_impl_par(True)
@@ -548,25 +549,25 @@ class Test_Pipeline_Init_Exceptions(object):
     # Create a new emulator using an invalid n_cross_val value
     def test_invalid_n_cross_val(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_invalid_n_cross_val.txt')
-        pipe = Pipeline(model_link, *root_working_dir, prism_file=prism_file)
+        pipe = Pipeline(model_link, **root_working_dir, prism_file=prism_file)
         with pytest.raises(ValueError):
             pipe._emulator._create_new_emulator()
 
     # Try to load an emulator that was built with a different modellink
     def test_unmatched_ModelLink(self, root_working_dir, model_link):
-        pipe = Pipeline(model_link, *root_working_dir,
+        pipe = Pipeline(model_link, **root_working_dir,
                         prism_file=prism_file_default)
-        pipe.construct(1, 0)
+        pipe.construct(1, analyze=0)
         with pytest.raises(InputError):
             model_link = GaussianLink3D(model_parameters=model_parameters_3D,
                                         model_data=model_data_single)
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file=prism_file_default)
 
     # Try to use the 'auto' emulation method
     def test_auto_emul_method(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_auto_emul_method.txt')
-        pipe = Pipeline(model_link, *root_working_dir,
+        pipe = Pipeline(model_link, **root_working_dir,
                         prism_file=prism_file)
         with pytest.raises(NotImplementedError):
             pipe._emulator._create_new_emulator()
@@ -574,7 +575,7 @@ class Test_Pipeline_Init_Exceptions(object):
     # Try to use an invalid emulation method
     def test_invalid_emul_method(self, root_working_dir, model_link):
         prism_file = path.join(dirpath, 'data/prism_invalid_emul_method.txt')
-        pipe = Pipeline(model_link, *root_working_dir,
+        pipe = Pipeline(model_link, **root_working_dir,
                         prism_file=prism_file)
         with pytest.raises(ValueError):
             pipe._emulator._create_new_emulator()
@@ -582,7 +583,7 @@ class Test_Pipeline_Init_Exceptions(object):
     # Try to use an invalid MPI world communicator
     def test_invalid_MPI_comm(self, root_working_dir, model_link):
         with pytest.raises(TypeError):
-            Pipeline(model_link, *root_working_dir,
+            Pipeline(model_link, **root_working_dir,
                      prism_file=prism_file_default,
                      comm=object)
 
@@ -604,72 +605,80 @@ class Test_Pipeline_User_Exceptions(object):
     # Try using an ext_real_set list with three elements
     def test_three_element_ext_real_set(self, pipe):
         with pytest.raises(ShapeError):
-            pipe.construct(1, 0, [1, 1, 1])
+            pipe.construct(1, analyze=0, ext_real_set=[1, 1, 1])
 
     # Try using an invalid ext_real_set "list"
     def test_invalid_ext_real_set_list(self, pipe):
         with pytest.raises(InputError):
-            pipe.construct(1, 0, InvalidLen2List([1]))
+            pipe.construct(1, analyze=0, ext_real_set=InvalidLen2List([1]))
 
     # Try using an ext_real_set dict with no sam_set
     def test_no_ext_sam_set_dict(self, pipe):
         with pytest.raises(KeyError):
-            pipe.construct(1, 0, {'mod_set': 1})
+            pipe.construct(1, analyze=0, ext_real_set={'mod_set': 1})
 
     # Try using an ext_real_set dict with no mod_set
     def test_no_ext_mod_set_dict(self, pipe):
         with pytest.raises(KeyError):
-            pipe.construct(1, 0, {'sam_set': 1})
+            pipe.construct(1, analyze=0, ext_real_set={'sam_set': 1})
 
     # Try using an invalid ext_real_set "dict"
     def test_invalid_ext_real_set_dict(self, pipe):
         with pytest.raises(InputError):
-            pipe.construct(1, 0, InvalidDict({'sam_set': 1, 'mod_set': 1}))
+            pipe.construct(1, analyze=0,
+                           ext_real_set=InvalidDict({'sam_set': 1,
+                                                     'mod_set': 1}))
 
     # Try using an invalid ext_real_set (tuple)
     def test_invalid_ext_real_set(self, pipe):
         with pytest.raises(InputError):
-            pipe.construct(1, 0, (1))
+            pipe.construct(1, analyze=0, ext_real_set=(1))
 
     # Try using a 3D ext_sam_set
     def test_3D_ext_sam_set(self, pipe):
         with pytest.raises(ShapeError):
-            pipe.construct(1, 0, [np.zeros([1, 1, 1]),
-                                  np.ones([1, pipe._modellink._n_data])])
+            pipe.construct(1, analyze=0, ext_real_set=[
+                np.zeros([1, 1, 1]),
+                np.ones([1, pipe._modellink._n_data])])
 
     # Try using a 3D ext_mod_set
     def test_3D_ext_mod_set(self, pipe):
         with pytest.raises(ShapeError):
-            pipe.construct(1, 0, [np.ones([1, pipe._modellink._n_par]),
-                                  np.zeros([1, 1, 1])])
+            pipe.construct(1, analyze=0, ext_real_set=[
+                np.ones([1, pipe._modellink._n_par]),
+                np.zeros([1, 1, 1])])
 
     # Try using an ext_sam_set with wrong n_par
     def test_ext_sam_set_n_par(self, pipe):
         with pytest.raises(ShapeError):
-            pipe.construct(1, 0, [np.ones([1, pipe._modellink._n_par+1]),
-                                  np.ones([1, pipe._modellink._n_data])])
+            pipe.construct(1, analyze=0, ext_real_set=[
+                np.ones([1, pipe._modellink._n_par+1]),
+                np.ones([1, pipe._modellink._n_data])])
 
     # Try using an ext_mod_set with wrong n_data
     def test_ext_mod_set_n_data(self, pipe):
         with pytest.raises(ShapeError):
-            pipe.construct(1, 0, [np.ones([1, pipe._modellink._n_par]),
-                                  np.ones([1, pipe._modellink._n_data+1])])
+            pipe.construct(1, analyze=0, ext_real_set=[
+                np.ones([1, pipe._modellink._n_par]),
+                np.ones([1, pipe._modellink._n_data+1])])
 
     # Try using an ext_real_set with inconsistent n_sam
     def test_ext_real_set_n_sam(self, pipe):
         with pytest.raises(ShapeError):
-            pipe.construct(1, 0, [np.ones([2, pipe._modellink._n_par]),
-                                  np.ones([1, pipe._modellink._n_data])])
+            pipe.construct(1, analyze=0, ext_real_set=[
+                np.ones([2, pipe._modellink._n_par]),
+                np.ones([1, pipe._modellink._n_data])])
 
     # Try using an ext_sam_set outside of par_space
     def test_ext_sam_set_par_space(self, pipe):
         with pytest.raises(ValueError):
-            pipe.construct(1, 0, [np.zeros([1, pipe._modellink._n_par]),
-                                  np.zeros([1, pipe._modellink._n_data])])
+            pipe.construct(1, analyze=0, ext_real_set=[
+                np.zeros([1, pipe._modellink._n_par]),
+                np.zeros([1, pipe._modellink._n_data])])
 
     # Try analyzing the emulator with an emul_type other than 'default'
     def test_non_default_emul_type_analyze(self, pipe):
-        pipe.construct(1, 0)
+        pipe.construct(1, analyze=0)
         pipe._emulator._emul_type = 'non_default'
         with pytest.raises(NotImplementedError):
             pipe.analyze()
@@ -847,7 +856,7 @@ class Test_Internal_Exceptions(object):
 
     # Try to save data using the wrong keyword for pipeline
     def test_invalid_pipe_save_data_keyword(self, pipe):
-        pipe.construct(1, 0)
+        pipe.construct(1, analyze=0)
         if pipe._is_controller:
             with pytest.raises(ValueError):
                 pipe._save_data({'test': []})
@@ -974,22 +983,22 @@ class Test_Pipeline_ModelLink_Versatility(object):
 
     # Test if interrupted construction can be continued
     def test_continue_interrupt(self, pipe2D):
-        pipe2D.construct(1, 0)
+        pipe2D.construct(1, analyze=0)
         if pipe2D._is_controller:
             pipe2D._emulator._ccheck[1].append('active_par')
         pipe2D._emulator._emul_i = 0
-        pipe2D.construct(1, 0)
+        pipe2D.construct(1, analyze=0)
 
     # Test if interrupted construction (at start) can be continued
     def test_continue_interrupt_start(self, pipe2D):
         pipe2D._emulator._create_new_emulator()
         pipe2D.details()
-        pipe2D.construct(1, 0)
+        pipe2D.construct(1, analyze=0)
 
     # Test details for different switches
     def test_details_switches(self, pipe2D):
         # Construct first iteration
-        pipe2D.construct(1, 0)
+        pipe2D.construct(1, analyze=0)
 
         # Emulation methods
         pipe2D._emulator._method = 'gaussian'
@@ -1037,7 +1046,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
         # Try to construct the iteration
-        pipe2D.construct(1, 0, [sam_set, mod_set])
+        pipe2D.construct(1, analyze=0, ext_real_set=[sam_set, mod_set])
 
     # Test if an ext_real_set smaller than n_sam_init can be provided
     def test_ext_real_set_small(self, pipe2D):
@@ -1049,7 +1058,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
         # Try to construct the iteration
-        pipe2D.construct(1, 0, [sam_set, mod_set])
+        pipe2D.construct(1, analyze=0, ext_real_set=[sam_set, mod_set])
 
     # Test if an ext_real_set dict can be provided
     def test_ext_real_set_dict(self, pipe2D):
@@ -1061,7 +1070,8 @@ class Test_Pipeline_ModelLink_Versatility(object):
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
         # Try to construct the iteration
-        pipe2D.construct(1, 0, {'sam_set': sam_set, 'mod_set': mod_set})
+        pipe2D.construct(1, analyze=0, ext_real_set={
+            'sam_set': sam_set, 'mod_set': mod_set})
 
     # Test if double md_var values can be returned
     def test_double_md_var(self, tmpdir):
@@ -1072,7 +1082,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                         prism_file=prism_file_impl)
         np.random.seed(0)
-        pipe.construct(1, 0)
+        pipe.construct(1, analyze=0)
 
 
 class Test_Pipeline_Emulator_Versatility(object):
@@ -1084,7 +1094,7 @@ class Test_Pipeline_Emulator_Versatility(object):
         model_link = GaussianLink2D()
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                         prism_file=prism_file)
-        pipe.construct(1, 1)
+        pipe.construct(1)
         pipe._emulator._load_data(1)
 
     # Test if emulator can be constructed with only gaussian
@@ -1095,7 +1105,7 @@ class Test_Pipeline_Emulator_Versatility(object):
         model_link = GaussianLink2D()
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                         prism_file=prism_file)
-        pipe.construct(1, 1)
+        pipe.construct(1)
 
     # Test if emulator can be constructed with no active analysis
     def test_no_active_par_analysis(self, tmpdir):
@@ -1105,7 +1115,7 @@ class Test_Pipeline_Emulator_Versatility(object):
         model_link = GaussianLink2D()
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                         prism_file=prism_file)
-        pipe.construct(1, 1)
+        pipe.construct(1)
 
     # Test if different data_idx sequences can be loaded properly
     def test_data_idx_seq(self, tmpdir):
@@ -1140,7 +1150,7 @@ class Test_Pipeline_Emulator_Versatility(object):
                                     model_data=model_data)
         pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
                         prism_file=prism_file)
-        pipe.construct(2, 0)
+        pipe.construct(2, analyze=0)
 
         # Change a data value
         pipe._modellink._data_val[0] = 0

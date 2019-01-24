@@ -41,32 +41,36 @@ class ImproperModelLink(ModelLink):
         pass
 
     def call_model(self, *args, **kwargs):
-        super(ImproperModelLink, self).call_model(*args, **kwargs)
+        super().call_model(*args, **kwargs)
 
     def get_md_var(self, *args, **kwargs):
-        super(ImproperModelLink, self).get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)
 
 
 # Custom ModelLink class with no call_model
 class NoCallModelLink(ModelLink):
     def __init__(self, *args, **kwargs):
         self.MPI_call = True
-        super(NoCallModelLink, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def call_model(self, *args, **kwargs):
-        super(NoCallModelLink, self).call_model(*args, **kwargs)
+        super().call_model(*args, **kwargs)
 
     def get_md_var(self, *args, **kwargs):
-        super(NoCallModelLink, self).get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)
 
 
 # Custom ModelLink class that does not accept the correct call_model arguments
 class WrongCallModelLink(ModelLink):
+    def __init__(self, *args, **kwargs):
+        self.MPI_call = True
+        super().__init__(*args, **kwargs)
+
     def call_model(self, emul_i):
         pass
 
     def get_md_var(self, *args, **kwargs):
-        super(NoCallModelLink, self).get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)
 
 
 # Custom ModelLink class with no get_md_var()
@@ -75,7 +79,7 @@ class NoMdVarModelLink(ModelLink):
         return([1]*len(data_idx))
 
     def get_md_var(self, *args, **kwargs):
-        super(NoMdVarModelLink, self).get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)
 
 
 # Custom ModelLink class that does not accept the correct get_md_var arguments

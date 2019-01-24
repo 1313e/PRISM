@@ -63,7 +63,7 @@ class CFilter(logging.Filter):
 
     def __init__(self, MPI_rank):
         self.is_controller = 1 if not MPI_rank else 0
-        super(CFilter, self).__init__('CFilter')
+        super().__init__('CFilter')
 
     def filter(self, record):
         return(self.is_controller)
@@ -78,7 +78,7 @@ class CLogger(logging.Logger):
 
     # Initialize Logger, adding the CFilter
     def __init__(self, *args, **kwargs):
-        super(CLogger, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.addFilter(CFilter(rank))
 
 
@@ -115,7 +115,7 @@ class PRISM_Comm(object):
     # Override getattr property to use self._comm attributes if necessary
     def __getattribute__(self, name):
         try:
-            return(super(PRISM_Comm, self).__getattribute__(name))
+            return(super().__getattribute__(name))
         except AttributeError:
             return(getattr(self._comm, name))
 
@@ -278,7 +278,7 @@ class RFilter(logging.Filter):
 
     def __init__(self, MPI_rank):
         self.prefix = "Rank %i:" % (MPI_rank)
-        super(RFilter, self).__init__('RFilter')
+        super().__init__('RFilter')
 
     def filter(self, record):
         record.msg = " ".join([self.prefix, record.msg])
@@ -295,8 +295,8 @@ class RLogger(logging.Logger):
 
     # Initialize Logger, adding the RFilter if size > 1
     def __init__(self, *args, **kwargs):
-        super(RLogger, self).__init__(*args, **kwargs)
-        if(MPI.__name__ == 'mpi4py.MPI' and size > 1):
+        super().__init__(*args, **kwargs)
+        if(MPI.__package__ == 'mpi4py' and size > 1):
             self.addFilter(RFilter(rank))
 
 
@@ -413,6 +413,14 @@ def check_compatibility(emul_version):
                        " version of PRISM (v%s). The last compatible version "
                        "is v%s." % (prism_version, version))
             raise_error(err_msg, RequestError, logger)
+
+    # Check if emul_version is 1.0.x and raise warning if so
+    if not compare_versions(emul_version, '1.1.0'):
+        warn_msg = ("The provided emulator was constructed with a "
+                    "non-maintained version of PRISM (v%s). Compatibility with"
+                    " the current version of PRISM cannot be guaranteed."
+                    % (emul_version))
+        raise_warning(warn_msg, RequestWarning, logger, 2)
 
     # Check if emul_version is not newer than prism_version
     if not compare_versions(prism_version, emul_version):
@@ -954,7 +962,7 @@ def get_PRISM_File(prism_hdf5_file):
                             % (self.emul_s, mode))
 
             # Inheriting File __init__()
-            super(PRISM_File, self).__init__(filename, mode, **hdf5_kwargs)
+            super().__init__(filename, mode, **hdf5_kwargs)
 
         # Override __exit__() to include logging
         def __exit__(self, *args):
@@ -967,7 +975,7 @@ def get_PRISM_File(prism_hdf5_file):
                 logger.info("Closing system HDF5-file %i." % (self.emul_s))
 
             # Inheriting File __exit__()
-            super(PRISM_File, self).__exit__(*args)
+            super().__exit__(*args)
 
     # Return PRISM_File class definition
     return(PRISM_File)

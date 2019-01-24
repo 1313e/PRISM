@@ -45,7 +45,7 @@ class SineWaveLink(ModelLink):
         self.MPI_call = False
 
         # Inheriting ModelLink __init__()
-        super(SineWaveLink, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_default_model_parameters(self):
         par_dict = {'A': [2, 7, 4],

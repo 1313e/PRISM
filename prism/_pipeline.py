@@ -65,7 +65,7 @@ class Pipeline(Projection, object):
     """
 
     @docstring_substitute(paths=paths_doc_d)
-    def __init__(self, modellink_obj, root_dir=None, working_dir=None,
+    def __init__(self, modellink_obj, *, root_dir=None, working_dir=None,
                  prefix=None, prism_file=None, emul_type=None, comm=None):
         """
         Initialize an instance of the :class:`~Pipeline` class.
@@ -169,7 +169,7 @@ class Pipeline(Projection, object):
 
     # Allows one to call one full loop of the PRISM pipeline
     @docstring_substitute(emul_i=call_emul_i_doc)
-    def __call__(self, emul_i=None, force=False):
+    def __call__(self, emul_i=None, *, force=False):
         """
         Calls the :meth:`~construct` method to start the construction of the
         given iteration of the emulator and creates the projection figures
@@ -1464,7 +1464,7 @@ class Pipeline(Projection, object):
             # Log that this is finished
             eval_rate = end_time/n_sam if n_sam else 0
             msg = ("Finished obtaining and distributing model realization data"
-                   " in %.3g seconds, averaging %.3g seconds per model "
+                   " in %#.3g seconds, averaging %#.3g seconds per model "
                    "evaluation." % (end_time, eval_rate))
             self._save_statistics(emul_i, {
                 'tot_model_eval_time': ['%#.3g' % (end_time), 's'],
@@ -2341,7 +2341,7 @@ class Pipeline(Projection, object):
     # TODO: Make time and RAM cost plots
     # TODO: Fix the timers for interrupted constructs
     @docstring_substitute(emul_i=call_emul_i_doc, ext_set=ext_real_set_doc_d)
-    def construct(self, emul_i=None, analyze=True, ext_real_set=None,
+    def construct(self, emul_i=None, *, analyze=True, ext_real_set=None,
                   force=False):
         """
         Constructs the emulator at the specified emulator iteration `emul_i`,
@@ -3089,5 +3089,5 @@ class Pipeline(Projection, object):
 
     # This function simply executes self.__call__
     @docstring_copy(__call__)
-    def run(self, emul_i=None, force=False):
-        self(emul_i, force)
+    def run(self, emul_i=None, *, force=False):
+        self(emul_i, force=force)

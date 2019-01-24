@@ -13,4 +13,4 @@ Stores the different versions of the *PRISM* package.
 prism_version = '1.1.1dev0'
 
 # Compatibility versions
-compat_version = ['1.0.0']
+compat_version = ['1.0.0rc12']

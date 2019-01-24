@@ -1258,7 +1258,7 @@ class Emulator(object):
         # Calculate the adjusted emulator expectation value at given par_set
         for i, emul_s in enumerate(emul_s_seq):
             adj_exp_val[i] = prior_exp_par_set[i] +\
-                np.dot(cov_vec[i].T, self._exp_dot_term[emul_i][emul_s])
+                cov_vec[i].T @ self._exp_dot_term[emul_i][emul_s]
 
         # Return it
         return(adj_exp_val)
@@ -1276,8 +1276,7 @@ class Emulator(object):
         # Calculate the adjusted emulator variance value at given par_set
         for i, emul_s in enumerate(emul_s_seq):
             adj_var_val[i] = prior_var_par_set[i] -\
-                np.dot(cov_vec[i].T,
-                       np.dot(self._cov_mat_inv[emul_i][emul_s], cov_vec[i]))
+                cov_vec[i].T @ self._cov_mat_inv[emul_i][emul_s] @ cov_vec[i]
 
         # Return it
         return(adj_var_val)
@@ -1532,12 +1531,12 @@ class Emulator(object):
             if self._use_regr_cov:
                 # Redetermine the active sam_set_poly
                 active_sam_set = self._sam_set[emul_i][:, new_active_par]
-                sam_set_poly = new_pf_obj.fit_transform(active_sam_set)[
-                    :, poly_idx]
+                sam_set_poly =\
+                    new_pf_obj.fit_transform(active_sam_set)[:, poly_idx]
 
                 # Calculate the poly_coef covariancesa
-                poly_coef_cov = rsdl_var*inv(
-                    np.dot(sam_set_poly.T, sam_set_poly)).flatten()
+                poly_coef_cov =\
+                    rsdl_var*inv(sam_set_poly.T @ sam_set_poly).flatten()
 
             # Obtain polynomial coefficients and include intercept term
             poly_coef = np.insert(pipe.named_steps['linear'].coef_, 0,
@@ -1664,9 +1663,8 @@ class Emulator(object):
 
         # Calculate the exp_dot_term values and save it to hdf5
         for i, emul_s in enumerate(emul_s_seq):
-            exp_dot_term = np.dot(self._cov_mat_inv[emul_i][emul_s],
-                                  (self._mod_set[emul_i][emul_s] -
-                                   prior_exp_sam_set[i]))
+            exp_dot_term = self._cov_mat_inv[emul_i][emul_s] @\
+                (self._mod_set[emul_i][emul_s]-prior_exp_sam_set[i])
             self._save_data(emul_i, emul_s, {
                 'exp_dot_term': {
                     'prior_exp_sam_set': prior_exp_sam_set[i],

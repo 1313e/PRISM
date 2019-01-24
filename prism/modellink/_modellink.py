@@ -81,7 +81,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
     """
 
-    def __init__(self, model_parameters=None, model_data=None):
+    def __init__(self, *, model_parameters=None, model_data=None):
         """
         Initialize an instance of the :class:`~ModelLink` subclass.
 
