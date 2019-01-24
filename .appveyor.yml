@@ -43,7 +43,7 @@ install:
     - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
 
     # Upgrade pip
-    - "python -m pip install --disable-pip-version-check --user --upgrade pip"
+    - "python -m pip install --user --upgrade pip==18.1"
 
     # Install PRISM
     - "pip install -r requirements_dev.txt"
