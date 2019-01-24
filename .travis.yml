@@ -89,7 +89,7 @@ deploy:
     distributions: "sdist bdist_wheel"
     skip_existing: true
     on:
-        branch: 1.0.x
+        branch: v1.0.x
         condition: $TRAVIS_OS_NAME == linux
     
 notifications:
