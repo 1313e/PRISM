@@ -26,6 +26,7 @@ import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import Rbf
+from sortedcontainers import SortedDict as sdict
 from tqdm import tqdm
 
 # PRISM imports
@@ -1353,7 +1354,7 @@ class Projection(object):
 
             # If projection data has been requested, initialize dict
             if not self.__figure:
-                self.__fig_data = {}
+                self.__fig_data = sdict()
 
             # Read in projection parameters
             self.__read_parameters()

@@ -416,9 +416,9 @@ def check_compatibility(emul_version):
 
     # Check if emul_version is 1.0.x and raise warning if so
     if not compare_versions(emul_version, '1.1.0'):
-        warn_msg = ("The provided emulator was constructed with a "
-                    "non-maintained version of PRISM (v%s). Compatibility with"
-                    " the current version of PRISM cannot be guaranteed."
+        warn_msg = ("The provided emulator was constructed with an "
+                    "unmaintained version of PRISM (v%s). Compatibility with "
+                    "the current version of PRISM cannot be guaranteed."
                     % (emul_version))
         raise_warning(warn_msg, RequestWarning, logger, 2)
 
@@ -751,18 +751,15 @@ def convert_str_seq(seq):
     for i, val in enumerate(seq):
         # Try to convert to int or float
         try:
-            # If string contains an E or e, try to convert to float first
+            # If string contains an E or e, check if it is a float
             if 'e' in val.lower():
-                tmp_val = float(val)
-            else:
-                tmp_val = val
-
+                seq[i] = float(val)
             # If string contains a dot, check if it is a float
-            if '.' in val:
-                seq[i] = float(tmp_val)
-            # If string contains no dot, check if it is an int
+            elif '.' in val:
+                seq[i] = float(val)
+            # If string contains no dot, E or e, check if it is an int
             else:
-                seq[i] = int(tmp_val)
+                seq[i] = int(val)
         # If it cannot be converted to int or float, save as string
         except ValueError:
             seq[i] = val

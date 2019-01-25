@@ -79,6 +79,7 @@ deploy:
     on:
         branch: master
         condition: $TRAVIS_OS_NAME == linux
+        tags: true
     
 notifications:
   email: false
