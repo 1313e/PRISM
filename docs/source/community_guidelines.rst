@@ -11,7 +11,20 @@ As with contributions, if you find a problem or issue with *PRISM*, please do no
 And, finally, if you use *PRISM* as part of your workflow in a scientific publication, please consider citing the *PRISM* pipeline paper (and starring the `repository`_):
 
 .. note::
-    Put reference to *PRISM* paper here!
+    @ARTICLE{2019arXiv190108725V,
+       author = {{van der Velden}, E. and {Duffy}, A.~R. and {Croton}, D. and 
+    	{Mutch}, S.~J. and {Sinha}, M.},
+        title = "{Model dispersion with PRISM; an alternative to MCMC for rapid analysis of models}",
+      journal = {arXiv e-prints},
+    archivePrefix = "arXiv",
+       eprint = {1901.08725},
+     primaryClass = "astro-ph.IM",
+     keywords = {Astrophysics - Instrumentation and Methods for Astrophysics, Physics - Computational Physics},
+         year = 2019,
+        month = jan,
+       adsurl = {http://adsabs.harvard.edu/abs/2019arXiv190108725V},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+    }
 
 .. _repository: https://github.com/1313e/PRISM
 .. _GitHub issue: https://github.com/1313e/PRISM/issues
