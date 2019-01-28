@@ -97,7 +97,20 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 
 ::
 
-    Put reference to *PRISM* paper here!
+    @ARTICLE{2019arXiv190108725V,
+       author = {{van der Velden}, E. and {Duffy}, A.~R. and {Croton}, D. and 
+    	{Mutch}, S.~J. and {Sinha}, M.},
+        title = "{Model dispersion with PRISM; an alternative to MCMC for rapid analysis of models}",
+      journal = {arXiv e-prints},
+    archivePrefix = "arXiv",
+       eprint = {1901.08725},
+     primaryClass = "astro-ph.IM",
+     keywords = {Astrophysics - Instrumentation and Methods for Astrophysics, Physics - Computational Physics},
+         year = 2019,
+        month = jan,
+       adsurl = {http://adsabs.harvard.edu/abs/2019arXiv190108725V},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+    }
 
 
 .. _BSD-3 license: https://github.com/1313e/PRISM/raw/master/LICENSE
@@ -113,10 +126,10 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 .. |License| image:: https://img.shields.io/pypi/l/prism.svg?colorB=blue&label=License
     :target: https://github.com/1313e/PRISM/raw/master/LICENSE
     :alt: PyPI - License
-.. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis&label=Travis%20CI
+.. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis&logoColor=white&label=Travis%20CI
     :target: https://travis-ci.com/1313e/PRISM
     :alt: Travis CI - Build Status
-.. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/master.svg?logo=appveyor&label=AppVeyor
+.. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/master.svg?logo=appveyor&logoColor=white&label=AppVeyor
     :target: https://ci.appveyor.com/project/1313e/PRISM/branch/master
     :alt: AppVeyor - Build Status
 .. |ReadTheDocs| image:: https://img.shields.io/readthedocs/prism-tool/latest.svg?logo=read%20the%20docs&logoColor=white&label=Docs
