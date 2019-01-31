@@ -96,7 +96,7 @@ Similarly to the model parameters, the following is equal to the contents of thi
 It is necessary for the data value to be provided at all times.
 The data error can be given as either a single value, where it assumed that the data point has a centered :math:`1\sigma`-confidence interval, or as two values, where they describe the *upper* and *lower* bounds of the :math:`1\sigma`-confidence interval.
 The data value space can be given as a string or omitted, in which case it is assumed that the value space is linear.
-Keep in mind that, as mentioned in :ref:`data_idx`, that providing a single element data identifier causes it to be saved as a scalar instead of a tuple.
+Keep in mind that, as mentioned in :ref:`data_idx`, providing a single element data identifier causes it to be saved as a scalar instead of a tuple.
 Therefore, :pycode:`['A']` or :pycode:`('A')` is the same as :pycode:`'A'`.
 
 .. note::
