@@ -80,22 +80,24 @@ Similarly to the model parameters, the following is equal to the contents of thi
     # As a dict
     model_data = {(1, 2): [1, 0.05, 0.05, 'lin'],
                   3.0: [2, 0.05, 'log'],
-                  'A': [3, 0.05, 0.15],
+                  ('A'): [3, 0.05, 0.15],
                   (1, 'A', 1.0): [4, 0.05]}
 
     # As an array_like
     model_data = [[(1, 2), [1, 0.05, 0.05, 'lin']],
                   [3.0, [2, 0.05, 'log']],
-                  ['A', [3, 0.05, 0.15]],
+                  [('A'), [3, 0.05, 0.15]],
                   [(1, 'A', 1.0), [4, 0.05]]]
 
     # As two array_likes zipped
-    model_data = zip([(1, 2), 3.0, 'A', (1, 'A', 1.0)],
+    model_data = zip([(1, 2), 3.0, ('A'), (1, 'A', 1.0)],
                      [[1, 0.05, 0.05, 'lin'], [2, 0.05, 'log'], [3, 0.05, 0.15], [4, 0.05]])
 
 It is necessary for the data value to be provided at all times.
 The data error can be given as either a single value, where it assumed that the data point has a centered :math:`1\sigma`-confidence interval, or as two values, where they describe the *upper* and *lower* bounds of the :math:`1\sigma`-confidence interval.
-The data value space can be given as a string or omitted, in which it is assumed that the value space is linear.
+The data value space can be given as a string or omitted, in which case it is assumed that the value space is linear.
+Keep in mind that, as mentioned in :ref:`data_idx`, that providing a single element data identifier causes it to be saved as a scalar instead of a tuple.
+Therefore, :pycode:`['A']` or :pycode:`('A')` is the same as :pycode:`'A'`.
 
 .. note::
     The parameter value bounds are given as [*lower bound*, *upper bound*], whereas the data errors are given as [*upper error*, *lower error*].
