@@ -36,8 +36,3 @@ License
 -------
 .. literalinclude:: ../../LICENSE
     :language: none
-
-
-Additions
----------
-.. include:: additions.inc
