@@ -11,7 +11,8 @@ Keep in mind that issues solely related to the `v1.0.x` branch are given a lower
 
 And, finally, if you use *PRISM* as part of your workflow in a scientific publication, please consider citing the *PRISM* pipeline paper (and starring the `repository`_):
 
-.. note::
+.. code-block:: none
+    
     @ARTICLE{2019arXiv190108725V,
        author = {{van der Velden}, E. and {Duffy}, A.~R. and {Croton}, D. and 
     	{Mutch}, S.~J. and {Sinha}, M.},
