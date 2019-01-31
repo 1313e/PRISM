@@ -25,5 +25,5 @@ Below are some bigger ideas/improvements that may be added to *PRISM* if there i
       Added benefit of this is that it would become possible to add the option for the user to set a preferred number of MPI processes calling the model (in MPI), allowing *PRISM* to split up the available processes if more efficient;
     - GPU acceleration;
     - Adding the theory behind *PRISM* to the docs;
-    - Adding the possibility to evaluate the derivates of the emulated model outputs, which could be used as approximations of the gradient field of a model for certain MCMC methods.
+    - Adding the possibility to evaluate the derivatives of the emulated model outputs, which could be used as approximations of the gradient field of a model for certain MCMC methods.
 
