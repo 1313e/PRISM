@@ -111,6 +111,9 @@ class Emulator(object):
         # Make pointer to File property
         self._File = self._pipeline._File
 
+        # Make pointer to prism_file property
+        self._prism_file = self._pipeline._prism_file
+
         # Load the emulator and data
         self._load_emulator(modellink_obj)
 
@@ -721,7 +724,48 @@ class Emulator(object):
         # Return data_idx
         return(data_idx)
 
+    # This function splits data_idx into parts and writes it to HDF5
+    def _write_data_idx(self, emul_s_group, data_idx):
+        """
+        Splits a given `data_idx` up into individual parts and saves it as an
+        attribute to the provided `emul_s_group`.
+
+        Parameters
+        ----------
+        emul_s_group : :obj:`~h5py.Group` object
+            The HDF5-group to which the data point identifier needs to be
+            saved.
+        data_idx : tuple of {int, float, str}
+            The data point identifier to be saved.
+
+        """
+
+        # If data_idx contains multiple parts
+        if isinstance(data_idx, tuple):
+            # Obtain list of attribute keys required for the data_idx parts
+            idx_keys = ['data_idx_%i' % (i) for i in range(len(data_idx))]
+
+            # Loop over all parts
+            for key, idx in zip(idx_keys, data_idx):
+                # If part is a string, encode and save it
+                if isinstance(idx, str):
+                    emul_s_group.attrs[key] = idx.encode('ascii', 'ignore')
+                # Else, save it normally
+                else:
+                    emul_s_group.attrs[key] = idx
+
+        # If data_idx contains a single part, save it
+        else:
+            # If part is a string, encode and save it
+            if isinstance(data_idx, str):
+                emul_s_group.attrs['data_idx'] =\
+                    data_idx.encode('ascii', 'ignore')
+            # Else, save it normally
+            else:
+                emul_s_group.attrs['data_idx'] = data_idx
+
     # This function matches data points with those in a previous iteration
+    # TODO: Write this function and _assign_emul_s simpler and dependent
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _assign_data_idx(self, emul_i):
         """
@@ -1121,29 +1165,8 @@ class Emulator(object):
                                                                 'ignore')
 
                         # Save data_idx in portions to make it HDF5-compatible
-                        data_idx = self._modellink._data_idx[i]
-
-                        # If data_idx contains multiple parts
-                        if isinstance(data_idx, tuple):
-                            # Loop over all parts
-                            for j, idx in enumerate(data_idx):
-                                # If part is a string, encode and save it
-                                if isinstance(idx, str):
-                                    data_set.attrs['data_idx_%i' % (j)] =\
-                                        idx.encode('ascii', 'ignore')
-                                # Else, save it normally
-                                else:
-                                    data_set.attrs['data_idx_%i' % (j)] = idx
-
-                        # If data_idx contains a single part, save it
-                        else:
-                            # If part is a string, encode and save it
-                            if isinstance(data_idx, str):
-                                data_set.attrs['data_idx'] =\
-                                    data_idx.encode('ascii', 'ignore')
-                            # Else, save it normally
-                            else:
-                                data_set.attrs['data_idx'] = data_idx
+                        self._write_data_idx(data_set,
+                                             self._modellink._data_idx[i])
 
                         # Create external link between file_i and master file
                         group['emul_%i' % (emul_s)] = h5py.ExternalLink(
@@ -2639,8 +2662,8 @@ class Emulator(object):
         par_dict = self._get_default_parameters()
 
         # Read in data from provided PRISM parameters file
-        if self._pipeline._prism_file is not None:
-            emul_par = np.genfromtxt(self._pipeline._prism_file, dtype=(str),
+        if self._prism_file is not None:
+            emul_par = np.genfromtxt(self._prism_file, dtype=(str),
                                      delimiter=':', autostrip=True)
 
             # Make sure that emul_par is 2D

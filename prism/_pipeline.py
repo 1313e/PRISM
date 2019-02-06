@@ -757,6 +757,7 @@ class Pipeline(Projection, object):
         return(par_dict)
 
     # Read in the parameters from the provided parameter file
+    # TODO: May want to use configparser.Configparser for this
     @docstring_append(read_par_doc.format("Pipeline"))
     def _read_parameters(self):
         # Log that the PRISM parameter file is being read
