@@ -27,7 +27,7 @@ In :attr:`~prism.Pipeline.worker_mode`, one uses the following structure (assumi
 .. note::
     All code that is inside the :attr:`~prism.Pipeline.worker_mode` context manager should solely be executed by the controller rank.
     If not, all worker ranks will execute this code after the controller ranks exits the context manager.
-    Currently, it is not possible to make a context manager handle this automatically (the rejected `PEP 377`_ describes this perfectly).
+    Currently, it is not possible to make a context manager handle this automatically (the rejected :PEP:`377` describes this perfectly).
 
 The :meth:`~prism.Pipeline._make_call` method accepts almost anything that can be called.
 It can also be used when not in :attr:`~prism.Pipeline.worker_mode`, in which case it works the exact same way for all MPI ranks.
@@ -74,5 +74,3 @@ However, by supplying the :meth:`~prism.Pipeline._make_call` method with a calla
 This is especially useful when one combines a serial code with *PRISM*, but wants *PRISM* to execute in MPI.
 An application example of this is :ref:`hybrid_sampling`.
 
-
-.. _PEP 377: https://www.python.org/dev/peps/pep-0377/
