@@ -96,12 +96,13 @@ See `online docs`_ for a documented explanation on this example.
 Community guidelines
 ====================
 *PRISM* is an open-source and free-to-use software package (and it always will be), provided under the `BSD-3 license`_.
+
 Users are highly encouraged to make contributions to the package or request new features by opening a `GitHub issue`_.
 If you would like to contribute to the package, but do not know what, then there are quite a few ToDos in the code that may give you some inspiration.
 As with contributions, if you find a problem or issue with *PRISM*, please do not hesitate to open a `GitHub issue`_ about it.
 Keep in mind that this branch of *PRISM* is not actively maintained, and therefore issues specific to this branch have a lower priority.
 
-And, finally, if you use *PRISM* as part of your workflow in a scientific publication, please consider citing the *PRISM* pipeline paper (and starring the `repository`_):
+And, finally, if you use *PRISM* as part of your workflow in a scientific publication, please consider including an acknowledgement like *"Parts of the results in this work were derived using the PRISM Python package."* and citing the *PRISM* pipeline paper:
 
 ::
 

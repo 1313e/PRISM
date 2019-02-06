@@ -9,7 +9,7 @@ If you would like to contribute to the package, but do not know what, then there
 As with contributions, if you find a problem or issue with *PRISM*, please do not hesitate to open a `GitHub issue`_ about it.
 Keep in mind that issues solely related to the `v1.0.x` branch are given a lower priority.
 
-And, finally, if you use *PRISM* as part of your workflow in a scientific publication, please consider citing the *PRISM* pipeline paper (and starring the `repository`_):
+And, finally, if you use *PRISM* as part of your workflow in a scientific publication, please consider including an acknowledgement like *"Parts of the results in this work were derived using the PRISM Python package."* and citing the *PRISM* pipeline paper:
 
 .. code-block:: none
     
@@ -28,7 +28,7 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
 
-.. _repository: https://github.com/1313e/PRISM
+
 .. _GitHub issue: https://github.com/1313e/PRISM/issues
 
 
