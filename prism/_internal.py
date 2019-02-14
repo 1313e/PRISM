@@ -207,8 +207,8 @@ class PRISM_Comm(object):
             If MPI rank is `root`, returns a list of the gathered objects.
             Else, returns *None*.
 
-        Notes
-        -----
+        Warnings
+        --------
         If some but not all MPI ranks use a NumPy array, this method will hang
         indefinitely.
         When gathering NumPy arrays, all arrays must have the same number of
@@ -834,8 +834,8 @@ def get_info():
 
     # Add header to info_list
     info_list.append(dedent("""
-        PRISM configuration information
-        -------------------------------"""))
+        Configuration
+        -------------"""))
 
     # Add platform to info_list
     info_list.append("Platform: %s %i-bit"
@@ -848,17 +848,22 @@ def get_info():
     prism_dist = get_distribution('prism')
 
     # Add PRISM version to info_list
-    info_list.append("prism: %s" % (prism_dist.version))
+    info_list.append("Version: %s" % (prism_dist.version))
 
     # Get list of all PRISM requirements
     req_list = [req.name for req in prism_dist.requires()]
 
     # If imported MPI is mpi4py, add it to the list as well
-    if(MPI.__name__ == 'mpi4py.MPI'):
+    if(MPI.__package__ == 'mpi4py'):
         req_list.append('mpi4py')
 
     # Sort the requirements list
     req_list.sort()
+
+    # Make requirements header
+    info_list.append(dedent("""
+        Requirements
+        ------------"""))
 
     # Get distribution version of every requirement of PRISM
     for req in req_list:
