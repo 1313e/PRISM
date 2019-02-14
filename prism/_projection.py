@@ -321,9 +321,9 @@ class Projection(object):
         # Make abbreviation for parameter name
         par_name = self._modellink._par_name[par]
 
-        # Recreate the parameter value array used to create the hcube
-        x_proj = np.linspace(self._modellink._par_rng[par, 0],
-                             self._modellink._par_rng[par, 1], proj_res)
+        # Create the normalized parameter value array used to create the hcube
+        # Normalization is necessary for avoiding interpolation errors
+        x_proj = np.linspace(0, 1, proj_res)
 
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
@@ -334,9 +334,8 @@ class Projection(object):
         # Set the size of the grid
         gridsize = max(10*self.__fig_kwargs['dpi'], proj_res)
 
-        # Create parameter value array used in interpolation functions
-        x = np.linspace(self._modellink._par_rng[par, 0],
-                        self._modellink._par_rng[par, 1], gridsize)
+        # Create normalized parameter value array for interpolation functions
+        x = np.linspace(0, 1, gridsize)
 
         # Calculate y_min and y_los
         y_min = f_min(x)
@@ -358,6 +357,10 @@ class Projection(object):
         if self.__smooth:
             # Loop over all grid points
             y_min[y_los <= 0] = impl_cut
+
+        # Create plotted parameter value array
+        x = np.linspace(self._modellink._par_rng[par, 0],
+                        self._modellink._par_rng[par, 1], gridsize)
 
         # Create figure object if the figure is requested
         if self.__figure:
@@ -389,23 +392,27 @@ class Projection(object):
 
             # Plot minimum implausibility
             ax0.plot(x, y_min, **self.__impl_kwargs_2D)
-            ax0.axis([self._modellink._par_rng[par, 0],
-                      self._modellink._par_rng[par, 1],
-                      0, 1.5*impl_cut])
+            ax0_rng = [self._modellink._par_rng[par, 0],
+                       self._modellink._par_rng[par, 1],
+                       0, 1.5*impl_cut]
+            ax0.axis(ax0_rng)
             if self._modellink._par_est[par] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
                               line_kwargs=self.__line_kwargs)
             draw_textline(r"", y=impl_cut, ax=ax0, line_kwargs={'color': 'r'})
+            ax0.axis(ax0_rng)
             ax0.set_ylabel("Min. Implausibility", fontsize='large')
 
             # Plot line-of-sight depth
             ax1.plot(x, y_los, **self.__los_kwargs_2D)
-            ax1.axis([self._modellink._par_rng[par, 0],
-                      self._modellink._par_rng[par, 1],
-                      0, min(1, np.max(y_los))])
+            ax1_rng = [self._modellink._par_rng[par, 0],
+                       self._modellink._par_rng[par, 1],
+                       0, min(1, np.max(y_los))]
+            ax1.axis(ax1_rng)
             if self._modellink._par_est[par] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par], ax=ax1,
                               line_kwargs=self.__line_kwargs)
+            ax1.axis(ax1_rng)
             ax1.set_ylabel("Line-of-Sight Depth", fontsize='large')
 
             # Make super axis label using dummy Axes object as an empty plot
@@ -459,11 +466,10 @@ class Projection(object):
         par1_name = self._modellink._par_name[par1]
         par2_name = self._modellink._par_name[par2]
 
-        # Recreate the parameter value grid used to create the hcube
-        x_proj = np.linspace(self._modellink._par_rng[par1, 0],
-                             self._modellink._par_rng[par1, 1], proj_res)
-        y_proj = np.linspace(self._modellink._par_rng[par2, 0],
-                             self._modellink._par_rng[par2, 1], proj_res)
+        # Create the normalized parameter value grid used to create the hcube
+        # Normalization is necessary for avoiding interpolation errors
+        x_proj = np.linspace(0, 1, proj_res)
+        y_proj = np.linspace(0, 1, proj_res)
         X_proj, Y_proj = np.meshgrid(x_proj, y_proj, indexing='ij')
 
         # Get the interpolated functions describing the minimum
@@ -475,11 +481,9 @@ class Projection(object):
         # Set the size of the hexbin grid
         gridsize = max(10*self.__fig_kwargs['dpi'], proj_res)
 
-        # Create parameter value grid used in interpolation functions
-        x = np.linspace(self._modellink._par_rng[par1, 0],
-                        self._modellink._par_rng[par1, 1], gridsize)
-        y = np.linspace(self._modellink._par_rng[par2, 0],
-                        self._modellink._par_rng[par2, 1], gridsize)
+        # Create normalized parameter value grid for interpolation functions
+        x = np.linspace(0, 1, gridsize)
+        y = np.linspace(0, 1, gridsize)
         X, Y = np.meshgrid(x, y, indexing='ij')
 
         # Calculate impl_min and impl_los for X, Y
@@ -525,6 +529,15 @@ class Projection(object):
 
             # Loop over all grid points
             z_min[z_los <= min_los] = impl_cut
+
+        # Create plotted parameter value grid
+        x = np.linspace(self._modellink._par_rng[par1, 0],
+                        self._modellink._par_rng[par1, 1], gridsize)
+        y = np.linspace(self._modellink._par_rng[par2, 0],
+                        self._modellink._par_rng[par2, 1], gridsize)
+        X, Y = np.meshgrid(x, y, indexing='ij')
+        x = X.ravel()
+        y = Y.ravel()
 
         # Create figure object if the figure is requested
         if self.__figure:
