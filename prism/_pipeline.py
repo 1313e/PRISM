@@ -1379,10 +1379,9 @@ class Pipeline(Projection, object):
         if self._is_controller:
             data_idx_flat = []
             data_idx_len = []
-            for rank, data_idx_rank in enumerate(data_idx_list):
+            for data_idx_rank in data_idx_list:
                 data_idx_len.append(len(data_idx_rank))
-                for data_idx in data_idx_rank:
-                    data_idx_flat.append(data_idx)
+                data_idx_flat.extend(data_idx_rank)
 
         # Use dummy data_idx_flat on workers
         else:
@@ -1879,8 +1878,7 @@ class Pipeline(Projection, object):
 
             # Try to extract ext_sam_set and ext_mod_set
             try:
-                ext_sam_set = ext_real_set[0]
-                ext_mod_set = ext_real_set[1]
+                ext_sam_set, ext_mod_set = ext_real_set
             except Exception as error:
                 err_msg = ("Input argument 'ext_real_set' is invalid! (%s)"
                            % (error))
@@ -2690,8 +2688,7 @@ class Pipeline(Projection, object):
         if self._is_controller:
             # Flatten the received ccheck_list
             ccheck_flat = [[] for _ in range(self._emulator._n_emul_s_tot)]
-            for ccheck_iter in ccheck_list[0][self._emulator._n_emul_s:]:
-                ccheck_flat.append(ccheck_iter)
+            ccheck_flat.extend(ccheck_list[0][self._emulator._n_emul_s:])
             for rank, ccheck_rank in enumerate(ccheck_list):
                 for emul_s, ccheck in zip(self._emulator._emul_s_to_core[rank],
                                           ccheck_rank):

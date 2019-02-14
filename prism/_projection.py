@@ -359,8 +359,7 @@ class Projection(object):
             y_min[y_los <= 0] = impl_cut
 
         # Create plotted parameter value array
-        x = np.linspace(self._modellink._par_rng[par, 0],
-                        self._modellink._par_rng[par, 1], gridsize)
+        x = np.linspace(*self._modellink._par_rng[par], gridsize)
 
         # Create figure object if the figure is requested
         if self.__figure:
@@ -392,9 +391,7 @@ class Projection(object):
 
             # Plot minimum implausibility
             ax0.plot(x, y_min, **self.__impl_kwargs_2D)
-            ax0_rng = [self._modellink._par_rng[par, 0],
-                       self._modellink._par_rng[par, 1],
-                       0, 1.5*impl_cut]
+            ax0_rng = [*self._modellink._par_rng[par], 0, 1.5*impl_cut]
             ax0.axis(ax0_rng)
             if self._modellink._par_est[par] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
@@ -405,8 +402,7 @@ class Projection(object):
 
             # Plot line-of-sight depth
             ax1.plot(x, y_los, **self.__los_kwargs_2D)
-            ax1_rng = [self._modellink._par_rng[par, 0],
-                       self._modellink._par_rng[par, 1],
+            ax1_rng = [*self._modellink._par_rng[par],
                        0, min(1, np.max(y_los))]
             ax1.axis(ax1_rng)
             if self._modellink._par_est[par] is not None:
@@ -531,10 +527,8 @@ class Projection(object):
             z_min[z_los <= min_los] = impl_cut
 
         # Create plotted parameter value grid
-        x = np.linspace(self._modellink._par_rng[par1, 0],
-                        self._modellink._par_rng[par1, 1], gridsize)
-        y = np.linspace(self._modellink._par_rng[par2, 0],
-                        self._modellink._par_rng[par2, 1], gridsize)
+        x = np.linspace(*self._modellink._par_rng[par1], gridsize)
+        y = np.linspace(*self._modellink._par_rng[par2], gridsize)
         X, Y = np.meshgrid(x, y, indexing='ij')
         x = X.ravel()
         y = Y.ravel()
@@ -577,10 +571,8 @@ class Projection(object):
             if self._modellink._par_est[par2] is not None:
                 draw_textline(r"", y=self._modellink._par_est[par2], ax=ax0,
                               line_kwargs=self.__line_kwargs)
-            ax0.axis([self._modellink._par_rng[par1, 0],
-                      self._modellink._par_rng[par1, 1],
-                      self._modellink._par_rng[par2, 0],
-                      self._modellink._par_rng[par2, 1]])
+            ax0.axis([*self._modellink._par_rng[par1],
+                      *self._modellink._par_rng[par2]])
             plt.colorbar(fig1, ax=ax0).set_label("Min. Implausibility",
                                                  fontsize='large')
 
@@ -594,10 +586,8 @@ class Projection(object):
             if self._modellink._par_est[par2] is not None:
                 draw_textline(r"", y=self._modellink._par_est[par2], ax=ax1,
                               line_kwargs=self.__line_kwargs)
-            ax1.axis([self._modellink._par_rng[par1, 0],
-                      self._modellink._par_rng[par1, 1],
-                      self._modellink._par_rng[par2, 0],
-                      self._modellink._par_rng[par2, 1]])
+            ax1.axis([*self._modellink._par_rng[par1],
+                      *self._modellink._par_rng[par2]])
             plt.colorbar(fig2, ax=ax1).set_label("Line-of-Sight Depth",
                                                  fontsize='large')
 
@@ -1019,8 +1009,7 @@ class Projection(object):
             par_hid = list(chain(range(0, par), range(par+1, self.__n_par)))
 
             # Generate list with values for projected parameter
-            proj_sam_set = np.linspace(self._modellink._par_rng[par, 0],
-                                       self._modellink._par_rng[par, 1],
+            proj_sam_set = np.linspace(*self._modellink._par_rng[par],
                                        self.__res)
 
             # Generate latin hypercube of the remaining parameters
@@ -1048,11 +1037,9 @@ class Projection(object):
                                  range(par2+1, self.__n_par)))
 
             # Generate list with values for projected parameters
-            proj_sam_set1 = np.linspace(self._modellink._par_rng[par1, 0],
-                                        self._modellink._par_rng[par1, 1],
+            proj_sam_set1 = np.linspace(*self._modellink._par_rng[par1],
                                         self.__res)
-            proj_sam_set2 = np.linspace(self._modellink._par_rng[par2, 0],
-                                        self._modellink._par_rng[par2, 1],
+            proj_sam_set2 = np.linspace(*self._modellink._par_rng[par2],
                                         self.__res)
 
             # Generate Latin Hypercube of the remaining parameters

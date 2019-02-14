@@ -12,7 +12,7 @@ https://gitlab.mpcdf.mpg.de/ift/mpi_dummy
 
 # %% IMPORTS
 # Built-in imports
-from copy import copy
+from copy import deepcopy as copy
 
 # Package imports
 import numpy as np
@@ -90,12 +90,8 @@ class Comm(object):
 
         # If no receiving buffer was supplied, return a copy of sendbuf
         if recvbuf is None:
-            # Check if sendbuf has the copy()-method and use it if so
-            try:
-                return(sendbuf.copy())
-            # Else, use the built-in copy() function
-            except AttributeError:
-                return(copy(sendbuf))
+            # Make a copy of sendbuf
+            return(copy(sendbuf))
         # If a receiving buffer was supplied, use it
         else:
             recvbuf[:] = sendbuf

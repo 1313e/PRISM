@@ -916,7 +916,7 @@ class Emulator(object):
 
         Returns
         -------
-        emul_s : list of int
+        emul_s_to_core : list of lists
             A list containing the emulator systems that have been assigned to
             the corresponding MPI rank by the controller.
 
@@ -1317,9 +1317,7 @@ class Emulator(object):
         adj_var_val = self._get_adj_var(emul_i, emul_s_seq, par_set, cov_vec)
 
         # Make sure that adj_var_val cannot drop below zero
-        for i in range(len(emul_s_seq)):
-            if(adj_var_val[i] < 0):
-                adj_var_val[i] = 0.0
+        adj_var_val[adj_var_val < 0] = 0
 
         # Return adj_exp_val and adj_var_val
         return(adj_exp_val, adj_var_val)
@@ -2210,38 +2208,27 @@ class Emulator(object):
                        % (emul_i))
             raise_error(err_msg, RequestError, logger)
 
-        # If both checks succeed, assign emulator systems to the MPI ranks
+        # If both checks succeed, controller determines emul_s assignments
         if self._is_controller:
             # Determine which emulator systems each MPI rank should get
             emul_s_to_core = self._assign_emul_s(emul_i)
 
-            # Controller saving which systems have been assigned to which rank
-            self._emul_s_to_core = emul_s_to_core
+            # Save which systems will be assigned to which rank
+            self._emul_s_to_core = list(emul_s_to_core)
 
-            # Assign the emulator systems to the various MPI ranks
-            for rank, emul_s_seq in enumerate(emul_s_to_core):
-                # Log which systems are assigned to which rank
-                logger.info("Assigning emulator systems %s to MPI rank %i."
-                            % (emul_s_seq, rank))
+            # Save total number of emulator systems
+            self._n_emul_s_tot = sum([len(seq) for seq in emul_s_to_core])
 
-                # Update total number of emulator systems
-                self._n_emul_s_tot += len(emul_s_seq)
-
-                # Assign the first list of emul_s to the controller
-                if not rank:
-                    self._emul_s = emul_s_seq
-
-                # Assign the remaining ones to the workers
-                else:
-                    self._comm.send(emul_s_seq, dest=rank, tag=888+rank)
-
-            # Log that assignments are finished
-            logger.info("Finished assigning emulator systems to available "
-                        "MPI ranks.")
-
-        # The workers wait for the controller to assign them their systems
+        # Workers get dummy emul_s_to_core
         else:
-            self._emul_s = self._comm.recv(source=0, tag=888+self._rank)
+            emul_s_to_core = []
+
+        # Assign the emulator systems to the various MPI ranks
+        self._emul_s = self._comm.scatter(emul_s_to_core, 0)
+
+        # Log that assignments are finished
+        logger.info("Finished assigning emulator systems to available MPI "
+                    "ranks.")
 
         # Determine the number of assigned emulator systems
         self._n_emul_s = len(self._emul_s)

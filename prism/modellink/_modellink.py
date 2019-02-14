@@ -188,9 +188,9 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         for name, rng, est in zip(self._par_name, self._par_rng,
                                   self._par_est):
             if est is None:
-                par_repr.append("%r: %r" % (name, [rng[0], rng[1]]))
+                par_repr.append("%r: %r" % (name, rng))
             else:
-                par_repr.append("%r: %r" % (name, [rng[0], rng[1], est]))
+                par_repr.append("%r: %r" % (name, [*rng, est]))
         par_repr = "model_parameters={%s}" % (", ".join(map(str, par_repr)))
 
         # Obtain representation of model_data
