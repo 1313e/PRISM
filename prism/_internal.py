@@ -720,6 +720,9 @@ def convert_str_seq(seq):
     from it, splits it up into individual elements and converts all elements
     back to integers, floats and/or strings.
 
+    The auxiliary characters are given by the :obj:`~aux_char_list` list. One
+    can add, change and remove characters from the list if required.
+
     Parameters
     ----------
     seq : str or array_like
@@ -766,6 +769,12 @@ def convert_str_seq(seq):
 
     # Return it
     return(seq)
+
+
+# List of auxiliary characters to be used in convert_str_seq()
+aux_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/', '{', '}', '<',
+                 '>', '´', '¨', '`', '\\', '?', '!', '%', ';', '=', '$', '~',
+                 '#', '@', '^', '&', '*']
 
 
 # Function that returns a copy of a list with all empty lists/tuples removed
@@ -1242,9 +1251,3 @@ def start_logger(filename=None, mode='w'):
 
     # Return log-file name
     return(filename)
-
-
-# %% LIST DEFINITIONS
-aux_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/', '{', '}', '<',
-                 '>', '´', '¨', '`', '\\', '?', '!', '%', ';', '=', '$', '~',
-                 '#', '@', '^', '&', '*']
