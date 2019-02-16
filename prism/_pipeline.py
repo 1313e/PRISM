@@ -753,7 +753,7 @@ class Pipeline(Projection, object):
         par_dict = {'n_sam_init': '500',
                     'base_eval_sam': '800',
                     'impl_cut': '[0, 4.0, 3.8, 3.5]',
-                    'criterion': "'multi'",
+                    'criterion': "None",
                     'do_active_anal': 'True',
                     'freeze_active_par': 'True',
                     'pot_active_par': 'None'}
