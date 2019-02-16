@@ -37,10 +37,10 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
     Zeros are appended at the end of the list if the length is less than the number of comparison data points, while extra values are ignored if the length is more.
     This must be a sorted list of positive values (excluding zeros).
 
-:attr:`~prism.Pipeline.criterion` (Default: 'multi')
+:attr:`~prism.Pipeline.criterion` (Default: None)
     The criterion to use for determining the quality of the LHDs that are used, represented by an integer, float, string or :pycode:`None`.
     This parameter is the only non-*PRISM* parameter. Instead, it is used in the lhd()-function of the `e13Tools`_ package.
-    By default, :pycode:`'multi'` is used to give equal priority to maximizing minimum distances and minimizing the maximum correlation between pair-wise samples.
+    By default, :pycode:`None` is used.
 
 :attr:`~prism.Emulator.method` (Default: 'full')
     The method to use for constructing the emulator.
