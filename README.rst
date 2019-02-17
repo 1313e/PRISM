@@ -52,6 +52,7 @@ or by installing it directly from `PyPI`_ with::
 
 *PRISM* can now be imported as a package with ``import prism``.
 For using *PRISM* in MPI, ``mpi4py >= 3.0.0`` is required (not installed automatically).
+Note that all ``requirements_dev`` are required for running pytests on *PRISM*.
 
 The *PRISM* package comes with two ModelLink subclasses.
 These ModelLink subclasses can be used to experiment with *PRISM* to see how it works.
