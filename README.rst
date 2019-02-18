@@ -49,7 +49,7 @@ Installation
 ------------
 *PRISM* can be easily installed by either cloning the `repository`_ and installing it manually::
 
-    $ git clone https://github.com/1313e/PRISM?branch=v1.0.x
+    $ git clone https://github.com/1313e/PRISM --branch=v1.0.x
     $ cd PRISM
     $ pip install .
 
@@ -64,7 +64,7 @@ The *PRISM* package comes with two ModelLink subclasses.
 These ModelLink subclasses can be used to experiment with *PRISM* to see how it works.
 The `online docs`_ have several examples explaining the different functionalities of the package.
 
-.. _repository: https://github.com/1313e/PRISM?branch=v1.0.x
+.. _repository: https://github.com/1313e/PRISM/tree/v1.0.x
 .. _PyPI: https://pypi.org/project/prism/1.0.0
 .. _online docs: https://prism-tool.readthedocs.io/en/v1.0.x
 
@@ -74,7 +74,7 @@ Running tests
 If one wants to run pytests on *PRISM*, all `requirements_dev`_ are required.
 The easiest way to run the tests is by cloning the `repository`_, installing all requirements and then running ``pytest`` on it::
 
-    $ git clone https://github.com/1313e/PRISM
+    $ git clone https://github.com/1313e/PRISM --branch=v1.0.x
     $ cd PRISM
     $ pip install -r requirements_dev.txt
     $ pytest
@@ -86,7 +86,7 @@ If *PRISM* and all `requirements_dev`_ are already installed, one can run the te
 
 When using Anaconda, the installation directory path is probably of the form ``<HOME>/anaconda3/envs/<environment_name>/lib/pythonX.X/site-packages``.
 
-.. _requirements_dev: https://github.com/1313e/PRISM/raw/master/requirements_dev.txt
+.. _requirements_dev: https://github.com/1313e/PRISM/raw/v1.0.x/requirements_dev.txt
 
 
 Example usage
@@ -142,7 +142,7 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
     }
 
 
-.. _BSD-3 license: https://github.com/1313e/PRISM/raw/master/LICENSE
+.. _BSD-3 license: https://github.com/1313e/PRISM/raw/v1.0.x/LICENSE
 .. _GitHub issue: https://github.com/1313e/PRISM/issues
 
 

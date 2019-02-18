@@ -90,6 +90,7 @@ deploy:
     on:
         branch: v1.0.x
         condition: $TRAVIS_OS_NAME == linux
+        tags: true
     
 notifications:
   email: false
