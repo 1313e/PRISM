@@ -84,7 +84,7 @@ If *PRISM* and all `requirements_dev`_ are already installed, one can run the te
     $ cd <path_to_installation_directory>/prism
     $ pytest
 
-When using Anaconda, the installation directory path is probably of the form ``anaconda3/envs/<environment_name>/lib/pythonX.X/site-packages``.
+When using Anaconda, the installation directory path is probably of the form ``<HOME>/anaconda3/envs/<environment_name>/lib/pythonX.X/site-packages``.
 
 .. _requirements_dev: https://github.com/1313e/PRISM/raw/master/requirements_dev.txt
 
