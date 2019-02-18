@@ -49,7 +49,6 @@ install:
     - check-manifest
     - python$PY setup.py sdist bdist_wheel
     - twine check dist/*
-    - python$PY -m pip install -e .
     - python$PY -c "import prism; prism.get_info()"
 script:
     - |

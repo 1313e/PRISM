@@ -41,6 +41,10 @@ np.random.seed(2)
 # Set the current working directory to the temporary directory
 local.get_temproot().chdir()
 
+# Ignore any RequestWarnings
+pytestmark = pytest.mark.filterwarnings(
+    "ignore::prism._internal.RequestWarning")
+
 # Save paths to various files
 model_data_single = path.join(dirpath, 'data/data_gaussian_single.txt')
 prism_file_default = path.join(dirpath, 'data/prism_default.txt')

@@ -1,3 +1,4 @@
+-e .
 check-manifest
 codecov
 emcee>=2.2.1

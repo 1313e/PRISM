@@ -59,7 +59,6 @@ or by installing it directly from `PyPI`_ with::
 
 *PRISM* can now be imported as a package with ``import prism``.
 For using *PRISM* in MPI, ``mpi4py >= 3.0.0`` is required (not installed automatically).
-Note that all ``requirements_dev`` are required for running pytests on *PRISM*.
 
 The *PRISM* package comes with two ModelLink subclasses.
 These ModelLink subclasses can be used to experiment with *PRISM* to see how it works.
@@ -68,6 +67,26 @@ The `online docs`_ have several examples explaining the different functionalitie
 .. _repository: https://github.com/1313e/PRISM?branch=v1.0.x
 .. _PyPI: https://pypi.org/project/prism/1.0.0
 .. _online docs: https://prism-tool.readthedocs.io/en/v1.0.x
+
+
+Running tests
+-------------
+If one wants to run pytests on *PRISM*, all `requirements_dev`_ are required.
+The easiest way to run the tests is by cloning the `repository`_, installing all requirements and then running ``pytest`` on it::
+
+    $ git clone https://github.com/1313e/PRISM
+    $ cd PRISM
+    $ pip install -r requirements_dev.txt
+    $ pytest
+
+If *PRISM* and all `requirements_dev`_ are already installed, one can run the tests by running ``pytest`` in the installation directory::
+
+    $ cd <path_to_installation_directory>/prism
+    $ pytest
+
+When using Anaconda, the installation directory path is probably of the form ``anaconda3/envs/<environment_name>/lib/pythonX.X/site-packages``.
+
+.. _requirements_dev: https://github.com/1313e/PRISM/raw/master/requirements_dev.txt
 
 
 Example usage
