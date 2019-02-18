@@ -25,6 +25,25 @@ These ModelLink subclasses can be used to experiment with *PRISM* to see how it 
 .. _PyPI: https://pypi.org/project/prism
 
 
+Running tests
+-------------
+If one wants to run pytests on *PRISM*, all `requirements_dev`_ are required.
+The easiest way to run the tests is by cloning the `repository`_, installing all requirements and then running ``pytest`` on it::
+
+    $ git clone https://github.com/1313e/PRISM
+    $ cd PRISM
+    $ pip install -r requirements_dev.txt
+    $ pytest
+
+If *PRISM* and all `requirements_dev`_ are already installed, one can run the tests by running ``pytest`` in the installation directory::
+
+    $ cd <path_to_installation_directory>/prism
+    $ pytest
+
+When using Anaconda, the installation directory path is probably of the form ``anaconda3/envs/<environment_name>/lib/pythonX.X/site-packages``.
+
+.. _requirements_dev: https://github.com/1313e/PRISM/raw/master/requirements_dev.txt
+
 Example usage
 -------------
 See :ref:`minimal_example` for a documented explanation on this example.
