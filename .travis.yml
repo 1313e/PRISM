@@ -31,7 +31,7 @@ before_install:
           brew cask uninstall oclint
           brew upgrade python
       fi
-    - python$PY -m pip install --upgrade pip==18.1
+    - python$PY -m pip install --upgrade pip
     - python$PY -m pip install -r requirements_dev.txt
 install:
     - check-manifest
