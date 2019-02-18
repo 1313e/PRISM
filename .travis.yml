@@ -43,7 +43,7 @@ before_install:
               brew upgrade python
           fi
       fi
-    - python$PY -m pip install --upgrade pip
+    - python$PY -m pip install --upgrade pip setuptools wheel
     - python$PY -m pip install -r requirements_dev.txt
 install:
     - check-manifest

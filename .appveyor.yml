@@ -43,7 +43,7 @@ install:
     - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
 
     # Upgrade pip
-    - "python -m pip install --user --upgrade pip"
+    - "python -m pip install --user --upgrade pip setuptools wheel"
 
     # Install PRISM
     - "pip install -r requirements_dev.txt"
