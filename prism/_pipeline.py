@@ -42,7 +42,7 @@ from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
                              docstring_append, docstring_copy,
                              docstring_substitute, getCLogger, get_PRISM_File,
                              getRLogger, move_logger, np_array, raise_error,
-                             raise_warning, start_logger)
+                             raise_warning, set_base_logger)
 from prism._projection import Projection
 
 # All declaration
@@ -105,7 +105,7 @@ class Pipeline(Projection, object):
         # Controller obtaining paths and preparing logging system
         if self._is_controller:
             # Start logging
-            logging_file = start_logger()
+            set_base_logger()
             logger = getCLogger('PIPELINE')
             logger.info("")
 
@@ -117,7 +117,7 @@ class Pipeline(Projection, object):
             self._get_paths(root_dir, working_dir, prefix, prism_file)
 
             # Move logger to working directory and restart it
-            move_logger(self._working_dir, logging_file)
+            move_logger(self._working_dir)
 
         # Remaining workers obtain paths from controller
         else:
@@ -130,7 +130,7 @@ class Pipeline(Projection, object):
 
         # Start logger for workers as well
         if self._is_worker:
-            start_logger(path.join(self._working_dir, 'prism_log.log'), 'a')
+            set_base_logger(path.join(self._working_dir, 'prism_log.log'))
 
         # Initialize Emulator class
         # If emul_type is None, use default emulator
@@ -345,7 +345,6 @@ class Pipeline(Projection, object):
 
         return(bool(self._do_logging))
 
-    # TODO: Find a way to only turn off all regular logging done by PRISM
     @do_logging.setter
     def do_logging(self, flag):
         # Make logger
@@ -359,12 +358,12 @@ class Pipeline(Projection, object):
             pass
         # If logging is turned on, log this and turn off logging
         elif not flag:
-            logging.disable(logging.INFO)
+            logging.root.manager.loggerDict['prism'].setLevel(logging.INFO+1)
             logger.warning("Logging messages of level %i (INFO) and below are "
                            "now ignored." % (logging.INFO))
         # If logging is turned off, turn it on and log this
         else:
-            logging.disable(logging.NOTSET)
+            logging.root.manager.loggerDict['prism'].setLevel(logging.DEBUG)
             logger.warning("Logging messages are no longer ignored.")
         self._do_logging = flag
 

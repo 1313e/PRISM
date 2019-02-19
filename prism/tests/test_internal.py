@@ -12,14 +12,14 @@ import numpy as np
 import pytest
 
 # PRISM imports
-from prism._internal import (compat_version, prism_version, CLogger, RLogger,
-                             RequestError, RequestWarning, docstring_append,
-                             docstring_copy, docstring_substitute,
-                             check_instance, check_vals, check_compatibility,
-                             convert_str_seq, delist, get_PRISM_File, get_info,
-                             getCLogger, getRLogger, import_cmaps, move_logger,
-                             np_array, raise_error, raise_warning, rprint,
-                             start_logger)
+from prism.__version__ import compat_version, prism_version
+from prism._internal import (PRISM_Logger, RequestError, RequestWarning,
+                             docstring_append, docstring_copy,
+                             docstring_substitute, check_instance, check_vals,
+                             check_compatibility, convert_str_seq, delist,
+                             get_PRISM_File, get_info, getCLogger, getRLogger,
+                             import_cmaps, np_array, raise_error,
+                             raise_warning, rprint)
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
@@ -313,10 +313,10 @@ def test_get_info():
 # Pytest for the getCLogger function
 def test_getCLogger():
     # Check if getCLogger returns a CLogger instance
-    assert isinstance(getCLogger('C_TEST'), CLogger)
+    assert isinstance(getCLogger('C_TEST'), PRISM_Logger)
 
-    # Check if getCLogger returns the root logger if not specified
-    assert getCLogger() == logging.root
+    # Check if getCLogger returns the base logger if not specified
+    assert getCLogger() == logging.root.manager.loggerDict['prism']
 
     # Check if LoggerClass is still default Logger
     assert logging.getLoggerClass() == logging.Logger
@@ -325,10 +325,10 @@ def test_getCLogger():
 # Pytest for the getRLogger function
 def test_getRLogger():
     # Check if getRLogger returns an RLogger instance
-    assert isinstance(getRLogger('R_TEST'), RLogger)
+    assert isinstance(getRLogger('R_TEST'), PRISM_Logger)
 
-    # Check if getRLogger returns the root logger if not specified
-    assert getRLogger() == logging.root
+    # Check if getRLogger returns the base logger if not specified
+    assert getRLogger() == logging.root.manager.loggerDict['prism']
 
     # Check if LoggerClass is still default Logger
     assert logging.getLoggerClass() == logging.Logger
@@ -343,32 +343,6 @@ def test_import_cmaps():
     # Check if providing a custom directory with invalid cmaps raises an error
     with pytest.raises(InputError):
         import_cmaps(path.join(dirpath, 'data'))
-
-
-# Pytest for the move_logger and start_logger functions
-def test_movestart_logger(tmpdir):
-    # Create a path to a new logfile
-    filename = path.join(tmpdir.strpath, 'test.log')
-
-    # Check if created logfile exists and has the correct name
-    assert start_logger(filename) == filename
-    assert path.exists(filename)
-
-    # Create a move destination
-    dest = tmpdir.mkdir('working_dir')
-
-    # Check if logfile can be correctly moved
-    move_logger(dest.strpath, filename)
-
-    # Check if a new undefined logfile can be created
-    filename_src = start_logger()
-
-    # Check if it can be logged correctly
-    logger = logging.getLogger('TEST')
-    logger.info('Writing a line')
-
-    # Check if both logfiles can be combined correctly
-    move_logger(dest.strpath, filename_src)
 
 
 # Pytest for the np_array function

@@ -409,3 +409,59 @@ def check_vals(values, name, *args):
     else:
         err_msg = "Input argument 'args' is invalid!"
         raise_error(InputError, err_msg, logger)
+
+
+# %% REMOVED IN v1.1.1
+# Define function that can start the logging process of PRISM
+# TODO: Make a filter that only allows PRISM log messages to be logged to file
+# TODO: Find a way to bind the logging file to the Pipeline instance
+def start_logger(filename=None, mode='w'):
+    """
+    Opens a logging file called `filename` in the current working directory,
+    opened with `mode` and starts the logger.
+
+    Optional
+    --------
+    filename : str or None. Default: None
+        String containing the name of the log-file that is opened.
+        If *None*, a new log-file will be created.
+
+    """
+
+    # If filename is not defined, make a new one
+    if filename is None:
+        fd, filename = mkstemp('.log', 'prism_log_', '.')
+        os.close(fd)
+
+    # Define logging dict
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'default': {
+                'format': "[%(asctime)s][%(threadName)-10s][%(levelname)-4s] "
+                          "%(name)-10s \t%(message)s",
+                'datefmt': "%Y-%m-%d %H:%M:%S",
+            },
+        },
+        'handlers': {
+            'file': {
+                '()': logging.FileHandler,
+                'level': 'DEBUG',
+                'formatter': 'default',
+                'filename': filename,
+                'mode': mode,
+                'encoding': 'utf-8',
+            },
+        },
+        'root': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+        },
+    }
+
+    # Start the logger from the dict above
+    logging.config.dictConfig(LOGGING)
+
+    # Return log-file name
+    return(filename)
