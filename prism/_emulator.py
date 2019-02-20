@@ -1965,7 +1965,7 @@ class Emulator(object):
 
             # Calculate the inverse of the covariance matrix
             logger.info("Calculating inverse of covariance matrix %i."
-                        % (emul_s))
+                        % (self._emul_s[emul_s]))
 
             # TODO: Maybe I should put an error catch for memory overflow here?
             cov_mat_inv = self._get_inv_matrix(cov_mat[i])
@@ -2226,9 +2226,12 @@ class Emulator(object):
         # Assign the emulator systems to the various MPI ranks
         self._emul_s = self._comm.scatter(emul_s_to_core, 0)
 
-        # Log that assignments are finished
-        logger.info("Finished assigning emulator systems to available MPI "
-                    "ranks.")
+        # Temporarily manually swap the CFilter for RFilter
+        # Every rank logs what systems were assigned to it
+        # TODO: Remove the need to do this manually
+        logger.filters = [logger.PRISM_filters['RFilter']]
+        logger.info("Received emulator systems %s." % (self._emul_s))
+        logger.filters = [logger.PRISM_filters['CFilter']]
 
         # Determine the number of assigned emulator systems
         self._n_emul_s = len(self._emul_s)

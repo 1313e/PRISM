@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 # PRISM imports
-from prism._internal import RequestWarning
+from prism._internal import RequestWarning, MPI
 from prism.modellink import ModelLink, test_subclass as _test_subclass
 from prism.modellink.tests.modellink import GaussianLink2D, GaussianLink3D
 
@@ -89,6 +89,17 @@ class WrongMdVarModelLink(ModelLink):
 
     def get_md_var(self, emul_i):
         pass
+
+
+# Custom ModelLink class that uses the backup system
+class BackupModelLink(ModelLink):
+    def call_model(self, data_idx, *args, **kwargs):
+        mod_set = [1]*len(data_idx)
+        self._make_backup(mod_set, mod_set=mod_set)
+        return(mod_set)
+
+    def get_md_var(self, *args, **kwargs):
+        super().get_md_var(*args, **kwargs)
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -210,6 +221,67 @@ class Test_ModelLink_Versatility(object):
         model_link = GaussianLink3D(model_parameters=model_parameters_3D,
                                     model_data=model_data_types)
         repr(model_link)
+
+
+# Pytest for testing the backup system for call_model
+@pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
+class Test_backup_system(object):
+    # Create a universal ModelLink object to use in this class
+    @pytest.fixture(scope='class')
+    def modellink_obj(self):
+        return(BackupModelLink(model_parameters=model_parameters_3D,
+                               model_data=model_data_single))
+
+    # Test the backup system the correct way
+    def test_default(self, modellink_obj):
+        # Set input arguments
+        emul_i = 1
+        par_set = dict(zip(['A', 'B', 'C'], [1, 1, 1]))
+        data_idx = [1, 'A', (1, 2)]
+
+        # Call the model to create the backup on the controller
+        if not MPI.COMM_WORLD.Get_rank():
+            modellink_obj.call_model(emul_i=emul_i,
+                                     par_set=par_set,
+                                     data_idx=data_idx)
+
+        # Manually assign mod_set, as workers would not have access to it
+        mod_set = [1, 1, 1]
+
+        # Try loading the backup data
+        data = modellink_obj._read_backup(emul_i)
+
+        # Check that all data is correct
+        assert data['emul_i'] == emul_i
+        assert data['par_set'] == par_set
+        assert data['data_idx'] == data_idx
+        assert data['args'] == (mod_set,)
+        assert data['kwargs'] == {'mod_set': mod_set}
+
+    # Test the backup system using no args or kwargs
+    def test_no_args_kwargs(self, modellink_obj):
+        with pytest.warns(RequestWarning):
+            assert modellink_obj._make_backup() is None
+
+    # Test the backup system calling it outside the call_model method
+    def test_no_call_model(self, modellink_obj):
+        with pytest.warns(RequestWarning):
+            assert modellink_obj._make_backup(0) is None
+
+    # Test the backup system calling call_model with args instead of kwargs
+    def test_call_model_args(self, modellink_obj):
+        # Set input arguments
+        emul_i = 2
+        par_set = dict(zip(['A', 'B', 'C'], [1, 1, 1]))
+        data_idx = [1, 'A', (1, 2)]
+
+        # Try using call_model providing input as args
+        with pytest.warns(RequestWarning):
+            modellink_obj.call_model(data_idx, emul_i, par_set)
+
+        # Make sure no backup file was created
+        with pytest.raises(OSError):
+            modellink_obj._read_backup(emul_i)
 
 
 # Pytest for test_subclass function

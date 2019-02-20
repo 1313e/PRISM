@@ -13,8 +13,8 @@ import pytest
 
 # PRISM imports
 from prism.__version__ import compat_version, prism_version
-from prism._internal import (PRISM_Logger, RequestError, RequestWarning,
-                             docstring_append, docstring_copy,
+from prism._internal import (FeatureWarning, PRISM_Logger, RequestError,
+                             RequestWarning, docstring_append, docstring_copy,
                              docstring_substitute, check_instance, check_vals,
                              check_compatibility, convert_str_seq, delist,
                              get_PRISM_File, get_info, getCLogger, getRLogger,
@@ -46,14 +46,6 @@ class Test_PRISM_File(object):
         with File('w', emul_s=0) as file:
             assert path.basename(file.filename) == 'test_0.hdf5'
         assert path.exists(filename)
-
-
-# Pytest for RequestError exception class
-def test_RequestError():
-    # Check if class is derived from Exception and try to raise it
-    assert Exception in RequestError.mro()
-    with pytest.raises(RequestError):
-        raise RequestError
 
 
 # Pytest for the custom function decorators
@@ -355,16 +347,16 @@ def test_np_array():
 def test_raise_error():
     # Create a logger and check if an error can be properly raised and logged
     logger = logging.getLogger('TEST')
-    with pytest.raises(Exception):
-        raise_error('ERROR', Exception, logger)
+    with pytest.raises(RequestError):
+        raise_error('ERROR', RequestError, logger)
 
 
 # Pytest for the raise_warning function
 def test_raise_warning():
     # Create a logger and check if a warning can be properly raised and logged
     logger = logging.getLogger('TEST')
-    with pytest.warns(RequestWarning):
-        raise_warning('WARNING', RequestWarning, logger)
+    with pytest.warns(FeatureWarning):
+        raise_warning('WARNING', FeatureWarning, logger)
 
 
 # Pytest for the rprint function

@@ -10,10 +10,6 @@ import shutil
 from e13tools.core import InputError, ShapeError
 from e13tools.sampling import lhd
 import h5py
-try:
-    from mpi4py import MPI
-except ImportError:
-    import prism._dummyMPI as MPI
 import numpy as np
 from py.path import local
 import pytest
@@ -22,7 +18,7 @@ from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism._emulator import Emulator
-from prism._internal import RequestError, check_instance
+from prism._internal import MPI, RequestError, check_instance
 from prism._pipeline import Pipeline
 from prism._projection import Projection
 from prism.modellink import ModelLink

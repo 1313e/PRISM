@@ -39,14 +39,14 @@ except ImportError:
 from prism.__version__ import compat_version, prism_version
 
 # All declaration
-__all__ = ['CFilter', 'PRISM_Comm', 'PRISM_Logger', 'RFilter', 'RequestError',
-           'RequestWarning', 'aux_char_list', 'check_compatibility',
-           'check_instance', 'check_vals', 'convert_str_seq', 'delist',
-           'docstring_append', 'docstring_copy', 'docstring_substitute',
-           'get_PRISM_File', 'get_formatter', 'get_handler', 'get_info',
-           'getCLogger', 'getLogger', 'getRLogger', 'import_cmaps',
-           'move_logger', 'np_array', 'raise_error', 'raise_warning',
-           'rprint', 'set_base_logger']
+__all__ = ['CFilter', 'FeatureWarning', 'PRISM_Comm', 'PRISM_Logger',
+           'RFilter', 'RequestError', 'RequestWarning', 'aux_char_list',
+           'check_compatibility', 'check_instance', 'check_vals',
+           'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
+           'docstring_substitute', 'get_PRISM_File', 'get_formatter',
+           'get_handler', 'get_info', 'getCLogger', 'getLogger', 'getRLogger',
+           'import_cmaps', 'move_logger', 'np_array', 'raise_error',
+           'raise_warning', 'rprint', 'set_base_logger']
 
 # Determine MPI size and ranks
 size = MPI.COMM_WORLD.Get_size()
@@ -68,6 +68,20 @@ class CFilter(logging.Filter):
 
     def filter(self, record):
         return(self.is_controller)
+
+
+# Define Warning class for when an experimental feature is being used
+class FeatureWarning(FutureWarning):
+    """
+    Generic warning raised for experimental features in *PRISM*.
+
+    General purpose warning class, raised whenever a feature is used that
+    should be considered experimental. Its behavior and API are subject to
+    change, or the entire feature may be removed without a deprecation period.
+
+    """
+
+    pass
 
 
 # Make a custom MPI.Comm class that uses a special broadcast method
@@ -323,7 +337,7 @@ class RequestError(Exception):
 
 
 # Define Warning class for when a (future) requested action may not be useful
-class RequestWarning(Warning):
+class RequestWarning(UserWarning):
     """
     Generic warning raised for (future) action requests in the *PRISM* pipeline
     that may not be useful.

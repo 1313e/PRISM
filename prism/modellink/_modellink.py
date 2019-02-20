@@ -11,21 +11,23 @@ Provides the definition of the :class:`~ModelLink` abstract base class.
 # %% IMPORTS
 # Built-in imports
 import abc
-from inspect import isclass
+from inspect import currentframe, getframeinfo, isclass
 from os import path
 import warnings
 
 # Package imports
 from e13tools import InputError, ShapeError
+import hickle
 import numpy as np
 from numpy.random import rand
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
 from prism._docstrings import std_emul_i_doc
-from prism._internal import (PRISM_Comm, RequestWarning, check_instance,
-                             check_vals, convert_str_seq, docstring_substitute,
-                             getCLogger, np_array, raise_error)
+from prism._internal import (FeatureWarning, PRISM_Comm, RequestWarning,
+                             check_instance, check_vals, convert_str_seq,
+                             docstring_substitute, getCLogger, np_array,
+                             raise_error)
 
 # All declaration
 __all__ = ['ModelLink', 'test_subclass']
@@ -605,6 +607,185 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         logger.info("Finished validating provided set of model parameter "
                     "samples %r." % (name))
         return(sam_set)
+
+    # This function returns the path to a backup file
+    # TODO: Should backup file be saved in emulator working directory of PRISM?
+    def _get_backup_path(self, emul_i):
+        """
+        Returns the absolute path to a backup file made by this
+        :obj:`~ModelLink` instance, using the provided `emul_i`.
+
+        """
+
+        # Determine the name of the backup hdf5-file
+        filename = "backup_%i_%s.hdf5" % (emul_i, self._name)
+
+        # Determine the path of the backup hdf5-file
+        filepath = path.join(path.abspath('.'), filename)
+
+        # Return it
+        return(filepath)
+
+    # This function makes a backup of args/kwargs to be used during call_model
+    def _make_backup(self, *args, **kwargs):
+        """
+        WARNING: This is an advanced utility method and probably will not work
+        unless used properly. Use with caution!
+
+        Creates an HDF5-file backup of the provided `args` and `kwargs` when
+        called by the :meth:`~call_model` method or any of its inner functions.
+        Additionally, the backup will contain the `emul_i`, `par_set` and
+        `data_idx` values that were passed to the :meth:`~call_model` method.
+        The backup can be restored using the :meth:`~_read_backup` method.
+
+        If it is detected that this method is used incorrectly, a
+        :class:`~prism._internal.RequestWarning` is raised (and the method
+        returns) rather than a :class:`~prism._internal.RequestError`, in order
+        to not disrupt the call to :meth:`~call_model`.
+
+        Parameters
+        ----------
+        args : tuple
+            All positional arguments that must be stored in the backup file.
+        kwargs : dict
+            All keyword arguments that must be stored in the backup file.
+
+        Notes
+        -----
+        If an HDF5-file already exists with the same name as the to be created
+        backup, it will be replaced. However, *PRISM* itself will never remove
+        any backup files (e.g., reconstructing an iteration).
+
+        The saved `emul_i`, `par_set` and `data_idx` are the values these
+        variables have locally in the :meth:`~call_model` method at the point
+        this method is called. Because of this, making any changes to them may
+        cause problems and is therefore heavily discouraged. If changes are
+        necessary, it is advised to assign them to a different variable first.
+
+        """
+
+        # Raise warning about this feature being experimental
+        warn_msg = ("The 'call_model' backup system is still experimental and "
+                    "it may see significant changes or be (re)moved in the "
+                    "future!")
+        warnings.warn(warn_msg, FeatureWarning, stacklevel=2)
+
+        # Check if any args or kwargs have been provided
+        if not args and not kwargs:
+            # If not, issue a warning about that and return
+            warn_msg = ("No positional or keyword arguments have been "
+                        "provided. Backup creation will be skipped!")
+            warnings.warn(warn_msg, RequestWarning, stacklevel=2)
+            return
+
+        # Initialize the caller's frame with the current frame
+        caller_frame = currentframe()
+
+        # Obtain the call_model frame
+        while(caller_frame is not None and
+              getframeinfo(caller_frame)[2] != 'call_model'):
+            caller_frame = caller_frame.f_back
+
+        # If caller_frame is None, the call_model frame was not found
+        if caller_frame is None:
+            # Issue a warning about it and return
+            warn_msg = ("This method has been called from outside the "
+                        "'call_model' method. Backup creation will be "
+                        "skipped!")
+            warnings.warn(warn_msg, RequestWarning, stacklevel=2)
+            return
+
+        # Obtain the locals of the call_model frame
+        loc = caller_frame.f_locals
+
+        # Extract local emul_i, par_set and data_idx
+        # Unless call_model was called using args, below will extract correctly
+        # These one-liners are the equivalent of
+#        try:
+#            emul_i = loc['emul_i']
+#        except KeyError:
+#            try:
+#                emul_i = loc['kwargs']['emul_i']
+#            except KeyError:
+#                emul_i = None
+        emul_i = loc.get('emul_i', loc.get('kwargs', {}).get('emul_i'))
+        par_set = loc.get('par_set', loc.get('kwargs', {}).get('par_set'))
+        data_idx = loc.get('data_idx', loc.get('kwargs', {}).get('data_idx'))
+
+        # If one of these is None, then it is not correctly locally available
+        # This can happen if args are used instead of kwargs for call_model
+        # PRISM code always uses kwargs and never causes this problem
+        if emul_i is None or par_set is None or data_idx is None:
+            warn_msg = ("Required local variables 'emul_i', 'par_set' and "
+                        "'data_idx' are not correctly available. Backup "
+                        "creation will be skipped!")
+            warnings.warn(warn_msg, RequestWarning, stacklevel=2)
+            return
+
+        # Obtain path to backup file
+        filepath = self._get_backup_path(emul_i)
+
+        # Save emul_i, par_set, data_idx, args and kwargs to hdf5
+        # TODO: Use with-statement after hickle no longer closes HDF5-files
+        hickle.dump(emul_i, filepath, mode='w', path='/emul_i')
+        hickle.dump(dict(par_set), filepath, mode='a', path='/par_set')
+        hickle.dump(data_idx, filepath, mode='a', path='/data_idx')
+        hickle.dump(args, filepath, mode='a', path='/args')
+        hickle.dump(kwargs, filepath, mode='a', path='/kwargs')
+
+    # This function reads in a backup made by _make_backup
+    # TODO: Allow for absolute path to backup file to be given?
+    def _read_backup(self, emul_i):
+        """
+        Reads in a backup HDF5-file created by the :meth:`~make_backup` method,
+        using the provided `emul_i` and the value of :attr:`~name`.
+
+        Parameters
+        ----------
+        emul_i : int
+            The emulator iteration that was provided to the :meth:`~call_model`
+            method when the backup was made.
+
+        Returns
+        -------
+        data : dict with keys `('emul_i', 'par_set', 'data_idx', 'args',` \
+            `'kwargs')`
+            A dict containing the data that was provided to the
+            :meth:`~_make_backup` method.
+
+        """
+
+        # Raise warning about this feature being experimental
+        warn_msg = ("The 'call_model' backup system is still experimental and "
+                    "it may see significant changes or be (re)moved in the "
+                    "future!")
+        warnings.warn(warn_msg, FeatureWarning, stacklevel=2)
+
+        # Check if provided emul_i is an integer
+        emul_i = check_vals(emul_i, 'emul_i', 'int', 'nneg')
+
+        # Obtain name of backup file
+        filepath = self._get_backup_path(emul_i)
+
+        # Check if filepath exists
+        if not path.exists(filepath):
+            err_msg = ("Input argument 'emul_i' does not yield an existing "
+                       "path to a backup file (%r)!" % (filepath))
+            raise OSError(err_msg)
+
+        # Initialize empty data dict
+        data = sdict()
+
+        # Read emul_i, par_set, data_idx, args and kwargs from hdf5
+        # TODO: Use with-statement after hickle no longer closes HDF5-files
+        data['emul_i'] = hickle.load(filepath, path='/emul_i')
+        data['par_set'] = sdict(hickle.load(filepath, path='/par_set'))
+        data['data_idx'] = hickle.load(filepath, path='/data_idx')
+        data['args'] = hickle.load(filepath, path='/args')
+        data['kwargs'] = hickle.load(filepath, path='/kwargs')
+
+        # Return data
+        return(data)
 
     @property
     def _default_model_parameters(self):
