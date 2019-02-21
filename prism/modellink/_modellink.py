@@ -701,13 +701,13 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         # Extract local emul_i, par_set and data_idx
         # Unless call_model was called using args, below will extract correctly
         # These one-liners are the equivalent of
-#        try:
-#            emul_i = loc['emul_i']
-#        except KeyError:
-#            try:
-#                emul_i = loc['kwargs']['emul_i']
-#            except KeyError:
-#                emul_i = None
+        # try:
+        #     emul_i = loc['emul_i']
+        # except KeyError:
+        #     try:
+        #         emul_i = loc['kwargs']['emul_i']
+        #     except KeyError:
+        #         emul_i = None
         emul_i = loc.get('emul_i', loc.get('kwargs', {}).get('emul_i'))
         par_set = loc.get('par_set', loc.get('kwargs', {}).get('par_set'))
         data_idx = loc.get('data_idx', loc.get('kwargs', {}).get('data_idx'))
@@ -715,7 +715,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         # If one of these is None, then it is not correctly locally available
         # This can happen if args are used instead of kwargs for call_model
         # PRISM code always uses kwargs and never causes this problem
-        if emul_i is None or par_set is None or data_idx is None:
+        if None in (emul_i, par_set, data_idx):
             warn_msg = ("Required local variables 'emul_i', 'par_set' and "
                         "'data_idx' are not correctly available. Backup "
                         "creation will be skipped!")
@@ -737,8 +737,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
     # TODO: Allow for absolute path to backup file to be given?
     def _read_backup(self, emul_i):
         """
-        Reads in a backup HDF5-file created by the :meth:`~make_backup` method,
-        using the provided `emul_i` and the value of :attr:`~name`.
+        Reads in a backup HDF5-file created by the :meth:`~_make_backup`
+        method, using the provided `emul_i` and the value of :attr:`~name`.
 
         Parameters
         ----------
