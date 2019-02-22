@@ -691,6 +691,9 @@ class Emulator(object):
         idx_keys = [key for key in emul_s_group.attrs.keys()
                     if key[:8] == 'data_idx']
 
+        # Sort parts on their index number
+        idx_keys = sorted(idx_keys, key=lambda x: int(x[9:]))
+
         # Determine the number of parts
         idx_len = len(idx_keys)
 
