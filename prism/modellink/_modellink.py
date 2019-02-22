@@ -11,7 +11,8 @@ Provides the definition of the :class:`~ModelLink` abstract base class.
 # %% IMPORTS
 # Built-in imports
 import abc
-from inspect import currentframe, getframeinfo, isclass, signature
+from inspect import _empty, currentframe, getframeinfo, isclass, signature
+from inspect import _VAR_KEYWORD, _VAR_POSITIONAL
 from os import path
 import warnings
 
@@ -1242,10 +1243,23 @@ def test_subclass(subclass, *args, **kwargs):
     call_model_args.remove('self')
 
     # Check if call_model takes the correct arguments
+    obj_call_model_args = dict(signature(modellink_obj.call_model).parameters)
     for arg in call_model_args:
-        if arg not in signature(modellink_obj.call_model).parameters:
+        if arg not in obj_call_model_args.keys():
             raise InputError("The 'call_model()'-method in provided ModelLink "
                              "subclass %r does not take required input "
+                             "argument %r!" % (modellink_obj._name, arg))
+        else:
+            obj_call_model_args.pop(arg)
+
+    # Check if call_model takes any other arguments
+    for arg, par in obj_call_model_args.items():
+        # If this parameter has no default value and is not *args or **kwargs
+        if(par.default == _empty and par.kind != _VAR_POSITIONAL and
+           par.kind != _VAR_KEYWORD):
+            # Raise error
+            raise InputError("The 'call_model()'-method in provided ModelLink "
+                             "subclass %r takes an unknown non-optional input "
                              "argument %r!" % (modellink_obj._name, arg))
 
     # Obtain list of arguments get_md_var should take
@@ -1253,10 +1267,23 @@ def test_subclass(subclass, *args, **kwargs):
     get_md_var_args.remove('self')
 
     # Check if get_md_var takes the correct arguments
+    obj_get_md_var_args = dict(signature(modellink_obj.get_md_var).parameters)
     for arg in get_md_var_args:
-        if arg not in signature(modellink_obj.get_md_var).parameters:
+        if arg not in obj_get_md_var_args.keys():
             raise InputError("The 'get_md_var()'-method in provided ModelLink "
                              "subclass %r does not take required input "
+                             "argument %r!" % (modellink_obj._name, arg))
+        else:
+            obj_get_md_var_args.pop(arg)
+
+    # Check if get_md_var takes any other arguments
+    for arg, par in obj_get_md_var_args.items():
+        # If this parameter has no default value and is not *args or **kwargs
+        if(par.default == _empty and par.kind != _VAR_POSITIONAL and
+           par.kind != _VAR_KEYWORD):
+            # Raise an error
+            raise InputError("The 'get_md_var()'-method in provided ModelLink "
+                             "subclass %r takes an unknown non-optional input "
                              "argument %r!" % (modellink_obj._name, arg))
 
     # Set MPI intra-communicator

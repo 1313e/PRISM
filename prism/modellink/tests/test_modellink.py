@@ -73,6 +73,19 @@ class WrongCallModelLink(ModelLink):
         super().get_md_var(*args, **kwargs)
 
 
+# Custom ModelLink class that accepts too many call_model arguments
+class ManyCallModelLink(ModelLink):
+    def __init__(self, *args, **kwargs):
+        self.MPI_call = True
+        super().__init__(*args, **kwargs)
+
+    def call_model(self, emul_i, par_set, data_idx, test):
+        pass
+
+    def get_md_var(self, *args, **kwargs):
+        super().get_md_var(*args, **kwargs)
+
+
 # Custom ModelLink class with no get_md_var()
 class NoMdVarModelLink(ModelLink):
     def call_model(self, emul_i, par_set, data_idx):
@@ -88,6 +101,15 @@ class WrongMdVarModelLink(ModelLink):
         return([1]*len(data_idx))
 
     def get_md_var(self, emul_i):
+        pass
+
+
+# Custom ModelLink class that accepts too many get_md_var arguments
+class ManyMdVarModelLink(ModelLink):
+    def call_model(self, emul_i, par_set, data_idx):
+        return([1]*len(data_idx))
+
+    def get_md_var(self, emul_i, par_set, data_idx, test):
         pass
 
 
@@ -320,6 +342,13 @@ class Test_test_subclass(object):
                            model_parameters=model_parameters_3D,
                            model_data=model_data_single)
 
+    # Test a ModelLink subclass that has too many call_model arguments
+    def test_too_many_call_ModelLink(self):
+        with pytest.raises(InputError):
+            _test_subclass(ManyCallModelLink,
+                           model_parameters=model_parameters_3D,
+                           model_data=model_data_single)
+
     # Test a ModelLink subclass with no custom get_md_var()-method
     def test_no_md_var_ModelLink(self):
         with pytest.warns(RequestWarning):
@@ -331,5 +360,12 @@ class Test_test_subclass(object):
     def test_invalid_md_var_ModelLink(self):
         with pytest.raises(InputError):
             _test_subclass(WrongMdVarModelLink,
+                           model_parameters=model_parameters_3D,
+                           model_data=model_data_single)
+
+    # Test a ModelLink subclass that has too many get_md_var() arguments
+    def test_too_many_md_var_ModelLink(self):
+        with pytest.raises(InputError):
+            _test_subclass(ManyMdVarModelLink,
                            model_parameters=model_parameters_3D,
                            model_data=model_data_single)
