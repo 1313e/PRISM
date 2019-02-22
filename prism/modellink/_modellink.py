@@ -11,7 +11,7 @@ Provides the definition of the :class:`~ModelLink` abstract base class.
 # %% IMPORTS
 # Built-in imports
 import abc
-from inspect import currentframe, getframeinfo, isclass
+from inspect import currentframe, getframeinfo, isclass, signature
 from os import path
 import warnings
 
@@ -1236,6 +1236,28 @@ def test_subclass(subclass, *args, **kwargs):
                          "initialized properly! Make sure that %r calls "
                          "the super constructor during initialization!"
                          % (obj_name, obj_name))
+
+    # Obtain list of arguments call_model should take
+    call_model_args = list(signature(ModelLink.call_model).parameters)
+    call_model_args.remove('self')
+
+    # Check if call_model takes the correct arguments
+    for arg in call_model_args:
+        if arg not in signature(modellink_obj.call_model).parameters:
+            raise InputError("The 'call_model()'-method in provided ModelLink "
+                             "subclass %r does not take required input "
+                             "argument %r!" % (modellink_obj._name, arg))
+
+    # Obtain list of arguments get_md_var should take
+    get_md_var_args = list(signature(ModelLink.get_md_var).parameters)
+    get_md_var_args.remove('self')
+
+    # Check if get_md_var takes the correct arguments
+    for arg in get_md_var_args:
+        if arg not in signature(modellink_obj.get_md_var).parameters:
+            raise InputError("The 'get_md_var()'-method in provided ModelLink "
+                             "subclass %r does not take required input "
+                             "argument %r!" % (modellink_obj._name, arg))
 
     # Set MPI intra-communicator
     comm = PRISM_Comm()

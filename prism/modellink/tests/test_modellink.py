@@ -53,11 +53,11 @@ class NoCallModelLink(ModelLink):
         self.MPI_call = True
         super().__init__(*args, **kwargs)
 
-    def call_model(self, *args, **kwargs):
-        super().call_model(*args, **kwargs)
+    def call_model(self, emul_i, par_set, data_idx):
+        super().call_model(emul_i, par_set, data_idx)
 
-    def get_md_var(self, *args, **kwargs):
-        super().get_md_var(*args, **kwargs)
+    def get_md_var(self, emul_i, par_set, data_idx):
+        super().get_md_var(emul_i, par_set, data_idx)
 
 
 # Custom ModelLink class that does not accept the correct call_model arguments
@@ -75,16 +75,16 @@ class WrongCallModelLink(ModelLink):
 
 # Custom ModelLink class with no get_md_var()
 class NoMdVarModelLink(ModelLink):
-    def call_model(self, data_idx, *args, **kwargs):
+    def call_model(self, emul_i, par_set, data_idx):
         return([1]*len(data_idx))
 
-    def get_md_var(self, *args, **kwargs):
-        super().get_md_var(*args, **kwargs)
+    def get_md_var(self, emul_i, par_set, data_idx):
+        super().get_md_var(emul_i, par_set, data_idx)
 
 
 # Custom ModelLink class that does not accept the correct get_md_var arguments
 class WrongMdVarModelLink(ModelLink):
-    def call_model(self, data_idx, *args, **kwargs):
+    def call_model(self, emul_i, par_set, data_idx):
         return([1]*len(data_idx))
 
     def get_md_var(self, emul_i):
@@ -315,7 +315,7 @@ class Test_test_subclass(object):
 
     # Test a ModelLink subclass that has an invalid call_model()-method
     def test_invalid_call_ModelLink(self):
-        with pytest.raises(TypeError):
+        with pytest.raises(InputError):
             _test_subclass(WrongCallModelLink,
                            model_parameters=model_parameters_3D,
                            model_data=model_data_single)
@@ -329,7 +329,7 @@ class Test_test_subclass(object):
 
     # Test a ModelLink subclass that has an invalid get_md_var()-method
     def test_invalid_md_var_ModelLink(self):
-        with pytest.raises(TypeError):
+        with pytest.raises(InputError):
             _test_subclass(WrongMdVarModelLink,
                            model_parameters=model_parameters_3D,
                            model_data=model_data_single)
