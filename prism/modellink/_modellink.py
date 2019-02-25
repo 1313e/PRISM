@@ -18,6 +18,8 @@ import warnings
 
 # Package imports
 from e13tools import InputError, ShapeError
+from e13tools.utils import (check_instance, convert_str_seq,
+                            docstring_substitute, raise_error)
 import h5py
 import hickle
 import numpy as np
@@ -27,9 +29,7 @@ from sortedcontainers import SortedDict as sdict, SortedSet as sset
 # PRISM imports
 from prism._docstrings import std_emul_i_doc
 from prism._internal import (FeatureWarning, PRISM_Comm, RequestWarning,
-                             check_instance, check_vals, convert_str_seq,
-                             docstring_substitute, getCLogger, np_array,
-                             raise_error)
+                             check_vals, getCLogger, np_array)
 
 # All declaration
 __all__ = ['ModelLink', 'test_subclass']

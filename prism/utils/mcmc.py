@@ -17,12 +17,12 @@ import warnings
 # Package imports
 from e13tools import InputError
 from e13tools.sampling import lhd
+from e13tools.utils import docstring_substitute
 import numpy as np
 
 # PRISM imports
 from prism._docstrings import user_emul_i_doc
-from prism._internal import (RequestError, check_vals, docstring_substitute,
-                             np_array)
+from prism._internal import RequestError, check_vals, np_array
 from prism._pipeline import Pipeline
 
 # All declaration

@@ -21,6 +21,8 @@ from time import time
 from e13tools import InputError
 from e13tools.pyplot import draw_textline
 from e13tools.sampling import lhd
+from e13tools.utils import (convert_str_seq, docstring_append,
+                            docstring_substitute, raise_error, raise_warning)
 from matplotlib import cm
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
@@ -35,9 +37,7 @@ from prism._docstrings import (def_par_doc, draw_proj_fig_doc, get_emul_i_doc,
                                proj_par_doc_s, read_par_doc, save_data_doc_pr,
                                user_emul_i_doc)
 from prism._internal import (RequestError, RequestWarning, check_vals,
-                             convert_str_seq, docstring_append,
-                             docstring_substitute, getCLogger, np_array,
-                             raise_error, raise_warning)
+                             getCLogger, np_array)
 
 # All declaration
 __all__ = ['Projection']

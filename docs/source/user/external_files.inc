@@ -73,7 +73,7 @@ An example of the various different ways model comparison data information can b
 Here, the key is the full sequence of the data identifier of a data point, where any character that is not a letter, number, minus/plus or period acts as a separator between the elements of the data identifier.
 The corresponding value specifies the data value, data error(s) and data value space.
 Braces, parentheses, brackets and many other characters can be used as mark-up in the data identifier, to make it easier for the user to find a suitable file lay-out.
-A full list of all characters that can be used for this can be found in :attr:`prism._internal.aux_char_list`.
+A full list of all characters that can be used for this can be found in :attr:`prism.aux_char_list`.
 
 Similarly to the model parameters, the following is equal to the contents of this file::
 

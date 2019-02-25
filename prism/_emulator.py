@@ -20,6 +20,9 @@ from struct import calcsize
 # Package imports
 from e13tools import InputError
 from e13tools.math import diff, nearest_PD
+from e13tools.utils import (check_instance, convert_str_seq, delist,
+                            docstring_append, docstring_substitute,
+                            raise_error, raise_warning)
 import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
@@ -37,10 +40,7 @@ from prism._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
                                get_emul_i_doc, read_par_doc, regr_cov_doc,
                                save_data_doc_e, std_emul_i_doc)
 from prism._internal import (RequestError, RequestWarning, check_compatibility,
-                             check_instance, check_vals, convert_str_seq,
-                             delist, docstring_append, docstring_substitute,
-                             getCLogger, getRLogger, np_array, raise_error,
-                             raise_warning)
+                             check_vals, getCLogger, getRLogger, np_array)
 from prism.modellink import ModelLink
 
 # All declaration

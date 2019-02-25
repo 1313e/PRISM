@@ -29,19 +29,20 @@ import platform
 import warnings
 
 # Package imports
-from e13tools import compare_versions
+from e13tools import (aux_char_list, compare_versions as _compare_versions,
+                      import_cmaps)
 
 # PRISM imports
 from .__version__ import prism_version as __version__
 from . import modellink
 from . import utils
 from ._emulator import Emulator
-from ._internal import get_info, import_cmaps
+from ._internal import get_info
 from ._pipeline import Pipeline
 
 # All declaration
-__all__ = ['modellink', 'utils', 'Emulator', 'Pipeline', 'get_info',
-           'import_cmaps']
+__all__ = ['modellink', 'utils', 'Emulator', 'Pipeline', 'aux_char_list',
+           'get_info', 'import_cmaps']
 
 # Author declaration
 __author__ = "Ellert van der Velden (@1313e)"
@@ -61,7 +62,7 @@ else:
     if(_MPI.COMM_WORLD.Get_size() > 1 and _MPI.COMM_WORLD.Get_rank() == 0):
         # Check if imported mpi4py package is at least 3.0.0
         from mpi4py import __version__ as _mpi4py_version
-        if not compare_versions(_mpi4py_version, '3.0.0'):
+        if not _compare_versions(_mpi4py_version, '3.0.0'):
             raise ImportError("mpi4py v%s detected. PRISM requires mpi4py "
                               "v3.0.0 or later to work in MPI!"
                               % (_mpi4py_version))

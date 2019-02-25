@@ -7,8 +7,9 @@ from os import path
 import shutil
 
 # Package imports
-from e13tools.core import InputError, ShapeError
+from e13tools import InputError, ShapeError
 from e13tools.sampling import lhd
+from e13tools.utils import check_instance
 import h5py
 import numpy as np
 from py.path import local
@@ -18,7 +19,7 @@ from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism._emulator import Emulator
-from prism._internal import MPI, RequestError, check_instance
+from prism._internal import MPI, RequestError
 from prism._pipeline import Pipeline
 from prism._projection import Projection
 from prism.modellink import ModelLink

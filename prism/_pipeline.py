@@ -24,6 +24,9 @@ from time import time
 from e13tools import InputError, ShapeError
 from e13tools.math import nCr
 from e13tools.sampling import lhd
+from e13tools.utils import (convert_str_seq, delist, docstring_append,
+                            docstring_copy, docstring_substitute, raise_error,
+                            raise_warning)
 import numpy as np
 from numpy.random import normal, random
 from sortedcontainers import SortedDict as sdict
@@ -38,11 +41,9 @@ from prism._docstrings import (call_emul_i_doc, call_model_doc_s,
                                std_emul_i_doc, user_emul_i_doc)
 from prism._emulator import Emulator
 from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
-                             check_vals, convert_str_seq, delist,
-                             docstring_append, docstring_copy,
-                             docstring_substitute, getCLogger, get_PRISM_File,
-                             getRLogger, move_logger, np_array, raise_error,
-                             raise_warning, set_base_logger)
+                             check_vals, getCLogger, get_PRISM_File,
+                             getRLogger, move_logger, np_array,
+                             set_base_logger)
 from prism._projection import Projection
 
 # All declaration
