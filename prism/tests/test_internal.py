@@ -12,14 +12,14 @@ import numpy as np
 import pytest
 
 # PRISM imports
-from prism._internal import (compat_version, prism_version, CLogger, RLogger,
-                             RequestError, RequestWarning, docstring_append,
-                             docstring_copy, docstring_substitute,
-                             check_instance, check_vals, check_compatibility,
-                             convert_str_seq, delist, get_PRISM_File, get_info,
-                             getCLogger, getRLogger, import_cmaps, move_logger,
-                             np_array, raise_error, raise_warning, rprint,
-                             start_logger)
+from prism.__version__ import compat_version, prism_version
+from prism._internal import (FeatureWarning, PRISM_Logger, RequestError,
+                             RequestWarning, docstring_append, docstring_copy,
+                             docstring_substitute, check_instance, check_vals,
+                             check_compatibility, convert_str_seq, delist,
+                             get_PRISM_File, get_info, getCLogger, getRLogger,
+                             import_cmaps, np_array, raise_error,
+                             raise_warning, rprint)
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
@@ -46,14 +46,6 @@ class Test_PRISM_File(object):
         with File('w', emul_s=0) as file:
             assert path.basename(file.filename) == 'test_0.hdf5'
         assert path.exists(filename)
-
-
-# Pytest for RequestError exception class
-def test_RequestError():
-    # Check if class is derived from Exception and try to raise it
-    assert Exception in RequestError.mro()
-    with pytest.raises(RequestError):
-        raise RequestError
 
 
 # Pytest for the custom function decorators
@@ -131,6 +123,10 @@ def test_check_compatibility():
         check_compatibility(compat_version[-1])
     with pytest.raises(RequestError):
         check_compatibility('999.999.999')
+
+    # Check if providing a v1.0.x version raises a warning
+    with pytest.warns(RequestWarning):
+        check_compatibility('1.0.0')
 
 
 # Pytest for the check_instance function
@@ -287,7 +283,7 @@ class Test_check_val(object):
 # Pytest for the convert_str_seq function
 def test_convert_str_seq():
     # Check if string sequence is converted correctly
-    assert convert_str_seq('[[]]]1e1,\n8.,A<{7)\\B') == [10, 8.0, 'A', 7, 'B']
+    assert convert_str_seq('[[]]]1e1,\n8.,A<{7)\\B') == [10., 8.0, 'A', 7, 'B']
 
 
 # Pytest for the delist function
@@ -309,10 +305,10 @@ def test_get_info():
 # Pytest for the getCLogger function
 def test_getCLogger():
     # Check if getCLogger returns a CLogger instance
-    assert isinstance(getCLogger('C_TEST'), CLogger)
+    assert isinstance(getCLogger('C_TEST'), PRISM_Logger)
 
-    # Check if getCLogger returns the root logger if not specified
-    assert getCLogger() == logging.root
+    # Check if getCLogger returns the base logger if not specified
+    assert getCLogger() == logging.root.manager.loggerDict['prism']
 
     # Check if LoggerClass is still default Logger
     assert logging.getLoggerClass() == logging.Logger
@@ -321,10 +317,10 @@ def test_getCLogger():
 # Pytest for the getRLogger function
 def test_getRLogger():
     # Check if getRLogger returns an RLogger instance
-    assert isinstance(getRLogger('R_TEST'), RLogger)
+    assert isinstance(getRLogger('R_TEST'), PRISM_Logger)
 
-    # Check if getRLogger returns the root logger if not specified
-    assert getRLogger() == logging.root
+    # Check if getRLogger returns the base logger if not specified
+    assert getRLogger() == logging.root.manager.loggerDict['prism']
 
     # Check if LoggerClass is still default Logger
     assert logging.getLoggerClass() == logging.Logger
@@ -341,32 +337,6 @@ def test_import_cmaps():
         import_cmaps(path.join(dirpath, 'data'))
 
 
-# Pytest for the move_logger and start_logger functions
-def test_movestart_logger(tmpdir):
-    # Create a path to a new logfile
-    filename = path.join(tmpdir.strpath, 'test.log')
-
-    # Check if created logfile exists and has the correct name
-    assert start_logger(filename) == filename
-    assert path.exists(filename)
-
-    # Create a move destination
-    dest = tmpdir.mkdir('working_dir')
-
-    # Check if logfile can be correctly moved
-    move_logger(dest.strpath, filename)
-
-    # Check if a new undefined logfile can be created
-    filename_src = start_logger()
-
-    # Check if it can be logged correctly
-    logger = logging.getLogger('TEST')
-    logger.info('Writing a line')
-
-    # Check if both logfiles can be combined correctly
-    move_logger(dest.strpath, filename_src)
-
-
 # Pytest for the np_array function
 def test_np_array():
     array = np.array([1, 2])
@@ -377,16 +347,16 @@ def test_np_array():
 def test_raise_error():
     # Create a logger and check if an error can be properly raised and logged
     logger = logging.getLogger('TEST')
-    with pytest.raises(Exception):
-        raise_error('ERROR', Exception, logger)
+    with pytest.raises(RequestError):
+        raise_error('ERROR', RequestError, logger)
 
 
 # Pytest for the raise_warning function
 def test_raise_warning():
     # Create a logger and check if a warning can be properly raised and logged
     logger = logging.getLogger('TEST')
-    with pytest.warns(RequestWarning):
-        raise_warning('WARNING', RequestWarning, logger)
+    with pytest.warns(FeatureWarning):
+        raise_warning('WARNING', FeatureWarning, logger)
 
 
 # Pytest for the rprint function

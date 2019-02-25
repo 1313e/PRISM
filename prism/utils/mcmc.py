@@ -32,7 +32,7 @@ __all__ = ['get_lnpost_fn', 'get_walkers']
 # %% FUNCTION DEFINITIONS
 # This function returns a specialized version of the lnpost function
 @docstring_substitute(emul_i=user_emul_i_doc)
-def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
+def get_lnpost_fn(ext_lnpost, pipeline_obj, *, emul_i=None, unit_space=True,
                   hybrid=True):
     """
     Returns a function definition ``get_lnpost(par_set, *args, **kwargs)``.
@@ -189,8 +189,8 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=None, unit_space=True,
 
 # This function returns a set of valid MCMC walkers
 @docstring_substitute(emul_i=user_emul_i_doc)
-def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
-                ext_lnpost=None, **kwargs):
+def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
+                unit_space=True, ext_lnpost=None, **kwargs):
     """
     Analyzes proposed `init_walkers` and returns valid `p0_walkers`.
 
@@ -271,8 +271,8 @@ def get_walkers(pipeline_obj, emul_i=None, init_walkers=None, unit_space=True,
     # Check if ext_lnpost is None and try to obtain lnpost function if not
     if ext_lnpost is not None:
         try:
-            lnpost_fn = get_lnpost_fn(ext_lnpost, pipe, emul_i, unit_space,
-                                      **kwargs)
+            lnpost_fn = get_lnpost_fn(ext_lnpost, pipe, emul_i=emul_i,
+                                      unit_space=unit_space, **kwargs)
         except InputError:
             raise InputError("Input argument 'ext_lnpost' is invalid!")
 

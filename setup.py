@@ -32,7 +32,8 @@ with open('requirements.txt', 'r') as f:
 
 # Get the version
 prism_version = None
-exec(open('prism/__version__.py', 'r').read())
+with open('prism/__version__.py', 'r') as f:
+    exec(f.read())
 
 # Setup function declaration
 setup(name='prism',

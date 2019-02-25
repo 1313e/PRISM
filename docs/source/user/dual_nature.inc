@@ -32,6 +32,7 @@ In :attr:`~prism.Pipeline.worker_mode`, one uses the following structure (assumi
 The :meth:`~prism.Pipeline._make_call` method accepts almost anything that can be called.
 It can also be used when not in :attr:`~prism.Pipeline.worker_mode`, in which case it works the exact same way for all MPI ranks.
 Its sole limitation is that all supplied arguments must be pickleable (e.g., compiled code objects are NOT pickleable due to safety reasons), both when used in :attr:`~prism.Pipeline.worker_mode` and outside of it.
+The :mod:`copyreg` module can be used to register specific objects to become pickleable (including compiled code objects).
 
 The :attr:`~prism.Pipeline.worker_mode` can be used in a variety of ways, as described below.
 It can be used to access any attribute of the :obj:`~prism.Pipeline` instance::

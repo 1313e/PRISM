@@ -111,6 +111,9 @@ class Emulator(object):
         # Make pointer to File property
         self._File = self._pipeline._File
 
+        # Make pointer to prism_file property
+        self._prism_file = self._pipeline._prism_file
+
         # Load the emulator and data
         self._load_emulator(modellink_obj)
 
@@ -702,6 +705,9 @@ class Emulator(object):
 
         # If there are multiple parts, add all of them to a list
         else:
+            # Sort parts on their index number
+            idx_keys = sorted(idx_keys, key=lambda x: int(x[9:]))
+
             # Initialize empty data_idx list
             data_idx = []
 
@@ -721,7 +727,48 @@ class Emulator(object):
         # Return data_idx
         return(data_idx)
 
+    # This function splits data_idx into parts and writes it to HDF5
+    def _write_data_idx(self, emul_s_group, data_idx):
+        """
+        Splits a given `data_idx` up into individual parts and saves it as an
+        attribute to the provided `emul_s_group`.
+
+        Parameters
+        ----------
+        emul_s_group : :obj:`~h5py.Group` object
+            The HDF5-group to which the data point identifier needs to be
+            saved.
+        data_idx : tuple of {int, float, str}
+            The data point identifier to be saved.
+
+        """
+
+        # If data_idx contains multiple parts
+        if isinstance(data_idx, tuple):
+            # Obtain list of attribute keys required for the data_idx parts
+            idx_keys = ['data_idx_%i' % (i) for i in range(len(data_idx))]
+
+            # Loop over all parts
+            for key, idx in zip(idx_keys, data_idx):
+                # If part is a string, encode and save it
+                if isinstance(idx, str):
+                    emul_s_group.attrs[key] = idx.encode('ascii', 'ignore')
+                # Else, save it normally
+                else:
+                    emul_s_group.attrs[key] = idx
+
+        # If data_idx contains a single part, save it
+        else:
+            # If part is a string, encode and save it
+            if isinstance(data_idx, str):
+                emul_s_group.attrs['data_idx'] =\
+                    data_idx.encode('ascii', 'ignore')
+            # Else, save it normally
+            else:
+                emul_s_group.attrs['data_idx'] = data_idx
+
     # This function matches data points with those in a previous iteration
+    # TODO: Write this function and _assign_emul_s simpler and dependent
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _assign_data_idx(self, emul_i):
         """
@@ -872,7 +919,7 @@ class Emulator(object):
 
         Returns
         -------
-        emul_s : list of int
+        emul_s_to_core : list of lists
             A list containing the emulator systems that have been assigned to
             the corresponding MPI rank by the controller.
 
@@ -1121,29 +1168,8 @@ class Emulator(object):
                                                                 'ignore')
 
                         # Save data_idx in portions to make it HDF5-compatible
-                        data_idx = self._modellink._data_idx[i]
-
-                        # If data_idx contains multiple parts
-                        if isinstance(data_idx, tuple):
-                            # Loop over all parts
-                            for j, idx in enumerate(data_idx):
-                                # If part is a string, encode and save it
-                                if isinstance(idx, str):
-                                    data_set.attrs['data_idx_%i' % (j)] =\
-                                        idx.encode('ascii', 'ignore')
-                                # Else, save it normally
-                                else:
-                                    data_set.attrs['data_idx_%i' % (j)] = idx
-
-                        # If data_idx contains a single part, save it
-                        else:
-                            # If part is a string, encode and save it
-                            if isinstance(data_idx, str):
-                                data_set.attrs['data_idx'] =\
-                                    data_idx.encode('ascii', 'ignore')
-                            # Else, save it normally
-                            else:
-                                data_set.attrs['data_idx'] = data_idx
+                        self._write_data_idx(data_set,
+                                             self._modellink._data_idx[i])
 
                         # Create external link between file_i and master file
                         group['emul_%i' % (emul_s)] = h5py.ExternalLink(
@@ -1258,7 +1284,7 @@ class Emulator(object):
         # Calculate the adjusted emulator expectation value at given par_set
         for i, emul_s in enumerate(emul_s_seq):
             adj_exp_val[i] = prior_exp_par_set[i] +\
-                np.dot(cov_vec[i].T, self._exp_dot_term[emul_i][emul_s])
+                cov_vec[i].T @ self._exp_dot_term[emul_i][emul_s]
 
         # Return it
         return(adj_exp_val)
@@ -1276,8 +1302,7 @@ class Emulator(object):
         # Calculate the adjusted emulator variance value at given par_set
         for i, emul_s in enumerate(emul_s_seq):
             adj_var_val[i] = prior_var_par_set[i] -\
-                np.dot(cov_vec[i].T,
-                       np.dot(self._cov_mat_inv[emul_i][emul_s], cov_vec[i]))
+                cov_vec[i].T @ self._cov_mat_inv[emul_i][emul_s] @ cov_vec[i]
 
         # Return it
         return(adj_var_val)
@@ -1295,9 +1320,7 @@ class Emulator(object):
         adj_var_val = self._get_adj_var(emul_i, emul_s_seq, par_set, cov_vec)
 
         # Make sure that adj_var_val cannot drop below zero
-        for i in range(len(emul_s_seq)):
-            if(adj_var_val[i] < 0):
-                adj_var_val[i] = 0.0
+        adj_var_val[adj_var_val < 0] = 0
 
         # Return adj_exp_val and adj_var_val
         return(adj_exp_val, adj_var_val)
@@ -1532,12 +1555,12 @@ class Emulator(object):
             if self._use_regr_cov:
                 # Redetermine the active sam_set_poly
                 active_sam_set = self._sam_set[emul_i][:, new_active_par]
-                sam_set_poly = new_pf_obj.fit_transform(active_sam_set)[
-                    :, poly_idx]
+                sam_set_poly =\
+                    new_pf_obj.fit_transform(active_sam_set)[:, poly_idx]
 
                 # Calculate the poly_coef covariancesa
-                poly_coef_cov = rsdl_var*inv(
-                    np.dot(sam_set_poly.T, sam_set_poly)).flatten()
+                poly_coef_cov =\
+                    rsdl_var*inv(sam_set_poly.T @ sam_set_poly).flatten()
 
             # Obtain polynomial coefficients and include intercept term
             poly_coef = np.insert(pipe.named_steps['linear'].coef_, 0,
@@ -1664,9 +1687,8 @@ class Emulator(object):
 
         # Calculate the exp_dot_term values and save it to hdf5
         for i, emul_s in enumerate(emul_s_seq):
-            exp_dot_term = np.dot(self._cov_mat_inv[emul_i][emul_s],
-                                  (self._mod_set[emul_i][emul_s] -
-                                   prior_exp_sam_set[i]))
+            exp_dot_term = self._cov_mat_inv[emul_i][emul_s] @\
+                (self._mod_set[emul_i][emul_s]-prior_exp_sam_set[i])
             self._save_data(emul_i, emul_s, {
                 'exp_dot_term': {
                     'prior_exp_sam_set': prior_exp_sam_set[i],
@@ -1946,7 +1968,7 @@ class Emulator(object):
 
             # Calculate the inverse of the covariance matrix
             logger.info("Calculating inverse of covariance matrix %i."
-                        % (emul_s))
+                        % (self._emul_s[emul_s]))
 
             # TODO: Maybe I should put an error catch for memory overflow here?
             cov_mat_inv = self._get_inv_matrix(cov_mat[i])
@@ -2189,38 +2211,30 @@ class Emulator(object):
                        % (emul_i))
             raise_error(err_msg, RequestError, logger)
 
-        # If both checks succeed, assign emulator systems to the MPI ranks
+        # If both checks succeed, controller determines emul_s assignments
         if self._is_controller:
             # Determine which emulator systems each MPI rank should get
             emul_s_to_core = self._assign_emul_s(emul_i)
 
-            # Controller saving which systems have been assigned to which rank
-            self._emul_s_to_core = emul_s_to_core
+            # Save which systems will be assigned to which rank
+            self._emul_s_to_core = list(emul_s_to_core)
 
-            # Assign the emulator systems to the various MPI ranks
-            for rank, emul_s_seq in enumerate(emul_s_to_core):
-                # Log which systems are assigned to which rank
-                logger.info("Assigning emulator systems %s to MPI rank %i."
-                            % (emul_s_seq, rank))
+            # Save total number of emulator systems
+            self._n_emul_s_tot = sum([len(seq) for seq in emul_s_to_core])
 
-                # Update total number of emulator systems
-                self._n_emul_s_tot += len(emul_s_seq)
-
-                # Assign the first list of emul_s to the controller
-                if not rank:
-                    self._emul_s = emul_s_seq
-
-                # Assign the remaining ones to the workers
-                else:
-                    self._comm.send(emul_s_seq, dest=rank, tag=888+rank)
-
-            # Log that assignments are finished
-            logger.info("Finished assigning emulator systems to available "
-                        "MPI ranks.")
-
-        # The workers wait for the controller to assign them their systems
+        # Workers get dummy emul_s_to_core
         else:
-            self._emul_s = self._comm.recv(source=0, tag=888+self._rank)
+            emul_s_to_core = []
+
+        # Assign the emulator systems to the various MPI ranks
+        self._emul_s = self._comm.scatter(emul_s_to_core, 0)
+
+        # Temporarily manually swap the CFilter for RFilter
+        # Every rank logs what systems were assigned to it
+        # TODO: Remove the need to do this manually
+        logger.filters = [logger.PRISM_filters['RFilter']]
+        logger.info("Received emulator systems %s." % (self._emul_s))
+        logger.filters = [logger.PRISM_filters['CFilter']]
 
         # Determine the number of assigned emulator systems
         self._n_emul_s = len(self._emul_s)
@@ -2641,8 +2655,8 @@ class Emulator(object):
         par_dict = self._get_default_parameters()
 
         # Read in data from provided PRISM parameters file
-        if self._pipeline._prism_file is not None:
-            emul_par = np.genfromtxt(self._pipeline._prism_file, dtype=(str),
+        if self._prism_file is not None:
+            emul_par = np.genfromtxt(self._prism_file, dtype=(str),
                                      delimiter=':', autostrip=True)
 
             # Make sure that emul_par is 2D

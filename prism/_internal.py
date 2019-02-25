@@ -39,13 +39,14 @@ except ImportError:
 from prism.__version__ import compat_version, prism_version
 
 # All declaration
-__all__ = ['CFilter', 'CLogger', 'PRISM_Comm', 'RFilter', 'RLogger',
-           'RequestError', 'RequestWarning', 'aux_char_list',
+__all__ = ['CFilter', 'FeatureWarning', 'PRISM_Comm', 'PRISM_Logger',
+           'RFilter', 'RequestError', 'RequestWarning', 'aux_char_list',
            'check_compatibility', 'check_instance', 'check_vals',
            'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
-           'docstring_substitute', 'get_PRISM_File', 'get_info', 'getCLogger',
-           'getRLogger', 'import_cmaps', 'move_logger', 'np_array',
-           'raise_error', 'raise_warning', 'rprint', 'start_logger']
+           'docstring_substitute', 'get_PRISM_File', 'get_formatter',
+           'get_handler', 'get_info', 'getCLogger', 'getLogger', 'getRLogger',
+           'import_cmaps', 'move_logger', 'np_array', 'raise_error',
+           'raise_warning', 'rprint', 'set_base_logger']
 
 # Determine MPI size and ranks
 size = MPI.COMM_WORLD.Get_size()
@@ -63,23 +64,24 @@ class CFilter(logging.Filter):
 
     def __init__(self, MPI_rank):
         self.is_controller = 1 if not MPI_rank else 0
-        super(CFilter, self).__init__('CFilter')
+        super().__init__('CFilter')
 
     def filter(self, record):
         return(self.is_controller)
 
 
-# Define custom Logger class that uses the CFilter filter
-class CLogger(logging.Logger):
+# Define Warning class for when an experimental feature is being used
+class FeatureWarning(FutureWarning):
     """
-    Custom :class:`~logging.Logger` class that uses the :class:`~CFilter`.
+    Generic warning raised for experimental features in *PRISM*.
+
+    General purpose warning class, raised whenever a feature is used that
+    should be considered experimental. Its behavior and API are subject to
+    change, or the entire feature may be removed without a deprecation period.
 
     """
 
-    # Initialize Logger, adding the CFilter
-    def __init__(self, *args, **kwargs):
-        super(CLogger, self).__init__(*args, **kwargs)
-        self.addFilter(CFilter(rank))
+    pass
 
 
 # Make a custom MPI.Comm class that uses a special broadcast method
@@ -115,7 +117,7 @@ class PRISM_Comm(object):
     # Override getattr property to use self._comm attributes if necessary
     def __getattribute__(self, name):
         try:
-            return(super(PRISM_Comm, self).__getattribute__(name))
+            return(super().__getattribute__(name))
         except AttributeError:
             return(getattr(self._comm, name))
 
@@ -207,8 +209,8 @@ class PRISM_Comm(object):
             If MPI rank is `root`, returns a list of the gathered objects.
             Else, returns *None*.
 
-        Notes
-        -----
+        Warnings
+        --------
         If some but not all MPI ranks use a NumPy array, this method will hang
         indefinitely.
         When gathering NumPy arrays, all arrays must have the same number of
@@ -268,36 +270,55 @@ class PRISM_Comm(object):
         return(buff)
 
 
+# Define custom Logger class that allows for filters to be easily used
+class PRISM_Logger(logging.Logger):
+    """
+    Special :class:`~logging.Logger` class that allows for special filters to
+    be set more easily.
+
+    """
+
+    # Initialize Logger
+    def __init__(self, *args, **kwargs):
+        # Call super constructor
+        super().__init__(*args, **kwargs)
+
+        # Initialize different custom filters
+        self.initialize_filters()
+
+    # This function initializes custom filters
+    def initialize_filters(self):
+        self.PRISM_filters = {
+            'CFilter': CFilter(rank),
+            'RFilter': RFilter(rank)}
+
+    # This function adds requested filters to Logger
+    def set_filters(self, filters):
+        # If filters is not None, add all filters to Logger
+        if filters is not None:
+            for filter in filters:
+                self.addFilter(self.PRISM_filters[filter])
+
+
 # Make a custom Filter class that logs the rank of the process that calls it
 class RFilter(logging.Filter):
     """
     Custom :class:`~logging.Filter` class that prepends the rank of the MPI
-    process that calls it to the logging message.
+    process that calls it to the logging message. If the size of the used MPI
+    intra-communicator is 1, this filter does nothing.
 
     """
 
     def __init__(self, MPI_rank):
-        self.prefix = "Rank %i:" % (MPI_rank)
-        super(RFilter, self).__init__('RFilter')
+        if(MPI.__package__ == 'mpi4py' and size > 1):
+            self.prefix = "Rank %i: " % (MPI_rank)
+        else:
+            self.prefix = ""
+        super().__init__('RFilter')
 
     def filter(self, record):
-        record.msg = " ".join([self.prefix, record.msg])
+        record.msg = "".join([self.prefix, record.msg])
         return(1)
-
-
-# Define custom Logger class that uses the RFilter filter
-class RLogger(logging.Logger):
-    """
-    Custom :class:`~logging.Logger` class that uses the :class:`~RFilter` if
-    the size of the intra-communicator is more than 1.
-
-    """
-
-    # Initialize Logger, adding the RFilter if size > 1
-    def __init__(self, *args, **kwargs):
-        super(RLogger, self).__init__(*args, **kwargs)
-        if(MPI.__name__ == 'mpi4py.MPI' and size > 1):
-            self.addFilter(RFilter(rank))
 
 
 # Define Exception class for when a requested action is not possible
@@ -316,7 +337,7 @@ class RequestError(Exception):
 
 
 # Define Warning class for when a (future) requested action may not be useful
-class RequestWarning(Warning):
+class RequestWarning(UserWarning):
     """
     Generic warning raised for (future) action requests in the *PRISM* pipeline
     that may not be useful.
@@ -413,6 +434,14 @@ def check_compatibility(emul_version):
                        " version of PRISM (v%s). The last compatible version "
                        "is v%s." % (prism_version, version))
             raise_error(err_msg, RequestError, logger)
+
+    # Check if emul_version is 1.0.x and raise warning if so
+    if not compare_versions(emul_version, '1.1.0'):
+        warn_msg = ("The provided emulator was constructed with an "
+                    "unmaintained version of PRISM (v%s). Compatibility with "
+                    "the current version of PRISM cannot be guaranteed."
+                    % (emul_version))
+        raise_warning(warn_msg, RequestWarning, logger, 2)
 
     # Check if emul_version is not newer than prism_version
     if not compare_versions(prism_version, emul_version):
@@ -715,6 +744,9 @@ def convert_str_seq(seq):
     from it, splits it up into individual elements and converts all elements
     back to integers, floats and/or strings.
 
+    The auxiliary characters are given by the :obj:`~aux_char_list` list. One
+    can add, change and remove characters from the list if required.
+
     Parameters
     ----------
     seq : str or array_like
@@ -743,24 +775,27 @@ def convert_str_seq(seq):
     for i, val in enumerate(seq):
         # Try to convert to int or float
         try:
-            # If string contains an E or e, try to convert to float first
+            # If string contains an E or e, check if it is a float
             if 'e' in val.lower():
-                tmp_val = float(val)
-            else:
-                tmp_val = val
-
+                seq[i] = float(val)
             # If string contains a dot, check if it is a float
-            if '.' in val:
-                seq[i] = float(tmp_val)
-            # If string contains no dot, check if it is an int
+            elif '.' in val:
+                seq[i] = float(val)
+            # If string contains no dot, E or e, check if it is an int
             else:
-                seq[i] = int(tmp_val)
+                seq[i] = int(val)
         # If it cannot be converted to int or float, save as string
         except ValueError:
             seq[i] = val
 
     # Return it
     return(seq)
+
+
+# List of auxiliary characters to be used in convert_str_seq()
+aux_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/', '{', '}', '<',
+                 '>', '´', '¨', '`', '\\', '?', '!', '%', ';', '=', '$', '~',
+                 '#', '@', '^', '&', '*']
 
 
 # Function that returns a copy of a list with all empty lists/tuples removed
@@ -802,18 +837,44 @@ def delist(list_obj):
     return(delisted_copy)
 
 
-# Define custom getLogger function that calls the custom CLogger instead
-def getCLogger(name=None):
+# This function returns a logging.Formatter used for PRISM logging
+def get_formatter():
     """
-    Create a :class:`~CLogger` instance with `name` and return it.
+    Returns a :obj:`~logging.Formatter` object containing the default logging
+    formatting.
 
     """
 
-    # Temporarily set the default class to CLogger and return an instance of it
-    logging.setLoggerClass(CLogger)
-    logger = logging.getLogger(name)
-    logging.setLoggerClass(logging.Logger)
-    return(logger)
+    # Set formatting strings
+    fmt = "[%(asctime)s][%(levelname)-4s] %(name)-10s \t%(message)s"
+    datefmt = "%Y-%m-%d %H:%M:%S"
+
+    # Initialize Formatter class and return it
+    return(logging.Formatter(fmt, datefmt))
+
+
+# This function returns a logging.Handler used for PRISM logging
+def get_handler(filename):
+    """
+    Returns a :obj:`~logging.Handler` object containing the default logging
+    handling settings.
+
+    """
+
+    # Initialize Handler class
+    handler = logging.FileHandler(filename, mode='a', encoding='utf-8')
+
+    # Add name to handler
+    handler.set_name('prism_base')
+
+    # Set logLevel to DEBUG
+    handler.setLevel('DEBUG')
+
+    # Add formatter to handler
+    handler.setFormatter(get_formatter())
+
+    # Return handler
+    return(handler)
 
 
 # Define function that returns a string with all PRISM package information
@@ -829,8 +890,8 @@ def get_info():
 
     # Add header to info_list
     info_list.append(dedent("""
-        PRISM configuration information
-        -------------------------------"""))
+        Configuration
+        -------------"""))
 
     # Add platform to info_list
     info_list.append("Platform: %s %i-bit"
@@ -843,17 +904,22 @@ def get_info():
     prism_dist = get_distribution('prism')
 
     # Add PRISM version to info_list
-    info_list.append("prism: %s" % (prism_dist.version))
+    info_list.append("Version: %s" % (prism_dist.version))
 
     # Get list of all PRISM requirements
     req_list = [req.name for req in prism_dist.requires()]
 
     # If imported MPI is mpi4py, add it to the list as well
-    if(MPI.__name__ == 'mpi4py.MPI'):
+    if(MPI.__package__ == 'mpi4py'):
         req_list.append('mpi4py')
 
     # Sort the requirements list
     req_list.sort()
+
+    # Make requirements header
+    info_list.append(dedent("""
+        Requirements
+        ------------"""))
 
     # Get distribution version of every requirement of PRISM
     for req in req_list:
@@ -954,7 +1020,7 @@ def get_PRISM_File(prism_hdf5_file):
                             % (self.emul_s, mode))
 
             # Inheriting File __init__()
-            super(PRISM_File, self).__init__(filename, mode, **hdf5_kwargs)
+            super().__init__(filename, mode, **hdf5_kwargs)
 
         # Override __exit__() to include logging
         def __exit__(self, *args):
@@ -967,24 +1033,84 @@ def get_PRISM_File(prism_hdf5_file):
                 logger.info("Closing system HDF5-file %i." % (self.emul_s))
 
             # Inheriting File __exit__()
-            super(PRISM_File, self).__exit__(*args)
+            super().__exit__(*args)
 
     # Return PRISM_File class definition
     return(PRISM_File)
 
 
-# Define custom getLogger function that calls the custom RLogger instead
+# Define custom getLogger function that adds the CFilter
+def getCLogger(name=None):
+    """
+    Creates a :obj:`~PRISM_Logger` instance with `name`, adds the
+    :class:`~CFilter` to it and returns it.
+
+    """
+
+    # Create PRISM_Logger with a CFilter
+    return(getLogger(name, ['CFilter']))
+
+
+# Define custom getLogger function that automatically names loggers correctly
+def getLogger(name=None, filters=None):
+    """
+    Creates a :obj:`~PRISM_Logger` instance with `name` and adds the provided
+    `filters` to it. The returned :obj:`~PRISM_Logger` instance is a child of
+    the base :class:`~PRISM_Logger` created with :func:`~set_base_logger`, but
+    has its name changed (such that the parent name does not show up in the
+    log-file).
+
+    Optional
+    --------
+    name : str or None. Default: None
+        The name of the :obj:`~PRISM_Logger` instance to create.
+        If *None*, initialize the base :class:`~PRISM_Logger` instead.
+    filters : list of str or None. Default: None
+        List of strings naming the filters that must be applied to the created
+        :obj:`~PRISM_Logger` instance.
+        If *None*, no filters will be applied.
+
+    Returns
+    -------
+    logger : :obj:`~PRISM_Logger` object
+        The created :obj:`~PRISM_Logger` instance.
+
+    """
+
+    # Set Logger name prefix
+    prefix = 'prism'
+
+    # Check what the provided name is
+    if name is None:
+        child_name = prefix
+    else:
+        child_name = ".".join([prefix, name])
+
+    # Temporarily set default Logger class to PRISM_Logger and initialize it
+    logging.setLoggerClass(PRISM_Logger)
+    logger = logging.getLogger(child_name)
+    logging.setLoggerClass(logging.Logger)
+
+    # Remove prefix from the name of the PRISM_Logger instance
+    logger.name = name
+
+    # Set the requested filter(s)
+    logger.set_filters(filters)
+
+    # Return it
+    return(logger)
+
+
+# Define custom getLogger function that adds the RFilter
 def getRLogger(name=None):
     """
-    Create a :class:`~RLogger` instance with `name` and return it.
+    Creates a :obj:`~PRISM_Logger` instance with `name`, adds the
+    :class:`~RFilter` to it and returns it.
 
     """
 
-    # Temporarily set the default class to RLogger and return an instance of it
-    logging.setLoggerClass(RLogger)
-    logger = logging.getLogger(name)
-    logging.setLoggerClass(logging.Logger)
-    return(logger)
+    # Create PRISM_Logger with an RFilter
+    return(getLogger(name, ['RFilter']))
 
 
 # Function to import all custom colormaps in a directory
@@ -1063,17 +1189,15 @@ def import_cmaps(cmap_dir):
 
 
 # Define function that can move the logging file of PRISM and restart logging
-def move_logger(working_dir, filename):
+def move_logger(working_dir):
     """
-    Moves the logging file `filename` from the current working directory to the
-    given `working_dir`, and then restarts it again.
+    Moves the base :class:`~PRISM_Logger` from the current working directory to
+    the given `working_dir`, and then restarts it again.
 
     Parameters
     ----------
     working_dir : str
         String containing the directory the log-file needs to be moved to.
-    filename : str
-        String containing the name of the log-file that needs to be moved.
 
     """
 
@@ -1081,7 +1205,7 @@ def move_logger(working_dir, filename):
     logging.shutdown()
 
     # Get source and destination paths
-    source = path.abspath(filename)
+    source = logging.getLogger('prism').handlers[0].baseFilename
     destination = path.join(working_dir, 'prism_log.log')
 
     # Check if file already exists and either combine files or move the file
@@ -1094,7 +1218,7 @@ def move_logger(working_dir, filename):
         shutil.move(source, destination)
 
     # Restart the logger
-    start_logger(filename=destination, mode='a')
+    set_base_logger(filename=destination)
 
 
 # This function automatically does not make a copy of a NumPy array
@@ -1182,64 +1306,35 @@ def rprint(*args, **kwargs):
     print(*args, **kwargs)
 
 
-# Define function that can start the logging process of PRISM
-# TODO: Make a filter that only allows PRISM log messages to be logged to file
-# TODO: Find a way to bind the logging file to the Pipeline instance
-def start_logger(filename=None, mode='w'):
+# This function sets the base PRISM logger
+# TODO: Make base logger unique to Pipeline instance
+# This requires a lot of rewriting and many functions to be moved to Pipeline
+def set_base_logger(filename=None):
     """
-    Opens a logging file called `filename` in the current working directory,
-    opened with `mode` and starts the logger.
+    Initializes the base :class:`~PRISM_Logger`, from which all other
+    :obj:`~PRISM_Logger` instances are derived.
 
     Optional
     --------
     filename : str or None. Default: None
         String containing the name of the log-file that is opened.
         If *None*, a new log-file will be created.
-    mode : {'r', 'r+', 'w', 'w-'/'x', 'a'}. Default: 'w'
-        String indicating how the log-file needs to be opened.
 
     """
 
     # If filename is not defined, make a new one
     if filename is None:
-        fd, filename = mkstemp('.log', 'prism_log_', '.')
+        fd, filename = mkstemp('.log', 'prism_', '.')
         os.close(fd)
 
-    # Define logging dict
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'default': {
-                'format': "[%(asctime)s][%(threadName)-10s][%(levelname)-4s] "
-                          "%(name)-10s \t%(message)s",
-                'datefmt': "%Y-%m-%d %H:%M:%S",
-            },
-        },
-        'handlers': {
-            'file': {
-                '()': logging.FileHandler,
-                'level': 'DEBUG',
-                'formatter': 'default',
-                'filename': filename,
-                'mode': mode,
-                'encoding': 'utf-8',
-            },
-        },
-        'root': {
-            'handlers': ['file'],
-            'level': 'DEBUG',
-        },
-    }
+    # Initialize base_logger
+    base_logger = getLogger()
 
-    # Start the logger from the dict above
-    logging.config.dictConfig(LOGGING)
+    # Make sure that base_logger has no handlers
+    base_logger.handlers = []
 
-    # Return log-file name
-    return(filename)
+    # Initialize base handler and add it to base_logger
+    base_logger.addHandler(get_handler(filename))
 
-
-# %% LIST DEFINITIONS
-aux_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/', '{', '}', '<',
-                 '>', '´', '¨', '`', '\\', '?', '!', '%', ';', '=', '$', '~',
-                 '#', '@', '^', '&', '*']
+    # Set logLevel to DEBUG
+    base_logger.setLevel('DEBUG')

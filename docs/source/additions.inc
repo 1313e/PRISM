@@ -25,5 +25,10 @@ Below are some bigger ideas/improvements that may be added to *PRISM* if there i
       Added benefit of this is that it would become possible to add the option for the user to set a preferred number of MPI processes calling the model (in MPI), allowing *PRISM* to split up the available processes if more efficient;
     - GPU acceleration;
     - Adding the theory behind *PRISM* to the docs;
-    - Adding the possibility to evaluate the derivatives of the emulated model outputs, which could be used as approximations of the gradient field of a model for certain MCMC methods.
+    - Adding the possibility to evaluate the derivatives of the emulated model outputs, which could be used as approximations of the gradient field of a model for certain MCMC methods;
+    - Replace the *list of lists* data system with a *list of dicts* system.
+      This would remove the need for converting global indices to/from local indices in several cases, and make it easier for users to understand.
+      However, as indexing dicts is more complicated, this may require a lot of rewriting;
+    - Code objects can be made pickleable by importing the :mod:`~ipykernel.codeutil` module.
+      This package could be added to the requirements or an equivalent function could be written, which is then automatically imported/executed upon importing *PRISM*;
 

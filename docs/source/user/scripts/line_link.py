@@ -17,7 +17,7 @@ class LineLink(ModelLink):
         pass
 
         # Call ModelLink's __init__()
-        super(LineLink, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_default_model_parameters(self):
         # Define default parameters (not required)

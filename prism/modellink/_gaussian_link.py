@@ -66,7 +66,7 @@ class GaussianLink(ModelLink):
         self.MPI_call = False
 
         # Inheriting ModelLink __init__()
-        super(GaussianLink, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_str_repr(self):
         return(['n_gaussians=%r' % (self._n_gaussians)] if(

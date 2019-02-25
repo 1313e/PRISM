@@ -42,7 +42,7 @@ from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
                              docstring_append, docstring_copy,
                              docstring_substitute, getCLogger, get_PRISM_File,
                              getRLogger, move_logger, np_array, raise_error,
-                             raise_warning, start_logger)
+                             raise_warning, set_base_logger)
 from prism._projection import Projection
 
 # All declaration
@@ -65,7 +65,7 @@ class Pipeline(Projection, object):
     """
 
     @docstring_substitute(paths=paths_doc_d)
-    def __init__(self, modellink_obj, root_dir=None, working_dir=None,
+    def __init__(self, modellink_obj, *, root_dir=None, working_dir=None,
                  prefix=None, prism_file=None, emul_type=None, comm=None):
         """
         Initialize an instance of the :class:`~Pipeline` class.
@@ -105,7 +105,7 @@ class Pipeline(Projection, object):
         # Controller obtaining paths and preparing logging system
         if self._is_controller:
             # Start logging
-            logging_file = start_logger()
+            set_base_logger()
             logger = getCLogger('PIPELINE')
             logger.info("")
 
@@ -117,7 +117,7 @@ class Pipeline(Projection, object):
             self._get_paths(root_dir, working_dir, prefix, prism_file)
 
             # Move logger to working directory and restart it
-            move_logger(self._working_dir, logging_file)
+            move_logger(self._working_dir)
 
         # Remaining workers obtain paths from controller
         else:
@@ -130,7 +130,7 @@ class Pipeline(Projection, object):
 
         # Start logger for workers as well
         if self._is_worker:
-            start_logger(path.join(self._working_dir, 'prism_log.log'), 'a')
+            set_base_logger(path.join(self._working_dir, 'prism_log.log'))
 
         # Initialize Emulator class
         # If emul_type is None, use default emulator
@@ -169,7 +169,7 @@ class Pipeline(Projection, object):
 
     # Allows one to call one full loop of the PRISM pipeline
     @docstring_substitute(emul_i=call_emul_i_doc)
-    def __call__(self, emul_i=None, force=False):
+    def __call__(self, emul_i=None, *, force=False):
         """
         Calls the :meth:`~construct` method to start the construction of the
         given iteration of the emulator and creates the projection figures
@@ -345,7 +345,6 @@ class Pipeline(Projection, object):
 
         return(bool(self._do_logging))
 
-    # TODO: Find a way to only turn off all regular logging done by PRISM
     @do_logging.setter
     def do_logging(self, flag):
         # Make logger
@@ -359,12 +358,12 @@ class Pipeline(Projection, object):
             pass
         # If logging is turned on, log this and turn off logging
         elif not flag:
-            logging.disable(logging.INFO)
+            logging.root.manager.loggerDict['prism'].setLevel(logging.INFO+1)
             logger.warning("Logging messages of level %i (INFO) and below are "
                            "now ignored." % (logging.INFO))
         # If logging is turned off, turn it on and log this
         else:
-            logging.disable(logging.NOTSET)
+            logging.root.manager.loggerDict['prism'].setLevel(logging.DEBUG)
             logger.warning("Logging messages are no longer ignored.")
         self._do_logging = flag
 
@@ -757,6 +756,7 @@ class Pipeline(Projection, object):
         return(par_dict)
 
     # Read in the parameters from the provided parameter file
+    # TODO: May want to use configparser.Configparser for this
     @docstring_append(read_par_doc.format("Pipeline"))
     def _read_parameters(self):
         # Log that the PRISM parameter file is being read
@@ -1378,10 +1378,9 @@ class Pipeline(Projection, object):
         if self._is_controller:
             data_idx_flat = []
             data_idx_len = []
-            for rank, data_idx_rank in enumerate(data_idx_list):
+            for data_idx_rank in data_idx_list:
                 data_idx_len.append(len(data_idx_rank))
-                for data_idx in data_idx_rank:
-                    data_idx_flat.append(data_idx)
+                data_idx_flat.extend(data_idx_rank)
 
         # Use dummy data_idx_flat on workers
         else:
@@ -1464,7 +1463,7 @@ class Pipeline(Projection, object):
             # Log that this is finished
             eval_rate = end_time/n_sam if n_sam else 0
             msg = ("Finished obtaining and distributing model realization data"
-                   " in %.3g seconds, averaging %.3g seconds per model "
+                   " in %#.3g seconds, averaging %#.3g seconds per model "
                    "evaluation." % (end_time, eval_rate))
             self._save_statistics(emul_i, {
                 'tot_model_eval_time': ['%#.3g' % (end_time), 's'],
@@ -1878,8 +1877,7 @@ class Pipeline(Projection, object):
 
             # Try to extract ext_sam_set and ext_mod_set
             try:
-                ext_sam_set = ext_real_set[0]
-                ext_mod_set = ext_real_set[1]
+                ext_sam_set, ext_mod_set = ext_real_set
             except Exception as error:
                 err_msg = ("Input argument 'ext_real_set' is invalid! (%s)"
                            % (error))
@@ -2341,7 +2339,7 @@ class Pipeline(Projection, object):
     # TODO: Make time and RAM cost plots
     # TODO: Fix the timers for interrupted constructs
     @docstring_substitute(emul_i=call_emul_i_doc, ext_set=ext_real_set_doc_d)
-    def construct(self, emul_i=None, analyze=True, ext_real_set=None,
+    def construct(self, emul_i=None, *, analyze=True, ext_real_set=None,
                   force=False):
         """
         Constructs the emulator at the specified emulator iteration `emul_i`,
@@ -2689,8 +2687,7 @@ class Pipeline(Projection, object):
         if self._is_controller:
             # Flatten the received ccheck_list
             ccheck_flat = [[] for _ in range(self._emulator._n_emul_s_tot)]
-            for ccheck_iter in ccheck_list[0][self._emulator._n_emul_s:]:
-                ccheck_flat.append(ccheck_iter)
+            ccheck_flat.extend(ccheck_list[0][self._emulator._n_emul_s:])
             for rank, ccheck_rank in enumerate(ccheck_list):
                 for emul_s, ccheck in zip(self._emulator._emul_s_to_core[rank],
                                           ccheck_rank):
@@ -3089,5 +3086,5 @@ class Pipeline(Projection, object):
 
     # This function simply executes self.__call__
     @docstring_copy(__call__)
-    def run(self, emul_i=None, force=False):
-        self(emul_i, force)
+    def run(self, emul_i=None, *, force=False):
+        self(emul_i, force=force)

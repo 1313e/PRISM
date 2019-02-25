@@ -31,7 +31,7 @@ before_install:
           brew cask uninstall oclint
           brew upgrade python
       fi
-    - python$PY -m pip install --upgrade pip==18.1
+    - python$PY -m pip install --upgrade pip setuptools wheel
     - python$PY -m pip install -r requirements_dev.txt
 install:
     - check-manifest
@@ -78,6 +78,7 @@ deploy:
     on:
         branch: master
         condition: $TRAVIS_OS_NAME == linux
+        tags: true
     
 notifications:
   email: false

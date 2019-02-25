@@ -6,10 +6,6 @@ PRISM
 A *Probabilistic Regression Instrument for Simulating Models* created by
 **Ellert van der Velden** (@1313e).
 
-All docstrings in this package assume that *PRISM* is imported as::
-
-    import prism
-
 
 Short description
 -----------------
