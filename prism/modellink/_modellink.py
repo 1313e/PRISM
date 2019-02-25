@@ -18,6 +18,7 @@ import warnings
 
 # Package imports
 from e13tools import InputError, ShapeError
+import h5py
 import hickle
 import numpy as np
 from numpy.random import rand
@@ -727,12 +728,12 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         filepath = self._get_backup_path(emul_i)
 
         # Save emul_i, par_set, data_idx, args and kwargs to hdf5
-        # TODO: Use with-statement after hickle no longer closes HDF5-files
-        hickle.dump(emul_i, filepath, mode='w', path='/emul_i')
-        hickle.dump(dict(par_set), filepath, mode='a', path='/par_set')
-        hickle.dump(data_idx, filepath, mode='a', path='/data_idx')
-        hickle.dump(args, filepath, mode='a', path='/args')
-        hickle.dump(kwargs, filepath, mode='a', path='/kwargs')
+        with h5py.File(filepath, 'w') as file:
+            hickle.dump(emul_i, file, path='/emul_i')
+            hickle.dump(dict(par_set), file, path='/par_set')
+            hickle.dump(data_idx, file, path='/data_idx')
+            hickle.dump(args, file, path='/args')
+            hickle.dump(kwargs, file, path='/kwargs')
 
     # This function reads in a backup made by _make_backup
     # TODO: Allow for absolute path to backup file to be given?
@@ -778,12 +779,12 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         data = sdict()
 
         # Read emul_i, par_set, data_idx, args and kwargs from hdf5
-        # TODO: Use with-statement after hickle no longer closes HDF5-files
-        data['emul_i'] = hickle.load(filepath, path='/emul_i')
-        data['par_set'] = sdict(hickle.load(filepath, path='/par_set'))
-        data['data_idx'] = hickle.load(filepath, path='/data_idx')
-        data['args'] = hickle.load(filepath, path='/args')
-        data['kwargs'] = hickle.load(filepath, path='/kwargs')
+        with h5py.File(filepath, 'r') as file:
+            data['emul_i'] = hickle.load(file, path='/emul_i')
+            data['par_set'] = sdict(hickle.load(file, path='/par_set'))
+            data['data_idx'] = hickle.load(file, path='/data_idx')
+            data['args'] = hickle.load(file, path='/args')
+            data['kwargs'] = hickle.load(file, path='/kwargs')
 
         # Return data
         return(data)
