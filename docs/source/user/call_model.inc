@@ -107,3 +107,119 @@ Note that making an emulator of an emulator is pointless, but used here as an ex
     The code above would however be necessary if the "model" works in the same way as *PRISM*'s :attr:`~prism.Pipeline.worker_mode`, where all worker ranks are listening for calls until the "model" is finalized.
     This finalization would be required in order to give *PRISM* control back over all ranks.
 
+
+Backing up progress
+###################
+.. versionadded:: 1.1.1
+
+.. warning::
+    This feature is still experimental and it may see significant changes or be (re)moved in the future.
+
+In *PRISM*, an emulator system is constructed by calculating all required components individually.
+This means that the construction process of an emulator iteration can easily be interrupted and restored at a later time, only losing the progress that was made in the current step (e.g., interrupting construction during the calculation of the covariance matrix will lose progress made there, but not the already previously finished steps).
+This system was implemented to accommodate for *PRISM* running on clusters, where the construction is more prone to interruptions due to, for example, jobs timing out, and to allow for *PRISM* to be loaded unto any number of MPI processes.
+
+However, the biggest step in the construction of all emulator systems, is the evaluation of the model.
+Since the evaluation of the model is carried out by the :meth:`~prism.modellink.ModelLink.call_model` method, *PRISM* has no control over what is happening until this method gives control back to the :obj:`~prism.Pipeline` instance (by returning the requested data points).
+Therefore, automated backups of already calculated data points cannot be performed by *PRISM* itself, running the risk that many CPU hours are wasted if a job on a cluster takes longer than initially expected and times out.
+While this could be avoided if the user writes its own backup system, this would require more work from the user, which clashes with *PRISM*'s ease-of-use policy.
+
+Therefore, the :class:`~prism.modellink.ModelLink` class implements its own (experimental) backup system based on the `hickle`_ package, given by the :meth:`~prism.modellink.ModelLink._make_backup` and :meth:`~prism.modellink.ModelLink._read_backup` methods.
+This backup system is best used for models that are multi-called (:attr:`~prism.modellink.ModelLink.multi_call` set to :pycode:`True`), as made backups will replace previous ones (of the same type).
+The :meth:`~prism.modellink.ModelLink._make_backup` method is meant to be used from within the :meth:`~prism.modellink.ModelLink.call_model` method and will not work if called anywhere else.
+Attempting to call it incorrectly (e.g., not from within :meth:`~prism.modellink.ModelLink.call_model` or with incorrect arguments), will raise a :class:`~prism._internal.RequestWarning` and simply return without doing anything, rather than raising a :class:`~prism._internal.RequestError`.
+This is to make sure that using it incorrectly does not disrupt the :meth:`~prism.modellink.ModelLink.call_model` call, as that has the exact opposite effect of what the backup system tries to achieve.
+
+The :meth:`~prism.modellink.ModelLink._make_backup` method takes two arguments, ``*args`` and ``**kwargs``, of which at least one is required.
+Calling it from within the :meth:`~prism.modellink.ModelLink.call_model` method will produce an HDF5-file containing the ``emul_i``, ``par_set`` and ``data_idx`` argument values that were used to call :meth:`~prism.modellink.ModelLink.call_model` with, and the supplied ``*args`` and ``**kwargs``.
+The name of the HDF5-file contains the values of ``emul_i`` and :attr:`~prism.modellink.ModelLink.name`, and will be saved in the current working directory (NOT the emulator working directory, as the :obj:`~prism.modellink.ModelLink` instance has no access to its path).
+The backup can be read in by passing the value of ``emul_i`` to the :meth:`~prism.modellink.ModelLink._read_backup` method of the corresponding :obj:`~prism.modellink.ModelLink` instance, which will return a dict containing the values of the five arguments that were saved to the file.
+
+Backups can be made at any point during the execution of :meth:`~prism.modellink.ModelLink.call_model`, and basically all types of objects are compatible and can be viewed freely in the HDF5-file.
+It is possible that instances of certain custom classes may not be supported by the `hickle`_ package, in which case they will be pickled and saved as a string, causing them to not be able to be viewed freely (but they can still be backed up).
+Depending on the size of the data provided, it can sometimes take a little while before a backup is made.
+Therefore, it is probably best to trigger making backups at specified progress points in :meth:`~prism.modellink.ModelLink.call_model`.
+
+.. _hickle: https://github.com/telegraphic/hickle
+
+To illustrate how this backup system can be used, assume that we have written a :class:`~prism.modellink.ModelLink` subclass, which requires some preparation before it can start evaluating the wrapped model.
+Here, we will assume that this preparation is provided by a function called :pycode:`prepare_model()`, which returns an instance of some class that can be used to evaluate the model after the preparation is completed.
+Then, we could incorporate the backup system by writing a :meth:`~prism.modellink.ModelLink.call_model` method like this::
+
+    def call_model(self, emul_i, par_set, data_idx):
+        # Prepare the model for evaluation
+        model = prepare_model()
+
+        # Controller performs evaluations
+        if model.is_controller:
+            # Initialize empty array of results
+            mod_set = np.zeros([len(par_set['par1']), len(data_idx)])
+            
+            # Convert par_set to a generator
+            sam_set = map(lambda *args: args, *par_set.values())
+
+            # Call model for every individual sample in sam_set
+            for i, sam in enumerate(sam_set):
+                mod_set[i] = model.evaluate(sam, data_idx)
+                
+                # Make a backup every 500 evaluations
+                if not((i+1) % 500):
+                    self._make_backup(mod_set=mod_set[:i])
+
+        # Finalize the model
+        model.finalize()
+
+        # Return the results on the controller
+        if model.is_controller:
+            return(mod_set)
+
+The code above shows an example of a model that needs to be initialized before it can be multi-called in MPI, and needs to be finalized afterward.
+Since such a model is probably quite complex, it may be a good idea to make a backup every once in a while.
+Therefore, whenever 500 evaluations have been done, a backup is made of all results gained up to that point.
+This means that whenever the model evaluation process is interrupted, a maximum of the last 500 evaluations is lost.
+The evaluations that are not lost can be loaded back in by using the :meth:`~prism.modellink.ModelLink._read_backup` method, and potentially (after a bit of formatting) be passed to the ``ext_real_set`` input argument of the :meth:`~prism.Pipeline.construct` method when attempting to construct the emulator iteration again.
+
+Note that if :pycode:`model.evaluate()` was implemented such that it takes the entire sample set at once rather than one at a time, calling :meth:`~prism.modellink.ModelLink._make_backup` in :pycode:`model.evaluate()` works perfectly fine, as long as :pycode:`model.evaluate()` is always called by :meth:`~prism.modellink.ModelLink.call_model` or any other function for which this is true.
+Put a little bit more simple: :meth:`~prism.modellink.ModelLink._make_backup` must be called either directly or indirectly by :meth:`~prism.modellink.ModelLink.call_model`, as shown in the following example.
+
+.. admonition:: Example
+
+    ::
+
+        def call_model(self, emul_i, par_set, data_idx):
+            # Call a function A and return its output
+            # This function does not require emul_i, so do not provide it
+            return(A(self, par_set, data_idx))
+
+        def A(modellink_obj, par_set, data_idx):
+            # Prepare model
+            model = prepare_model()
+
+            # Prepare par_set for evaluation
+            sam_set = map(lambda *args: args, *par_set.values())
+
+            # Call a function B
+            mod_set = B(modellink_obj, model, sam_set, data_idx)
+            
+            # Finalize the model
+            model.finalize()
+            
+            # Return the results
+            return(mod_set)
+
+        def B(modellink_obj, model_obj, sam_set, data_idx):
+            # Prepare mod_set
+            mod_set = np.zeros([np.shape(sam_set)[0], len(data_idx)])
+            
+            # Call model for every individual sample in sam_set
+            for i, sam in enumerate(sam_set):
+                mod_set[i] = model_obj.evaluate(sam, data_idx)
+                
+                # Make a backup every 500 evaluations
+                if not((i+1) % 500):
+                    modellink_obj._make_backup(mod_set=mod_set[:i])
+
+            # Return mod_set
+            return(mod_set)
+
+

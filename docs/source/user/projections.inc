@@ -114,7 +114,7 @@ Below are two identical projections, one that is smoothed and one that is not, t
 
 In these figures, one can see that the non-smoothed projection shows many features in the upper subplot that look like artifacts.
 These features are however not artifacts, but caused by a sample (or samples) having its highest implausibility value being below the first implausibility cut-off, but still being implausible due to failing a later cut-off.
-For example, if the implausibility cut-offs are `[4.0, 3.7, 3.5]` and a sample has implausibility values `[3.9, 3.8, 3.2]`, it is found implausible due to failing to meet the second cut-off.
+For example, if the implausibility cut-offs are :pycode:`[4.0, 3.7, 3.5]` and a sample has implausibility values :pycode:`[3.9, 3.8, 3.2]`, it is found implausible due to failing to meet the second cut-off.
 However, since the first value is still the highest implausibility value, that value is used in the projection figure.
 Smoothing figures usually allows for 3D projections (2D projections rarely show this) to become less crowded, but they do throw away information.
 It should therefore only be used when necessary.
