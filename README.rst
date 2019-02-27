@@ -55,7 +55,7 @@ Installation
 
 or by installing it directly from `PyPI`_ with::
 
-    $ pip install prism==1.0
+    $ pip install prism==1.0.0
 
 *PRISM* can now be imported as a package with ``import prism``.
 For using *PRISM* in MPI, ``mpi4py >= 3.0.0`` is required (not installed automatically).
@@ -65,7 +65,7 @@ These ModelLink subclasses can be used to experiment with *PRISM* to see how it 
 The `online docs`_ have several examples explaining the different functionalities of the package.
 
 .. _repository: https://github.com/1313e/PRISM/tree/v1.0.x
-.. _PyPI: https://pypi.org/project/prism/1.0.0
+.. _PyPI: https://pypi.org/project/prism/v1.0.0
 .. _online docs: https://prism-tool.readthedocs.io/en/v1.0.x
 
 
@@ -147,10 +147,10 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 
 
 .. |PyPI| image:: https://img.shields.io/badge/PyPI-v1.0.0-blue.svg
-    :target: https://pypi.python.org/pypi/prism/v1.0.0
+    :target: https://pypi.org/project/prism/v1.0.0
     :alt: PyPI - Latest v1.0.x Release
 .. |Python| image:: https://img.shields.io/badge/Python-2.7%20%7C%203.5%20%7C%203.6%20%7C%203.7-blue.svg?logo=python&logoColor=white
-    :target: https://pypi.python.org/pypi/prism/v1.0.0
+    :target: https://pypi.org/project/prism/v1.0.0
     :alt: PyPI - Python Versions
 .. |License| image:: https://img.shields.io/pypi/l/prism.svg?colorB=blue&label=License
     :target: https://github.com/1313e/PRISM/raw/v1.0.x/LICENSE
