@@ -691,11 +691,11 @@ def get_info():
     # Add python version to info_list
     info_list.append("Python: %s" % (platform.python_version()))
 
+    # Add PRISM version to info_list
+    info_list.append("Version: %s" % (prism_version))
+
     # Access PRISM metadata
     prism_dist = get_distribution('prism')
-
-    # Add PRISM version to info_list
-    info_list.append("Version: %s" % (prism_dist.version))
 
     # Get list of all PRISM requirements
     req_list = [req.name for req in prism_dist.requires()]

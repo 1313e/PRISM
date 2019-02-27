@@ -11,7 +11,7 @@ Provides the definition of the :class:`~ModelLink` abstract base class.
 # %% IMPORTS
 # Built-in imports
 import abc
-from inspect import _empty, currentframe, getframeinfo, isclass, signature
+from inspect import _empty, isclass, signature
 from inspect import _VAR_KEYWORD, _VAR_POSITIONAL
 from os import path
 import warnings
@@ -19,7 +19,7 @@ import warnings
 # Package imports
 from e13tools import InputError, ShapeError
 from e13tools.utils import (check_instance, convert_str_seq,
-                            docstring_substitute, raise_error)
+                            docstring_substitute, get_outer_frame, raise_error)
 import h5py
 import hickle
 import numpy as np
@@ -162,21 +162,15 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         """
 
         # Save name of this class if not saved already
-        try:
-            self._name
-        except AttributeError:
+        if not hasattr(self, '_name'):
             self.name = self.__class__.__name__
 
         # Set call_type to default ('single') if not modified before
-        try:
-            self._call_type
-        except AttributeError:
+        if not hasattr(self, '_call_type'):
             self.call_type = 'single'
 
         # Set MPI_call to default (False) if not modified before
-        try:
-            self._MPI_call
-        except AttributeError:
+        if not hasattr(self, '_MPI_call'):
             self.MPI_call = False
 
         # Generate model parameter properties
@@ -680,13 +674,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             warnings.warn(warn_msg, RequestWarning, stacklevel=2)
             return
 
-        # Initialize the caller's frame with the current frame
-        caller_frame = currentframe()
-
         # Obtain the call_model frame
-        while(caller_frame is not None and
-              getframeinfo(caller_frame)[2] != 'call_model'):
-            caller_frame = caller_frame.f_back
+        caller_frame = get_outer_frame(self.call_model)
 
         # If caller_frame is None, the call_model frame was not found
         if caller_frame is None:

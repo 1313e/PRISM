@@ -281,10 +281,7 @@ class Projection(object):
 
         """
 
-        try:
-            return(self.__res)
-        except AttributeError:
-            return(None)
+        return(getattr(self, '__res', None))
 
     @property
     def proj_depth(self):
@@ -296,10 +293,7 @@ class Projection(object):
 
         """
 
-        try:
-            return(self.__depth)
-        except AttributeError:
-            return(None)
+        return(getattr(self, '__depth', None))
 
     # %% HIDDEN CLASS METHODS
     # This function draws the 2D projection figure
