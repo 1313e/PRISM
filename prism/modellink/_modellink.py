@@ -32,7 +32,7 @@ from prism._internal import (FeatureWarning, PRISM_Comm, RequestWarning,
                              check_vals, getCLogger, np_array)
 
 # All declaration
-__all__ = ['ModelLink', 'test_subclass']
+__all__ = ['ModelLink', 'convert_data', 'convert_parameters', 'test_subclass']
 
 
 # %% MODELLINK CLASS DEFINITION
@@ -114,7 +114,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         required to provide an estimate for every parameter. The estimates are
         used to draw illustrative lines when making projection figures.
         An example of a model parameters file can be found in the 'data' folder
-        of the *PRISM* package.
+        of the *PRISM* package. If required, one can use the
+        :func:`~check_parameters` function to validate their formatting.
 
         Formatting :
             ``{par_name: [lower_bnd, upper_bnd, par_est]}``
@@ -150,7 +151,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         :math:`f(x)`.
 
         An example of a model data file can be found in the 'data' folder of
-        the *PRISM* package.
+        the *PRISM* package. If required, one can use the :func:`~check_data`
+        function to validate their formatting.
 
         Formatting :
             ``{(data_idx_0, data_idx_1, ..., data_idx_n): [data_val,`` \
@@ -827,41 +829,12 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         """
 
         # Obtain default model parameters
-        model_parameters = sdict(self.get_default_model_parameters())
+        model_parameters =\
+            convert_parameters(self.get_default_model_parameters())
 
-        # If no additional model parameters information is given
-        if add_model_parameters is None:
-            pass
-
-        # If a parameter file is given
-        elif isinstance(add_model_parameters, str):
-            # Obtain absolute path to given file
-            par_file = path.abspath(add_model_parameters)
-
-            # Read the parameter file in as a string
-            pars = np.genfromtxt(par_file, dtype=(str), delimiter=':',
-                                 autostrip=True)
-
-            # Make sure that pars is 2D
-            pars = np_array(pars, ndmin=2)
-
-            # Combine default parameters with read-in parameters
-            model_parameters.update(pars)
-
-        # If a parameter dict is given
-        elif isinstance(add_model_parameters, dict):
-            model_parameters.update(add_model_parameters)
-
-        # If anything else is given
-        else:
-            # Check if it can be converted to a dict
-            try:
-                par_dict = sdict(add_model_parameters)
-            except Exception:
-                raise TypeError("Input model parameters cannot be converted to"
-                                " type 'dict'!")
-            else:
-                model_parameters.update(par_dict)
+        # If additional model parameters information is given, add it
+        if add_model_parameters is not None:
+            model_parameters.update(convert_parameters(add_model_parameters))
 
         # Save number of model parameters
         n_par = len(model_parameters.keys())
@@ -877,36 +850,11 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         self._par_est = []
 
         # Save model parameters as class properties
-        for i, (name, values_str) in enumerate(model_parameters.items()):
-            # Convert values_str to values
-            values = convert_str_seq(values_str)
-
-            # Save parameter name and range
-            self._par_name.append(check_vals(name, 'par_name', 'str'))
-            self._par_rng[i] = check_vals(values[:2], 'par_rng[%s]' % (name),
-                                          'float')
-
-            # Check if a float parameter estimate was provided
-            try:
-                est = check_vals(values[2], 'par_est[%s]' % (name), 'float')
-            # If no estimate was provided, save it as None
-            except IndexError:
-                self._par_est.append(None)
-            # If no float was provided, check if it was None
-            except TypeError as error:
-                # If it is None, save it as such
-                if(values[2].lower() == 'none'):
-                    self._par_est.append(None)
-                # If it is not None, reraise the previous error
-                else:
-                    raise error
-            # If a float was provided, check if it is within parameter range
-            else:
-                if(values[0] <= est <= values[1]):
-                    self._par_est.append(est)
-                else:
-                    raise ValueError("Input argument 'par_est[%s]' is outside "
-                                     "of defined parameter range!" % (name))
+        for i, (name, (*rng, est)) in enumerate(model_parameters.items()):
+            # Save parameter name, range and est
+            self._par_name.append(name)
+            self._par_rng[i] = rng
+            self._par_est.append(est)
 
     @property
     def _default_model_data(self):
@@ -958,63 +906,14 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         """
 
         # Obtain default model data
-        model_data = dict(self.get_default_model_data())
+        model_data = convert_data(self.get_default_model_data())
 
-        # If no additional model data information is given
-        if add_model_data is None:
-            pass
-
-        # If a data file is given
-        elif isinstance(add_model_data, str):
-            # Obtain absolute path to given file
-            data_file = path.abspath(add_model_data)
-
-            # Read the data file in as a string
-            data_points = np.genfromtxt(data_file, dtype=(str),
-                                        delimiter=':', autostrip=True)
-
-            # Make sure that data_points is 2D
-            data_points = np_array(data_points, ndmin=2)
-
-            # Combine default data with read-in data
-            model_data.update(data_points)
-
-        # If a data dict is given
-        elif isinstance(add_model_data, dict):
-            model_data.update(add_model_data)
-
-        # If anything else is given
-        else:
-            # Check if it can be converted to a dict
-            try:
-                data_dict = dict(add_model_data)
-            except Exception:
-                raise TypeError("Input model data cannot be converted to type "
-                                "'dict'!")
-            else:
-                model_data.update(data_dict)
-
-        # Make an empty model_data dict
-        model_data_dict = dict()
-
-        # Loop over all data points in model_data and process data identifiers
-        for key, value in model_data.items():
-            # Convert key to an actual data_idx
-            tmp_idx = convert_str_seq(key)
-
-            # Check if tmp_idx is not empty
-            if not len(tmp_idx):
-                raise InputError("Model data contains a data point with no "
-                                 "identifier!")
-
-            # Convert value to an actual data point
-            tmp_point = convert_str_seq(value)
-
-            # Save data_idx with corresponding point to model_data_dict
-            model_data_dict[tuple(tmp_idx)] = tmp_point
+        # If additional model data information is given, add it
+        if add_model_data is not None:
+            model_data.update(convert_data(add_model_data))
 
         # Determine the number of data points
-        self._n_data = check_vals(len(model_data_dict), 'n_data', 'pos')
+        self._n_data = check_vals(len(model_data), 'n_data', 'pos')
 
         # Create empty data value, error, space and identifier lists
         self._data_val = []
@@ -1023,63 +922,12 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         self._data_idx = []
 
         # Save model data as class properties
-        for idx, data in model_data_dict.items():
-            # Convert idx to list for error messages
-            idx = list(idx)
-
-            # Save data value
-            self._data_val.append(check_vals(data[0], 'data_val%s' % (idx),
-                                             'float'))
-
-            # Save data error and extract space
-            # If length is two, centered error and no data space were given
-            if(len(data) == 2):
-                self._data_err.append(
-                    [check_vals(data[1], 'data_err%s' % (idx), 'float',
-                                'pos')]*2)
-                spc = 'lin'
-
-            # If length is three, there are two possibilities
-            elif(len(data) == 3):
-                # If the third column contains a string, it is the data space
-                if isinstance(data[2], str):
-                    self._data_err.append(
-                        [check_vals(data[1], 'data_err%s' % (idx), 'float',
-                                    'pos')]*2)
-                    spc = data[2]
-
-                # If the third column contains no string, it is error interval
-                else:
-                    self._data_err.append(
-                        check_vals(data[1:3], 'data_err%s' % (idx), 'float',
-                                   'pos'))
-                    spc = 'lin'
-
-            # If length is four+, error interval and data space were given
-            else:
-                self._data_err.append(
-                    check_vals(data[1:3], 'data_err%s' % (idx), 'float',
-                               'pos'))
-                spc = data[3]
-
-            # Save data space
-            # Check if valid data space has been provided
-            spc = str(spc).replace("'", '').replace('"', '')
-            if spc.lower() in ('lin', 'linear'):
-                self._data_spc.append('lin')
-            elif spc.lower() in ('log', 'log10', 'log_10'):
-                self._data_spc.append('log10')
-            elif spc.lower() in ('ln', 'loge', 'log_e'):
-                self._data_spc.append('ln')
-            else:
-                raise ValueError("Input argument 'data_spc%s' is invalid (%r)!"
-                                 % (idx, spc))
-
-            # Save data identifier as tuple or single element
-            if(len(idx) == 1):
-                self._data_idx.append(idx[0])
-            else:
-                self._data_idx.append(tuple(idx))
+        for idx, (val, *err, spc) in model_data.items():
+            # Save data value, errors, space and identifier
+            self._data_val.append(val)
+            self._data_err.append(err)
+            self._data_spc.append(spc)
+            self._data_idx.append(idx)
 
     # %% ABSTRACT USER METHODS
     @abc.abstractmethod
@@ -1101,8 +949,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         par_set : dict of :class:`~numpy.float64`
             Dict containing the values for all model parameters corresponding
             to the requested model realization(s). If model is single-called,
-            dict is formatted as ``{par_name: par_val}``. If multi-called, it
-            is formatted as ``{par_name: [par_val_1, par_val_2, ...,
+            dict item is formatted as ``{par_name: par_val}``. If multi-called,
+            it is formatted as ``{par_name: [par_val_1, par_val_2, ...,
             par_val_n]}``.
         data_idx : list of tuples
             List containing the user-defined data point identifiers
@@ -1170,6 +1018,219 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
 
 # %% UTILITY FUNCTIONS
+# This function converts provided model data into format used by PRISM
+def convert_data(model_data):
+    """
+    Converts the provided `model_data` into a full data dict, taking into
+    account all formatting options, and returns it.
+
+    This function can be used externally to check how the provided `model_data`
+    would be interpreted when provided to the :class:`~ModelLink` subclass. Its
+    output can be used for the 'model_data' input argument.
+
+    Parameters
+    ----------
+    model_data : array_like, dict or str
+        Anything that can be converted to a dict that provides model data
+        information.
+
+    Returns
+    -------
+    data_dict : dict
+        Dict with the provided `model_data` converted to its full format.
+
+    """
+
+    # If a data file is given
+    if isinstance(model_data, str):
+        # Obtain absolute path to given file
+        data_file = path.abspath(model_data)
+
+        # Read the data file in as a string
+        data_points = np.genfromtxt(data_file, dtype=(str), delimiter=':',
+                                    autostrip=True)
+
+        # Make sure that data_points is 2D
+        data_points = np_array(data_points, ndmin=2)
+
+        # Convert read-in data to dict
+        model_data = dict(data_points)
+
+    # If a data dict is given
+    elif isinstance(model_data, dict):
+        model_data = dict(model_data)
+
+    # If anything else is given
+    else:
+        # Check if it can be converted to a dict
+        try:
+            model_data = dict(model_data)
+        except Exception:
+            raise TypeError("Input model data cannot be converted to type "
+                            "'dict'!")
+
+    # Make empty data_dict
+    data_dict = dict()
+
+    # Loop over all items in model_data
+    for key, value in model_data.items():
+        # Convert key to an actual data_idx
+        idx = convert_str_seq(key)
+
+        # Check if tmp_idx is not empty
+        if not len(idx):
+            raise InputError("Model data contains a data point with no "
+                             "identifier!")
+
+        # Convert value to an actual data point
+        data = convert_str_seq(value)
+
+        # Check if provided data value is correct
+        val = check_vals(data[0], 'data_val%s' % (idx), 'float')
+
+        # Extract data error and space
+        # If length is two, centered error and no data space were given
+        if(len(data) == 2):
+            err = [check_vals(data[1], 'data_err%s' % (idx), 'float', 'pos')]*2
+            spc = 'lin'
+
+        # If length is three, there are two possibilities
+        elif(len(data) == 3):
+            # If the third column contains a string, it is the data space
+            if isinstance(data[2], str):
+                err = [check_vals(data[1], 'data_err%s' % (idx),
+                                  'float', 'pos')]*2
+                spc = data[2]
+
+            # If the third column contains no string, it is error interval
+            else:
+                err = check_vals(data[1:3], 'data_err%s' % (idx),
+                                 'float', 'pos')
+                spc = 'lin'
+
+        # If length is four+, error interval and data space were given
+        else:
+            err = check_vals(data[1:3], 'data_err%s' % (idx), 'float', 'pos')
+            spc = data[3]
+
+        # Check if valid data space has been provided
+        spc = str(spc).replace("'", '').replace('"', '')
+        if spc.lower() in ('lin', 'linear'):
+            spc = 'lin'
+        elif spc.lower() in ('log', 'log10', 'log_10'):
+            spc = 'log10'
+        elif spc.lower() in ('ln', 'loge', 'log_e'):
+            spc = 'ln'
+        else:
+            raise ValueError("Input argument 'data_spc%s' is invalid (%r)!"
+                             % (idx, spc))
+
+        # Save data identifier as tuple or single element
+        if(len(idx) == 1):
+            idx = idx[0]
+        else:
+            idx = tuple(idx)
+
+        # Add entire data point to data_dict
+        data_dict[idx] = [val, *err, spc]
+
+    # Return data_dict
+    return(data_dict)
+
+
+# This function converts provided model parameters into format used by PRISM
+def convert_parameters(model_parameters):
+    """
+    Converts the provided `model_parameters` into a full parameters dict,
+    taking into account all formatting options, and returns it.
+
+    This function can be used externally to check how the provided
+    `model_parameters` would be interpreted when provided to the
+    :class:`~ModelLink` subclass. Its output can be used for the
+    'model_parameters' input argument.
+
+    Parameters
+    ----------
+    model_parameters : array_like, dict or str
+        Anything that can be converted to a dict that provides model parameters
+        information.
+
+    Returns
+    -------
+    par_dict : dict
+        Dict with the provided `model_parameters` converted to its full format.
+
+    """
+
+    # If a parameter file is given
+    if isinstance(model_parameters, str):
+        # Obtain absolute path to given file
+        par_file = path.abspath(model_parameters)
+
+        # Read the parameter file in as a string
+        pars = np.genfromtxt(par_file, dtype=(str), delimiter=':',
+                             autostrip=True)
+
+        # Make sure that pars is 2D
+        pars = np_array(pars, ndmin=2)
+
+        # Convert read-in parameters to dict
+        model_parameters = sdict(pars)
+
+    # If a parameter dict is given
+    elif isinstance(model_parameters, dict):
+        model_parameters = sdict(model_parameters)
+
+    # If anything else is given
+    else:
+        # Check if it can be converted to a dict
+        try:
+            model_parameters = sdict(model_parameters)
+        except Exception:
+            raise TypeError("Input model parameters cannot be converted to"
+                            " type 'dict'!")
+
+    # Initialize empty par_dict
+    par_dict = sdict()
+
+    # Loop over all items in model_parameters
+    for i, (name, values_str) in enumerate(model_parameters.items()):
+        # Convert values_str to values
+        values = convert_str_seq(values_str)
+
+        # Check if provided name is a string
+        name = check_vals(name, 'par_name[%s]' % (name), 'str')
+
+        # Check if provided range is correct
+        par_rng = check_vals(values[:2], 'par_rng[%s]' % (name), 'float')
+
+        # Check if a float parameter estimate was provided
+        try:
+            est = check_vals(values[2], 'par_est[%s]' % (name), 'float')
+        # If no estimate was provided, save it as None
+        except IndexError:
+            est = None
+        # If no float was provided, check if it was None
+        except TypeError as error:
+            # If it is None, save it as such
+            if(values[2].lower() == 'none'):
+                est = None
+            # If it is not None, reraise the previous error
+            else:
+                raise error
+        # If a float was provided, check if it is within parameter range
+        else:
+            if not(values[0] <= est <= values[1]):
+                raise ValueError("Input argument 'par_est[%s]' is outside "
+                                 "of defined parameter range!" % (name))
+
+        # Add parameter to par_dict
+        par_dict[name] = [*par_rng, est]
+
+    # Return par_dict
+    return(par_dict)
+
+
 # This function tests a given ModelLink subclass
 # TODO: Are there any more tests that can be done here?
 def test_subclass(subclass, *args, **kwargs):
@@ -1332,8 +1393,8 @@ def test_subclass(subclass, *args, **kwargs):
     # If get_md_var was not overridden, catch NotImplementedError
     except NotImplementedError:
         warn_msg = ("Provided ModelLink subclass %r has no user-written "
-                    "get_md_var()-method! Default model discrepancy variance "
-                    "description would be used instead!"
+                    "'get_md_var()'-method! Default model discrepancy variance"
+                    " description would be used instead!"
                     % (modellink_obj._name))
         warnings.warn(warn_msg, RequestWarning, stacklevel=2)
 

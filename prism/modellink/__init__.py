@@ -12,8 +12,10 @@ and various default/example :class:`~ModelLink` subclasses.
 # %% IMPORTS
 # Import modellink modules
 from ._gaussian_link import GaussianLink
-from ._modellink import ModelLink, test_subclass
+from . import _modellink
+from ._modellink import *
 from ._sine_wave_link import SineWaveLink
 
 # All declaration
-__all__ = ['GaussianLink', 'ModelLink', 'SineWaveLink', 'test_subclass']
+__all__ = ['GaussianLink', 'SineWaveLink']
+__all__.extend(_modellink.__all__)

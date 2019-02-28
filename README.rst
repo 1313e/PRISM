@@ -147,7 +147,7 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 .. |License| image:: https://img.shields.io/pypi/l/prism.svg?colorB=blue&label=License
     :target: https://github.com/1313e/PRISM/raw/master/LICENSE
     :alt: PyPI - License
-.. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis&logoColor=white&label=Travis%20CI
+.. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis%20ci&logoColor=white&label=Travis%20CI
     :target: https://travis-ci.com/1313e/PRISM
     :alt: Travis CI - Build Status
 .. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/master.svg?logo=appveyor&logoColor=white&label=AppVeyor

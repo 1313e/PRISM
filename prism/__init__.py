@@ -70,15 +70,14 @@ else:
         # Raise warning if OMP_NUM_THREADS is not set to 1
         if(os.environ.get('OMP_NUM_THREADS') != '1'):
             # Get platform-dependent string on how to set environment variable
+            set_str = ""
+
             # Windows
             if (platform.system().lower() == 'windows'):
                 set_str = " (\">set OMP_NUM_THREADS=1\")"
             # Linux/MacOS-X
             elif (platform.system().lower() in ('linux', 'darwin')):
                 set_str = " (\"$ export OMP_NUM_THREADS=1\")"
-            # Anything else
-            else:
-                set_str = ""
 
             # Print warning message
             warn_msg = ("Environment variable 'OMP_NUM_THREADS' is currently "

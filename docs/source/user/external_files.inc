@@ -46,18 +46,19 @@ The contents of this file is equal to providing the following as `model_paramete
     # As a dict
     model_parameters = {'A': [1, 5, 3],
                         'Bravo': [2, 7, None],
-                        'C42': [3, 6.74]}
+                        'C 42': [3, 6.74]}
 
     # As an array_like
     model_parameters = [['A', [1, 5, 3]],
                         ['Bravo', [2, 7, None]],
-                        ['C42', [3, 6.74]]]
+                        ['C 42', [3, 6.74]]]
 
     # As two array_likes zipped
-    model_parameters = zip(['A', 'Bravo', 'C42'],
+    model_parameters = zip(['A', 'Bravo', 'C 42'],
                            [[1, 5, 3], [2, 7, None], [3, 6.74]])
 
 Providing :pycode:`None` as the parameter estimate or not providing it at all, implies that no parameter estimate (for the corresponding parameter) should be used in the projection figures.
+If required, one can use the :func:`~prism.modellink.check_parameters` function to validate their parameters formatting before using it to initialize a :class:`~prism.modellink.ModelLink` subclass.
 
 Model data file
 ###############
@@ -73,7 +74,7 @@ An example of the various different ways model comparison data information can b
 Here, the key is the full sequence of the data identifier of a data point, where any character that is not a letter, number, minus/plus or period acts as a separator between the elements of the data identifier.
 The corresponding value specifies the data value, data error(s) and data value space.
 Braces, parentheses, brackets and many other characters can be used as mark-up in the data identifier, to make it easier for the user to find a suitable file lay-out.
-A full list of all characters that can be used for this can be found in :attr:`prism.aux_char_list`.
+A full list of all characters that can be used for this can be found in :attr:`prism.aux_char_list` and can be freely edited.
 
 Similarly to the model parameters, the following is equal to the contents of this file::
 
@@ -98,6 +99,7 @@ The data error can be given as either a single value, where it assumed that the 
 The data value space can be given as a string or omitted, in which case it is assumed that the value space is linear.
 Keep in mind that, as mentioned in :ref:`data_idx`, providing a single element data identifier causes it to be saved as a scalar instead of a tuple.
 Therefore, :pycode:`['A']` or :pycode:`('A')` is the same as :pycode:`'A'`.
+If required, one can use the :func:`~prism.modellink.check_data` function to validate their data formatting before using it to initialize a :class:`~prism.modellink.ModelLink` subclass.
 
 .. note::
     The parameter value bounds are given as [*lower bound*, *upper bound*], whereas the data errors are given as [*upper error*, *lower error*].

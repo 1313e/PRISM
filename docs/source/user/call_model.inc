@@ -30,10 +30,10 @@ The emulator iteration is given as a normal integer and the data identifiers :py
 The requested data identifiers are not necessarily the same as those given in :attr:`~prism.modellink.ModelLink.data_idx`.
 An individual sample provided in this way will be of the form::
 
-    par_dict = {'par_name_1': par_1_val,
-                'par_name_2': par_2_val,
+    par_dict = {'par_1_name': par_1_val,
+                'par_2_name': par_2_val,
                 ...,
-                'par_name_n': par_n_val}
+                'par_n_name': par_n_val}
 
 An example of this would be :pycode:`par_dict = {'A': 1.0, 'B': 2.0}` for the :class:`LineLink` class.
 This works very well for models that do not require any preparation before they can start evaluating and requires a minimal amount of effort to implement.
@@ -55,10 +55,10 @@ So, if we use the same example again, but this time have an instance of the :cla
 This call is roughly the same as before, but this time the entire sample set is provided as a dict instead of individual samples.
 The lay-out of this sample dict is of the form::
 
-    sam_dict = {'par_name_1': [par_1_val_1, par_1_val_2, ..., par_1_val_m],
-                'par_name_2': [par_2_val_1, par_2_val_2, ..., par_2_val_m],
+    sam_dict = {'par_1_name': [par_1_val_1, par_1_val_2, ..., par_1_val_m],
+                'par_2_name': [par_2_val_1, par_2_val_2, ..., par_2_val_m],
                 ...,
-                'par_name_n': [par_n_val_1, par_n_val_2, ..., par_n_val_m]}
+                'par_n_name': [par_n_val_1, par_n_val_2, ..., par_n_val_m]}
     
 Again, in the case of the :class:`~prism.modellink.GaussianLink` class, this sample dict could look like :pycode:`sam_dict = {'A1': [1.0, 5.5, 10.0], 'B1': [0.0, 5.0, 10.0], 'C1': [0.0, 2.5, 5.0]}`.
 This can be used when the model requires some kind of preparation before being able to perform evaluations, or when it is simply more efficient to provide all requested samples at once (like for the :class:`~prism.modellink.GaussianLink` class).
