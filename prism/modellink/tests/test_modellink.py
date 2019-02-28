@@ -14,6 +14,7 @@ from prism._internal import RequestWarning, MPI
 from prism.modellink import ModelLink, test_subclass as _test_subclass
 from prism.modellink.tests.modellink import GaussianLink2D, GaussianLink3D
 
+
 # Save the path to this directory
 dirpath = path.dirname(__file__)
 

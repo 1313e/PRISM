@@ -75,11 +75,12 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, *, emul_i=None, unit_space=True,
 
     See also
     --------
-    :func:`~get_walkers`: Analyzes proposed `init_walkers` and returns valid \
-        `p0_walkers`.
+    :func:`~get_walkers`
+        Analyzes proposed `init_walkers` and returns valid `p0_walkers`.
 
-    :attr:`~prism.Pipeline.worker_mode`: Special context manager within which \
-        all code is executed in worker mode.
+    :attr:`~prism.Pipeline.worker_mode`
+        Special context manager within which all code is executed in worker
+        mode.
 
     Warning
     -------
@@ -243,11 +244,12 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
 
     See also
     --------
-    :func:`~get_lnpost_fn`: Returns a function definition \
-        ``get_lnpost(par_set, *args, **kwargs)``.
+    :func:`~get_lnpost_fn`
+        Returns a function definition ``get_lnpost(par_set, *args, **kwargs)``.
 
-    :attr:`~prism.Pipeline.worker_mode`: Special context manager within which \
-        all code is executed in worker mode.
+    :attr:`~prism.Pipeline.worker_mode`
+        Special context manager within which all code is executed in worker
+        mode.
 
     Notes
     -----

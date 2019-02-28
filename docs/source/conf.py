@@ -111,6 +111,7 @@ exclude_patterns = []
 # The name of the Pygments (syntax highlighting) style to use.
 highlight_language = 'default'
 pygments_style = 'sphinx'
+modindex_common_prefix = ['prism.']
 
 add_function_parentheses = True
 add_module_names = True
