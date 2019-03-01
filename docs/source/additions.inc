@@ -4,6 +4,7 @@
 
 Below are some bigger ideas/improvements that may be added to *PRISM* if there is demand:
 
+    - Add a developer's guide to the docs, describing the inner workings and structures of *PRISM*;
     - Low-level MPI implementation (probably by using D2O);
     
       With 6 emulator systems and 4 processes, the three different MPI levels would be:
