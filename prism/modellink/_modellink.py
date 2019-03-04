@@ -26,6 +26,7 @@ import numpy as np
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
+from prism.__version__ import prism_version
 from prism._docstrings import std_emul_i_doc
 from prism._internal import (FeatureWarning, RequestWarning, check_vals,
                              getCLogger, np_array)
@@ -746,6 +747,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         called by the :meth:`~call_model` method or any of its inner functions.
         Additionally, the backup will contain the `emul_i`, `par_set` and
         `data_idx` values that were passed to the :meth:`~call_model` method.
+        It also contains the version of *PRISM* that made the backup.
         The backup can be restored using the :meth:`~_read_backup` method.
 
         If it is detected that this method is used incorrectly, a
@@ -832,7 +834,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         # Save emul_i, par_set, data_idx, args and kwargs to hdf5
         with h5py.File(filepath, 'w') as file:
-            hickle.dump(emul_i, file, path='/emul_i')
+            file.attrs['emul_i'] = emul_i
+            file.attrs['prism_version'] = prism_version
             hickle.dump(dict(par_set), file, path='/par_set')
             hickle.dump(data_idx, file, path='/data_idx')
             hickle.dump(args, file, path='/args')
@@ -861,8 +864,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         -------
         filename : str
             The absolute path to the backup file that has been read.
-        data : dict with keys `('emul_i', 'par_set', 'data_idx', 'args',` \
-            `'kwargs')`
+        data : dict with keys `('emul_i', 'prism_version', 'par_set',` \
+            `'data_idx', 'args', 'kwargs')`
             A dict containing the data that was provided to the
             :meth:`~_make_backup` method.
 
@@ -891,7 +894,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         # Read emul_i, par_set, data_idx, args and kwargs from hdf5
         with h5py.File(filepath, 'r') as file:
-            data['emul_i'] = hickle.load(file, path='/emul_i')
+            data['emul_i'] = file.attrs['emul_i']
+            data['prism_version'] = file.attrs['prism_version']
             data['par_set'] = sdict(hickle.load(file, path='/par_set'))
             data['data_idx'] = hickle.load(file, path='/data_idx')
             data['args'] = hickle.load(file, path='/args')

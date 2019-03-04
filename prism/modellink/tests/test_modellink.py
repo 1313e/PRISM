@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 # PRISM imports
+from prism.__version__ import prism_version
 from prism._internal import RequestWarning, MPI
 from prism.modellink import ModelLink
 from prism.modellink.tests.modellink import GaussianLink2D, GaussianLink3D
@@ -210,6 +211,7 @@ class Test_backup_system(object):
 
             # Check that all data is correct
             assert data['emul_i'] == emul_i
+            assert data['prism_version'] == prism_version
             assert data['par_set'] == par_set
             assert data['data_idx'] == data_idx
             assert data['args'] == (mod_set,)
@@ -221,6 +223,7 @@ class Test_backup_system(object):
 
             # Check that all data is correct
             assert data['emul_i'] == emul_i
+            assert data['prism_version'] == prism_version
             assert data['par_set'] == par_set
             assert data['data_idx'] == data_idx
             assert data['args'] == (mod_set,)
