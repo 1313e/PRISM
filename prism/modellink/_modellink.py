@@ -314,7 +314,7 @@ class ModelLink(with_metaclass(abc.ABCMeta, object)):
 
         """
 
-        return(bool(self._multi_call))
+        return(bool(self._MPI_call))
 
     @MPI_call.setter
     def MPI_call(self, MPI_call):
