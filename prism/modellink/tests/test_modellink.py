@@ -6,6 +6,7 @@ from os import path
 
 # Package imports
 from e13tools.core import InputError
+from e13tools.utils import get_outer_frame
 import numpy as np
 import pytest
 
@@ -69,9 +70,6 @@ class Test_ModelLink_Exceptions(object):
     # Also include an invalid call type
     def test_invalid_call_type(self):
         modellink_obj = GaussianLink2D()
-        modellink_obj.call_type = 'single'
-        modellink_obj.call_type = 'multi'
-        modellink_obj.call_type = 'hybrid'
         with pytest.raises(ValueError):
             modellink_obj.call_type = 'invalid'
 
@@ -111,23 +109,23 @@ class Test_ModelLink_Versatility(object):
     def test_ext_mod_par_dict(self):
         par_dict = {'A': [1, 5, None],
                     'B': [1, 3]}
-        model_link = GaussianLink2D(model_parameters=par_dict)
-        assert model_link._par_est == [None, None]
-        repr(model_link)
+        modellink_obj = GaussianLink2D(model_parameters=par_dict)
+        assert modellink_obj._par_est == [None, None]
+        repr(modellink_obj)
 
     # Create a GaussianLink2D object with externally defined mod_par list
     def test_ext_mod_par_list(self):
         par_list = [['A', [1, 5, 2.5]],
                     ['B', [1, 3, 2]]]
-        model_link = GaussianLink2D(model_parameters=par_list)
-        repr(model_link)
+        modellink_obj = GaussianLink2D(model_parameters=par_list)
+        repr(modellink_obj)
 
     # Create a GaussianLink2D object and test the value conversions
     def test_convert_to_space(self):
-        model_link = GaussianLink2D()
-        assert np.isclose(model_link._to_par_space([0.2, 0.7]),
+        modellink_obj = GaussianLink2D()
+        assert np.isclose(modellink_obj._to_par_space([0.2, 0.7]),
                           [1.8, 2.4]).all()
-        assert np.isclose(model_link._to_unit_space([1.8, 2.4]),
+        assert np.isclose(modellink_obj._to_unit_space([1.8, 2.4]),
                           [0.2, 0.7]).all()
 
     # Create a GaussianLink3D object with externally defined mod_data dict
@@ -135,31 +133,54 @@ class Test_ModelLink_Versatility(object):
         data_dict = {(1, 2): [1, 0.05],
                      3: [2, 0.05],
                      4: [3, 0.05]}
-        model_link = GaussianLink3D(model_parameters=model_parameters_3D,
-                                    model_data=data_dict)
-        repr(model_link)
+        modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
+                                       model_data=data_dict)
+        repr(modellink_obj)
 
     # Create a GaussianLink3D object with externally defined mod_data list
     def test_ext_mod_data_list(self):
         data_list = [[(1, 2), [1, 0.05]],
                      [3, [2, 0.05]],
                      [4, [3, 0.05]]]
-        model_link = GaussianLink3D(model_parameters=model_parameters_3D,
-                                    model_data=data_list)
-        repr(model_link)
+        modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
+                                       model_data=data_list)
+        repr(modellink_obj)
 
     # Create a GaussianLink3D object with mod_data file with double errors
     def test_double_errors(self):
-        model_link = GaussianLink3D(model_parameters=model_parameters_3D,
-                                    model_data=model_data_double)
-        repr(model_link)
+        modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
+                                       model_data=model_data_double)
+        repr(modellink_obj)
 
     # Create a GaussianLink3D object with different data_idx and data_spc
     # Also include a data_idx sequence
     def test_data_input_types(self):
-        model_link = GaussianLink3D(model_parameters=model_parameters_3D,
-                                    model_data=model_data_types)
-        repr(model_link)
+        modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
+                                       model_data=model_data_types)
+        repr(modellink_obj)
+
+    # Create a GaussianLink2D object and try to change its name
+    def test_change_name(self):
+        modellink_obj = GaussianLink2D()
+        with pytest.warns(RequestWarning):
+            modellink_obj.name = 'test'
+        modellink_obj.name = modellink_obj._init_name
+
+    # Create a GaussianLink2D object and try to change its call_type
+    def test_change_call_type(self):
+        modellink_obj = GaussianLink2D()
+        with pytest.warns(RequestWarning):
+            modellink_obj.call_type = 'single'
+            modellink_obj.call_type = 'multi'
+            modellink_obj.call_type = 'hybrid'
+        modellink_obj.call_type = modellink_obj._init_call_type
+
+    # Create a GaussianLink2D object and try to change its MPI_call
+    def test_change_MPI_call(self):
+        modellink_obj = GaussianLink2D()
+        with pytest.warns(RequestWarning):
+            modellink_obj.MPI_call = (modellink_obj.MPI_call+1) % 2
+        modellink_obj.MPI_call = modellink_obj._init_MPI_call
 
 
 # Pytest for testing the backup system for call_model
@@ -180,22 +201,19 @@ class Test_backup_system(object):
 
         # Call the model to create the backup on the controller
         if not MPI.COMM_WORLD.Get_rank():
-            modellink_obj.call_model(emul_i=emul_i,
-                                     par_set=par_set,
-                                     data_idx=data_idx)
+            mod_set = modellink_obj.call_model(emul_i=emul_i,
+                                               par_set=par_set,
+                                               data_idx=data_idx)
 
-        # Manually assign mod_set, as workers would not have access to it
-        mod_set = [1, 1, 1]
+            # Try loading the backup data
+            data = modellink_obj._read_backup(emul_i)
 
-        # Try loading the backup data
-        data = modellink_obj._read_backup(emul_i)
-
-        # Check that all data is correct
-        assert data['emul_i'] == emul_i
-        assert data['par_set'] == par_set
-        assert data['data_idx'] == data_idx
-        assert data['args'] == (mod_set,)
-        assert data['kwargs'] == {'mod_set': mod_set}
+            # Check that all data is correct
+            assert data['emul_i'] == emul_i
+            assert data['par_set'] == par_set
+            assert data['data_idx'] == data_idx
+            assert data['args'] == (mod_set,)
+            assert data['kwargs'] == {'mod_set': mod_set}
 
     # Test the backup system using no args or kwargs
     def test_no_args_kwargs(self, modellink_obj):

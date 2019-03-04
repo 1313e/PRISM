@@ -1,5 +1,7 @@
 ModelLink
 =========
+.. automodule:: prism.modellink.utils
+
 Classes
 -------
 .. toctree::
@@ -7,6 +9,3 @@ Classes
     prism.modellink.ModelLink
     prism.modellink.SineWaveLink
 
-Functions
----------
-.. autofunction:: prism.modellink.test_subclass

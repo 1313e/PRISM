@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 """
-ModelLink Utilities
-===================
+Utilities
+=========
 Provides several utility functions concerning the
 :class:`~prism.modellink.ModelLink` class.
 

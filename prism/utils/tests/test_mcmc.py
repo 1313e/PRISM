@@ -14,7 +14,7 @@ import pytest
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
-from prism._internal import RequestError
+from prism._internal import RequestError, RequestWarning
 from prism._pipeline import Pipeline
 from prism.modellink.tests.modellink import GaussianLink2D
 from prism.utils.mcmc import get_lnpost_fn, get_walkers
@@ -48,7 +48,7 @@ def pipe(tmpdir_factory):
 def lnpost(par_set, pipe):
     par_rng = pipe._modellink._par_rng
     if not ((par_rng[:, 0] <= par_set)*(par_set <= par_rng[:, 1])).all():
-            return(-np.infty)
+        return(-np.infty)
 
     emul_i = pipe._emulator._emul_i
     par_dict = sdict(zip(pipe._modellink._par_name, par_set))
@@ -86,7 +86,8 @@ class Test_get_lnpost_fn(object):
 
     # Try to provide a bound ModelLink object solely requesting multi-calls
     def test_multi_call_ModelLink(self, pipe):
-        pipe._modellink.call_type = 'multi'
+        with pytest.warns(RequestWarning):
+            pipe._modellink.call_type = 'multi'
         if pipe._is_controller:
             with pytest.warns(UserWarning):
                 get_lnpost_fn(lnpost, pipe)

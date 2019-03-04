@@ -239,7 +239,23 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
     @name.setter
     def name(self, name):
+        # If name is set outside of __init__, save current value
+        outer_frame = get_outer_frame(self.__init__)
+        print(outer_frame)
+        if outer_frame is None and not hasattr(self, '_init_name'):
+            self._init_name = str(self._name)
+
+        # Save new name
         self._name = check_vals(name, 'name', 'str')
+
+        # If name is set outside of __init__, raise warning
+        if outer_frame is None and (self._name != self._init_name):
+            warn_msg = ("The 'name' property of this %s instance is being set "
+                        "outside its constructor. This may have unexpected "
+                        "effects. It is advised to set it back to its original"
+                        " value (%r)!"
+                        % (self.__class__.__name__, self._init_name))
+            warnings.warn(warn_msg, RequestWarning, stacklevel=2)
 
     @property
     def single_call(self):
@@ -279,6 +295,11 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
     @call_type.setter
     def call_type(self, call_type):
+        # If call_type is set outside of __init__, save current value
+        outer_frame = get_outer_frame(self.__init__)
+        if outer_frame is None and not hasattr(self, '_init_call_type'):
+            self._init_call_type = str(self._call_type)
+
         # Check if call_type is a string
         call_type = check_vals(call_type, 'call_type', 'str')
 
@@ -299,6 +320,15 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             raise ValueError("Input argument 'call_type' is invalid (%r)!"
                              % (call_type))
 
+        # If call_type is set outside of __init__, raise warning
+        if outer_frame is None and (self._call_type != self._init_call_type):
+            warn_msg = ("The 'call_type' property of this %s instance is being"
+                        " set outside its constructor. This may have "
+                        "unexpected effects. It is advised to set it back to "
+                        "its original value (%r)!"
+                        % (self.__class__.__name__, self._init_call_type))
+            warnings.warn(warn_msg, RequestWarning, stacklevel=2)
+
     @property
     def MPI_call(self):
         """
@@ -308,11 +338,26 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         """
 
-        return(bool(self._multi_call))
+        return(bool(self._MPI_call))
 
     @MPI_call.setter
     def MPI_call(self, MPI_call):
+        # If MPI_call is set outside of __init__, save current value
+        outer_frame = get_outer_frame(self.__init__)
+        if outer_frame is None and not hasattr(self, '_init_MPI_call'):
+            self._init_MPI_call = bool(self._MPI_call)
+
+        # Save new MPI_call
         self._MPI_call = check_vals(MPI_call, 'MPI_call', 'bool')
+
+        # If MPI_call is set outside of __init__, raise warning
+        if outer_frame is None and (self._MPI_call != self._init_MPI_call):
+            warn_msg = ("The 'MPI_call' property of this %s instance is being "
+                        "set outside its constructor. This may have unexpected"
+                        " effects. It is advised to set it back to its "
+                        "original value (%r)!"
+                        % (self.__class__.__name__, self._init_MPI_call))
+            warnings.warn(warn_msg, RequestWarning, stacklevel=2)
 
     # Model Parameters
     @property
