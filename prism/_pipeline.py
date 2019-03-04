@@ -927,18 +927,16 @@ class Pipeline(Projection, object):
             if prefix is None:
                 prefix_scan = ''
                 prefix_new = 'prism_'
-                prefix_len = 0
             elif isinstance(prefix, string_types):
                 prefix_scan = prefix
                 prefix_new = prefix
-                prefix_len = len(prefix)
             else:
                 err_msg = "Input argument 'prefix' is not of type 'str'!"
                 raise_error(err_msg, TypeError, logger)
 
             # Obtain working directory path
             # If one did not specify a working directory, obtain it
-            if working_dir is None:
+            if working_dir in (None, False):
                 logger.info("No working directory specified, trying to load "
                             "last one created.")
                 dirnames = next(os.walk(self._root_dir))[1]
@@ -948,7 +946,7 @@ class Pipeline(Projection, object):
                 # naming scheme of the emulator directories
                 for dirname in dirnames:
                     # If the prefix is the same as the scan prefix
-                    if(dirname[0:prefix_len] == prefix_scan):
+                    if dirname.startswith(prefix_scan):
                         # Obtain full path to this directory
                         dir_path = path.join(self._root_dir, dirname)
 
@@ -976,14 +974,14 @@ class Pipeline(Projection, object):
                                 % (path.basename(self._working_dir)))
 
             # If one requested a new working directory
-            elif isinstance(working_dir, integer_types):
+            elif working_dir is True:
                 # Obtain list of working directories that satisfy naming scheme
                 dirnames = next(os.walk(self._root_dir))[1]
                 n_dirs = 0
 
                 # Check if there are any directories with the same prefix
                 for dirname in dirnames:
-                    if(dirname[0:prefix_len] == prefix_scan):
+                    if dirname.startswith(prefix_scan):
                         # Obtain full path to this directory
                         dir_path = path.join(self._root_dir, dirname)
 
@@ -1020,6 +1018,12 @@ class Pipeline(Projection, object):
                     pass
                 else:
                     logger.info("Working directory did not exist, created it.")
+
+            # If one provided an integer, raise warning about it
+            elif isinstance(working_dir, integer_types):
+                err_msg = ("Input argument 'working_dir' cannot be of type "
+                           "int!")
+                raise_error(err_msg, TypeError, logger)
 
             # If anything else is given, it is invalid
             else:

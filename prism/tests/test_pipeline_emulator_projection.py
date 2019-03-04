@@ -497,6 +497,13 @@ class Test_Pipeline_Init_Exceptions(object):
             Pipeline(model_link, root_dir=root_dir, working_dir=1.0,
                      prism_file=prism_file_default)
 
+    # Create a Pipeline object using an integer working dir
+    def test_int_working_dir(self, tmpdir, model_link):
+        root_dir = path.dirname(tmpdir.strpath)
+        with pytest.raises(TypeError):
+            Pipeline(model_link, root_dir=root_dir, working_dir=1,
+                     prism_file=prism_file_default)
+
     # Create a Pipeline object using an invalid PRISM file
     def test_invalid_prism_file(self, root_working_dir, model_link):
         with pytest.raises(InputError):
@@ -942,19 +949,19 @@ class Test_Pipeline_Init_Versatility(object):
     # Create a Pipeline object requesting a new working dir two times
     def test_new_working_dir(self, tmpdir, model_link):
         root_dir = tmpdir.strpath
-        Pipeline(model_link, root_dir=root_dir, working_dir=1,
+        Pipeline(model_link, root_dir=root_dir, working_dir=True,
                  prism_file=prism_file_default)
         Pipeline(model_link, root_dir=root_dir, working_dir='prism_2',
                  prism_file=prism_file_default)
-        Pipeline(model_link, root_dir=root_dir, working_dir=1,
+        Pipeline(model_link, root_dir=root_dir, working_dir=True,
                  prism_file=prism_file_default)
 
     # Create a Pipeline object loading an existing working dir
     def test_load_existing_working_dir(self, tmpdir, model_link):
         root_dir = path.dirname(tmpdir.strpath)
-        Pipeline(model_link, root_dir=root_dir, working_dir=1,
+        Pipeline(model_link, root_dir=root_dir, working_dir=True,
                  prism_file=prism_file_default)
-        Pipeline(model_link, root_dir=root_dir, working_dir=None,
+        Pipeline(model_link, root_dir=root_dir, working_dir=False,
                  prism_file=prism_file_default)
 
 

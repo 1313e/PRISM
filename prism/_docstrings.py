@@ -107,11 +107,13 @@ paths_doc =\
             String containing the absolute path of the root directory where all
             working directories are stored. If *None*, root directory will be
             set to the directory this class was initialized in.
-        working_dir : str, int or None{0}{2}
+        working_dir : str, bool or None{0}{2}
             String containing the name of the working directory of the emulator
-            in `root_dir`. If int, a new working directory will be created in
-            `root_dir`. If *None*, working directory is set to the last one
-            that was created in `root_dir` that starts with the given `prefix`.
+            in `root_dir`. If *True*, a new working directory will be created
+            in `root_dir`. If *None* or *False*, working directory is set to
+            the last one that was created in `root_dir` that starts with the
+            given `prefix`. Note that providing an integer instead of a bool
+            will not work here.
             If no directories are found, one will be created.
         prefix : str or None{0}{3}
             String containing a prefix that is used for naming new working
