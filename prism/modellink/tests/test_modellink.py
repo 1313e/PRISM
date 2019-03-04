@@ -206,7 +206,7 @@ class Test_backup_system(object):
                                                data_idx=data_idx)
 
             # Try loading the backup data
-            data = modellink_obj._read_backup(emul_i)
+            filename, data = modellink_obj._read_backup(emul_i)
 
             # Check that all data is correct
             assert data['emul_i'] == emul_i
@@ -214,6 +214,27 @@ class Test_backup_system(object):
             assert data['data_idx'] == data_idx
             assert data['args'] == (mod_set,)
             assert data['kwargs'] == {'mod_set': mod_set}
+
+            # Try loading the backup again, this time using the suffix
+            suffix = filename.partition('(')[2].rstrip(').hdf5')
+            filename, data = modellink_obj._read_backup(emul_i, suffix=suffix)
+
+            # Check that all data is correct
+            assert data['emul_i'] == emul_i
+            assert data['par_set'] == par_set
+            assert data['data_idx'] == data_idx
+            assert data['args'] == (mod_set,)
+            assert data['kwargs'] == {'mod_set': mod_set}
+
+    # Test the backup system while no backup exists
+    def test_load_no_backup(self, modellink_obj):
+        with pytest.raises(OSError):
+            modellink_obj._read_backup(0)
+
+    # Test the backup system with incorrect suffix
+    def test_load_incorrect_suffix(self, modellink_obj):
+        with pytest.raises(OSError):
+            modellink_obj._read_backup(0, suffix='test')
 
     # Test the backup system using no args or kwargs
     def test_no_args_kwargs(self, modellink_obj):

@@ -11,7 +11,9 @@ Provides the definition of the :class:`~ModelLink` abstract base class.
 # %% IMPORTS
 # Built-in imports
 import abc
+import os
 from os import path
+from tempfile import mktemp
 import warnings
 
 # Package imports
@@ -241,7 +243,6 @@ class ModelLink(object, metaclass=abc.ABCMeta):
     def name(self, name):
         # If name is set outside of __init__, save current value
         outer_frame = get_outer_frame(self.__init__)
-        print(outer_frame)
         if outer_frame is None and not hasattr(self, '_init_name'):
             self._init_name = str(self._name)
 
@@ -651,21 +652,89 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
     # This function returns the path to a backup file
     # TODO: Should backup file be saved in emulator working directory of PRISM?
-    def _get_backup_path(self, emul_i):
+    def _get_backup_path(self, emul_i, suffix):
         """
         Returns the absolute path to a backup file made by this
-        :obj:`~ModelLink` instance, using the provided `emul_i`.
+        :obj:`~ModelLink` instance, using the provided `emul_i` and `suffix`.
+
+        This method is used by the :meth:`~_make_backup` and
+        :meth:`~_read_backup` methods, and should not be called directly.
+
+        Parameters
+        ----------
+        emul_i : int
+            The emulator iteration for which a backup filepath is needed.
+        suffix : str or None
+            If str, determine path to associated backup file using provided
+            `suffix`. If `suffix` is empty, obtain last created backup file.
+            If *None*, create a new path to a backup file.
+
+        Returns
+        -------
+        filepath : str
+            Absolute path to requested backup file.
 
         """
 
-        # Determine the name of the backup hdf5-file
-        filename = "backup_%i_%s.hdf5" % (emul_i, self._name)
+        # Determine the prefix of the backup hdf5-file
+        prefix = "backup_%i_%s(" % (emul_i, self._name)
 
-        # Determine the path of the backup hdf5-file
-        filepath = path.join(path.abspath('.'), filename)
+        # If suffix is None, generate new backup filepath
+        if suffix is None:
+            # Determine the path of the backup hdf5-file
+            filepath = path.abspath(mktemp(').hdf5', prefix, '.'))
 
-        # Return it
-        return(filepath)
+            # Return determined filepath
+            return(filepath)
+
+        # If suffix is a string, determine the path
+        elif isinstance(suffix, str):
+            # If the string is empty, find the last created backup file
+            if(suffix == ''):
+                # Make list of all files in current directory
+                filenames = next(os.walk('.'))[2]
+
+                # Make empty list of all backup files
+                backup_files = []
+
+                # Loop over all filenames
+                for filename in filenames:
+                    # If the filename has the correct prefix
+                    if filename.startswith(prefix):
+                        # Obtain full path to the file
+                        filepath = path.join('.', filename)
+
+                        # Obtain creation time and append to backup_files
+                        ctime = path.getctime(filepath)
+                        backup_files.append([filepath, ctime])
+
+                # Sort backup_files list on creation time
+                backup_files.sort(key=lambda x: x[1], reverse=True)
+
+                # If backup_files is not empty, return last one created
+                if len(backup_files):
+                    return(backup_files[0][0])
+                # Else, raise error
+                else:
+                    err_msg = ("No backup files can be found in the current "
+                               "directory for input argument 'emul_i'!")
+                    raise OSError(err_msg)
+
+            # If the string is not empty, check if provided suffix is valid
+            else:
+                # Obtain full filepath
+                filepath = path.abspath(path.join(
+                        '.', ''.join([prefix, suffix, ').hdf5'])))
+
+                # If filepath exists, return it
+                if path.exists(filepath):
+                    return(filepath)
+                # If not, raise error
+                else:
+                    err_msg = ("Input argument 'suffix' does not yield an "
+                               "existing path to a backup file (%r)!"
+                               % (filepath))
+                    raise OSError(err_msg)
 
     # This function makes a backup of args/kwargs to be used during call_model
     def _make_backup(self, *args, **kwargs):
@@ -693,9 +762,9 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         Notes
         -----
-        If an HDF5-file already exists with the same name as the to be created
-        backup, it will be replaced. However, *PRISM* itself will never remove
-        any backup files (e.g., reconstructing an iteration).
+        The name of the created backup file contains the value of `emul_i`,
+        :attr:`~name` and a random string to avoid replacing an already
+        existing backup file.
 
         The saved `emul_i`, `par_set` and `data_idx` are the values these
         variables have locally in the :meth:`~call_model` method at the point
@@ -759,7 +828,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             return
 
         # Obtain path to backup file
-        filepath = self._get_backup_path(emul_i)
+        filepath = self._get_backup_path(emul_i, None)
 
         # Save emul_i, par_set, data_idx, args and kwargs to hdf5
         with h5py.File(filepath, 'w') as file:
@@ -771,7 +840,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
     # This function reads in a backup made by _make_backup
     # TODO: Allow for absolute path to backup file to be given?
-    def _read_backup(self, emul_i):
+    def _read_backup(self, emul_i, *, suffix=None):
         """
         Reads in a backup HDF5-file created by the :meth:`~_make_backup`
         method, using the provided `emul_i` and the value of :attr:`~name`.
@@ -782,8 +851,16 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             The emulator iteration that was provided to the :meth:`~call_model`
             method when the backup was made.
 
+        Optional
+        --------
+        suffix : str or None. Default: None
+            The suffix of the backup file (everything between parentheses) that
+            needs to be read. If *None*, the last created backup will be read.
+
         Returns
         -------
+        filename : str
+            The absolute path to the backup file that has been read.
         data : dict with keys `('emul_i', 'par_set', 'data_idx', 'args',` \
             `'kwargs')`
             A dict containing the data that was provided to the
@@ -800,14 +877,14 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         # Check if provided emul_i is an integer
         emul_i = check_vals(emul_i, 'emul_i', 'int', 'nneg')
 
-        # Obtain name of backup file
-        filepath = self._get_backup_path(emul_i)
+        # Check if provided suffix is None or a string
+        if suffix is None:
+            suffix = ''
+        else:
+            suffix = check_vals(suffix, 'suffix', 'str')
 
-        # Check if filepath exists
-        if not path.exists(filepath):
-            err_msg = ("Input argument 'emul_i' does not yield an existing "
-                       "path to a backup file (%r)!" % (filepath))
-            raise OSError(err_msg)
+        # Obtain name of backup file
+        filepath = self._get_backup_path(emul_i, suffix)
 
         # Initialize empty data dict
         data = sdict()
@@ -821,7 +898,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             data['kwargs'] = hickle.load(file, path='/kwargs')
 
         # Return data
-        return(data)
+        return(filepath, data)
 
     @property
     def _default_model_parameters(self):
