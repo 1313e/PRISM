@@ -218,6 +218,7 @@ class Test_backup_system(object):
             assert data['kwargs'] == {'mod_set': mod_set}
 
             # Try loading the backup again, this time using the suffix
+            print(filename)
             suffix = filename.partition(
                 '%s(' % (modellink_obj._name))[2].rstrip(').hdf5')
             filename, data = modellink_obj._read_backup(emul_i, suffix=suffix)
