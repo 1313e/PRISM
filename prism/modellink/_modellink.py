@@ -703,7 +703,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
                     # If the filename has the correct prefix
                     if filename.startswith(prefix):
                         # Obtain full path to the file
-                        filepath = path.join('.', filename)
+                        filepath = path.abspath(path.join('.', filename))
 
                         # Obtain creation time and append to backup_files
                         ctime = path.getctime(filepath)
