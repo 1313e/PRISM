@@ -75,7 +75,7 @@ script:
 after_success:
     - |
       if [[ "$RUN_COVERAGE" == "1" ]]; then
-          coveralls
+          codecov
       fi
 before_deploy:
     - rm -r dist
