@@ -576,7 +576,7 @@ class Pipeline(Projection, object):
         :attr:`~_worker_mode` is set to *False*.
 
         This method is automatically initialized and finalized when using the
-        :attr:`~worker_mode`.
+        :attr:`~worker_mode` context manager.
 
         """
 
@@ -1375,15 +1375,12 @@ class Pipeline(Projection, object):
         # Obtain number of samples
         n_sam = np.shape(sam_set)[0]
 
-        # Gather the data_idx from all MPI ranks on the controller
-        data_idx_list = self._comm.gather(
-            delist(self._emulator._data_idx[emul_i]), 0)
-
-        # Flatten the received data_idx_list on the controller
+        # Flatten the corresponding data_idx_to_core on the controller
         if self._is_controller:
             data_idx_flat = []
             data_idx_len = []
-            for data_idx_rank in data_idx_list:
+            for data_idx_rank in self._emulator._data_idx_to_core[emul_i]:
+                data_idx_rank = delist(data_idx_rank)
                 data_idx_len.append(len(data_idx_rank))
                 data_idx_flat.extend(data_idx_rank)
 
@@ -2948,7 +2945,7 @@ class Pipeline(Projection, object):
         self._comm.Barrier()
 
     # This function allows the user to evaluate a given sam_set in the emulator
-    # TODO: Plot emul_i_stop for large LHDs, giving a nice mental statistic
+    # TODO: Rewrite entire function to enable clarity about what is returned
     @docstring_substitute(emul_i=user_emul_i_doc)
     def evaluate(self, sam_set, emul_i=None):
         """

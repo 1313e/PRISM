@@ -283,6 +283,17 @@ class Emulator(object):
 
         return(self._emul_s_to_core)
 
+    @property
+    def data_idx_to_core(self):
+        """
+        list of lists: List of the data identifiers that were assigned to the
+        emulator systems listed in :attr:`~emul_s_to_core`. Only available on
+        the controller rank.
+
+        """
+
+        return(self._data_idx_to_core)
+
     # Active Parameters
     @property
     def active_par(self):
@@ -2197,6 +2208,7 @@ class Emulator(object):
             self._n_data_tot = [[]]
             self._n_emul_s_tot = 0
             self._emul_s_to_core = [[] for _ in range(self._size)]
+            self._data_idx_to_core = [[]]
             self._active_par = [[]]
 
         # If no file has been provided
@@ -2408,9 +2420,16 @@ class Emulator(object):
                 # Add ccheck for this iteration to global ccheck
                 self._ccheck.append(ccheck)
 
-                # If ccheck has no empty lists, decrease emul_i by 1
+                # If ccheck has no solely empty lists, decrease emul_i by 1
                 if(delist(ccheck) != []):
                     self._emul_i -= 1
+
+                # Gather the data_idx from all MPI ranks on the controller
+                data_idx_list = self._comm.gather(data_idx, 0)
+
+                # Controller saving the received data_idx_list
+                if self._is_controller:
+                    self._data_idx_to_core.append(data_idx_list)
 
         # Log that loading is finished
         logger.info("Finished loading relevant emulator data.")

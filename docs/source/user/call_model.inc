@@ -217,7 +217,7 @@ Put a little bit more simple: :meth:`~prism.modellink.ModelLink._make_backup` mu
                 
                 # Make a backup every 500 evaluations
                 if not((i+1) % 500):
-                    modellink_obj._make_backup(mod_set=mod_set[:i])
+                    modellink_obj._make_backup(mod_set=mod_set[:i+1])
 
             # Return mod_set
             return(mod_set)
