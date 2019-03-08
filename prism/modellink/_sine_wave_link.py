@@ -17,7 +17,7 @@ import numpy as np
 
 # PRISM imports
 from prism._internal import np_array
-from prism.modellink._modellink import ModelLink
+from prism.modellink import ModelLink
 
 # All declaration
 __all__ = ['SineWaveLink']

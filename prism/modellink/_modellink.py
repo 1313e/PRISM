@@ -26,7 +26,7 @@ import numpy as np
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
-from prism.__version__ import prism_version
+from prism import __version__
 from prism._docstrings import std_emul_i_doc
 from prism._internal import (FeatureWarning, RequestWarning, check_vals,
                              getCLogger, np_array)
@@ -835,7 +835,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         # Save emul_i, par_set, data_idx, args and kwargs to hdf5
         with h5py.File(filepath, 'w') as file:
             file.attrs['emul_i'] = emul_i
-            file.attrs['prism_version'] = prism_version
+            file.attrs['prism_version'] = __version__
             hickle.dump(dict(par_set), file, path='/par_set')
             hickle.dump(data_idx, file, path='/data_idx')
             hickle.dump(args, file, path='/args')

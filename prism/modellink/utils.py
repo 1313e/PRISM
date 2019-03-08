@@ -214,8 +214,14 @@ def convert_parameters(model_parameters):
         # Check if provided name is a string
         name = check_vals(name, 'par_name[%s]' % (name), 'str')
 
-        # Check if provided range is correct
+        # Check if provided range consists of two floats
         par_rng = check_vals(values[:2], 'par_rng[%s]' % (name), 'float')
+
+        # Check if provided lower bound is lower than the upper bound
+        if(par_rng[0] >= par_rng[1]):
+            raise ValueError("Input argument 'par_rng[%s]' does not define a "
+                             "valid parameter range (%f !< %f)!"
+                             % (name, par_rng[0], par_rng[1]))
 
         # Check if a float parameter estimate was provided
         try:
@@ -279,7 +285,7 @@ def test_subclass(subclass, *args, **kwargs):
     """
 
     # Import ModelLink class
-    from prism.modellink._modellink import ModelLink
+    from prism.modellink import ModelLink
 
     # Check if provided subclass is a class
     if not isclass(subclass):
