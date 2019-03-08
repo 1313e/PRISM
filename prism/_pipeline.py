@@ -39,12 +39,12 @@ from prism._docstrings import (call_emul_i_doc, call_model_doc_s,
                                impl_cut_doc, impl_temp_doc, paths_doc_d,
                                paths_doc_s, read_par_doc, save_data_doc_p,
                                std_emul_i_doc, user_emul_i_doc)
-from prism._emulator import Emulator
 from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
                              check_vals, getCLogger, get_PRISM_File,
                              getRLogger, move_logger, np_array,
                              set_base_logger)
 from prism._projection import Projection
+from prism.emulator import Emulator
 
 # All declaration
 __all__ = ['Pipeline']
@@ -80,8 +80,9 @@ class Pipeline(Projection, object):
         Optional
         --------
         %(paths)s
-        emul_type : :class:`~prism.Emulator` subclass or None. Default: None
-            The type of :class:`~prism.Emulator` to use in this
+        emul_type : :class:`~prism.emulator.Emulator` subclass or None. \
+            Default: None
+            The type of :class:`~prism.emulator.Emulator` to use in this
             :obj:`~prism.Pipeline` instance. If *None*, use the default
             emulator instead.
         comm : :obj:`~MPI.Intracomm` object or None. Default: None
@@ -232,7 +233,7 @@ class Pipeline(Projection, object):
         # Add the emul_type representation if it is not default
         emul_repr = "%s.%s" % (self._emulator.__class__.__module__,
                                self._emulator.__class__.__name__)
-        if(emul_repr != 'prism._emulator.Emulator'):
+        if(emul_repr != 'prism.emulator._emulator.Emulator'):
             str_repr.append("emul_type=%s" % (emul_repr))
 
         # Return representation
@@ -430,7 +431,7 @@ class Pipeline(Projection, object):
     @property
     def emulator(self):
         """
-        :obj:`~prism.Emulator`: The :obj:`~prism.Emulator`
+        :obj:`~prism.emulator.Emulator`: The :obj:`~prism.emulator.Emulator`
         instance created during :class:`~Pipeline` initialization.
 
         """
@@ -2580,8 +2581,8 @@ class Pipeline(Projection, object):
             at the current working directory.
         Emulator type
             The type of this emulator, corresponding to the
-            :attr:`~prism.Emulator.emul_type` of the provided `emul_type`
-            during :class:`~Pipeline` initialization.
+            :attr:`~prism.emulator.Emulator.emul_type` of the provided
+            `emul_type` during :class:`~Pipeline` initialization.
             If no emulator type was provided during initialization, this is
             'default'.
         ModelLink subclass

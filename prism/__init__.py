@@ -34,14 +34,14 @@ from e13tools import (aux_char_list, compare_versions as _compare_versions,
 
 # PRISM imports
 from .__version__ import prism_version as __version__
+from . import emulator
 from . import modellink
 from . import utils
-from ._emulator import Emulator
 from ._internal import get_info
 from ._pipeline import Pipeline
 
 # All declaration
-__all__ = ['modellink', 'utils', 'Emulator', 'Pipeline', 'aux_char_list',
+__all__ = ['emulator', 'modellink', 'utils', 'Pipeline', 'aux_char_list',
            'get_info', 'import_cmaps']
 
 # Author declaration

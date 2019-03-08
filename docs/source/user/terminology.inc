@@ -75,7 +75,7 @@ Below is a list of the most commonly used terms/abbreviations in *PRISM* and the
         The specific method (Gaussian, regression or both) that needs to be used to construct an emulator.
 
     Emulator
-        The collection of all emulator systems together, provided by an :obj:`~prism.Emulator` object.
+        The collection of all emulator systems together, provided by an :obj:`~prism.emulator.Emulator` object.
 
     Emulator evaluation samples
         The sample set (to be) used for evaluating the emulator.

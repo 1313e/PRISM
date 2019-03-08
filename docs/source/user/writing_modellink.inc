@@ -20,7 +20,7 @@ Given the importance of both methods, detailed descriptions are given in :ref:`c
 
 Since every model is different, with some requiring preparations in order to work properly, the :meth:`~prism.modellink.ModelLink.__init__` constructor method may be extended to include any custom code to be executed when the subclass is initialized.
 The superclass version of the :meth:`~prism.modellink.ModelLink.__init__` method must always be called, as it sets several important flags and properties, but the time at which this is done does not matter.
-During the initialization of the :class:`~prism.Emulator` class, it is checked whether or not the superclass constructor of a provided :obj:`~prism.modellink.ModelLink` instance was called (to avoid this from being forgotten).
+During the initialization of the :class:`~prism.emulator.Emulator` class, it is checked whether or not the superclass constructor of a provided :obj:`~prism.modellink.ModelLink` instance was called (to avoid this from being forgotten).
 
 Besides executing custom code, three properties/flags can be set in :meth:`~prism.modellink.ModelLink.__init__`, which have the following default values if the extended constructor does not set them::
 
@@ -29,7 +29,7 @@ Besides executing custom code, three properties/flags can be set in :meth:`~pris
     self.MPI_call = False               # Request only controller calls
 
 The first property, :attr:`~prism.modellink.ModelLink.name`, defines the name of the :obj:`~prism.modellink.ModelLink` instance.
-This name is used by the :class:`~prism.Emulator` class during initialization to check if a constructed emulator is linked to the proper :obj:`~prism.modellink.ModelLink` instance, in order to avoid causing mismatches.
+This name is used by the :class:`~prism.emulator.Emulator` class during initialization to check if a constructed emulator is linked to the proper :obj:`~prism.modellink.ModelLink` instance, in order to avoid causing mismatches.
 If one wants to use the same :class:`~prism.modellink.ModelLink` subclass for different models (like, using different parameter spaces), it is recommended to add an identifier for this to this name.
 An example of this can be found in the definition of the :class:`~prism.modellink.GaussianLink` class, which adds the number of Gaussians in the model to its :attr:`~prism.modellink.ModelLink.name` property.
 

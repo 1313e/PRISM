@@ -34,8 +34,8 @@ Below is a list of general usage rules that apply to *PRISM*.
 
   .. admonition:: Examples
 
-      - If :attr:`~prism.Emulator.method` != :pycode:`'gaussian'`, it causes :attr:`~prism.Emulator.sigma` to have no use in the pipeline;
-      - Switching the bool value for :attr:`~prism.Emulator.use_mock` while loading a constructed emulator has no effect, since the mock data is generated (or not) when constructing a new emulator and cannot be changed or swapped out afterward.
+      - If :attr:`~prism.emulator.Emulator.method` != :pycode:`'gaussian'`, it causes :attr:`~prism.emulator.Emulator.sigma` to have no use in the pipeline;
+      - Switching the bool value for :attr:`~prism.emulator.Emulator.use_mock` while loading a constructed emulator has no effect, since the mock data is generated (or not) when constructing a new emulator and cannot be changed or swapped out afterward.
 
 - All docstrings in *PRISM* are written in `RTF`_ (Rich Text Format) and are therefore best viewed in an editor that supports it (like `Spyder`_).
 

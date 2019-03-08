@@ -3,7 +3,7 @@
 """
 Emulator
 ========
-Provides the definition of the class holding the emulator of the *PRISM*
+Provides the definition of the base class holding the emulator of the *PRISM*
 package, the :class:`~Emulator` class.
 
 """
@@ -53,7 +53,7 @@ int_size = 'int%i' % (calcsize('P')*8)
 # %% EMULATOR CLASS DEFINITION
 class Emulator(object):
     """
-    Defines the :class:`~Emulator` class of the *PRISM* package.
+    Defines the :class:`~Emulator` base class of the *PRISM* package.
 
     Description
     -----------
@@ -89,8 +89,8 @@ class Emulator(object):
         Parameters
         ----------
         pipeline_obj : :obj:`~prism.Pipeline` object
-            The :obj:`~prism.Pipeline` instance this :obj:`~prism.Emulator`
-            instance should be linked to.
+            The :obj:`~prism.Pipeline` instance this :obj:`~Emulator` instance
+            should be linked to.
         modellink_obj : :obj:`~prism.modellink.ModelLink` object
             The :obj:`~prism.modellink.ModelLink` instance that should be
             linked to `pipeline_obj`.

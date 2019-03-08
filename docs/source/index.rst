@@ -38,7 +38,7 @@ The documentation of *PRISM* is spread out over several sections:
     :caption: API Reference
    
     api/prism.Pipeline
-    api/prism.Emulator
+    api/prism.emulator
     api/prism.modellink
     api/prism.utils
     api/prism._internal
