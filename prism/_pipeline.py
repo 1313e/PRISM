@@ -80,7 +80,7 @@ class Pipeline(Projection, object):
         Optional
         --------
         %(paths)s
-        emul_type : :class:`~prism.emulator.Emulator` subclass or None. \
+        emul_type : :class:`~prism.emulator.Emulator` subclass or None.\
             Default: None
             The type of :class:`~prism.emulator.Emulator` to use in this
             :obj:`~prism.Pipeline` instance. If *None*, use the default

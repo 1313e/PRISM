@@ -874,6 +874,7 @@ def getLogger(name=None, filters=None):
     # Check what the provided name is
     if name is None:
         child_name = prefix
+        name = 'PRISM_ROOT'
     else:
         child_name = ".".join([prefix, name])
 
@@ -978,5 +979,8 @@ def set_base_logger(filename=None):
     # Initialize base handler and add it to base_logger
     base_logger.addHandler(get_handler(filename))
 
-    # Set logLevel to DEBUG
-    base_logger.setLevel('DEBUG')
+    # Set logLevel to the same as the logLevel of the handler
+    base_logger.setLevel(base_logger.handlers[0].level)
+
+    # Make sure that the base_logger does not propagate logging messages
+    base_logger.propagate = False

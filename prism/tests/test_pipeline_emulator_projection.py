@@ -18,8 +18,8 @@ import pytest_mpl
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
+from prism import Pipeline
 from prism._internal import MPI, RequestError
-from prism._pipeline import Pipeline
 from prism._projection import Projection
 from prism.emulator import Emulator
 from prism.modellink import ModelLink
