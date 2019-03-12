@@ -71,7 +71,7 @@ napoleon_use_keyword = False
 napoleon_use_rtype = False
 napoleon_custom_sections = [
     ('Optional', 'Other Parameters'),
-    ('Returns (if ndim(sam_set) > 1)', 'Returns'),
+    ('Returns (if 2D `sam_set`)', 'Returns'),
     ('Returns (if `figure` is *False*)', 'Returns'),
     ('Dict variables', 'Keyword Arguments'),
     'Description',
@@ -82,7 +82,7 @@ napoleon_custom_sections = [
     'Formatting data_idx',
     'Notes (model_parameters)',
     'Notes (model_data)',
-    'Prints (if ndim(sam_set) == 1)']
+    'Prints (if 1D `sam_set`)']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

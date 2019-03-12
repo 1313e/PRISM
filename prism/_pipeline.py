@@ -2974,8 +2974,8 @@ class Pipeline(Projection, object):
         --------
         %(emul_i)s
 
-        Returns (if ndim(sam_set) > 1)
-        ------------------------------
+        Returns (if 2D `sam_set`)
+        -------------------------
         impl_check : list of bool
             List of bool indicating whether or not the given samples passed the
             implausibility check at the given emulator iteration `emul_i`.
@@ -2992,8 +2992,8 @@ class Pipeline(Projection, object):
             Array containing the univariate implausibility values for all given
             samples.
 
-        Prints (if ndim(sam_set) == 1)
-        ------------------------------
+        Prints (if 1D `sam_set`)
+        ------------------------
         impl_check : bool
             Bool indicating whether or not the given sample passed the
             implausibility check at the given emulator iteration `emul_i`.
