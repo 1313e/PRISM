@@ -11,6 +11,7 @@ Provides the definition of the main class of the *PRISM* package, the
 
 # %% IMPORTS
 # Built-in imports
+from ast import literal_eval
 from contextlib import contextmanager
 from inspect import isclass
 import logging
@@ -37,7 +38,7 @@ from prism._docstrings import (call_emul_i_doc, call_model_doc_s,
                                ext_mod_set_doc, ext_real_set_doc_d,
                                ext_real_set_doc_s, ext_sam_set_doc,
                                impl_cut_doc, impl_temp_doc, paths_doc_d,
-                               paths_doc_s, read_par_doc, save_data_doc_p,
+                               paths_doc_s, save_data_doc_p, set_par_doc,
                                std_emul_i_doc, user_emul_i_doc)
 from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
                              check_vals, getCLogger, get_PRISM_File,
@@ -80,6 +81,12 @@ class Pipeline(Projection, object):
         Optional
         --------
         %(paths)s
+        prism_file : str or None. Default: None
+            String containing the absolute or relative path to the TXT-file
+            containing the *PRISM* parameters that need to be changed from
+            their default values. If a relative path is given, its path must be
+            relative to `root_dir` or the current directory. If *None*, no
+            changes will be made to the default parameters.
         emul_type : :class:`~prism.emulator.Emulator` subclass or None.\
             Default: None
             The type of :class:`~prism.emulator.Emulator` to use in this
@@ -116,7 +123,7 @@ class Pipeline(Projection, object):
             logger.info("Initializing Pipeline class.")
 
             # Obtain paths
-            self._get_paths(root_dir, working_dir, prefix, prism_file)
+            self._get_paths(root_dir, working_dir, prefix)
 
             # Move logger to working directory and restart it
             move_logger(self._working_dir)
@@ -125,7 +132,7 @@ class Pipeline(Projection, object):
         else:
             # Obtain paths
             logger = getCLogger('INIT')
-            self._get_paths(root_dir, working_dir, prefix, prism_file)
+            self._get_paths(root_dir, working_dir, prefix)
 
         # MPI Barrier
         self._comm.Barrier()
@@ -133,6 +140,9 @@ class Pipeline(Projection, object):
         # Start logger for workers as well
         if self._is_worker:
             set_base_logger(path.join(self._working_dir, 'prism_log.log'))
+
+        # Read in the provided parameter file
+        self._read_parameters(prism_file)
 
         # Initialize Emulator class
         # If emul_type is None, use default emulator
@@ -156,8 +166,8 @@ class Pipeline(Projection, object):
                        % (emul_type))
             raise_error(err_msg, InputError, logger)
 
-        # Let everybody read in the pipeline parameters
-        self._read_parameters()
+        # Let everybody set the pipeline parameters
+        self._set_parameters()
 
         # Compile pre-defined code snippets
         self._compile_code_snippets()
@@ -335,7 +345,7 @@ class Pipeline(Projection, object):
         # MPI Barrier
         self._comm.Barrier()
 
-    # Pipeline Settings/Attributes/Details
+    # Pipeline details
     @property
     def do_logging(self):
         """
@@ -397,14 +407,14 @@ class Pipeline(Projection, object):
         return(self._hdf5_file)
 
     @property
-    def prism_file(self):
+    def prism_dict(self):
         """
-        str: Absolute path to the *PRISM* parameters file or *None* if no file
-        was provided.
+        dict: Dictionary containing all PRISM parameters that were provided
+        during :class:`~Pipeline` initialization.
 
         """
 
-        return(self._prism_file)
+        return(self._prism_dict)
 
     @property
     def File(self):
@@ -448,6 +458,7 @@ class Pipeline(Projection, object):
 
         return(self._code_objects)
 
+    # Pipeline settings
     @property
     def criterion(self):
         """
@@ -457,6 +468,33 @@ class Pipeline(Projection, object):
         """
 
         return(self._criterion)
+
+    @criterion.setter
+    def criterion(self, criterion):
+        # Make logger
+        logger = getRLogger('CHECK')
+
+        # If criterion is None, save it as such
+        if criterion is None:
+            self._criterion = None
+
+        # If criterion is a bool, raise error
+        elif criterion is True or criterion is False:
+            err_msg = ("Input argument 'criterion' does not accept values of "
+                       "type 'bool'!")
+            raise_error(err_msg, TypeError, logger)
+
+        # If anything else is given, it must be a float or string
+        else:
+            # Try to use criterion to check validity
+            try:
+                lhd(3, 2, criterion=criterion)
+            except Exception as error:
+                err_msg = ("Input argument 'criterion' is invalid! (%s)"
+                           % (error))
+                raise_error(err_msg, InputError, logger)
+            else:
+                self._criterion = criterion
 
     @property
     def do_active_anal(self):
@@ -468,6 +506,11 @@ class Pipeline(Projection, object):
 
         return(bool(self._do_active_anal))
 
+    @do_active_anal.setter
+    def do_active_anal(self, do_active_anal):
+        self._do_active_anal = check_vals(do_active_anal, 'do_active_anal',
+                                          'bool')
+
     @property
     def freeze_active_par(self):
         """
@@ -477,6 +520,11 @@ class Pipeline(Projection, object):
         """
 
         return(bool(self._freeze_active_par))
+
+    @freeze_active_par.setter
+    def freeze_active_par(self, freeze_active_par):
+        self._freeze_active_par = check_vals(freeze_active_par,
+                                             'freeze_active_par', 'bool')
 
     @property
     def pot_active_par(self):
@@ -490,6 +538,27 @@ class Pipeline(Projection, object):
 
         return([self._modellink._par_name[i] for i in self._pot_active_par])
 
+    @pot_active_par.setter
+    def pot_active_par(self, pot_active_par):
+        # Make logger
+        logger = getRLogger('CHECK')
+
+        # If pot_active_par is None, save all model parameters
+        if pot_active_par is None:
+            self._pot_active_par = np_array(range(self._modellink._n_par))
+
+        # If pot_active_par is a bool, raise error
+        elif pot_active_par is True or pot_active_par is False:
+            err_msg = ("Input argument 'pot_active_par' does not accept values"
+                       "of type 'bool'!")
+            raise_error(err_msg, TypeError, logger)
+
+        # If anything else is given, it must be a sequence of model parameters
+        else:
+            # Convert the given sequence to an array of indices
+            self._pot_active_par = np_array(self._modellink._get_model_par_seq(
+                pot_active_par, 'pot_active_par'))
+
     @property
     def n_sam_init(self):
         """
@@ -500,17 +569,9 @@ class Pipeline(Projection, object):
 
         return(self._n_sam_init)
 
-    @property
-    def n_eval_sam(self):
-        """
-        int: The number of evaluation samples used to analyze an emulator
-        iteration of the emulator systems. The number of plausible evaluation
-        samples is stored in :attr:`~n_impl_sam`.
-        It is zero if the specified iteration has not been analyzed yet.
-
-        """
-
-        return(self._n_eval_sam)
+    @n_sam_init.setter
+    def n_sam_init(self, n_sam_init):
+        self._n_sam_init = check_vals(n_sam_init, 'n_sam_init', 'int', 'pos')
 
     @property
     def base_eval_sam(self):
@@ -524,6 +585,11 @@ class Pipeline(Projection, object):
 
         return(self._base_eval_sam)
 
+    @base_eval_sam.setter
+    def base_eval_sam(self, base_eval_sam):
+        self._base_eval_sam = check_vals(base_eval_sam, 'base_eval_sam', 'int',
+                                         'pos')
+
     @property
     def impl_cut(self):
         """
@@ -534,6 +600,7 @@ class Pipeline(Projection, object):
 
         return(self._impl_cut)
 
+    # Analysis results/properties
     @property
     def cut_idx(self):
         """
@@ -544,6 +611,18 @@ class Pipeline(Projection, object):
         """
 
         return(self._cut_idx)
+
+    @property
+    def n_eval_sam(self):
+        """
+        int: The number of evaluation samples used to analyze an emulator
+        iteration of the emulator systems. The number of plausible evaluation
+        samples is stored in :attr:`~n_impl_sam`.
+        It is zero if the specified iteration has not been analyzed yet.
+
+        """
+
+        return(self._n_eval_sam)
 
     @property
     def n_impl_sam(self):
@@ -742,6 +821,63 @@ class Pipeline(Projection, object):
         # Return it
         return(np_array(mod_set))
 
+    # This function reads in the parameters from the provided parameter file
+    def _read_parameters(self, prism_file):
+        """
+        Reads in all parameters in the provided `prism_file` and saves them as
+        a dict in the current :obj:`~Pipeline` instance.
+
+        """
+
+        # Make a logger
+        logger = getCLogger('INIT')
+        logger.info("Reading in PRISM parameters file.")
+
+        # Obtain PRISM parameter file path
+        # If no PRISM parameter file was provided
+        if prism_file is None:
+            self._prism_file = None
+            prism_dict = sdict()
+
+        # If a PRISM parameter file was provided
+        elif isinstance(prism_file, str):
+            # Check if prism_file was given as an absolute path
+            if path.exists(prism_file):
+                prism_file = path.abspath(prism_file)
+            # If not, check if it was relative to root_dir
+            elif path.exists(path.join(self._root_dir, prism_file)):
+                prism_file = path.join(self._root_dir, prism_file)
+            # If not either, it is invalid
+            else:
+                err_msg = ("Input argument 'prism_file' is a non-existing path"
+                           " (%r)!" % (prism_file))
+                raise_error(err_msg, OSError, logger)
+
+            # Save the path to the prism_file
+            # TODO: This should be removed later
+            self._prism_file = prism_file
+
+            # Read in the contents of the given prism_file
+            prism_par = np.genfromtxt(prism_file, dtype=(str), delimiter=':',
+                                      autostrip=True)
+
+            # Make sure that prism_par is 2D
+            prism_par = np_array(prism_par, ndmin=2)
+
+            # Make prism_dict
+            prism_dict = sdict(prism_par)
+
+        # If anything else is given, it is invalid
+        else:
+            err_msg = "Input argument 'prism_file' is invalid!"
+            raise_error(err_msg, InputError, logger)
+
+        # Save prism_dict
+        self._prism_dict = prism_dict
+
+        # Log again
+        logger.info("Finished reading in PRISM parameters file.")
+
     # This function returns default pipeline parameters
     @docstring_append(def_par_doc.format("pipeline"))
     def _get_default_parameters(self):
@@ -755,98 +891,59 @@ class Pipeline(Projection, object):
                     'pot_active_par': 'None'}
 
         # Return it
-        return(par_dict)
+        return(sdict(par_dict))
 
-    # Read in the parameters from the provided parameter file
+    # Set the parameters that were read in from the provided parameter file
     # TODO: May want to use configparser.Configparser for this
-    @docstring_append(read_par_doc.format("Pipeline"))
-    def _read_parameters(self):
-        # Log that the PRISM parameter file is being read
+    @docstring_append(set_par_doc.format("Pipeline"))
+    def _set_parameters(self):
+        # Log that the pipeline parameters are being set
         logger = getCLogger('INIT')
-        logger.info("Reading pipeline parameters.")
+        logger.info("Setting pipeline parameters.")
 
         # Obtaining default pipeline parameter dict
         par_dict = self._get_default_parameters()
 
-        # Read in data from provided PRISM parameters file
-        if self._prism_file is not None:
-            pipe_par = np.genfromtxt(self._prism_file, dtype=(str),
-                                     delimiter=':', autostrip=True)
-
-            # Make sure that pipe_par is 2D
-            pipe_par = np_array(pipe_par, ndmin=2)
-
-            # Combine default parameters with read-in parameters
-            par_dict.update(pipe_par)
+        # Add the read-in prism dict to it
+        par_dict.update(self._prism_dict)
 
         # More logging
         logger.info("Checking compatibility of provided pipeline parameters.")
 
         # GENERAL
-        # Number of starting samples
-        self._n_sam_init =\
-            check_vals(convert_str_seq(par_dict['n_sam_init'])[0],
-                       'n_sam_init', 'int', 'pos')
+        # Set number of starting samples
+        self.n_sam_init = convert_str_seq(par_dict['n_sam_init'])[0]
 
-        # Base number of emulator evaluation samples
-        self._base_eval_sam =\
-            check_vals(convert_str_seq(par_dict['base_eval_sam'])[0],
-                       'base_eval_sam', 'int', 'pos')
+        # Set base number of emulator evaluation samples
+        self.base_eval_sam = convert_str_seq(par_dict['base_eval_sam'])[0]
 
         # Criterion parameter used for Latin Hypercube Sampling
-        # If criterion is None, save it as such
-        if(par_dict['criterion'].lower() == 'none'):
-            self._criterion = None
+        # If criterion is None, True or False, try to save it as such
+        if par_dict['criterion'].lower() in ('none', 'true', 'false'):
+            self.criterion = literal_eval(par_dict['criterion'].capitalize())
 
-        # If criterion is a bool, raise error
-        elif par_dict['criterion'].lower() in ('false', 'true'):
-            err_msg = ("Input argument 'criterion' does not accept values of "
-                       "type 'bool'!")
-            raise_error(err_msg, TypeError, logger)
-
-        # If anything else is given, it must be a float or string
+        # If anything else is given, it must be an int, float or string
         else:
-            # Convert to float or string
-            criterion = convert_str_seq(par_dict['criterion'])[0]
+            self.criterion = convert_str_seq(par_dict['criterion'])[0]
 
-            # Try to use criterion to check validity
-            try:
-                lhd(3, 2, criterion=criterion)
-            except Exception as error:
-                err_msg = ("Input argument 'criterion' is invalid! (%s)"
-                           % (error))
-                raise_error(err_msg, InputError, logger)
-            else:
-                self._criterion = criterion
+        # Set the bool determining whether to do an active parameters analysis
+        self.do_active_anal = par_dict['do_active_anal']
 
-        # Obtain the bool determining whether to do an active parameters
-        # analysis
-        self._do_active_anal = check_vals(par_dict['do_active_anal'],
-                                          'do_active_anal', 'bool')
+        # Set the bool determining whether active parameters stay active
+        self.freeze_active_par = par_dict['freeze_active_par']
 
-        # Obtain the bool determining whether active parameters stay active
-        self._freeze_active_par = check_vals(par_dict['freeze_active_par'],
-                                             'freeze_active_par', 'bool')
+        # Set which parameters can potentially be active
+        # If pot_active_par is None, True or False, try to save it as such
+        if par_dict['pot_active_par'].lower() in ('none', 'true', 'false'):
+            self.pot_active_par =\
+                literal_eval(par_dict['pot_active_par'].capitalize())
 
-        # Check which parameters can potentially be active
-        # If pot_active_par is None, save all model parameters
-        if(par_dict['pot_active_par'].lower() == 'none'):
-            self._pot_active_par = np_array(range(self._modellink._n_par))
-
-        # If pot_active_par is a bool, raise error
-        elif par_dict['pot_active_par'].lower() in ('false', 'true'):
-            err_msg = ("Input argument 'pot_active_par' does not accept values"
-                       "of type 'bool'!")
-            raise_error(err_msg, TypeError, logger)
-
-        # If anything else is given, it must be a sequence of model parameters
+        # If anything else is given, save it
         else:
-            # Convert the given sequence to an array of indices
-            self._pot_active_par = np_array(self._modellink._get_model_par_seq(
-                par_dict['pot_active_par'], 'pot_active_par'))
+            self.pot_active_par = par_dict['pot_active_par']
 
-        # Log that reading has been finished
-        logger.info("Finished reading pipeline parameters.")
+        # Log that setting has been finished
+        logger.info("Finished setting pipeline parameters.")
 
     # This function controls how n_eval_samples is calculated
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -873,7 +970,7 @@ class Pipeline(Projection, object):
     # Obtains the paths for the root directory, working directory, pipeline
     # hdf5-file and prism parameters file
     @docstring_substitute(paths=paths_doc_s)
-    def _get_paths(self, root_dir, working_dir, prefix, prism_file):
+    def _get_paths(self, root_dir, working_dir, prefix):
         """
         Obtains the path for the root directory, working directory and
         parameters file for *PRISM*.
@@ -1030,44 +1127,16 @@ class Pipeline(Projection, object):
             # Obtain hdf5-file path
             self._hdf5_file = path.join(self._working_dir, 'prism.hdf5')
 
-            # Obtain PRISM parameter file path
-            # If no PRISM parameter file was provided
-            if prism_file is None:
-                self._prism_file = None
-
-            # If a PRISM parameter file was provided
-            elif isinstance(prism_file, str):
-                # Check if prism_file was given as an absolute path
-                if path.exists(prism_file):
-                    self._prism_file = path.abspath(prism_file)
-                # If not, check if it was relative to root_dir
-                elif path.exists(path.join(self._root_dir, prism_file)):
-                    self._prism_file = path.join(self._root_dir, prism_file)
-                # If not either, it is invalid
-                else:
-                    err_msg = ("Input argument 'prism_file' is a non-existing "
-                               "path (%r)!" % (prism_file))
-                    raise_error(err_msg, OSError, logger)
-                logger.info("PRISM parameters file set to %r."
-                            % (self._prism_file))
-
-            # If anything else is given, it is invalid
-            else:
-                err_msg = "Input argument 'prism_file' is invalid!"
-                raise_error(err_msg, InputError, logger)
-
         # Workers get dummy paths
         else:
             self._root_dir = None
             self._working_dir = None
             self._hdf5_file = None
-            self._prism_file = None
 
         # Broadcast paths to workers
         self._root_dir = self._comm.bcast(self._root_dir, 0)
         self._working_dir = self._comm.bcast(self._working_dir, 0)
         self._hdf5_file = self._comm.bcast(self._hdf5_file, 0)
-        self._prism_file = self._comm.bcast(self._prism_file, 0)
 
         # Generate custom File class using the path to the master HDF5-file
         self._File = get_PRISM_File(self._hdf5_file)
@@ -1819,16 +1888,8 @@ class Pipeline(Projection, object):
             # Obtaining default pipeline parameter dict
             par_dict = self._get_default_parameters()
 
-            # Read in data from provided PRISM parameters file
-            if self._prism_file is not None:
-                pipe_par = np.genfromtxt(self._prism_file, dtype=(str),
-                                         delimiter=':', autostrip=True)
-
-                # Make sure that pipe_par is 2D
-                pipe_par = np_array(pipe_par, ndmin=2)
-
-                # Combine default parameters with read-in parameters
-                par_dict.update(pipe_par)
+            # Add the read-in prism dict to it
+            par_dict.update(self._prism_dict)
 
             # More logging
             logger.info("Checking compatibility of provided implausibility "

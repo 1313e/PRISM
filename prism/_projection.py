@@ -34,7 +34,7 @@ from tqdm import tqdm
 # PRISM imports
 from prism._docstrings import (def_par_doc, draw_proj_fig_doc, get_emul_i_doc,
                                hcube_doc, proj_data_doc, proj_par_doc_d,
-                               proj_par_doc_s, read_par_doc, save_data_doc_pr,
+                               proj_par_doc_s, save_data_doc_pr, set_par_doc,
                                user_emul_i_doc)
 from prism._internal import (RequestError, RequestWarning, check_vals,
                              getCLogger, np_array)
@@ -241,7 +241,7 @@ class Projection(object):
                         self.__get_proj_data(hcube)
                 # Otherwise, the used resolution is the current resolution
                 else:
-                    proj_res = self.__res
+                    proj_res = self._res
 
                 # Draw projection figure
                 if(len(hcube) == 1):
@@ -276,24 +276,32 @@ class Projection(object):
     @property
     def proj_res(self):
         """
-        int: Number of emulator evaluations used to generate the grid for the
-        last created projection figures.
+        int: Number of emulator evaluations that will be used to generate the
+        grid for the projection figures.
 
         """
 
-        return(getattr(self, '__res', None))
+        return(getattr(self, '_res', None))
+
+    @proj_res.setter
+    def proj_res(self, proj_res):
+        self._res = check_vals(proj_res, 'proj_res', 'int', 'pos')
 
     @property
     def proj_depth(self):
         """
-        int: Number of emulator evaluations used to generate the samples in
-        every grid point for the last created projection figures.
-        Note that when making 2D projections of nD models, the used depth was
-        this number multiplied by :attr:`~proj_res`.
+        int: Number of emulator evaluations that will be used to generate the
+        samples in every grid point for the projection figures.
+        Note that when making 2D projections of nD models, the used depth will
+        be this number multiplied by :attr:`~proj_res`.
 
         """
 
-        return(getattr(self, '__depth', None))
+        return(getattr(self, '_depth', None))
+
+    @proj_depth.setter
+    def proj_depth(self, proj_depth):
+        self._depth = check_vals(proj_depth, 'proj_depth', 'int', 'pos')
 
     # %% HIDDEN CLASS METHODS
     # This function draws the 2D projection figure
@@ -871,7 +879,7 @@ class Projection(object):
                     'proj_depth': '250'}
 
         # Return it
-        return(par_dict)
+        return(sdict(par_dict))
 
     # This function returns default projection input arguments
     def __get_default_input_arguments(self):
@@ -914,41 +922,33 @@ class Projection(object):
                        'figsize_r': figsize_r}
 
         # Return it
-        return(kwargs_dict)
+        return(sdict(kwargs_dict))
 
-    # Read in the parameters from the provided parameter file
-    @docstring_append(read_par_doc.format("Projection"))
-    def __read_parameters(self):
-        # Log that the PRISM parameter file is being read
+    # Set the parameters that were read in from the provided parameter file
+    @docstring_append(set_par_doc.format("Projection"))
+    def __set_parameters(self):
+        # Log that the projection parameters are being set
         logger = getCLogger('INIT')
-        logger.info("Reading projection parameters.")
+        logger.info("Setting projection parameters.")
 
         # Obtaining default projection parameter dict
         par_dict = self.__get_default_parameters()
 
-        # Read in data from provided PRISM parameters file
-        if self._prism_file is not None:
-            pipe_par = np.genfromtxt(self._prism_file, dtype=(str),
-                                     delimiter=':', autostrip=True)
-
-            # Make sure that pipe_par is 2D
-            pipe_par = np_array(pipe_par, ndmin=2)
-
-            # Combine default parameters with read-in parameters
-            par_dict.update(pipe_par)
+        # Add the read-in prism dict to it
+        par_dict.update(self._prism_dict)
 
         # More logging
         logger.info("Checking compatibility of provided projection "
                     "parameters.")
 
         # Number of samples used for implausibility evaluations
-        self.__res = check_vals(convert_str_seq(par_dict['proj_res'])[0],
-                                'proj_res', 'int', 'pos')
-        self.__depth = check_vals(convert_str_seq(par_dict['proj_depth'])[0],
-                                  'proj_depth', 'int', 'pos')
+        if not hasattr(self, '_res'):
+            self.proj_res = convert_str_seq(par_dict['proj_res'])[0]
+        if not hasattr(self, '_depth'):
+            self.proj_depth = convert_str_seq(par_dict['proj_depth'])[0]
 
         # Finish logging
-        logger.info("Finished reading projection parameters.")
+        logger.info("Finished setting projection parameters.")
 
     # This function generates a projection hypercube to be used for emulator
     # evaluations
@@ -987,20 +987,20 @@ class Projection(object):
             # Calculate the actual depth
             if(self.__n_par == 2):
                 # If n_par == 2, use normal depth
-                depth = self.__depth
+                depth = self._depth
             else:
                 # If n_par > 2, multiply depth by res to have same n_sam as 3D
-                depth = self.__depth*self.__res
+                depth = self._depth*self._res
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([self.__res, depth, self.__n_par])
+            proj_hcube = np.zeros([self._res, depth, self.__n_par])
 
             # Create list that contains all the other parameters
             par_hid = list(chain(range(0, par), range(par+1, self.__n_par)))
 
             # Generate list with values for projected parameter
             proj_sam_set = np.linspace(*self._modellink._par_rng[par],
-                                       self.__res)
+                                       self._res)
 
             # Generate latin hypercube of the remaining parameters
             hidden_sam_set = lhd(depth, self.__n_par-1,
@@ -1008,7 +1008,7 @@ class Projection(object):
                                  self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
-            for i in range(self.__res):
+            for i in range(self._res):
                 proj_hcube[i, :, par] = proj_sam_set[i]
                 proj_hcube[i, :, par_hid] = hidden_sam_set.T
 
@@ -1019,7 +1019,7 @@ class Projection(object):
             par2 = hcube[1]
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([pow(self.__res, 2), self.__depth,
+            proj_hcube = np.zeros([pow(self._res, 2), self._depth,
                                    self.__n_par])
 
             # Generate list that contains all the other parameters
@@ -1028,21 +1028,21 @@ class Projection(object):
 
             # Generate list with values for projected parameters
             proj_sam_set1 = np.linspace(*self._modellink._par_rng[par1],
-                                        self.__res)
+                                        self._res)
             proj_sam_set2 = np.linspace(*self._modellink._par_rng[par2],
-                                        self.__res)
+                                        self._res)
 
             # Generate Latin Hypercube of the remaining parameters
-            hidden_sam_set = lhd(self.__depth, self.__n_par-2,
+            hidden_sam_set = lhd(self._depth, self.__n_par-2,
                                  self._modellink._par_rng[par_hid], 'fixed',
                                  self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
-            for i in range(self.__res):
-                for j in range(self.__res):
-                    proj_hcube[i*self.__res+j, :, par1] = proj_sam_set1[i]
-                    proj_hcube[i*self.__res+j, :, par2] = proj_sam_set2[j]
-                    proj_hcube[i*self.__res+j, :, par_hid] = hidden_sam_set.T
+            for i in range(self._res):
+                for j in range(self._res):
+                    proj_hcube[i*self._res+j, :, par1] = proj_sam_set1[i]
+                    proj_hcube[i*self._res+j, :, par2] = proj_sam_set2[j]
+                    proj_hcube[i*self._res+j, :, par_hid] = hidden_sam_set.T
 
         # Workers get dummy proj_hcube
         else:
@@ -1346,8 +1346,8 @@ class Projection(object):
             if not self.__figure:
                 self.__fig_data = sdict()
 
-            # Read in projection parameters
-            self.__read_parameters()
+            # Set projection parameters
+            self.__set_parameters()
 
         # Obtain requested projection hypercubes
         self.__get_req_hcubes(proj_par)
@@ -1388,7 +1388,7 @@ class Projection(object):
                     data_set.create_dataset('impl_los', data=data['impl_los'])
                     data_set.attrs['impl_cut'] = self._impl_cut[self.__emul_i]
                     data_set.attrs['cut_idx'] = self._cut_idx[self.__emul_i]
-                    data_set.attrs['proj_res'] = self.__res
+                    data_set.attrs['proj_res'] = self._res
                     data_set.attrs['proj_depth'] = data['proj_depth']
 
                 # INVALID KEYWORD

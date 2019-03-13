@@ -119,15 +119,9 @@ paths_doc =\
             String containing a prefix that is used for naming new working
             directories or scan for existing ones. If *None*, all directories
             in `root_dir` are considered working directories and 'prism\\_'
-            will be used as a prefix for new ones.
-        prism_file : str or None{0}{4}
-            String containing the absolute or relative path to the TXT-file
-            containing the *PRISM* parameters that need to be changed from
-            their default values. If a relative path is given, its path must be
-            relative to `root_dir` or the current directory. If *None*, no
-            changes will be made to the default parameters."""
-paths_doc_s = paths_doc.format("", "", "", "", "", "")
-paths_doc_d = paths_doc.format(ds, "None", "None", "None", "None")
+            will be used as a prefix for new ones."""
+paths_doc_s = paths_doc.format("", "", "", "")
+paths_doc_d = paths_doc.format(ds, "None", "None", "None")
 
 
 # %% EMULATOR DOCSTRINGS
@@ -282,10 +276,10 @@ impl_cut_doc =\
             Index of the first impl_cut-off in the impl_cut list that is not
             0."""
 
-# Docstrings for the various read_parameters methods
-read_par_doc =\
-        """Reads in the {0} parameters from the provided *PRISM* parameter
-        file and saves them in the current :obj:`~{0}` instance."""
+# Docstrings for the various set_parameters methods
+set_par_doc =\
+        """Sets the {0} parameters from the :attr:`~prism.Pipeline.prism_dict`
+        property and saves them in the current :obj:`~{0}` instance."""
 
 # Description of the various save_data methods
 save_data_doc =\

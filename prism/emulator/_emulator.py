@@ -31,14 +31,14 @@ from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
 from sklearn.preprocessing import PolynomialFeatures as PF
-from sortedcontainers import SortedSet as sset
+from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
 from prism import __version__
 from prism._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
                                emul_s_seq_doc, eval_doc, full_cov_doc,
-                               get_emul_i_doc, read_par_doc, regr_cov_doc,
-                               save_data_doc_e, std_emul_i_doc)
+                               get_emul_i_doc, regr_cov_doc, save_data_doc_e,
+                               set_par_doc, std_emul_i_doc)
 from prism._internal import (RequestError, RequestWarning, check_compatibility,
                              check_vals, getCLogger, getRLogger, np_array)
 from prism.modellink import ModelLink
@@ -111,8 +111,8 @@ class Emulator(object):
         # Make pointer to File property
         self._File = self._pipeline._File
 
-        # Make pointer to prism_file property
-        self._prism_file = self._pipeline._prism_file
+        # Make pointer to prism_dict property
+        self._prism_dict = self._pipeline._prism_dict
 
         # Load the emulator and data
         self._load_emulator(modellink_obj)
@@ -534,8 +534,8 @@ class Emulator(object):
         # Clean-up all emulator system files
         self._cleanup_emul_files(1)
 
-        # Read in parameters from provided parameter file
-        self._read_parameters()
+        # Set parameters from provided parameter file
+        self._set_parameters()
 
         # Set emul_load to 0
         self._emul_load = 0
@@ -2663,28 +2663,20 @@ class Emulator(object):
                     'use_mock': 'False'}
 
         # Return it
-        return(par_dict)
+        return(sdict(par_dict))
 
-    # Read in the parameters from the provided parameter file
-    @docstring_append(read_par_doc.format("Emulator"))
-    def _read_parameters(self):
-        # Log that the PRISM parameter file is being read
+    # Set the parameters that were read in from the provided parameter file
+    @docstring_append(set_par_doc.format("Emulator"))
+    def _set_parameters(self):
+        # Log that the emulator parameters are being set
         logger = getCLogger('INIT')
-        logger.info("Reading emulator parameters.")
+        logger.info("Setting emulator parameters.")
 
         # Obtaining default emulator parameter dict
         par_dict = self._get_default_parameters()
 
-        # Read in data from provided PRISM parameters file
-        if self._prism_file is not None:
-            emul_par = np.genfromtxt(self._prism_file, dtype=(str),
-                                     delimiter=':', autostrip=True)
-
-            # Make sure that emul_par is 2D
-            emul_par = np_array(emul_par, ndmin=2)
-
-            # Combine default parameters with read-in parameters
-            par_dict.update(emul_par)
+        # Add the read-in prism dict to it
+        par_dict.update(self._prism_dict)
 
         # More logging
         logger.info("Checking compatibility of provided emulator parameters.")
@@ -2751,8 +2743,8 @@ class Emulator(object):
         else:
             self._use_mock = use_mock
 
-        # Log that reading has been finished
-        logger.info("Finished reading emulator parameters.")
+        # Log that setting has been finished
+        logger.info("Finished setting emulator parameters.")
 
     # This function loads previously generated mock data into ModelLink
     # TODO: Allow user to add/remove mock data? Requires consistency check
