@@ -425,11 +425,9 @@ class Projection(object):
                 label_ax.get_xaxis().set_ticks([])
                 label_ax.get_yaxis().set_ticks([])
                 label_ax.autoscale(tight=True)
-                label_ax.set_xlabel("Model parameter %s" % (par_name),
-                                    fontsize='x-large', labelpad=0)
+                label_ax.set_xlabel(par_name, fontsize='x-large', labelpad=0)
             else:
-                ax1.set_xlabel("Model parameter %s" % (par_name),
-                               fontsize='x-large')
+                ax1.set_xlabel(par_name, fontsize='x-large')
 
             # Save the figure
             plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
@@ -607,21 +605,19 @@ class Projection(object):
 
             # Make super axis labels using dummy Axes object as an empty plot
             if(self.__align == 'row'):
-                ax0.set_ylabel("%s" % (par2_name), fontsize='x-large')
+                ax0.set_ylabel(par2_name, fontsize='x-large')
                 label_ax.set_frame_on(False)
                 label_ax.get_xaxis().set_ticks([])
                 label_ax.get_yaxis().set_ticks([])
                 label_ax.autoscale(tight=True)
-                label_ax.set_xlabel("%s" % (par1_name), fontsize='x-large',
-                                    labelpad=0)
+                label_ax.set_xlabel(par1_name, fontsize='x-large', labelpad=0)
             else:
-                ax1.set_xlabel("%s" % (par1_name), fontsize='x-large')
+                ax1.set_xlabel(par1_name, fontsize='x-large')
                 label_ax.set_frame_on(False)
                 label_ax.get_xaxis().set_ticks([])
                 label_ax.get_yaxis().set_ticks([])
                 label_ax.autoscale(tight=True)
-                label_ax.set_ylabel("%s" % (par2_name), fontsize='x-large',
-                                    labelpad=0)
+                label_ax.set_ylabel(par2_name, fontsize='x-large', labelpad=0)
 
             # Save the figure
             plt.savefig(self.__get_fig_path(hcube)[self.__smooth])

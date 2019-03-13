@@ -127,7 +127,9 @@ class Emulator(object):
     @property
     def emul_type(self):
         """
-        str: The type of emulator that is currently loaded.
+        str: The type of emulator that is currently loaded. This determines the
+        way in which the :obj:`~prism.Pipeline` instance will treat this
+        :obj:`~Emulator` instance.
 
         """
 
