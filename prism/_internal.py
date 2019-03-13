@@ -859,7 +859,8 @@ def getLogger(name=None, filters=None):
     filters : list of str or None. Default: None
         List of strings naming the filters that must be applied to the created
         :obj:`~PRISM_Logger` instance.
-        If *None*, no filters will be applied.
+        If *None* or the :obj:`~PRISM_Logger` instance already existed, no
+        filters will be applied.
 
     Returns
     -------
@@ -883,11 +884,13 @@ def getLogger(name=None, filters=None):
     logger = logging.getLogger(child_name)
     logging.setLoggerClass(logging.Logger)
 
-    # Remove prefix from the name of the PRISM_Logger instance
-    logger.name = name
+    # Set name and filters if this logger did not already exist
+    if(logger.name != name):
+        # Remove prefix from the name of the PRISM_Logger instance
+        logger.name = name
 
-    # Set the requested filter(s)
-    logger.set_filters(filters)
+        # Set the requested filter(s)
+        logger.set_filters(filters)
 
     # Return it
     return(logger)

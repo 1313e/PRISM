@@ -409,7 +409,7 @@ class Pipeline(Projection, object):
     @property
     def prism_dict(self):
         """
-        dict: Dictionary containing all PRISM parameters that were provided
+        dict: Dictionary containing all *PRISM* parameters that were provided
         during :class:`~Pipeline` initialization.
 
         """
