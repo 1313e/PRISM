@@ -22,10 +22,12 @@ If we assume that we have an instance of the :class:`LineLink` class (introduced
     # Evaluate model
     mod_set = np.zeros([sam_set.shape[0], len(data_idx)])
     for i, par_set in enumerate(sam_set):
-        par_dict = dict(zip(modellink_obj.par_name, par_set))
-        mod_set[i] = modellink_obj.call_model(emul_i, par_dict, data_idx)
+        par_dict = sdict(zip(modellink_obj.par_name, par_set))
+        mod_set[i] = modellink_obj.call_model(emul_i=emul_i,
+                                              par_set=par_dict,
+                                              data_idx=data_idx)
 
-Here, we looped through the entire sample set one-by-one, converted every individual sample to a dict and called the model with it.
+Here, we looped through the entire sample set one-by-one, converted every individual sample to a (sorted) dict and called the model with it.
 The emulator iteration is given as a normal integer and the data identifiers :pycode:`data_idx` is provided as a list of individual data identifiers (which are either single elements or tuples of elements, as described in :ref:`data_idx`).
 The requested data identifiers are not necessarily the same as those given in :attr:`~prism.modellink.ModelLink.data_idx`.
 An individual sample provided in this way will be of the form::
@@ -49,10 +51,12 @@ So, if we use the same example again, but this time have an instance of the :cla
     data_idx = modellink_obj.data_idx
     
     # Evaluate model
-    sam_dict = dict(zip(modellink_obj.par_name, sam_set.T))
-    mod_set = modellink_obj.call_model(emul_i, sam_dict, data_idx)
+    sam_dict = sdict(zip(modellink_obj.par_name, sam_set.T))
+    mod_set = modellink_obj.call_model(emul_i=emul_i,
+                                       par_set=sam_dict,
+                                       data_idx=data_idx)
 
-This call is roughly the same as before, but this time the entire sample set is provided as a dict instead of individual samples.
+This call is roughly the same as before, but this time the entire sample set is provided as a (sorted) dict instead of individual samples.
 The lay-out of this sample dict is of the form::
 
     sam_dict = {'par_1_name': [par_1_val_1, par_1_val_2, ..., par_1_val_m],
@@ -66,6 +70,10 @@ This can be used when the model requires some kind of preparation before being a
 .. note::
     If a model uses OpenMP parallelization, it is recommended to set :attr:`~prism.modellink.ModelLink.MPI_call` to :pycode:`False` in the :class:`~prism.modellink.ModelLink` subclass.
     This allows for all worker ranks to be used in OpenMP threads, while only the controller rank calls the model.
+
+.. note::
+    If one wishes to transform the received :pycode:`sam_dict` back into a normal NumPy array of shape :pycode:`(n_sam, n_par)`, this can be done quite easily by executing :pycode:`sam_set = np.array(par_set.values()).T`, where :pycode:`par_set` is the :pycode:`sam_dict` provided to the :meth:`~prism.modellink.ModelLink.call_model` method.
+    Keep in mind that doing so means that the columns are sorted on the names of the model parameters.
 
 When the :attr:`~prism.modellink.ModelLink.MPI_call` flag is set to :pycode:`True`, the calls to the :meth:`~prism.modellink.ModelLink.call_model` method are almost the same as described above.
 The only difference is that all ranks call the method (each providing the same :pycode:`emul_i`, :pycode:`par_dict`/:pycode:`sam_dict` and :pycode:`data_idx`) instead of just the controller rank.
