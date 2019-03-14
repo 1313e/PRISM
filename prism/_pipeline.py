@@ -26,8 +26,8 @@ from e13tools import InputError, ShapeError
 from e13tools.math import nCr
 from e13tools.sampling import lhd
 from e13tools.utils import (convert_str_seq, delist, docstring_append,
-                            docstring_copy, docstring_substitute, raise_error,
-                            raise_warning)
+                            docstring_copy, docstring_substitute,
+                            get_outer_frame, raise_error, raise_warning)
 import numpy as np
 from numpy.random import normal, random
 from sortedcontainers import SortedDict as sdict
@@ -37,9 +37,9 @@ from prism._docstrings import (call_emul_i_doc, call_model_doc_s,
                                call_model_doc_m, def_par_doc, emul_s_seq_doc,
                                ext_mod_set_doc, ext_real_set_doc_d,
                                ext_real_set_doc_s, ext_sam_set_doc,
-                               impl_cut_doc, impl_temp_doc, paths_doc_d,
-                               paths_doc_s, save_data_doc_p, set_par_doc,
-                               std_emul_i_doc, user_emul_i_doc)
+                               impl_cut_doc, paths_doc_d, paths_doc_s,
+                               save_data_doc_p, set_par_doc, std_emul_i_doc,
+                               user_emul_i_doc)
 from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
                              check_vals, getCLogger, get_PRISM_File,
                              getRLogger, move_logger, np_array,
@@ -593,12 +593,101 @@ class Pipeline(Projection, object):
     @property
     def impl_cut(self):
         """
-        list of int: The non-wildcard univariate implausibility cut-off values
-        for an emulator iteration.
+        list of float: The non-wildcard univariate implausibility cut-off
+        values for an emulator iteration. Setting it with the reduced
+        implausibility cut-off list will change the values of :attr:`~cut_idx`
+        and this property at the last emulator iteration.
 
         """
 
         return(self._impl_cut)
+
+    @impl_cut.setter
+    def impl_cut(self, impl_cut):
+        # Only the controller can set this value
+        if self._is_controller:
+            # Make logger
+            logger = getRLogger('CHECK')
+
+            # Get last emul_i
+            emul_i = self._emulator._emul_i
+
+            # Raise error if emul_i is 0
+            if not emul_i:
+                err_msg = "Emulator is not built yet!"
+                raise_error(err_msg, RequestError, logger)
+
+            # Do some logging
+            logger.info("Checking compatibility of provided implausibility "
+                        "cut-off values.")
+
+            # Check if analyze() is calling this setter
+            caller_frame = get_outer_frame(self.analyze)
+
+            # Check if the last iteration has already been analyzed
+            try:
+                if self._n_eval_sam[emul_i]:
+                    # If so, check if this setter was called by analyze()
+                    if caller_frame is None:
+                        # If not, raise error
+                        err_msg = ("Pipeline property 'impl_cut' can only be "
+                                   "set if the current emulator iteration has "
+                                   "not been analyzed yet!")
+                        raise_error(err_msg, RequestError, logger)
+
+            # If n_eval_sam at emul_i does not exist, no analyze has been done
+            except IndexError:
+                pass
+
+            # Complete the impl_cut list
+            # Obtain the first impl_cut value
+            try:
+                impl_cut[0] = check_vals(impl_cut[0], 'impl_cut[0]', 'float',
+                                         'nneg')
+            except IndexError:
+                err_msg = ("Provided implausibility cut-off list contains no "
+                           "elements!")
+                raise_error(err_msg, ValueError, logger)
+
+            # Loop over the remaining values in impl_cut
+            for i in range(1, len(impl_cut)):
+                # Check if provided value is non-negative float
+                impl_cut[i] = check_vals(impl_cut[i], 'impl_cut[%i]' % (i),
+                                         'float', 'nneg')
+
+                # If value is zero, take on the value of the previous cut-off
+                if(impl_cut[i] == 0):
+                    impl_cut[i] = impl_cut[i-1]
+
+                # If the value is lower than the previous value, it is invalid
+                elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
+                    err_msg = ("Cut-off %i is higher than cut-off %i "
+                               "(%f > %f)!"
+                               % (i, i-1, impl_cut[i], impl_cut[i-1]))
+                    raise_error(err_msg, ValueError, logger)
+
+            # Get the index identifying where the first real impl_cut is
+            red_impl_cut = impl_cut[:self._emulator._n_data_tot[emul_i]]
+            for i, impl in enumerate(red_impl_cut):
+                if(impl != 0):
+                    cut_idx = i
+                    break
+            # If the loop ends normally, there were only wildcards
+            else:
+                err_msg = ("No non-wildcard implausibility cut-off was "
+                           "provided!")
+                raise_error(err_msg, ValueError, logger)
+
+            # Obtain impl_cut
+            impl_cut = np_array(impl_cut)[cut_idx:]
+
+            # Set impl_par
+            try:
+                self._impl_cut[emul_i] = impl_cut
+                self._cut_idx[emul_i] = cut_idx
+            except IndexError:
+                self._impl_cut.append(impl_cut)
+                self._cut_idx.append(cut_idx)
 
     # Analysis results/properties
     @property
@@ -1273,13 +1362,15 @@ class Pipeline(Projection, object):
                     try:
                         self._impl_cut.append(emul.attrs['impl_cut'])
 
-                    # If not, no plausible regions were found
+                    # If not, use prism_dict to set the impl_par
                     except KeyError:
-                        self._get_impl_par(True)
+                        self._set_impl_par(None)
 
-                    # If so, load in all data
+                    # If so, load the cut_idx as well
                     else:
                         self._cut_idx.append(emul.attrs['cut_idx'])
+
+                    # Load the remaining data (which is always available)
                     finally:
                         self._n_impl_sam.append(emul.attrs['n_impl_sam'])
                         self._n_eval_sam.append(emul.attrs['n_eval_sam'])
@@ -1320,16 +1411,11 @@ class Pipeline(Projection, object):
                 # Check what data keyword has been provided
                 # IMPL_PAR
                 if(keyword == 'impl_par'):
-                    # Check if impl_par data has been saved before
-                    try:
-                        self._impl_cut[emul_i] = data['impl_cut']
-                        self._cut_idx[emul_i] = data['cut_idx']
-                    except IndexError:
-                        self._impl_cut.append(data['impl_cut'])
-                        self._cut_idx.append(data['cut_idx'])
-                    finally:
-                        data_set.attrs['impl_cut'] = data['impl_cut']
-                        data_set.attrs['cut_idx'] = data['cut_idx']
+                    # Save impl_par data
+                    self._impl_cut[emul_i] = data['impl_cut']
+                    self._cut_idx[emul_i] = data['cut_idx']
+                    data_set.attrs['impl_cut'] = data['impl_cut']
+                    data_set.attrs['cut_idx'] = data['cut_idx']
 
                 # IMPL_SAM
                 elif(keyword == 'impl_sam'):
@@ -1779,99 +1865,21 @@ class Pipeline(Projection, object):
         # Return it
         return(md_var)
 
-    # This function completes the list of implausibility cut-offs
-    @docstring_substitute(impl_temp=impl_temp_doc)
-    def _get_impl_cut(self, impl_cut, temp):
-        """
-        Generates the full list of impl_cut-offs from the incomplete, shortened
-        `impl_cut` list.
-
-        Parameters
-        ----------
-        impl_cut : 1D list
-            Incomplete, shortened impl_cut-offs list provided during class
-            initialization.
-        %(impl_temp)s
-
-        Generates
-        ---------
-        impl_cut : 1D :obj:`~numpy.ndarray` object
-            Full list containing the impl_cut-offs for all data points provided
-            to the emulator.
-        cut_idx : int
-            Index of the first impl_cut-off in `impl_cut` that is not a
-            wildcard.
-
-        """
-
-        # Log that impl_cut-off list is being acquired
-        logger = getCLogger('INIT')
-        logger.info("Generating full implausibility cut-off list.")
-
-        # Complete the impl_cut list
-        # Obtain the first impl_cut value
-        try:
-            impl_cut[0] = check_vals(impl_cut[0], 'impl_cut[0]', 'float',
-                                     'nneg')
-        except IndexError:
-            err_msg = ("Provided implausibility cut-off list contains no "
-                       "elements!")
-            raise_error(err_msg, ValueError, logger)
-
-        # Loop over the remaining values in impl_cut
-        for i in range(1, len(impl_cut)):
-            # Check if provided value is non-negative float
-            impl_cut[i] = check_vals(impl_cut[i], 'impl_cut[%i]' % (i),
-                                     'float', 'nneg')
-
-            # If the value is zero, take on the value of the previous cut-off
-            if(impl_cut[i] == 0):
-                impl_cut[i] = impl_cut[i-1]
-
-            # If the value is lower than the previous value, it is invalid
-            elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
-                err_msg = ("Cut-off %i is higher than cut-off %i (%f > %f)!"
-                           % (i, i-1, impl_cut[i], impl_cut[i-1]))
-                raise_error(err_msg, ValueError, logger)
-
-        # Get the index identifying where the first real impl_cut is
-        for i, impl in enumerate(impl_cut[:self._emulator._n_data_tot[-1]]):
-            if(impl != 0):
-                cut_idx = i
-                break
-        # If the loop ends normally, there were only wildcards
-        else:
-            err_msg = "No non-wildcard implausibility cut-off was provided!"
-            raise_error(err_msg, ValueError, logger)
-
-        # Save both impl_cut and cut_idx
-        impl_cut = np_array(impl_cut)[cut_idx:]
-        if temp:
-            # If they need to be stored temporarily
-            self._impl_cut.append(impl_cut)
-            self._cut_idx.append(cut_idx)
-        else:
-            # If they need to be stored to file
-            self._save_data({
-                'impl_par': {
-                    'impl_cut': impl_cut,
-                    'cut_idx': cut_idx}})
-
-        # Log end of process
-        logger.info("Finished generating implausibility cut-off list.")
-
-    # This function reads in the impl_cut list from the PRISM parameters file
+    # This function sets the impl_cut list from read-in PRISM parameters file
     # TODO: Make impl_cut dynamic
-    @docstring_substitute(impl_temp=impl_temp_doc, impl_cut=impl_cut_doc)
-    def _get_impl_par(self, temp):
+    @docstring_substitute(impl_cut=impl_cut_doc)
+    def _set_impl_par(self, impl_cut):
         """
-        Reads in the impl_cut list and other parameters for implausibility
-        evaluations from the *PRISM* parameters file and saves them in the last
-        emulator iteration.
+        Sets the :attr:`~impl_cut` and :attr:`~cut_idx` properties for
+        implausibility evaluations using the read-in *PRISM* parameters file
+        and the provided `impl_cut`.
 
         Parameters
         ----------
-        %(impl_temp)s
+        impl_cut : list of float or None
+            Incomplete, shortened impl_cut-offs list to be used during the
+            analysis of this emulator iteration. If *None*, use the read-in
+            *PRISM* parameters file instead.
 
         Generates
         ---------
@@ -1881,27 +1889,24 @@ class Pipeline(Projection, object):
 
         # Do some logging
         logger = getCLogger('INIT')
-        logger.info("Obtaining implausibility analysis parameters.")
+        logger.info("Setting implausibility cut-off values.")
 
-        # Controller only
-        if self._is_controller:
+        # If impl_cut is None, set the impl_par the standard way
+        if impl_cut is None:
             # Obtaining default pipeline parameter dict
             par_dict = self._get_default_parameters()
 
             # Add the read-in prism dict to it
             par_dict.update(self._prism_dict)
 
-            # More logging
-            logger.info("Checking compatibility of provided implausibility "
-                        "analysis parameters.")
+            # Remove auxiliary characters from impl_cut
+            impl_cut = convert_str_seq(par_dict['impl_cut'])
 
-            # Implausibility cut-off
-            # Remove all unwanted characters from the string and process it
-            self._get_impl_cut(convert_str_seq(par_dict['impl_cut']), temp)
+        # Set the impl_par
+        self.impl_cut = impl_cut
 
-            # Finish logging
-            logger.info("Finished obtaining implausibility analysis "
-                        "parameters.")
+        # Finish logging
+        logger.info("Finished setting implausibility cut-off values.")
 
     # This function processes an externally provided real_set
     # TODO: Additionally allow for an old PRISM master file to be provided
@@ -2287,12 +2292,22 @@ class Pipeline(Projection, object):
 
     # %% VISIBLE CLASS METHODS
     # This function analyzes the emulator and determines the plausible regions
-    def analyze(self):
+    def analyze(self, *, impl_cut=None):
         """
         Analyzes the emulator at the last emulator iteration for a large number
         of emulator evaluation samples. All samples that survive the
-        implausibility checks, are used in the construction of the next
-        emulator iteration.
+        implausibility checks set by the provided `impl_cut`, are used in the
+        construction of the next emulator iteration.
+
+        Optional
+        --------
+        impl_cut : list of float or None. Default: None
+            Incomplete, shortened impl_cut-offs list to be used during the
+            analysis of this emulator iteration.
+            If *None*, the currently set implausibility cut-off values
+            (:attr:`~impl_cut`) will be used if this is the first analysis or
+            the 'impl_cut' value in :attr:`~prism_dict` is used if this is a
+            reanalysis.
 
         Generates
         ---------
@@ -2332,8 +2347,16 @@ class Pipeline(Projection, object):
             # Save current time
             start_time1 = time()
 
-            # Get the impl_cut list
-            self._get_impl_par(False)
+            # Set the impl_cut list if analyzed before or impl_cut is not None
+            # This is to keep the impl_par set by the user if initial analyze
+            if impl_cut is not None or self._n_eval_sam[emul_i]:
+                self._set_impl_par(impl_cut)
+
+            # Save impl_par to hdf5
+            self._save_data({
+                    'impl_par': {
+                        'impl_cut': self._impl_cut[emul_i],
+                        'cut_idx': self._cut_idx[emul_i]}})
 
             # Create an emulator evaluation sample set
             eval_sam_set = self._get_eval_sam_set(emul_i)
@@ -2604,6 +2627,7 @@ class Pipeline(Projection, object):
             self._save_data({
                 'impl_sam': np_array([]),
                 'n_eval_sam': 0})
+            self._set_impl_par(None)
 
             # Log that construction has been completed
             time_diff_total = time()-start_time
@@ -2617,9 +2641,8 @@ class Pipeline(Projection, object):
         # Analyze the emulator iteration if requested
         if analyze:
             self.analyze()
-        # If not, temporarily save implausibility parameters in memory
+        # If not, show details
         else:
-            self._get_impl_par(True)
             self.details(emul_i)
 
     # This function allows one to view the pipeline details/properties
@@ -3065,7 +3088,8 @@ class Pipeline(Projection, object):
         -----
         If given emulator iteration `emul_i` has been analyzed before, the
         implausibility parameters of the last analysis are used. If not, then
-        the values are used that were read in when the emulator was loaded.
+        the values are used that were read in when the emulator was loaded or
+        that have been set by the user.
 
         """
 

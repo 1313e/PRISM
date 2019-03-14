@@ -12,8 +12,8 @@ PRISM parameters file
 #####################
 This file contains the non-default values that must be used for the :ref:`parameters`.
 These parameters control various different functionalities of *PRISM*.
-It is provided as the `prism_file` argument when initializing the :class:`~prism.Pipeline` class.
-When certain parameters are read-in depends on their type:
+It is provided as the `prism_file` argument when initializing the :class:`~prism.Pipeline` class and stored in the :attr:`~prism.Pipeline.prism_dict` property.
+When certain parameters are set depends on their type:
     
     - Emulator parameters: Whenever a new emulator is created;
     - Pipeline parameters: When the :class:`~prism.Pipeline` class is initialized;
@@ -28,6 +28,7 @@ The default *PRISM* parameters file can be found in the ``prism/data`` folder an
 In this file, the key is the name of the parameter that needs to be changed, and the value what it needs to be changed to.
 *PRISM* itself does not require this default file, as all of the default values are hard-coded, and is therefore never read-in.
 An externally provided *PRISM* parameters file is only required to have the non-default values.
+Note that it is also possible to set any parameter besides :class:`~prism.emulator.Emulator` parameters by using the corresponding class property.
 
 Model parameters file
 #####################

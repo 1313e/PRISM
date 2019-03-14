@@ -184,7 +184,8 @@ class Projection(object):
         -----
         If given emulator iteration `emul_i` has been analyzed before, the
         implausibility parameters of the last analysis are used. If not, then
-        the values are used that were read in when the emulator was loaded.
+        the values are used that were read in when the emulator was loaded or
+        that have been set by the user.
 
         """
 

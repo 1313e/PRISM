@@ -2,7 +2,10 @@
 
 PRISM parameters
 ++++++++++++++++
-Below are descriptions of all the parameters that can be provided to *PRISM* in a text-file when initializing the :class:`~prism.Pipeline` class (using the `prism_file` input argument):
+Below are descriptions of all the parameters that can be provided to *PRISM* in a text-file when initializing the :class:`~prism.Pipeline` class (using the `prism_file` input argument).
+All :class:`~prism.Pipeline` parameters can also be changed by setting the corresponding class property.
+
+----
 
 :attr:`~prism.Pipeline.n_sam_init` (Default: 500)
     Number of model evaluation samples that is used to construct the first iteration of the emulator.

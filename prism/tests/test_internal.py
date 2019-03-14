@@ -82,60 +82,70 @@ class Test_check_val(object):
         assert check_vals("False", 'bool', 'bool') == 0
         assert check_vals("True", 'bool', 'bool') == 1
         with pytest.raises(TypeError):
-            check_vals(2, 'bool', 'bool')
+            check_vals(2, 'int', 'bool')
 
         # Test for str
         assert check_vals('str', 'str', 'str') == 'str'
         assert check_vals(u'str', 'str', 'str') == u'str'
         with pytest.raises(TypeError):
-            check_vals(1, 'str', 'str')
+            check_vals(1, 'int', 'str')
+
+        # Test for complex
+        assert check_vals(1, 'int', 'complex') == 1.0+0j
+        assert check_vals(1., 'float', 'complex') == 1.0+0j
+        assert check_vals(1.1, 'float', 'complex') == 1.1+0j
+        assert check_vals(1j, 'complex', 'complex') == 0.0+1.0j
+        assert check_vals(1.0j, 'complex', 'complex') == 0.0+1.0j
+        assert check_vals(1.1-0.5j, 'complex', 'complex') == 1.1-0.5j
+        with pytest.raises(TypeError):
+            check_vals('1', 'str', 'complex')
 
         # Test for float
-        assert check_vals(1, 'float', 'float') == 1
-        assert check_vals(1., 'float', 'float') == 1.
-        assert check_vals(1.0, 'float', 'float') == 1.0
+        assert check_vals(1, 'int', 'float') == 1.0
+        assert check_vals(1., 'float', 'float') == 1.0
+        assert check_vals(1.1, 'float', 'float') == 1.1
         with pytest.raises(TypeError):
-            check_vals('1', 'str', 'float')
+            check_vals(1j, 'complex', 'float')
 
         # Test for int
         assert check_vals(1, 'int', 'int') == 1
-        assert check_vals(int(1.0), 'int', 'int') == 1
+        assert check_vals(int(1.1), 'int', 'int') == 1
         with pytest.raises(TypeError):
-            check_vals(1.0, 'float', 'int')
+            check_vals(1.1, 'float', 'int')
 
     # Check if all the value checks work correctly
     def test_value(self):
         # Check for negative value
         assert check_vals(-1, 'neg', 'neg') == -1
         with pytest.raises(ValueError):
-            check_vals(0, 'neg', 'neg')
+            check_vals(0, 'zero', 'neg')
         with pytest.raises(ValueError):
-            check_vals(1, 'neg', 'neg')
+            check_vals(1, 'pos', 'neg')
 
         # Check for non-negative value
-        assert check_vals(0, 'nneg', 'nneg') == 0
-        assert check_vals(1, 'nneg', 'nneg') == 1
+        assert check_vals(0, 'zero', 'nneg') == 0
+        assert check_vals(1, 'pos', 'nneg') == 1
         with pytest.raises(ValueError):
-            check_vals(-1, 'nneg', 'nneg')
+            check_vals(-1, 'neg', 'nneg')
 
         # Check for positive value
         assert check_vals(1, 'pos', 'pos') == 1
         with pytest.raises(ValueError):
-            check_vals(0, 'pos', 'pos')
+            check_vals(0, 'zero', 'pos')
         with pytest.raises(ValueError):
-            check_vals(-1, 'pos', 'pos')
+            check_vals(-1, 'neg', 'pos')
 
         # Check for non-positive value
-        assert check_vals(0, 'npos', 'npos') == 0
-        assert check_vals(-1, 'npos', 'npos') == -1
+        assert check_vals(0, 'zero', 'npos') == 0
+        assert check_vals(-1, 'neg', 'npos') == -1
         with pytest.raises(ValueError):
-            check_vals(1, 'npos', 'npos')
+            check_vals(1, 'pos', 'npos')
 
         # Check for non-zero value
-        assert check_vals(-1, 'nzero', 'nzero') == -1
-        assert check_vals(1, 'nzero', 'nzero') == 1
+        assert check_vals(-1, 'neg', 'nzero') == -1
+        assert check_vals(1, 'pos', 'nzero') == 1
         with pytest.raises(ValueError):
-            check_vals(0, 'nzero', 'nzero')
+            check_vals(0, 'zero', 'nzero')
 
         # Check for normalized value
         assert check_vals(1, 'normal', 'normal') == 1

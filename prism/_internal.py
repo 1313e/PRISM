@@ -399,20 +399,20 @@ def check_vals(values, name, *args):
 
     Parameters
     ----------
-    values : array_like of {int, float, str, bool}
+    values : array_like of {int, float, complex, str, bool}
         The values to be checked against all given criteria in `args`. It must
         be possible to convert `values` to a :obj:`~numpy.ndarray` object.
     name : str
         The name of the input argument, which is used in the error message if
         a criterion is not met.
-    args : tuple of {'bool', 'float', 'int', 'neg', 'nneg', 'normal', 'npos', \
-        'nzero', 'pos', 'str'}
+    args : tuple of {'bool', 'complex', 'float', 'int', 'neg', 'nneg', \
+        'normal', 'npos', 'nzero', 'pos', 'str'}
         Sequence of strings determining the criteria that `values` must meet.
         If `args` is empty, it is checked if `values` are finite.
 
     Returns
     -------
-    return_values : array_like of {int, float, str}
+    return_values : array_like of {int, float, complex, str}
         If `args` contained 'bool', returns 0s or 1s. Else, returns `values`.
 
     Notes
@@ -491,6 +491,20 @@ def check_vals(values, name, *args):
                 break
             else:
                 err_msg = "Input argument %r is not of type 'str'!" % (name)
+                raise_error(err_msg, TypeError, logger)
+
+        # Check for complex
+        elif 'complex' in args:
+            # Check if complex is provided and continue if so
+            if issubclass(values.dtype.type, (np.integer, np.floating,
+                                              np.complexfloating)):
+                # Remove 'complex' from args and check it again
+                args.remove('complex')
+                values = np.asanyarray(values, dtype=complex)
+                continue
+            else:
+                err_msg = ("Input argument %r is not of type 'complex'!"
+                           % (name))
                 raise_error(err_msg, TypeError, logger)
 
         # Check for float

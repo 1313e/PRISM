@@ -95,12 +95,6 @@ ext_sam_set_doc =\
             Array containing the externally provided model evaluation
             samples."""
 
-# Description of the temp parameter for the impl_cut list
-impl_temp_doc =\
-        """temp : bool
-            Whether the implausibility parameters should only be stored in
-            memory (*True*) or should also be saved to HDF5 (*False*)."""
-
 # Docstrings for the different paths parameters
 paths_doc =\
         """root_dir : str or None{0}{1}

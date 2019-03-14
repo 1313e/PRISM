@@ -208,10 +208,9 @@ class Test_Pipeline_Gaussian2D(object):
     # Try to reload and reanalyze the entire Pipeline using different impl_cut
     def test_reload_reanalyze_pipeline(self, pipe):
         pipe_reload = Pipeline(pipe._modellink, root_dir=pipe._root_dir,
-                               working_dir=pipe._working_dir,
-                               prism_file=prism_file_impl)
+                               working_dir=pipe._working_dir)
         assert pipe_reload._working_dir == pipe._working_dir
-        pipe_reload.analyze()
+        pipe_reload.analyze(impl_cut=[0.001, 0.001, 0.001])
 
     # Check if second iteration can be reconstructed
     def test_reconstruct_iteration2(self, pipe):
@@ -535,7 +534,7 @@ class Test_Pipeline_Init_Exceptions(object):
         pipe = Pipeline(model_link, **root_working_dir,
                         prism_file=prism_file)
         with pytest.raises(ValueError):
-            pipe._get_impl_par(True)
+            pipe.construct()
 
     # Create a Pipeline object using an impl_cut list with only wildcards
     def test_wildcard_impl_cut(self, root_working_dir, model_link):
@@ -544,7 +543,7 @@ class Test_Pipeline_Init_Exceptions(object):
                         prism_file=prism_file)
         pipe._emulator._n_data_tot.append(model_link._n_data)
         with pytest.raises(ValueError):
-            pipe._get_impl_par(True)
+            pipe.construct()
 
     # Create a Pipeline object using an invalid impl_cut list
     def test_invalid_impl_cut(self, root_working_dir, model_link):
@@ -552,7 +551,7 @@ class Test_Pipeline_Init_Exceptions(object):
         pipe = Pipeline(model_link, **root_working_dir,
                         prism_file=prism_file)
         with pytest.raises(ValueError):
-            pipe._get_impl_par(True)
+            pipe.construct()
 
     # Create a new emulator using an invalid n_cross_val value
     def test_invalid_n_cross_val(self, root_working_dir, model_link):
@@ -784,6 +783,11 @@ class Test_Pipeline_Request_Exceptions(object):
         with pytest.raises(RequestError):
             pipe_default(2)
 
+    # Try to set the impl_cut while no emulator exists
+    def test_set_impl_cut_no_emul(self, pipe_default):
+        with pytest.raises(RequestError):
+            pipe_default.impl_cut = [1]
+
     # Try to analyze iteration 1 while iteration 2 is being constructed
     def test_invalid_analyze(self, pipe_default):
         pipe_default.construct(1)
@@ -794,6 +798,11 @@ class Test_Pipeline_Request_Exceptions(object):
             pipe_default.analyze()
         pipe_default._emulator._ccheck[2].remove('active_par')
         pipe_default._emulator._emul_i = 2
+
+    # Try to set the impl_cut while the iteration has been analyzed already
+    def test_invalid_set_impl_cut(self, pipe_default):
+        with pytest.raises(RequestError):
+            pipe_default.impl_cut = [1]
 
     # Try to call an iteration that does not exist
     def test_invalid_iteration(self, pipe_default):

@@ -483,7 +483,8 @@ class Emulator(object):
         # If the current iteration is requested
         if cur_iter:
             if(emul_i == 0 or self._emul_load == 0 or global_emul_i == 0):
-                raise RequestError("Emulator is not built yet!")
+                err_msg = "Emulator is not built yet!"
+                raise_error(err_msg, RequestError, logger)
             elif emul_i is None:
                 emul_i = global_emul_i
             elif not(1 <= emul_i <= global_emul_i):
