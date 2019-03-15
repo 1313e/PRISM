@@ -15,8 +15,6 @@ Below are some bigger ideas/improvements that may be added to *PRISM* if there i
 
     - Dynamic implausibility cut-offs;
     - Allow for a master projection figure to be made (kind of like a double corner plot);
-    - Set :ref:`parameters` properties manually (using a property setter) instead of only reading it in from file.
-      This will additionally allow for external functions to be executed that determine the values of certain properties;
     - Allow for user-provided methods in the :class:`~prism.modellink.ModelLink` subclass to be executed at specific points in the emulator construction;
     - Implement multi-variate implausibilities;
     - Allow for no :obj:`~prism.modellink.ModelLink` object to be provided, which blocks construction but enables everything emulator-only related;

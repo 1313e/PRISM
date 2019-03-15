@@ -456,6 +456,11 @@ def check_vals(values, name, *args):
                        % (name))
             raise_error(err_msg, InputError, logger)
 
+    # Check if values is not empty and raise error if so
+    if not values.size:
+        err_msg = "Input argument %r is empty!" % (name)
+        raise_error(err_msg, InputError, logger)
+
     # Loop over all criteria
     while len(args):
         # Check for bool

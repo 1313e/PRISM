@@ -201,6 +201,10 @@ class Test_check_val(object):
         array2 = check_vals(array, 'array', 'str')
         assert array2.dtype.name == 'str32'
 
+        # Check if providing an empty list raises an error
+        with pytest.raises(InputError):
+            check_vals([], 'list', 'float')
+
         # Check if providing a dict or sequenced list raises an error
         with pytest.raises(InputError):
             check_vals({}, 'dict', 'float')

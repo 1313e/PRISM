@@ -2,8 +2,12 @@
 
 PRISM parameters
 ++++++++++++++++
-Below are descriptions of all the parameters that can be provided to *PRISM* in a text-file when initializing the :class:`~prism.Pipeline` class (using the `prism_file` input argument).
-All :class:`~prism.Pipeline` parameters can also be changed by setting the corresponding class property.
+Below are descriptions of all the parameters that can be provided to *PRISM* in a text-file when initializing the :class:`~prism.Pipeline` class (using the `prism_par` input argument).
+
+.. versionchanged:: 1.1.2
+    Input argument `prism_file` was renamed to `prism_par`.
+    A dictionary with *PRISM* parameters instead of a file can be provided to the :class:`~prism.Pipeline` class. 
+    All :class:`~prism.Pipeline` parameters can also be changed by setting the corresponding class property.
 
 ----
 

@@ -68,7 +68,8 @@ class Pipeline(Projection, object):
 
     @docstring_substitute(paths=paths_doc_d)
     def __init__(self, modellink_obj, *, root_dir=None, working_dir=None,
-                 prefix=None, prism_file=None, emul_type=None, comm=None):
+                 prefix=None, prism_par=None, emul_type=None, comm=None,
+                 **kwargs):
         """
         Initialize an instance of the :class:`~Pipeline` class.
 
@@ -81,12 +82,16 @@ class Pipeline(Projection, object):
         Optional
         --------
         %(paths)s
-        prism_file : str or None. Default: None
-            String containing the absolute or relative path to the TXT-file
-            containing the *PRISM* parameters that need to be changed from
-            their default values. If a relative path is given, its path must be
-            relative to `root_dir` or the current directory. If *None*, no
-            changes will be made to the default parameters.
+        prism_par : array_like, dict, str or None. Default: None
+            A dict containing the values for the *PRISM* parameters that need
+            to be changed from their default values.
+            If array_like, dict(`prism_par`) must generate a dict with the
+            correct lay-out.
+            If str, the string is the absolute or relative path to the file
+            that contains the keys in the first column and the dict values in
+            the second column. If a relative path is given, its path must be
+            relative to `root_dir` or the current directory.
+            If *None*, no changes will be made to the default parameters.
         emul_type : :class:`~prism.emulator.Emulator` subclass or None.\
             Default: None
             The type of :class:`~prism.emulator.Emulator` to use in this
@@ -141,8 +146,19 @@ class Pipeline(Projection, object):
         if self._is_worker:
             set_base_logger(path.join(self._working_dir, 'prism_log.log'))
 
-        # Read in the provided parameter file
-        self._read_parameters(prism_file)
+        # Check if deprecated prism_file was provided
+        if 'prism_file' in kwargs.keys():
+            # Assign prism_file to prism_par
+            prism_par = kwargs['prism_file']
+
+            # Raise a FutureWarning
+            warn_msg = ("Input argument 'prism_file' is deprecated since "
+                        "v1.1.2 in favor of 'prism_par'. It will be removed "
+                        "entirely in v1.2.0.")
+            raise_warning(warn_msg, FutureWarning, logger, stacklevel=2)
+
+        # Read in the provided parameter dict/file
+        self._read_parameters(prism_par)
 
         # Initialize Emulator class
         # If emul_type is None, use default emulator
@@ -231,14 +247,34 @@ class Pipeline(Projection, object):
         str_repr.append("working_dir=%r" % (path.relpath(self._working_dir,
                                                          self._root_dir)))
 
-        # Add the prism_file representation if it is not default
-        if self._prism_file is not None:
-            if(path.splitdrive(self._prism_file)[0].lower() !=
-               path.splitdrive(pwd)[0].lower()):
-                str_repr.append("prism_file=%r" % (self._prism_file))
-            else:
-                str_repr.append("prism_file=%r"
-                                % (path.relpath(self._prism_file, pwd)))
+        # Add the prism_par representation if it is not default
+        if self._prism_dict:
+            # Make empty default dict
+            default_dict = sdict()
+
+            # Make empty list of prism_par representations
+            par_repr = []
+
+            # Add the default parameter dicts to it
+            default_dict.update(self._get_default_parameters())
+            default_dict.update(self._emulator._get_default_parameters())
+            default_dict.update(self._Projection__get_default_parameters())
+
+            # Loop over all items in prism_dict and check if it is default
+            for key, val in self._prism_dict.items():
+                # Convert key to lowercase and val to string
+                key = key.lower()
+                val = str(val)
+
+                # Check if this key exists in default_dict
+                if key in default_dict.keys():
+                    # Check if the corresponding values are not the same
+                    if(val != default_dict[key]):
+                        # Add this parameter to the prism_par_repr list
+                        par_repr.append("%r: %r" % (key, val))
+
+            # Convert par_repr from list to dict and add it to str_repr
+            str_repr.append("prism_par={%s}" % (", ".join(map(str, par_repr))))
 
         # Add the emul_type representation if it is not default
         emul_repr = "%s.%s" % (self._emulator.__class__.__module__,
@@ -639,27 +675,17 @@ class Pipeline(Projection, object):
             except IndexError:
                 pass
 
+            # Check if provided impl_cut contains solely non-negative floats
+            impl_cut = check_vals(impl_cut, 'impl_cut', 'float', 'nneg')
+
             # Complete the impl_cut list
-            # Obtain the first impl_cut value
-            try:
-                impl_cut[0] = check_vals(impl_cut[0], 'impl_cut[0]', 'float',
-                                         'nneg')
-            except IndexError:
-                err_msg = ("Provided implausibility cut-off list contains no "
-                           "elements!")
-                raise_error(err_msg, ValueError, logger)
-
-            # Loop over the remaining values in impl_cut
+            # Loop over all values in impl_cut except the first
             for i in range(1, len(impl_cut)):
-                # Check if provided value is non-negative float
-                impl_cut[i] = check_vals(impl_cut[i], 'impl_cut[%i]' % (i),
-                                         'float', 'nneg')
-
                 # If value is zero, take on the value of the previous cut-off
-                if(impl_cut[i] == 0):
+                if not impl_cut[i]:
                     impl_cut[i] = impl_cut[i-1]
 
-                # If the value is lower than the previous value, it is invalid
+                # If the value is higher than the previous value, it is invalid
                 elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
                     err_msg = ("Cut-off %i is higher than cut-off %i "
                                "(%f > %f)!"
@@ -910,44 +936,38 @@ class Pipeline(Projection, object):
         # Return it
         return(np_array(mod_set))
 
-    # This function reads in the parameters from the provided parameter file
-    def _read_parameters(self, prism_file):
+    # This function reads in the parameters from the provided parameters
+    def _read_parameters(self, prism_par):
         """
-        Reads in all parameters in the provided `prism_file` and saves them as
+        Reads in all parameters in the provided `prism_par` and saves them as
         a dict in the current :obj:`~Pipeline` instance.
 
         """
 
         # Make a logger
         logger = getCLogger('INIT')
-        logger.info("Reading in PRISM parameters file.")
+        logger.info("Reading in PRISM parameters.")
 
-        # Obtain PRISM parameter file path
-        # If no PRISM parameter file was provided
-        if prism_file is None:
-            self._prism_file = None
+        # If no PRISM parameters were provided
+        if prism_par is None:
             prism_dict = sdict()
 
         # If a PRISM parameter file was provided
-        elif isinstance(prism_file, str):
-            # Check if prism_file was given as an absolute path
-            if path.exists(prism_file):
-                prism_file = path.abspath(prism_file)
+        elif isinstance(prism_par, str):
+            # Check if prism_par was given as an absolute path
+            if path.exists(prism_par):
+                prism_par = path.abspath(prism_par)
             # If not, check if it was relative to root_dir
-            elif path.exists(path.join(self._root_dir, prism_file)):
-                prism_file = path.join(self._root_dir, prism_file)
+            elif path.exists(path.join(self._root_dir, prism_par)):
+                prism_par = path.join(self._root_dir, prism_par)
             # If not either, it is invalid
             else:
-                err_msg = ("Input argument 'prism_file' is a non-existing path"
-                           " (%r)!" % (prism_file))
+                err_msg = ("Input argument 'prism_par' is a non-existing path"
+                           " (%r)!" % (prism_par))
                 raise_error(err_msg, OSError, logger)
 
-            # Save the path to the prism_file
-            # TODO: This should be removed later
-            self._prism_file = prism_file
-
-            # Read in the contents of the given prism_file
-            prism_par = np.genfromtxt(prism_file, dtype=(str), delimiter=':',
+            # Read in the contents of the given prism_par file
+            prism_par = np.genfromtxt(prism_par, dtype=(str), delimiter=':',
                                       autostrip=True)
 
             # Make sure that prism_par is 2D
@@ -956,16 +976,26 @@ class Pipeline(Projection, object):
             # Make prism_dict
             prism_dict = sdict(prism_par)
 
-        # If anything else is given, it is invalid
+        # If a PRISM parameters dict was provided
+        elif isinstance(prism_par, dict):
+            # Save parameters dict
+            prism_dict = sdict(prism_par)
+
+        # If anything else is given
         else:
-            err_msg = "Input argument 'prism_file' is invalid!"
-            raise_error(err_msg, InputError, logger)
+            # Check if it can be converted to a dict
+            try:
+                prism_dict = dict(prism_par)
+            except Exception:
+                err_msg = ("Input argument 'prism_par' cannot be converted to "
+                           "type 'dict'!")
+                raise_error(err_msg, TypeError, logger)
 
         # Save prism_dict
         self._prism_dict = prism_dict
 
         # Log again
-        logger.info("Finished reading in PRISM parameters file.")
+        logger.info("Finished reading in PRISM parameters.")
 
     # This function returns default pipeline parameters
     @docstring_append(def_par_doc.format("pipeline"))
@@ -1006,14 +1036,16 @@ class Pipeline(Projection, object):
         # Set base number of emulator evaluation samples
         self.base_eval_sam = convert_str_seq(par_dict['base_eval_sam'])[0]
 
-        # Criterion parameter used for Latin Hypercube Sampling
+        # Convert criterion to a string
+        criterion = str(par_dict['criterion'])
+
         # If criterion is None, True or False, try to save it as such
-        if par_dict['criterion'].lower() in ('none', 'true', 'false'):
-            self.criterion = literal_eval(par_dict['criterion'].capitalize())
+        if criterion.lower() in ('none', 'true', 'false'):
+            self.criterion = literal_eval(criterion.capitalize())
 
         # If anything else is given, it must be an int, float or string
         else:
-            self.criterion = convert_str_seq(par_dict['criterion'])[0]
+            self.criterion = convert_str_seq(criterion)[0]
 
         # Set the bool determining whether to do an active parameters analysis
         self.do_active_anal = par_dict['do_active_anal']
@@ -1021,15 +1053,16 @@ class Pipeline(Projection, object):
         # Set the bool determining whether active parameters stay active
         self.freeze_active_par = par_dict['freeze_active_par']
 
-        # Set which parameters can potentially be active
+        # Convert pot_active_par to a string
+        pot_active_par = str(par_dict['pot_active_par'])
+
         # If pot_active_par is None, True or False, try to save it as such
-        if par_dict['pot_active_par'].lower() in ('none', 'true', 'false'):
-            self.pot_active_par =\
-                literal_eval(par_dict['pot_active_par'].capitalize())
+        if pot_active_par.lower() in ('none', 'true', 'false'):
+            self.pot_active_par = literal_eval(pot_active_par.capitalize())
 
         # If anything else is given, save it
         else:
-            self.pot_active_par = par_dict['pot_active_par']
+            self.pot_active_par = pot_active_par
 
         # Log that setting has been finished
         logger.info("Finished setting pipeline parameters.")

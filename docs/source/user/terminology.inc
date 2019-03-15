@@ -221,11 +221,6 @@ Below is a list of the most commonly used terms/abbreviations in *PRISM* and the
         The acronym for *Probabilistic Regression Instrument for Simulating Models*.
         It is also a one-word description of what *PRISM* does (splitting up a model into individually emulated model outputs).
 
-    PRISM file
-    PRISM parameters file
-        (Path to) The text-file that contains non-default values for the :ref:`parameters` that need to be used for the currently used :obj:`~prism.Pipeline` instance.
-        It is :pycode:`None` if no such file is used.
-
     Prior covariance
         The covariance value between two parameter sets as determined by an emulator system.
 
