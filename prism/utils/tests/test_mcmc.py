@@ -39,7 +39,7 @@ def pipe(tmpdir_factory):
     prism_file = path.join(dirpath, 'data/prism_default.txt')
     modellink_obj = GaussianLink2D()
     pipeline_obj = Pipeline(modellink_obj, root_dir=root_dir,
-                            working_dir=working_dir, prism_file=prism_file)
+                            working_dir=working_dir, prism_par=prism_file)
     pipeline_obj.construct(analyze=False)
     return(pipeline_obj)
 
