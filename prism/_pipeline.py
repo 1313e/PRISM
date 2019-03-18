@@ -34,12 +34,11 @@ from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism._docstrings import (call_emul_i_doc, call_model_doc_s,
-                               call_model_doc_m, def_par_doc, emul_s_seq_doc,
-                               ext_mod_set_doc, ext_real_set_doc_d,
-                               ext_real_set_doc_s, ext_sam_set_doc,
-                               impl_cut_doc, paths_doc_d, paths_doc_s,
-                               save_data_doc_p, set_par_doc, std_emul_i_doc,
-                               user_emul_i_doc)
+                               call_model_doc_m, def_par_doc, ext_mod_set_doc,
+                               ext_real_set_doc_d, ext_real_set_doc_s,
+                               ext_sam_set_doc, impl_cut_doc, paths_doc_d,
+                               paths_doc_s, save_data_doc_p, set_par_doc,
+                               std_emul_i_doc, user_emul_i_doc)
 from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
                              check_vals, getCLogger, get_PRISM_File,
                              getRLogger, move_logger, np_array,
@@ -1746,9 +1745,8 @@ class Pipeline(Projection, object):
 
     # This function calculates the univariate implausibility values
     # This is function 'I²(x)'
-    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _get_uni_impl(self, emul_i, emul_s_seq, par_set, adj_exp_val,
-                      adj_var_val):
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _get_uni_impl(self, emul_i, par_set, adj_exp_val, adj_var_val):
         """
         Calculates the univariate implausibility values at a given emulator
         iteration `emul_i` for specified expectation and variance values
@@ -1757,7 +1755,6 @@ class Pipeline(Projection, object):
         Parameters
         ----------
         %(emul_i)s
-        %(emul_s_seq)s
         par_set : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the univariate
             implausibility values for. Only used to pass to the
@@ -1776,11 +1773,14 @@ class Pipeline(Projection, object):
         # Obtain model discrepancy variance
         md_var = self._get_md_var(emul_i, par_set)
 
+        # Determine the active emulator systems for this iteration
+        active_emul_s = self._emulator._active_emul_s[emul_i]
+
         # Initialize empty univariate implausibility
-        uni_impl_val_sq = np.zeros(len(emul_s_seq))
+        uni_impl_val_sq = np.zeros(len(active_emul_s))
 
         # Calculate the univariate implausibility values
-        for i, emul_s in enumerate(emul_s_seq):
+        for i, emul_s in enumerate(active_emul_s):
             # Use the upper errors by default
             err_idx = 0
 
@@ -2246,21 +2246,16 @@ class Pipeline(Projection, object):
                 logger.info("Analyzing evaluation sample set of size %i in "
                             "emulator iteration %i." % (n_sam, i))
 
-                # Determine the active emulator systems on every rank
-                active_emul_s = self._emulator._active_emul_s[i]
-
                 # Make empty uni_impl_vals list
                 uni_impl_vals = np.zeros([n_sam, self._emulator._n_data[i]])
 
                 # Loop over all still plausible samples in sam_set
                 for j, par_set in enumerate(eval_sam_set):
                     # Evaluate par_set
-                    adj_val = self._emulator._evaluate(i, active_emul_s,
-                                                       par_set)
+                    adj_val = self._emulator._evaluate(i, par_set)
 
                     # Calculate univariate implausibility value
-                    uni_impl_vals[j] = self._get_uni_impl(i, active_emul_s,
-                                                          par_set, *adj_val)
+                    uni_impl_vals[j] = self._get_uni_impl(i, par_set, *adj_val)
 
                     # Execute the eval_code snippet
                     exec(eval_code)

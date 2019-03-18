@@ -1325,7 +1325,10 @@ class Emulator(object):
     # returns the adjusted expectation and variance values
     # TODO: Take sam_set instead of par_set?
     @docstring_append(eval_doc)
-    def _evaluate(self, emul_i, emul_s_seq, par_set):
+    def _evaluate(self, emul_i, par_set):
+        # Obtain active emulator systems for this iteration
+        emul_s_seq = self._active_emul_s[emul_i]
+
         # Calculate the covariance vector for this par_set
         cov_vec = self._get_cov(emul_i, emul_s_seq, par_set, None)
 
