@@ -39,7 +39,8 @@ from prism._docstrings import (call_emul_i_doc, call_model_doc_s,
                                ext_real_set_doc_d, ext_real_set_doc_s,
                                ext_sam_set_doc, impl_cut_doc, impl_temp_doc,
                                paths_doc_d, paths_doc_s, read_par_doc,
-                               save_data_doc_p, std_emul_i_doc, user_emul_i_doc)
+                               save_data_doc_p, std_emul_i_doc,
+                               user_emul_i_doc)
 from prism._emulator import Emulator
 from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
                              check_vals, convert_str_seq, delist,
