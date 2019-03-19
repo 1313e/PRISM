@@ -228,7 +228,7 @@ class PRISM_Comm(object):
 
             # If obj has an empty dimension anywhere, replace it with a dummy
             if not np.all(obj.shape):
-                obj = np.empty([1]*obj.ndim)
+                obj = np.empty([1]*obj.ndim, dtype=obj.dtype)
 
             # Receiver sets up a buffer array and receives NumPy array
             if(self._rank == root):
@@ -236,7 +236,7 @@ class PRISM_Comm(object):
                 buff_shape = (self._size, np.product(np.max(shapes, axis=0)))
 
                 # Create buffer array
-                buff = np.empty(buff_shape)
+                buff = np.empty(buff_shape, dtype=obj.dtype)
 
                 # Gather all NumPy arrays
                 self._comm.Gatherv(obj.ravel(), buff, root=root)
