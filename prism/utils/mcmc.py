@@ -104,6 +104,11 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, *, emul_i=None, unit_space=True,
         raise TypeError("Input argument 'pipeline_obj' must be an instance of "
                         "the Pipeline class!")
 
+    # Check if the provided pipeline_obj uses a default emulator
+    if(pipe._emulator._emul_type != 'default'):
+        raise InputError("Input argument 'pipeline_obj' does not use a default"
+                         " emulator!")
+
     # Get emulator iteration
     emul_i = pipe._emulator._get_emul_i(emul_i, True)
 
@@ -265,6 +270,11 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
     if not isinstance(pipe, Pipeline):
         raise TypeError("Input argument 'pipeline_obj' must be an instance of "
                         "the Pipeline class!")
+
+    # Check if the provided pipeline_obj uses a default emulator
+    if(pipe._emulator._emul_type != 'default'):
+        raise InputError("Input argument 'pipeline_obj' does not use a default"
+                         " emulator!")
 
     # Get emulator iteration
     emul_i = pipe._emulator._get_emul_i(emul_i, True)

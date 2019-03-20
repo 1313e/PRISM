@@ -84,6 +84,13 @@ class Test_get_lnpost_fn(object):
         with pytest.raises(TypeError):
             get_lnpost_fn(lnpost, np.array(1))
 
+    # Try to provide a Pipeline object that uses a non-default emulator
+    def test_invalid_emulator(self, pipe):
+        pipe._emulator._emul_type = 'test'
+        with pytest.raises(InputError):
+            get_lnpost_fn(lnpost, pipe)
+        pipe._emulator._emul_type = 'default'
+
     # Try to provide a bound ModelLink object solely requesting multi-calls
     def test_multi_call_ModelLink(self, pipe):
         with pytest.warns(RequestWarning):
@@ -119,6 +126,13 @@ class Test_get_walkers(object):
     def test_no_Pipeline(self):
         with pytest.raises(TypeError):
             get_walkers(np.array(1))
+
+    # Try to provide a Pipeline object that uses a non-default emulator
+    def test_invalid_emulator(self, pipe):
+        pipe._emulator._emul_type = 'test'
+        with pytest.raises(InputError):
+            get_walkers(pipe)
+        pipe._emulator._emul_type = 'default'
 
     # Try to provide a non-callable function
     def test_non_callable(self, pipe):
