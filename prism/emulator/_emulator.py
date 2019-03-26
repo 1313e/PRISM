@@ -1245,6 +1245,8 @@ class Emulator(object):
                 self._do_regression(emul_i, ccheck_regression)
 
         # Calculate the covariance matrices of sam_set
+        # TODO: Implement system that, if needed, calculates cov_mat in seq
+        # This is to avoid requiring massive amounts of RAM during calculation
         ccheck_cov_mat = [emul_s for emul_s in emul_s_seq if
                           'cov_mat' in self._ccheck[emul_i][emul_s]]
         if len(ccheck_cov_mat):

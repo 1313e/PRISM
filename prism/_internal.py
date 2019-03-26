@@ -3,8 +3,7 @@
 """
 Internal
 ========
-Contains a collection of support classes/functions/lists for the *PRISM*
-package.
+Contains a collection of support classes/functions for the *PRISM* package.
 
 """
 
@@ -22,7 +21,8 @@ from tempfile import mkstemp
 from textwrap import dedent
 
 # Package imports
-from e13tools import InputError, compare_versions, raise_error, raise_warning
+from e13tools import InputError, compare_versions
+from e13tools.utils import raise_error, raise_warning
 import h5py
 import numpy as np
 from pkg_resources import get_distribution

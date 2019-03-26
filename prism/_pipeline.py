@@ -2137,6 +2137,7 @@ class Pipeline(Projection, object):
         logger.info("Finished compiling code snippets.")
 
     # This function evaluates given sam_set in the emulator using code snippets
+    # TODO: Check if the use of `*[list]` is really necessary
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _evaluate_sam_set(self, emul_i, sam_set, exec_code):
         """
@@ -3097,9 +3098,6 @@ class Pipeline(Projection, object):
 
         Prints (if 1D `sam_set`)
         ------------------------
-        impl_check : bool
-            Bool indicating whether or not the given sample passed the
-            implausibility check at the given emulator iteration `emul_i`.
         emul_i_stop : int
             Last emulator iteration at which the given sample is still within
             the plausible region of the emulator.
