@@ -834,6 +834,7 @@ class Pipeline(Projection, object):
     # This function evaluates the model for a given set of evaluation samples
     # TODO: If not MPI_call, all ranks evaluate part of sam_set simultaneously?
     # Requires check/flag that model can be evaluated in multiple instances
+    # TODO: If not MPI_call, should OMP_NUM_THREADS be temporarily unset?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _evaluate_model(self, emul_i, sam_set, data_idx):
         """
@@ -2087,9 +2088,9 @@ class Pipeline(Projection, object):
                                                   0)
             """), '<string>', 'exec')
         exit_code = compile(dedent("""
-            adj_exp_val = np.concatenate(*[adj_exp_val], axis=1)
-            adj_var_val = np.concatenate(*[adj_var_val], axis=1)
-            uni_impl_val = np.concatenate(*[uni_impl_val_list], axis=1)
+            adj_exp_val = np.concatenate(adj_exp_val, axis=1)
+            adj_var_val = np.concatenate(adj_var_val, axis=1)
+            uni_impl_val = np.concatenate(uni_impl_val_list, axis=1)
             self.results = (adj_exp_val, adj_var_val, uni_impl_val,
                             emul_i_stop, impl_check)
             """), '<string>', 'exec')
@@ -2137,7 +2138,6 @@ class Pipeline(Projection, object):
         logger.info("Finished compiling code snippets.")
 
     # This function evaluates given sam_set in the emulator using code snippets
-    # TODO: Check if the use of `*[list]` is really necessary
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _evaluate_sam_set(self, emul_i, sam_set, exec_code):
         """
@@ -2268,7 +2268,7 @@ class Pipeline(Projection, object):
                 if self._is_controller:
                     # Convert uni_impl_vals_list to an array
                     uni_impl_vals_array =\
-                        np.concatenate(*[uni_impl_vals_list], axis=1)
+                        np.concatenate(uni_impl_vals_list, axis=1)
 
                     # Perform implausibility cutoff check on all elements
                     for j, uni_impl_val in enumerate(uni_impl_vals_array):

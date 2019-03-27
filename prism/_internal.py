@@ -21,17 +21,13 @@ from tempfile import mkstemp
 from textwrap import dedent
 
 # Package imports
-from e13tools import InputError, compare_versions
+from e13tools import InputError, MPI, compare_versions
 from e13tools.utils import raise_error, raise_warning
 import h5py
 import numpy as np
 from pkg_resources import get_distribution
 
 # PRISM imports
-try:
-    from mpi4py import MPI
-except ImportError:
-    from e13tools import dummyMPI as MPI
 from prism.__version__ import compat_version, prism_version
 
 # All declaration

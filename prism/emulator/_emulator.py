@@ -2207,6 +2207,7 @@ class Emulator(object):
         self._data_spc = [[]]
         self._data_idx = [[]]
 
+        # Initialize emulator system status lists
         self._ccheck = [[]]
         self._active_emul_s = [[]]
         self._n_emul_s = 0
