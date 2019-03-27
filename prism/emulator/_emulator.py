@@ -1307,6 +1307,7 @@ class Emulator(object):
 
     # This is function 'Var_D(f(x'))'
     # This function gives the adjusted emulator variance value back
+    # TODO: Find out why many adj_var have a very low value for GaussianLink
     @docstring_append(adj_var_doc)
     def _get_adj_var(self, emul_i, emul_s_seq, par_set, cov_vec):
         # Obtain prior variance value of par_set
@@ -1739,7 +1740,7 @@ class Emulator(object):
         if self._method.lower() in ('regression', 'full'):
             rsdl_var = self._rsdl_var[emul_i]
         elif(self.method.lower() == 'gaussian'):
-            rsdl_var = [pow(self._sigma, 2) for _ in emul_s_seq]
+            rsdl_var = [self._sigma**2]*len(emul_s_seq)
 
         # If cov of sam_set with sam_set is requested (cov_mat)
         if par_set1 is None:
@@ -1759,9 +1760,9 @@ class Emulator(object):
 
                     # Gaussian variance
                     cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
-                        np.exp(-1*pow(norm(diff_sam_set[:, :, active_par],
-                                           axis=-1), 2) /
-                               pow(norm(self._l_corr[active_par]), 2))
+                        np.exp(-1*np.sum(diff_sam_set[:, :, active_par]**2,
+                                         axis=-1) /
+                               np.sum(self._l_corr[active_par]**2))
 
                     # Passive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
@@ -1789,9 +1790,9 @@ class Emulator(object):
 
                     # Gaussian variance
                     cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
-                        np.exp(-1*pow(norm(diff_sam_set[:, active_par],
-                                           axis=-1), 2) /
-                               pow(norm(self._l_corr[active_par]), 2))
+                        np.exp(-1*np.sum(diff_sam_set[:, active_par]**2,
+                                         axis=-1) /
+                               np.sum(self._l_corr[active_par]**2))
 
                     # Passive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
@@ -1819,9 +1820,9 @@ class Emulator(object):
 
                     # Gaussian variance
                     cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
-                        np.exp(-1*pow(norm(diff_sam_set[active_par],
-                                           axis=-1), 2) /
-                               pow(norm(self._l_corr[active_par]), 2))
+                        np.exp(-1*np.sum(diff_sam_set[active_par]**2,
+                                         axis=-1) /
+                               np.sum(self._l_corr[active_par]**2))
 
                     # Passive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
@@ -2695,7 +2696,7 @@ class Emulator(object):
 
         # Gaussian correlation length
         l_corr = check_vals(convert_str_seq(par_dict['l_corr']), 'l_corr',
-                            'float', 'pos')
+                            'float', 'pos', 'normal')
         self._l_corr = l_corr*abs(self._modellink._par_rng[:, 1] -
                                   self._modellink._par_rng[:, 0])
 
