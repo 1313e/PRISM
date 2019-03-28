@@ -7,10 +7,11 @@ from os import path
 import shutil
 
 # Package imports
-from e13tools import InputError, MPI, ShapeError
+from e13tools import InputError, ShapeError
 from e13tools.sampling import lhd
 from e13tools.utils import check_instance
 import h5py
+from mpi4pyd import MPI
 import numpy as np
 from py.path import local
 import pytest
