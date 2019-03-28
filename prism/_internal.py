@@ -21,9 +21,10 @@ from tempfile import mkstemp
 from textwrap import dedent
 
 # Package imports
-from e13tools import InputError, MPI, compare_versions
+from e13tools import InputError, compare_versions
 from e13tools.utils import raise_error, raise_warning
 import h5py
+from mpi4pyd import MPI
 import numpy as np
 from pkg_resources import get_distribution
 
@@ -74,6 +75,7 @@ class FeatureWarning(FutureWarning):
 
 
 # Make a custom MPI.Comm class that uses a special broadcast method
+# TODO: Combine this class with dummyMPI into a separate dedicated package?
 class PRISM_Comm(object):
     """
     Custom :class:`~MPI.Intracomm` class that automatically makes use of the
@@ -714,10 +716,6 @@ def get_info():
 
     # Get list of all PRISM requirements
     req_list = [req.name for req in prism_dist.requires()]
-
-    # If imported MPI is mpi4py, add it to the list as well
-    if(MPI.__package__ == 'mpi4py'):
-        req_list.append('mpi4py')
 
     # Sort the requirements list
     req_list.sort()

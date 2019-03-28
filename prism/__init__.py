@@ -29,8 +29,9 @@ import platform
 import warnings
 
 # Package imports
-from e13tools import (MPI as _MPI, aux_char_list,
-                      compare_versions as _compare_versions, import_cmaps)
+from e13tools import (aux_char_list, compare_versions as _compare_versions,
+                      import_cmaps)
+from mpi4pyd import MPI as _MPI
 
 # PRISM imports
 from .__version__ import prism_version as __version__
