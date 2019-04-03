@@ -29,8 +29,8 @@ import platform
 import warnings
 
 # Package imports
-from e13tools import (aux_char_list, compare_versions as _compare_versions,
-                      import_cmaps)
+from e13tools import compare_versions as _compare_versions
+from e13tools.utils import aux_char_set, import_cmaps
 from mpi4pyd import MPI as _MPI
 
 # PRISM imports
@@ -42,7 +42,7 @@ from ._internal import get_info
 from ._pipeline import Pipeline
 
 # All declaration
-__all__ = ['emulator', 'modellink', 'utils', 'Pipeline', 'aux_char_list',
+__all__ = ['emulator', 'modellink', 'utils', 'Pipeline', 'aux_char_set',
            'get_info', 'import_cmaps']
 
 # Author declaration
