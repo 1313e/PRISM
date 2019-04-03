@@ -6,7 +6,6 @@ from os import path
 
 # Package imports
 from e13tools.core import InputError
-from e13tools.utils import get_outer_frame
 import numpy as np
 import pytest
 
