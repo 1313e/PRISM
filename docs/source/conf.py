@@ -27,8 +27,12 @@ author = 'Ellert van der Velden'
 # The short X.Y version
 version = 'latest'
 # The full version, including alpha/beta/rc tags
-exec(open('../../prism/__version__.py', 'r').read())
-release = prism_version
+with open('../../prism/__version__.py', 'r') as f:
+    vfile = f.read()
+
+# Obtain version from read-in __version__.py file
+vstr = "__version__ = "
+version = vfile.partition(vstr)[2].partition('\n')[0].replace("'", '').strip()
 
 
 # -- General configuration ---------------------------------------------------
