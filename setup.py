@@ -33,21 +33,26 @@ with open('README.rst', 'r') as f:
 with open('requirements.txt', 'r') as f:
     requirements = f.read().splitlines()
 
-# Get the version
-prism_version = None
-exec(open('prism/__version__.py', 'r').read())
+# Read the __version__.py file
+with open('prism/__version__.py', 'r') as f:
+    vfile = f.read()
+
+# Obtain version from read-in __version__.py file
+vstr = "__version__ = "
+version = vfile.partition(vstr)[2].partition('\n')[0].replace("'", '').strip()
 
 # Setup function declaration
 setup(name='prism',
-      version=prism_version,
+      version=version,
       author="Ellert van der Velden",
       author_email="evandervelden@swin.edu.au",
       maintainer="1313e",
       description=("PRISM: An alternative to MCMC for rapid analysis of "
                    "models"),
       long_description=long_description,
-      download_url="https://pypi.org/project/prism/%s" % (prism_version),
-      url="https://github.com/1313e/PRISM?branch=v1.0.x",
+      download_url=("https://github.com/1313e/PRISM/archive/v%s.zip"
+                    % (version)),
+      url="https://prism-tool.readthedocs.io/en/v1.0.x",
       project_urls={
           'Documentation': "https://prism-tool.readthedocs.io/en/v1.0.x",
           'Source Code': "https://github.com/1313e/PRISM?branch=v1.0.x"

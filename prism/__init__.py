@@ -39,7 +39,7 @@ import warnings
 from e13tools import compare_versions
 
 # PRISM imports
-from .__version__ import prism_version as __version__
+from .__version__ import __version__
 from . import modellink
 from . import utils
 from ._emulator import Emulator

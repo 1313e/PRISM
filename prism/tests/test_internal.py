@@ -16,7 +16,8 @@ import numpy as np
 import pytest
 
 # PRISM imports
-from prism._internal import (compat_version, prism_version, CLogger, RLogger,
+from prism.__version__ import __version__, compat_version
+from prism._internal import (CLogger, RLogger,
                              RequestError, RequestWarning, docstring_append,
                              docstring_copy, docstring_substitute,
                              check_instance, check_vals, check_compatibility,
@@ -131,7 +132,7 @@ class TestDecorators(object):
 # Pytest for the check_compatibility function
 def test_check_compatibility():
     # Check if current version is compatible (it should)
-    check_compatibility(prism_version)
+    check_compatibility(__version__)
 
     # Check if providing too old or too new version raises an error
     with pytest.raises(RequestError):

@@ -41,7 +41,7 @@ try:
     from mpi4py import MPI
 except ImportError:
     import prism._dummyMPI as MPI
-from prism.__version__ import compat_version, prism_version
+from prism.__version__ import __version__, compat_version
 
 # All declaration
 __all__ = ['CFilter', 'CLogger', 'PRISM_Comm', 'RFilter', 'RLogger',
@@ -416,14 +416,14 @@ def check_compatibility(emul_version):
         if compare_versions(version, emul_version):
             err_msg = ("The provided emulator is incompatible with the current"
                        " version of PRISM (v%s). The last compatible version "
-                       "is v%s." % (prism_version, version))
+                       "is v%s." % (__version__, version))
             raise_error(err_msg, RequestError, logger)
 
     # Check if emul_version is not newer than prism_version
-    if not compare_versions(prism_version, emul_version):
+    if not compare_versions(__version__, emul_version):
         err_msg = ("The provided emulator was constructed with a version later"
                    " than the current version of PRISM (v%s). Use v%s or later"
-                   " to use this emulator." % (prism_version, emul_version))
+                   " to use this emulator." % (__version__, emul_version))
         raise_error(err_msg, RequestError, logger)
     else:
         logger.info("Version compatibility check was successful.")
@@ -773,7 +773,7 @@ def convert_str_seq(seq):
 
 # List of auxiliary characters to be used in convert_str_seq()
 aux_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/', '{', '}', '<',
-                 '>', 'Â´', 'Â¨', '`', '\\', '?', '!', '%', ';', '=', '$', '~',
+                 '>', '´', '¨', '`', '\\', '?', '!', '%', ';', '=', '$', '~',
                  '#', '@', '^', '&', '*']
 
 
