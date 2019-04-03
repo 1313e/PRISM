@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 
 # PRISM imports
-from prism.__version__ import compat_version, prism_version
+from prism.__version__ import __version__, compat_version
 from prism._internal import (FeatureWarning, PRISM_Logger, RequestError,
                              RequestWarning, check_vals, check_compatibility,
                              get_PRISM_File, get_info, getCLogger, getRLogger,
@@ -55,7 +55,7 @@ class Test_PRISM_File(object):
 # Pytest for the check_compatibility function
 def test_check_compatibility():
     # Check if current version is compatible (it should)
-    check_compatibility(prism_version)
+    check_compatibility(__version__)
 
     # Check if providing too old or too new version raises an error
     with pytest.raises(RequestError):

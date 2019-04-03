@@ -34,7 +34,7 @@ from e13tools import (aux_char_list, compare_versions as _compare_versions,
 from mpi4pyd import MPI as _MPI
 
 # PRISM imports
-from .__version__ import prism_version as __version__
+from .__version__ import __version__
 from . import emulator
 from . import modellink
 from . import utils

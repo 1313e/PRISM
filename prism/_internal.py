@@ -29,7 +29,7 @@ import numpy as np
 from pkg_resources import get_distribution
 
 # PRISM imports
-from prism.__version__ import compat_version, prism_version
+from prism.__version__ import __version__, compat_version
 
 # All declaration
 __all__ = ['CFilter', 'FeatureWarning', 'PRISM_Comm', 'PRISM_Logger',
@@ -365,7 +365,7 @@ def check_compatibility(emul_version):
         if compare_versions(version, emul_version):
             err_msg = ("The provided emulator is incompatible with the current"
                        " version of PRISM (v%s). The last compatible version "
-                       "is v%s." % (prism_version, version))
+                       "is v%s." % (__version__, version))
             raise_error(err_msg, RequestError, logger)
 
     # Check if emul_version is 1.0.x and raise warning if so
@@ -377,10 +377,10 @@ def check_compatibility(emul_version):
         raise_warning(warn_msg, RequestWarning, logger, 2)
 
     # Check if emul_version is not newer than prism_version
-    if not compare_versions(prism_version, emul_version):
+    if not compare_versions(__version__, emul_version):
         err_msg = ("The provided emulator was constructed with a version later"
                    " than the current version of PRISM (v%s). Use v%s or later"
-                   " to use this emulator." % (prism_version, emul_version))
+                   " to use this emulator." % (__version__, emul_version))
         raise_error(err_msg, RequestError, logger)
     else:
         logger.info("Version compatibility check was successful.")
@@ -709,7 +709,7 @@ def get_info():
     info_list.append("Python: %s" % (platform.python_version()))
 
     # Add PRISM version to info_list
-    info_list.append("Version: %s" % (prism_version))
+    info_list.append("Version: %s" % (__version__))
 
     # Access PRISM metadata
     prism_dist = get_distribution('prism')
