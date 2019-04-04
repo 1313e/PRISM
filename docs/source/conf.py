@@ -15,6 +15,7 @@
 import os
 import sys
 from codecs import open
+import re
 sys.path.insert(0, os.path.abspath('../..'))
 
 
@@ -31,8 +32,7 @@ with open('../../prism/__version__.py', 'r') as f:
     vfile = f.read()
 
 # Obtain version from read-in __version__.py file
-vstr = "__version__ = "
-version = vfile.partition(vstr)[2].partition('\n')[0].replace("'", '').strip()
+version = re.search(r"^_*version_* = ['\"]([^'\"]*)['\"]", vfile, re.M).group(1)
 
 
 # -- General configuration ---------------------------------------------------

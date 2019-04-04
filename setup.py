@@ -16,6 +16,7 @@ or anything equivalent.
 # %% IMPORTS
 # Built-in imports
 from codecs import open
+import re
 
 # Package imports
 from setuptools import find_packages, setup
@@ -35,12 +36,11 @@ with open('prism/__version__.py', 'r') as f:
     vfile = f.read()
 
 # Obtain version from read-in __version__.py file
-vstr = "__version__ = "
-version = vfile.partition(vstr)[2].partition('\n')[0].replace("'", '').strip()
+version = re.search(r"^_*version_* = ['\"]([^'\"]*)['\"]", vfile, re.M)
 
 # Setup function declaration
 setup(name='prism',
-      version=version,
+      version=version.group(1),
       author="Ellert van der Velden",
       author_email="evandervelden@swin.edu.au",
       maintainer="1313e",
