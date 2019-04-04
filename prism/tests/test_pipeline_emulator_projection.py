@@ -770,7 +770,7 @@ class Test_Pipeline_Request_Exceptions(object):
         working_dir = path.basename(tmpdir.strpath)
         model_link = GaussianLink2D()
         return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
-                        prism_par=prism_file_n_cross_val))
+                        prism_file=prism_file_n_cross_val))
 
     # Create a universal Pipeline object for testing request exceptions
     @pytest.fixture(scope='class')
