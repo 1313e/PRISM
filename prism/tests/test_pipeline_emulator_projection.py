@@ -20,7 +20,7 @@ from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism import Pipeline
-from prism._internal import RequestError
+from prism._internal import RequestError, RequestWarning
 from prism._projection import Projection
 from prism.emulator import Emulator
 from prism.modellink import ModelLink
@@ -44,6 +44,7 @@ pytestmark = pytest.mark.filterwarnings(
 model_data_single = path.join(dirpath, 'data/data_gaussian_single.txt')
 prism_file_default = path.join(dirpath, 'data/prism_default.txt')
 prism_file_impl = path.join(dirpath, 'data/prism_impl.txt')
+prism_file_n_cross_val = path.join(dirpath, 'data/prism_n_cross_val.txt')
 model_parameters_2D = path.join(dirpath, 'data/parameters_gaussian_2D.txt')
 model_parameters_3D = path.join(dirpath, 'data/parameters_gaussian_3D.txt')
 
@@ -766,6 +767,16 @@ class Test_Pipeline_Request_Exceptions(object):
 
     # Create a universal Pipeline object for testing request exceptions
     @pytest.fixture(scope='class')
+    def pipe_n_cross_val(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test_request_exceptions_n_cross_val')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink2D()
+        return(Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_par=prism_file_n_cross_val))
+
+    # Create a universal Pipeline object for testing request exceptions
+    @pytest.fixture(scope='class')
     def pipe_default(self, tmpdir_factory):
         tmpdir = tmpdir_factory.mktemp('test_request_exceptions_default')
         root_dir = path.dirname(tmpdir.strpath)
@@ -834,7 +845,7 @@ class Test_Pipeline_Request_Exceptions(object):
 
     # Try to call an iteration that cannot be finished
     def test_break_call(self, pipe_impl):
-        with pytest.raises(RequestError):
+        with pytest.raises(RequestError), pytest.warns(RequestWarning):
             pipe_impl(1)
 
     # Try to construct an iteration with no plausible regions
@@ -858,6 +869,13 @@ class Test_Pipeline_Request_Exceptions(object):
         with pytest.raises(RequestError):
             pipe_impl._emulator._retrieve_parameters()
         pipe_impl._emulator._emul_type = 'default'
+
+    # Try to construct an iteration that has less than n_cross_val samples
+    def test_n_cross_val_construction(self, pipe_n_cross_val):
+        with pytest.warns(RequestWarning):
+            pipe_n_cross_val.construct(1)
+        with pytest.raises(RequestError):
+            pipe_n_cross_val.construct(2)
 
 
 # Pytest for Pipeline class internal exception handling
