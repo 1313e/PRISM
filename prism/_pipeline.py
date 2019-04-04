@@ -2305,8 +2305,23 @@ class Pipeline(Projection, object):
             # Calculate the number of plausible samples left
             n_impl_sam = len(impl_sam)
 
+            # Raise warning if no plausible samples were found
+            if not n_impl_sam:
+                warn_msg = ("No plausible regions were found. Constructing the"
+                            " next iteration will not be possible.")
+                raise_warning(warn_msg, RequestWarning, logger, 2)
+
+            # Raise warning if n_impl_sam is less than n_cross_val
+            elif(n_impl_sam < self._emulator._n_cross_val):
+                warn_msg = ("Number of plausible samples is lower than the "
+                            "number of cross validations used during "
+                            "regression (%i < %i). Constructing the next "
+                            "iteration will not be possible."
+                            % (n_impl_sam, self._emulator._n_cross_val))
+                raise_warning(warn_msg, RequestWarning, logger, 2)
+
             # Raise warning if n_impl_sam is less than n_sam_init
-            if(n_impl_sam < self._n_sam_init):
+            elif(n_impl_sam < self._n_sam_init):
                 warn_msg = ("Number of plausible samples is lower than the "
                             "number of samples in the first iteration (%i < "
                             "%i). Constructing the next iteration might not "
@@ -2510,11 +2525,25 @@ class Pipeline(Projection, object):
                             self._make_call('analyze')
 
                         # Check if a new emulator iteration can be constructed
+                        # If no plausible regions were found
                         if not self._n_impl_sam[emul_i-1]:
                             err_msg = ("No plausible regions were found in the"
                                        " analysis of the previous emulator "
                                        "iteration. Construction is not "
                                        "possible!")
+                            raise_error(err_msg, RequestError, logger)
+
+                        # If n_impl_sam is less than n_cross_val
+                        elif(self._n_impl_sam[emul_i-1] <
+                             self._emulator._n_cross_val):
+                            err_msg = ("Number of plausible samples found in "
+                                       "the analysis of the previous iteration"
+                                       " is lower than the number of cross "
+                                       "validations used during regression"
+                                       " (%i < %i). Construction is not "
+                                       "possible!"
+                                       % (self._n_impl_sam[emul_i-1],
+                                          self._emulator._n_cross_val))
                             raise_error(err_msg, RequestError, logger)
 
                         # Make the emulator prepare for a new iteration
