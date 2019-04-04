@@ -55,7 +55,9 @@ setup(name='prism',
       url="https://prism-tool.readthedocs.io/en/v1.0.x",
       project_urls={
           'Documentation': "https://prism-tool.readthedocs.io/en/v1.0.x",
-          'Source Code': "https://github.com/1313e/PRISM?branch=v1.0.x"
+          'Method Paper': "https://arxiv.org/abs/1901.08725",
+          'Source Code': "https://github.com/1313e/PRISM/tree/v1.0.x",
+          'Travis CI': "https://travis-ci.com/1313e/PRISM"
           },
       license='BSD-3',
       platforms=['Windows', 'Mac OS-X', 'Linux', 'Unix'],
