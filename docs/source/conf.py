@@ -29,10 +29,10 @@ author = 'Ellert van der Velden'
 version = 'v1.0.x'
 # The full version, including alpha/beta/rc tags
 with open('../../prism/__version__.py', 'r') as f:
-    vfile = f.read()
+    vf = f.read()
 
 # Obtain version from read-in __version__.py file
-version = re.search(r"^_*version_* = ['\"]([^'\"]*)['\"]", vfile, re.M).group(1)
+version = re.search(r"^_*version_* = ['\"]([^'\"]*)['\"]", vf, re.M).group(1)
 
 
 # -- General configuration ---------------------------------------------------
