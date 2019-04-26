@@ -99,8 +99,6 @@ class Pipeline(Projection, object):
         comm : :obj:`~MPI.Intracomm` object or None. Default: None
             The MPI intra-communicator to use in this :class:`~Pipeline`
             instance or :obj:`MPI.COMM_WORLD` if `comm` is *None*.
-            If :mod:`mpi4py` is not installed, :mod:`~e13tools.dummyMPI` is
-            used instead.
 
         """
 

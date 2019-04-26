@@ -26,7 +26,7 @@ from e13tools.utils import (check_instance, convert_str_seq, delist,
 import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 import numpy as np
-from numpy.linalg import inv, norm
+from numpy.linalg import inv
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
