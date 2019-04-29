@@ -31,7 +31,7 @@ A full analysis of every model would be required in order to recognize these qua
 We commonly employ Markov chain Monte Carlo (MCMC) methods and Bayesian statistics for performing this task.
 However, as these methods are meant to be used for making approximations of the posterior probability distribution function, we think there is a more efficient way of analyzing them.
 
-Based on the algorithms described by [@Vernon10], we have built *PRISM*, a publicly available _Probabilistic Regression Instrument for Simulating Models_ for Python 3.
+Based on the algorithms described by @Vernon10, we have built *PRISM*, a publicly available _Probabilistic Regression Instrument for Simulating Models_ for Python 3.
 *PRISM* uses the Bayes linear approach [@BLA], emulation technique [@Craig96, @Craig97] and history matching [@Raftery95, @Craig96, @Craig97] to construct an approximation ('emulator') of any given model, by combining limited model evaluations with advanced regression techniques, covariances and probability calculations.
 It is designed to easily facilitate and enhance existing MCMC methods by restricting plausible regions and exploring parameter space more efficiently.
 However, *PRISM* can additionally be used as a standalone alternative to MCMC for model analysis, providing insight into the behavior of complex scientific models.
