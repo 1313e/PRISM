@@ -55,6 +55,7 @@ __all__ = ['Pipeline']
 # TODO: Implement multivariate implausibilities
 # TODO: Think of a way to allow no ModelLink instance to be provided.
 # This could be done with a DummyLink, but md_var is then uncallable.
+# OPTIMIZE: Use the Numba package to speed up certain calculations?
 class Pipeline(Projection, object):
     """
     Defines the :class:`~Pipeline` class of the *PRISM* package.
@@ -149,10 +150,11 @@ class Pipeline(Projection, object):
             prism_par = kwargs['prism_file']
 
             # Raise a FutureWarning
-            warn_msg = ("Input argument 'prism_file' is deprecated since "
-                        "v1.1.2 in favor of 'prism_par'. It will be removed "
-                        "entirely in v1.2.0.")
-            raise_warning(warn_msg, FutureWarning, logger, stacklevel=2)
+            if self._is_controller:
+                warn_msg = ("Input argument 'prism_file' is deprecated since "
+                            "v1.1.2 in favor of 'prism_par'. It will be "
+                            "removed entirely in v1.2.0.")
+                raise_warning(warn_msg, FutureWarning, logger, stacklevel=2)
 
         # Read in the provided parameter dict/file
         self._read_parameters(prism_par)
@@ -1409,6 +1411,9 @@ class Pipeline(Projection, object):
                 # Read in the samples that survived the implausibility check
                 self._impl_sam = emul['impl_sam'][()]
                 self._impl_sam.dtype = float
+
+        # Log that loading has been finished
+        logger.info("Finished loading pipeline data sets.")
 
     # This function saves pipeline data to hdf5
     @docstring_substitute(save_data=save_data_doc_p)
@@ -2800,6 +2805,10 @@ class Pipeline(Projection, object):
 
         """
 
+        # If emulator has not been built yet, return immediately
+        if(len(self._emulator._ccheck) == 1):
+            return
+
         # Define details logger
         logger = getCLogger("DETAILS")
         logger.info("Collecting details about current pipeline instance.")
@@ -2813,18 +2822,14 @@ class Pipeline(Projection, object):
         # Gather the ccheck_flags on all ranks to see if all are finished
         ccheck_flag = np.all(self._comm.allgather(ccheck_flag))
 
-        # Try to obtain correct emul_i depending on the construction progress
-        try:
-            if ccheck_flag:
-                emul_i = self._emulator._get_emul_i(emul_i, True)
-            else:
-                emul_i = self._emulator._get_emul_i(emul_i, False)
-        # If this fails, return
-        except RequestError:
-            return
-        # If this succeeds, gather ccheck information on the controller
+        # Obtain correct emul_i depending on the construction progress
+        if ccheck_flag:
+            emul_i = self._emulator._get_emul_i(emul_i, True)
         else:
-            ccheck_list = self._comm.gather(self._emulator._ccheck[emul_i], 0)
+            emul_i = self._emulator._get_emul_i(emul_i, False)
+
+        # Gather ccheck information on the controller
+        ccheck_list = self._comm.gather(self._emulator._ccheck[emul_i], 0)
 
         # Controller generating the entire details overview
         if self._is_controller:

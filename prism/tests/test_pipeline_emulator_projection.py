@@ -800,8 +800,13 @@ class Test_Pipeline_Request_Exceptions(object):
         with pytest.raises(RequestError):
             pipe_default.impl_cut = [1]
 
-    # Try to analyze iteration 1 while iteration 2 is being constructed
+    # Try to analyze iteration 1 while no emulator exists
     def test_invalid_analyze(self, pipe_default):
+        with pytest.raises(RequestError):
+            pipe_default.analyze()
+
+    # Try to analyze iteration 1 while iteration 2 is being constructed
+    def test_invalid_analyze2(self, pipe_default):
         pipe_default.construct(1)
         pipe_default.construct(2)
         pipe_default._emulator._ccheck[2].append('active_par')
@@ -978,6 +983,8 @@ class Test_Pipeline_Init_Versatility(object):
         repr(pipe)
 
     # Create a Pipeline object using the prism_file input argument
+    @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                        reason="Cannot be pytested in MPI")
     def test_PRISM_par_file(self, tmpdir, model_link):
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
