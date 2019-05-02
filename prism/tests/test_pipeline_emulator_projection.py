@@ -159,7 +159,8 @@ class Test_Pipeline_Gaussian2D(object):
     def test_project_pre_anal(self, pipe):
         with pytest_mpl.plugin.switch_backend('Agg'):
             pipe.project(proj_par=(0), figure=False)
-            pipe.project(proj_par=(0), figure=True, proj_type='both')
+            pipe.project(proj_par=(0), figure=True, proj_type='both',
+                         show_cuts=True)
             pipe.project(proj_par=(1), figure=True, align='row', smooth=True)
 
     # Check if first iteration can be projected again (unforced)

@@ -1,4 +1,4 @@
 # name      : lower_bndry       upper_bndry     estimate
   A         : 1                 5               3
   Bravo     : 2                 7               None
-  C 42      : 3                 6.74
+  C42       : 3                 6.74

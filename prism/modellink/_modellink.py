@@ -525,7 +525,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
                     par_seq[i] = par_idx % self._n_par
             # If any operation above fails, raise error
             except Exception as error:
-                err_msg = "Input argument %r is invalid! (%s)" % (name, error)
+                err_msg = ("Input argument %r[%i] is invalid! (%s)"
+                           % (name, i, error))
                 raise_error(err_msg, InputError, logger)
 
         # If everything went without exceptions, check if list is not empty and

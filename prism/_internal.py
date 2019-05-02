@@ -962,7 +962,8 @@ def np_array(obj, *args, **kwargs):
     """
 
     # Return NumPy array with copy=False
-    return(np.array(obj, *args, copy=False, **kwargs))
+    copy = kwargs.pop('copy', False)
+    return(np.array(obj, *args, copy=copy, **kwargs))
 
 
 # This function sets the base PRISM logger

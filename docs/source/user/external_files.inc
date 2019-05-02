@@ -85,15 +85,15 @@ Similarly to the *PRISM* parameters, one can provide the following equivalent as
     # As a dict
     model_parameters = {'A': [1, 5, 3],
                         'Bravo': [2, 7, None],
-                        'C 42': [3, 6.74]}
+                        'C42': [3, 6.74]}
 
     # As an array_like
     model_parameters = [['A', [1, 5, 3]],
                         ['Bravo', [2, 7, None]],
-                        ['C 42', [3, 6.74]]]
+                        ['C42', [3, 6.74]]]
 
     # As two array_likes zipped
-    model_parameters = zip(['A', 'Bravo', 'C 42'],
+    model_parameters = zip(['A', 'Bravo', 'C42'],
                            [[1, 5, 3], [2, 7, None], [3, 6.74]])
 
 Providing :pycode:`None` as the parameter estimate or not providing it at all, implies that no parameter estimate (for the corresponding parameter) should be used in the projection figures.

@@ -98,6 +98,10 @@ class Projection(object):
             If 'row'/'horizontal', the subplots are positioned on a single row.
             If 'col'/'column'/'vertical', the subplots are positioned on a
             single column.
+        show_cuts : bool. Default: False
+            If `figure` is *True* and `proj_type` is not '3D', whether to show
+            all implausibility cut-offs in the 2D projections (*True*) or only
+            the first cut-off (*False*).
         smooth : bool. Default: False
             Controls what to do if a grid point contains no plausible samples,
             but does contain a minimum implausibility value below the first
@@ -140,10 +144,15 @@ class Projection(object):
             (bottom/right) plot in the 3D projection figures. It takes all
             arguments that can be provided to the
             :func:`~matplotlib.pyplot.hexbin` function.
-        line_kwargs : dict. Default: {'linestyle': '--', 'color': 'grey'}
+        line_kwargs_est : dict. Default: {'linestyle': '--', 'color': 'grey'}
             Dict of keyword arguments to be used for drawing the parameter
             estimate lines in both plots. It takes all arguments that can be
             provided to the :func:`~matplotlib.pyplot.draw` function.
+        line_kwargs_cut : dict. Default: {'color': 'r'}
+            Dict of keyword arguments to be used for drawing the implausibility
+            cut-off line(s) in the top/left plot in the 2D projection figures.
+            It takes all arguments that can be provided to the
+            :func:`~matplotlib.pyplot.draw` function.
 
         Returns (if `figure` is *False*)
         --------------------------------
@@ -311,8 +320,9 @@ class Projection(object):
         # Obtain name of this projection hypercube
         hcube_name = self.__get_hcube_name(hcube)
 
-        # Make abbreviation for first implausibility cut-off value
+        # Make abbreviation for implausibility cut-off values
         impl_cut = self._impl_cut[self.__emul_i][0]
+        impl_cuts = self._impl_cut[self.__emul_i]
 
         # Start logger
         logger = getCLogger('PROJECTION')
@@ -392,25 +402,45 @@ class Projection(object):
             f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
                        fontsize='xx-large')
 
+            # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
             ax0.plot(x, y_min, **self.__impl_kwargs_2D)
             ax0_rng = [*self._modellink._par_rng[par], 0, 1.5*impl_cut]
             ax0.axis(ax0_rng)
+
+            # Draw parameter estimate line
             if self._modellink._par_est[par] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
-                              line_kwargs=self.__line_kwargs)
-            draw_textline(r"", y=impl_cut, ax=ax0, line_kwargs={'color': 'r'})
+                              line_kwargs=self.__line_kwargs_est)
+
+            # Draw implausibility cut-off line(s)
+            if self.__show_cuts:
+                # If all lines are requested, draw them
+                for cut in impl_cuts:
+                    draw_textline(r"", y=cut, ax=ax0,
+                                  line_kwargs=self.__line_kwargs_cut)
+            else:
+                # Else, draw the first cut-off line
+                draw_textline(r"", y=impl_cut, ax=ax0,
+                              line_kwargs=self.__line_kwargs_cut)
+
+            # Set axes and label
             ax0.axis(ax0_rng)
             ax0.set_ylabel("Min. Implausibility", fontsize='large')
 
+            # LINE-OF-SIGHT DEPTH PLOT
             # Plot line-of-sight depth
             ax1.plot(x, y_los, **self.__los_kwargs_2D)
             ax1_rng = [*self._modellink._par_rng[par],
                        0, min(1, np.max(y_los))]
             ax1.axis(ax1_rng)
+
+            # Draw parameter estimate line
             if self._modellink._par_est[par] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par], ax=ax1,
-                              line_kwargs=self.__line_kwargs)
+                              line_kwargs=self.__line_kwargs_est)
+
+            # Set axes and label
             ax1.axis(ax1_rng)
             ax1.set_ylabel("Line-of-Sight Depth", fontsize='large')
 
@@ -563,30 +593,40 @@ class Projection(object):
             f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
                        fontsize='xx-large')
 
+            # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
             fig1 = ax0.hexbin(x, y, z_min, gridsize, vmin=0, vmax=impl_cut,
                               **self.__impl_kwargs_3D)
+
+            # Draw parameter estimate lines
             if self._modellink._par_est[par1] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par1], ax=ax0,
-                              line_kwargs=self.__line_kwargs)
+                              line_kwargs=self.__line_kwargs_est)
             if self._modellink._par_est[par2] is not None:
                 draw_textline(r"", y=self._modellink._par_est[par2], ax=ax0,
-                              line_kwargs=self.__line_kwargs)
+                              line_kwargs=self.__line_kwargs_est)
+
+            # Set axes and labels
             ax0.axis([*self._modellink._par_rng[par1],
                       *self._modellink._par_rng[par2]])
             plt.colorbar(fig1, ax=ax0).set_label("Min. Implausibility",
                                                  fontsize='large')
 
+            # LINE-OF-SIGHT DEPTH PLOT
             # Plot line-of-sight depth
             fig2 = ax1.hexbin(x, y, z_los, gridsize, vmin=0,
                               vmax=min(1, np.max(z_los)),
                               **self.__los_kwargs_3D)
+
+            # Draw parameter estimate lines
             if self._modellink._par_est[par1] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par1], ax=ax1,
-                              line_kwargs=self.__line_kwargs)
+                              line_kwargs=self.__line_kwargs_est)
             if self._modellink._par_est[par2] is not None:
                 draw_textline(r"", y=self._modellink._par_est[par2], ax=ax1,
-                              line_kwargs=self.__line_kwargs)
+                              line_kwargs=self.__line_kwargs_est)
+
+            # Set axes and label
             ax1.axis([*self._modellink._par_rng[par1],
                       *self._modellink._par_rng[par2]])
             plt.colorbar(fig2, ax=ax1).set_label("Line-of-Sight Depth",
@@ -904,13 +944,15 @@ class Projection(object):
         impl_kwargs_3D = {'cmap': 'rainforest_r'}
         los_kwargs_2D = {}
         los_kwargs_3D = {'cmap': 'blaze'}
-        line_kwargs = {'linestyle': '--',
-                       'color': 'grey'}
+        line_kwargs_est = {'linestyle': '--',
+                           'color': 'grey'}
+        line_kwargs_cut = {'color': 'r'}
 
         # Create input argument dict with default projection parameters
         kwargs_dict = {'proj_type': '2D' if(self.__n_par == 2) else 'both',
                        'figure': 1,
                        'align': 'col',
+                       'show_cuts': 0,
                        'smooth': 0,
                        'force': 0,
                        'fig_kwargs': fig_kwargs,
@@ -918,7 +960,8 @@ class Projection(object):
                        'impl_kwargs_3D': impl_kwargs_3D,
                        'los_kwargs_2D': los_kwargs_2D,
                        'los_kwargs_3D': los_kwargs_3D,
-                       'line_kwargs': line_kwargs,
+                       'line_kwargs_est': line_kwargs_est,
+                       'line_kwargs_cut': line_kwargs_cut,
                        'figsize_c': figsize_c,
                        'figsize_r': figsize_r}
 
@@ -1174,7 +1217,8 @@ class Projection(object):
         # Update kwargs_dict with given kwargs
         for key, value in kwargs.items():
             if key in ('fig_kwargs', 'impl_kwargs_2D', 'impl_kwargs_3D',
-                       'los_kwargs_2D', 'los_kwargs_3D', 'line_kwargs'):
+                       'los_kwargs_2D', 'los_kwargs_3D', 'line_kwargs_est',
+                       'line_kwargs_cut'):
                 if not isinstance(value, dict):
                     err_msg = ("Input argument %r is not of type 'dict'!"
                                % (key))
@@ -1195,6 +1239,8 @@ class Projection(object):
         if self._is_controller:
             # Check if several parameters are bools
             self.__figure = check_vals(kwargs['figure'], 'figure', 'bool')
+            self.__show_cuts = check_vals(kwargs['show_cuts'], 'show_cuts',
+                                          'bool')
             self.__smooth = check_vals(kwargs['smooth'], 'smooth', 'bool')
             self.__force = check_vals(kwargs['force'], 'force', 'bool')
 
@@ -1236,7 +1282,8 @@ class Projection(object):
             impl_kwargs_3D = kwargs['impl_kwargs_3D']
             los_kwargs_2D = kwargs['los_kwargs_2D']
             los_kwargs_3D = kwargs['los_kwargs_3D']
-            line_kwargs = kwargs['line_kwargs']
+            line_kwargs_est = kwargs['line_kwargs_est']
+            line_kwargs_cut = kwargs['line_kwargs_cut']
 
             # FIG_KWARGS
             # Check if any forbidden kwargs are given and remove them
@@ -1289,7 +1336,8 @@ class Projection(object):
             self.__impl_kwargs_3D = impl_kwargs_3D
             self.__los_kwargs_2D = los_kwargs_2D
             self.__los_kwargs_3D = los_kwargs_3D
-            self.__line_kwargs = line_kwargs
+            self.__line_kwargs_est = line_kwargs_est
+            self.__line_kwargs_cut = line_kwargs_cut
 
         # MPI Barrier
         self._comm.Barrier()
