@@ -317,9 +317,6 @@ class Pipeline(Projection, object):
         # Make logger
         logger = getCLogger('WORKER_M')
 
-        # Set worker_mode to 1
-        self._worker_mode = 1
-
         # Workers start listening for calls
         self._listen_for_calls()
 
@@ -584,6 +581,9 @@ class Pipeline(Projection, object):
         :attr:`~worker_mode`.
 
         """
+
+        # Set worker_mode to 1
+        self._worker_mode = 1
 
         # All workers start listening for calls
         if self._is_worker:
