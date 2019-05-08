@@ -78,13 +78,13 @@ class FeatureWarning(FutureWarning):
 # TODO: Combine this class with dummyMPI into a separate dedicated package?
 class PRISM_Comm(object):
     """
-    Custom :class:`~MPI.Intracomm` class that automatically makes use of the
-    :class:`~numpy.ndarray` buffers when using communications. Is functionally
-    the same as the provided `comm` for everything else.
+    Custom :class:`~mpi4pyd.MPI.Intracomm` class that automatically makes use
+    of the :class:`~numpy.ndarray` buffers when using communications. Is
+    functionally the same as the provided `comm` for everything else.
 
     Optional
     --------
-    comm : :obj:`~MPI.Intracomm` object or None. Default: None
+    comm : :obj:`~mpi4pyd.MPI.Intracomm` object or None. Default: None
         The MPI intra-communicator to use in this :class:`~PRISM_Comm`
         instance.
         If *None*, use :obj:`MPI.COMM_WORLD` instead.

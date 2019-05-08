@@ -95,10 +95,10 @@ class Pipeline(Projection, object):
         emul_type : :class:`~prism.emulator.Emulator` subclass or None.\
             Default: None
             The type of :class:`~prism.emulator.Emulator` to use in this
-            :obj:`~prism.Pipeline` instance. If *None*, use the default
-            emulator instead.
-        comm : :obj:`~MPI.Intracomm` object or None. Default: None
-            The MPI intra-communicator to use in this :class:`~Pipeline`
+            :obj:`~Pipeline` instance. If *None*, use the default emulator
+            instead.
+        comm : :obj:`~mpi4pyd.MPI.Intracomm` object or None. Default: None
+            The MPI intra-communicator to use in this :obj:`~Pipeline`
             instance or :obj:`MPI.COMM_WORLD` if `comm` is *None*.
 
         """
@@ -289,7 +289,7 @@ class Pipeline(Projection, object):
     @property
     def comm(self):
         """
-        :obj:`~mpi4py.MPI.Intracomm`: The global MPI intra-communicator to use
+        :obj:`~mpi4pyd.MPI.Intracomm`: The MPI intra-communicator that is used
         in this :obj:`~Pipeline` instance. By default, this is
         :obj:`MPI.COMM_WORLD`.
 
