@@ -1559,6 +1559,17 @@ class Emulator(object):
             poly_powers = np.insert(pipe.named_steps['poly'].powers_[poly_idx],
                                     0, 0, 0)
 
+            # Obtain polynomial coefficients and include intercept term
+            poly_coef = np.insert(pipe.named_steps['linear'].coef_, 0,
+                                  pipe.named_steps['linear'].intercept_, 0)
+
+            # Check every polynomial coefficient if it is significant enough
+            poly_sign = ~np.isclose(poly_coef, 0)
+
+            # Only include significant polynomial terms unless none are
+            poly_powers = poly_powers[poly_sign if sum(poly_sign) else ()]
+            poly_coef = poly_coef[poly_sign if sum(poly_sign) else ()]
+
             # Redetermine the active parameters, poly_powers and poly_idx
             new_active_par_idx = [np.any(powers) for powers in poly_powers.T]
             poly_powers = poly_powers[:, new_active_par_idx]
@@ -1571,20 +1582,16 @@ class Emulator(object):
             poly_idx = np_array([i for i, powers in enumerate(new_powers_list)
                                  if powers in poly_powers_list])
 
-            # If regression covariances is requested, calculate it
+            # If regression covariances are requested, calculate them
             if self._use_regr_cov:
                 # Redetermine the active sam_set_poly
                 active_sam_set = self._sam_set[emul_i][:, new_active_par]
                 sam_set_poly =\
                     new_pf_obj.fit_transform(active_sam_set)[:, poly_idx]
 
-                # Calculate the poly_coef covariancesa
+                # Calculate the poly_coef covariances
                 poly_coef_cov =\
                     rsdl_var*inv(sam_set_poly.T @ sam_set_poly).flatten()
-
-            # Obtain polynomial coefficients and include intercept term
-            poly_coef = np.insert(pipe.named_steps['linear'].coef_, 0,
-                                  pipe.named_steps['linear'].intercept_, 0)
 
             # Create regression data dict
             regr_data_dict = {

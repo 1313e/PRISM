@@ -76,6 +76,11 @@ class Projection(object):
         The input and output depend on the number of model parameters
         :attr:`~prism.modellink.ModelLink.n_par`.
 
+        All optional keyword arguments (except `force`) control various aspects
+        of drawing the projection figures and do not affect the projection data
+        that is saved to HDF5. This is instead influenced by the
+        :attr:`~proj_res` and :attr:`~proj_depth` properties.
+
         Parameters
         ----------
         %(emul_i)s
@@ -341,6 +346,8 @@ class Projection(object):
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # point
+        # TODO: Allow user to set smooth parameter for Rbf function
+        # This probably means that smoothed figures have to be renamed
         f_min = Rbf(x_proj, impl_min)
         f_los = Rbf(x_proj, impl_los)
 
@@ -502,6 +509,8 @@ class Projection(object):
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # grid point
+        # TODO: Allow user to set smooth parameter for Rbf function
+        # This probably means that smoothed figures have to be renamed
         f_min = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_min)
         f_los = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_los)
 

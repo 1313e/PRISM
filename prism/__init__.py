@@ -30,7 +30,8 @@ import warnings
 
 # Package imports
 from e13tools import compare_versions as _compare_versions
-from e13tools.utils import aux_char_set, import_cmaps
+from e13tools.pyplot import import_cmaps
+from e13tools.utils import aux_char_set
 from mpi4pyd import MPI as _MPI
 
 # PRISM imports
