@@ -618,8 +618,8 @@ class Projection(object):
             # Set axes and labels
             ax0.axis([*self._modellink._par_rng[par1],
                       *self._modellink._par_rng[par2]])
-            plt.colorbar(fig1, ax=ax0).set_label("Min. Implausibility",
-                                                 fontsize='large')
+            plt.colorbar(fig1, ax=ax0, extend='max').set_label(
+                "Min. Implausibility", fontsize='large')
 
             # LINE-OF-SIGHT DEPTH PLOT
             # Plot line-of-sight depth

@@ -1727,6 +1727,7 @@ class Emulator(object):
 
     # This function calculates the covariance between parameter sets
     # This is function 'Cov(f(x), f(x'))' or 'c(x,x')
+    # TODO: Improve Gaussian-only method by making sigma data point dependent
     @docstring_substitute(full_cov=full_cov_doc)
     def _get_cov(self, emul_i, emul_s_seq, par_set1, par_set2):
         """
@@ -2010,6 +2011,7 @@ class Emulator(object):
         logger.info("Finished calculating covariance matrix.")
 
     # This function calculates the inverse of a given matrix
+    # TODO: Improve the inverse calculation
     def _get_inv_matrix(self, matrix):
         """
         Calculates the inverse of a given `matrix`.
