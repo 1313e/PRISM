@@ -9,7 +9,7 @@ criterion		: None			# Criterion for constructing LHDs
 method			: 'full'		# Method used for constructing the emulator
 use_regr_cov		: False			# Use regression covariance
 poly_order		: 3			# Polynomial order for regression
-n_cross_val		: 150			# Number of cross-validations for regression
+n_cross_val		: 75			# Number of cross-validations for regression
 do_active_anal		: True			# Perform active parameter analysis
 freeze_active_par	: True			# Active parameters always stay active
 pot_active_par		: None			# List of potentially active parameters
