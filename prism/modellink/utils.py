@@ -18,12 +18,13 @@ import warnings
 # Package imports
 from e13tools import InputError
 from e13tools.utils import check_instance, convert_str_seq
+from mpi4pyd.MPI import get_BufferComm_obj
 import numpy as np
 from numpy.random import rand
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
-from prism._internal import PRISM_Comm, RequestWarning, check_vals, np_array
+from prism._internal import RequestWarning, check_vals, np_array
 
 # All declaration
 __all__ = ['convert_data', 'convert_parameters', 'test_subclass']
@@ -360,7 +361,7 @@ def test_subclass(subclass, *args, **kwargs):
                              "argument %r!" % (modellink_obj._name, arg))
 
     # Set MPI intra-communicator
-    comm = PRISM_Comm()
+    comm = get_BufferComm_obj()
 
     # Obtain random sam_set on controller
     if not comm._rank:
