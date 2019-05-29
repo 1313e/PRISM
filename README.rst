@@ -1,3 +1,7 @@
+.. image:: ./logo/PRISM_transparent_Logo1.svg
+    :width: 400 px
+    :align: center
+
 |PyPI| |Python| |License| |Travis| |AppVeyor| |ReadTheDocs| |Coverage|
 
 Model dispersion with *PRISM*; an alternative to MCMC for rapid analysis of models
