@@ -28,6 +28,7 @@ from e13tools.sampling import lhd
 from e13tools.utils import (convert_str_seq, delist, docstring_append,
                             docstring_copy, docstring_substitute,
                             get_outer_frame, raise_error, raise_warning)
+from mpi4pyd.MPI import get_BufferComm_obj
 import numpy as np
 from numpy.random import normal, random
 from sortedcontainers import SortedDict as sdict
@@ -39,10 +40,9 @@ from prism._docstrings import (call_emul_i_doc, call_model_doc_s,
                                ext_sam_set_doc, impl_cut_doc, paths_doc_d,
                                paths_doc_s, save_data_doc_p, set_par_doc,
                                std_emul_i_doc, user_emul_i_doc)
-from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
-                             check_vals, getCLogger, get_PRISM_File,
-                             getRLogger, move_logger, np_array,
-                             set_base_logger)
+from prism._internal import (RequestError, RequestWarning, check_vals,
+                             getCLogger, get_PRISM_File, getRLogger,
+                             move_logger, np_array, set_base_logger)
 from prism._projection import Projection
 from prism.emulator import Emulator
 
@@ -104,7 +104,7 @@ class Pipeline(Projection, object):
         """
 
         # Obtain MPI communicator, ranks and sizes
-        self._comm = PRISM_Comm(comm)
+        self._comm = get_BufferComm_obj(comm)
         self._rank = self._comm.Get_rank()
         self._size = self._comm.Get_size()
 
