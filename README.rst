@@ -141,10 +141,13 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
 
-
 .. _BSD-3 license: https://github.com/1313e/PRISM/raw/v1.0.x/LICENSE
 .. _GitHub issue: https://github.com/1313e/PRISM/issues
 
+Acknowledgements
+================
+Special thanks to Alan Duffy, Darren Croton, Simon Mutch and Manodeep Sinha for providing many valuable suggestions and constructive feedback points.
+Huge thanks to James Josephides for making the *PRISM* logo.
 
 .. |PyPI| image:: https://img.shields.io/badge/PyPI-v1.0.0-blue.svg
     :target: https://pypi.org/project/prism/v1.0.0

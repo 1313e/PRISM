@@ -16,6 +16,8 @@ It is written in pure `Python 2/3`_ and `publicly available on GitHub`_.
 .. _Python 2/3: https://www.python.org
 .. _publicly available on GitHub: https://github.com/1313e/PRISM?branch=v1.0.x
 
+----
+
 The documentation of *PRISM* is spread out over several sections:
 
 * :ref:`user-docs`
@@ -52,3 +54,9 @@ The documentation of *PRISM* is spread out over several sections:
     :language: python3
     :class: highlight
 
+----
+
+Acknowledgements
+----------------
+Special thanks to Alan Duffy, Darren Croton, Simon Mutch and Manodeep Sinha for providing many valuable suggestions and constructive feedback points.
+Huge thanks to James Josephides for making the *PRISM* logo.

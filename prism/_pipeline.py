@@ -1689,6 +1689,7 @@ class Pipeline(Projection, object):
             md_var = np_array(md_var, ndmin=2)
 
         # If it was user-defined, check if the values are compatible
+        # OPTIMIZE: Doing this check repeatedly may heavily slow down the code
         else:
             # Make sure that md_var is a NumPy array
             md_var = np_array(md_var)
