@@ -146,7 +146,9 @@ html_theme_options = {
     'collapse_navigation': False,
     'sticky_navigation': False,
     'includehidden': False,
-    'titles_only': False
+    'titles_only': False,
+    'logo_only': True,
+    'display_version': False
 }
 
 # Title formatting
@@ -175,7 +177,8 @@ html_use_opensearch = 'https://prism-tool.readthedocs.io/en/latest'
 
 html_split_index = True
 
-html_favicon = 'py.png'
+html_logo = 'PRISM_Logo.png'
+html_favicon = 'PRISM_Icon.ico'
 
 html_baseurl = 'https://prism-tool.readthedocs.io/en/latest'
 
