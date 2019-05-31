@@ -28,7 +28,7 @@ from e13tools.sampling import lhd
 from e13tools.utils import (convert_str_seq, delist, docstring_append,
                             docstring_copy, docstring_substitute,
                             get_outer_frame, raise_error, raise_warning)
-from mpi4pyd.MPI import get_BufferComm_obj
+from mpi4pyd.MPI import get_HybridComm_obj
 import numpy as np
 from numpy.random import normal, random
 from sortedcontainers import SortedDict as sdict
@@ -104,7 +104,7 @@ class Pipeline(Projection, object):
         """
 
         # Obtain MPI communicator, ranks and sizes
-        self._comm = get_BufferComm_obj(comm)
+        self._comm = get_HybridComm_obj(comm)
         self._rank = self._comm.Get_rank()
         self._size = self._comm.Get_size()
 

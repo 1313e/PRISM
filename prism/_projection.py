@@ -1247,15 +1247,15 @@ class Projection(object):
         # Controller checking all other kwargs
         if self._is_controller:
             # Check if several parameters are bools
-            self.__figure = check_vals(kwargs['figure'], 'figure', 'bool')
-            self.__show_cuts = check_vals(kwargs['show_cuts'], 'show_cuts',
+            self.__figure = check_vals(kwargs.pop('figure'), 'figure', 'bool')
+            self.__show_cuts = check_vals(kwargs.pop('show_cuts'), 'show_cuts',
                                           'bool')
-            self.__smooth = check_vals(kwargs['smooth'], 'smooth', 'bool')
-            self.__force = check_vals(kwargs['force'], 'force', 'bool')
+            self.__smooth = check_vals(kwargs.pop('smooth'), 'smooth', 'bool')
+            self.__force = check_vals(kwargs.pop('force'), 'force', 'bool')
 
             # Check if proj_type parameter is a valid string
             proj_type =\
-                str(kwargs['proj_type'].replace("'", '').replace('"', ''))
+                str(kwargs.pop('proj_type')).replace("'", '').replace('"', '')
             if proj_type.lower() in ('2d', '1', 'one'):
                 self.__proj_2D = 1
                 self.__proj_3D = 0
@@ -1271,7 +1271,7 @@ class Projection(object):
                 raise_error(err_msg, ValueError, logger)
 
             # Check if align parameter is a valid string
-            align = str(kwargs['align'].replace("'", '').replace('"', ''))
+            align = str(kwargs.pop('align')).replace("'", '').replace('"', '')
             if align.lower() in ('r', 'row', 'h', 'horizontal'):
                 self.__align = 'row'
                 kwargs['fig_kwargs']['figsize'] =\
@@ -1286,13 +1286,13 @@ class Projection(object):
                 raise_error(err_msg, ValueError, logger)
 
             # Pop all specific kwargs dicts from kwargs
-            fig_kwargs = kwargs['fig_kwargs']
-            impl_kwargs_2D = kwargs['impl_kwargs_2D']
-            impl_kwargs_3D = kwargs['impl_kwargs_3D']
-            los_kwargs_2D = kwargs['los_kwargs_2D']
-            los_kwargs_3D = kwargs['los_kwargs_3D']
-            line_kwargs_est = kwargs['line_kwargs_est']
-            line_kwargs_cut = kwargs['line_kwargs_cut']
+            fig_kwargs = kwargs.pop('fig_kwargs')
+            impl_kwargs_2D = kwargs.pop('impl_kwargs_2D')
+            impl_kwargs_3D = kwargs.pop('impl_kwargs_3D')
+            los_kwargs_2D = kwargs.pop('los_kwargs_2D')
+            los_kwargs_3D = kwargs.pop('los_kwargs_3D')
+            line_kwargs_est = kwargs.pop('line_kwargs_est')
+            line_kwargs_cut = kwargs.pop('line_kwargs_cut')
 
             # FIG_KWARGS
             # Check if any forbidden kwargs are given and remove them

@@ -6,12 +6,13 @@ from os import path
 
 # Package imports
 from e13tools.core import InputError
+from mpi4pyd import MPI
 import numpy as np
 import pytest
 
 # PRISM imports
 from prism import __version__
-from prism._internal import RequestWarning, MPI
+from prism._internal import RequestWarning
 from prism.modellink import ModelLink
 from prism.modellink.tests.modellink import GaussianLink2D, GaussianLink3D
 
