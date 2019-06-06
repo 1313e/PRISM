@@ -14,28 +14,32 @@ ds = ". Default: "
 
 
 # %% EMUL_I DOCSTRINGS
+# Base description of emul_i parameter
+base_emul_i_doc = "Number indicating the requested emulator iteration."
+
 # Description of emul_i used in __call__/construct
 call_emul_i_doc =\
         """emul_i : int or None. Default: None
-            If int, number indicating the requested emulator iteration.
+            If int, {0}
             If *None*, the next iteration of the emulator will be
-            constructed."""
+            constructed.""".format(base_emul_i_doc.lower())
 
 # Description of emul_i used in the get_emul_i() method of the Emulator class
 get_emul_i_doc =\
         """emul_i : int or None
-            Number indicating the requested emulator iteration."""
+            {0}""".format(base_emul_i_doc)
 
 # Description of emul_i used in basically all standard hidden functions
 std_emul_i_doc =\
         """emul_i : int
-            Number indicating the requested emulator iteration."""
+            {0}""".format(base_emul_i_doc)
 
 # Description of emul_i used in all user functions except __call__/construct
 user_emul_i_doc =\
         """emul_i : int or None. Default: None
-            If int, number indicating the requested emulator iteration.
-            If *None*, the last iteration of the emulator will be used."""
+            If int, {0}
+            If *None*, the last iteration of the emulator will be
+            used.""".format(base_emul_i_doc.lower())
 
 
 # %% EMUL_S DOCSTRINGS

@@ -6,7 +6,7 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
 
 .. versionchanged:: 1.1.2
     Input argument `prism_file` was renamed to `prism_par`.
-    A dictionary with *PRISM* parameters instead of a file can be provided to the :class:`~prism.Pipeline` class. 
+    A dictionary with *PRISM* parameters instead of a file can additionally be provided to the :class:`~prism.Pipeline` class. 
     All :class:`~prism.Pipeline` parameters can also be changed by setting the corresponding class property.
 
 ----
@@ -34,9 +34,9 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
     This value must be non-zero.
 
 :attr:`~prism.emulator.Emulator.l_corr` (Default: 0.3)
-    The amplitude(s) of the Gaussian correlation length.
+    The normalized amplitude(s) of the Gaussian correlation length.
     This number is multiplied by the difference between the upper and lower value boundaries of the model parameters to obtain the Gaussian correlation length for every model parameter.
-    This value must be positive and either a scalar or a list of :attr:`~prism.modellink.ModelLink.n_par` scalars (where the values correspond to the sorted list of model parameters).
+    This value must be positive, normalized and either a scalar or a list of :attr:`~prism.modellink.ModelLink.n_par` scalars (where the values correspond to the sorted list of model parameters).
 
 :attr:`~prism.Pipeline.impl_cut` (Default: [0.0, 4.0, 3.8, 3.5])
     A list of implausibility cut-off values that specifies the maximum implausibility values a parameter set is allowed to have to be considered 'plausible'.
@@ -104,8 +104,9 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
 
 :attr:`~prism.emulator.Emulator.use_mock` (Default: False)
     Whether or not mock data must be used as comparison data when constructing a new emulator.
-    Mock data is calculated by evaluating the model for a randomly chosen set of parameter values, and adding the model discrepancy variances as noise to the returned data values.
+    Mock data is calculated by evaluating the model for a specific set of parameter values, and adding the model discrepancy variances as noise to the returned data values.
+    This set of parameter values is either the provided set, or a randomly chosen one if not.
     When using mock data for an emulator, it is not possible to change the comparison data in later emulator iterations.
-    This value must be a bool.
+    This value must be a bool or a list of :attr:`~prism.modellink.ModelLink.n_par` scalars (where the values correspond to the sorted list of model parameters).
 
 .. _e13Tools: https://github.com/1313e/e13Tools

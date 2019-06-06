@@ -1168,6 +1168,16 @@ class Test_Pipeline_Emulator_Versatility(object):
         pipe.construct(1)
         pipe._emulator._load_data(1)
 
+    # Test if emulator can be constructed using chosen mock estimates
+    def test_chosen_mock(self, tmpdir):
+        prism_file = path.join(dirpath, 'data/prism_chosen_mock.txt')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        model_link = GaussianLink2D()
+        pipe = Pipeline(model_link, root_dir=root_dir, working_dir=working_dir,
+                        prism_par=prism_file)
+        pipe.construct(1)
+
     # Test if emulator can be constructed with only gaussian
     def test_gaussian_method(self, tmpdir):
         prism_file = path.join(dirpath, 'data/prism_gaussian_method.txt')

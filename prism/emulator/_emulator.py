@@ -536,7 +536,7 @@ class Emulator(object):
         self._cleanup_emul_files(1)
 
         # Set parameters from provided parameter file
-        self._set_parameters()
+        mock_par = self._set_parameters()
 
         # Set emul_load to 0
         self._emul_load = 0
@@ -571,7 +571,7 @@ class Emulator(object):
             self._data_idx[0] = self._modellink._data_idx
 
             # Call get_mock_data()
-            self._pipeline._get_mock_data()
+            self._pipeline._get_mock_data(mock_par)
 
             # Controller only
             if self._is_controller:
@@ -2012,6 +2012,7 @@ class Emulator(object):
 
     # This function calculates the inverse of a given matrix
     # TODO: Improve the inverse calculation
+    # OPTIMIZE: Use pre-conditioners and linear systems?
     def _get_inv_matrix(self, matrix):
         """
         Calculates the inverse of a given `matrix`.
@@ -2738,15 +2739,26 @@ class Emulator(object):
         # Obtain the number of requested cross-validations
         n_cross_val = check_vals(convert_str_seq(par_dict['n_cross_val'])[0],
                                  'n_cross_val', 'int', 'nneg')
+
+        # Make sure that n_cross_val is not unity
         if(n_cross_val != 1):
             self._n_cross_val = n_cross_val
         else:
-            err_msg = ("Input argument 'n_cross_val' must be zero or higher "
-                       "than two!")
+            err_msg = ("Input argument 'n_cross_val' cannot be unity!")
             raise_error(err_msg, ValueError, logger)
 
-        # Obtain the bool determining whether or not to use mock data
-        use_mock = check_vals(par_dict['use_mock'], 'use_mock', 'bool')
+        # Check whether or not mock data should be used
+        use_mock = convert_str_seq(par_dict['use_mock'])
+
+        # If use_mock contains a single element, check if it is a bool
+        if(len(use_mock) == 1):
+            mock_par = None
+            use_mock = check_vals(use_mock[0], 'use_mock', 'bool')
+
+        # If not, it must be an array of mock parameter values
+        else:
+            mock_par = self._modellink._check_sam_set(use_mock, 'use_mock')
+            use_mock = True
 
         # If a currently loaded emulator used mock data and use_mock is False
         # TODO: Becomes obsolete when mock data does not change ModelLink props
@@ -2762,6 +2774,9 @@ class Emulator(object):
 
         # Log that setting has been finished
         logger.info("Finished setting emulator parameters.")
+
+        # Return mock_par
+        return(mock_par)
 
     # This function loads previously generated mock data into ModelLink
     # TODO: Allow user to add/remove mock data? Requires consistency check
@@ -2803,9 +2818,9 @@ class Emulator(object):
                 data_idx = []
 
                 # Loop over all data points in the first iteration
-                for i in range(n_emul_s):
+                for emul_s in range(n_emul_s):
                     # Read in data values, errors and spaces
-                    data_set = group['emul_%i' % (i)]
+                    data_set = group['emul_%i' % (emul_s)]
                     data_val.append(data_set.attrs['data_val'])
                     data_err.append(data_set.attrs['data_err'].tolist())
                     data_spc.append(data_set.attrs['data_spc'].decode('utf-8'))

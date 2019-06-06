@@ -985,7 +985,7 @@ class Pipeline(Projection, object):
         else:
             # Check if it can be converted to a dict
             try:
-                prism_dict = dict(prism_par)
+                prism_dict = sdict(prism_par)
             except Exception:
                 err_msg = ("Input argument 'prism_par' cannot be converted to "
                            "type 'dict'!")
@@ -1265,7 +1265,7 @@ class Pipeline(Projection, object):
 
     # This function generates mock data and loads it into ModelLink
     # TODO: Find a way to use mock data without changing ModelLink properties
-    def _get_mock_data(self):
+    def _get_mock_data(self, mock_par):
         """
         Generates mock data and loads it into the
         :obj:`~prism.modellink.ModelLink` object that was provided
@@ -1273,6 +1273,13 @@ class Pipeline(Projection, object):
         This function overwrites the
         :class:`~prism.modellink.ModelLink` properties holding the
         parameter estimates, data values and data errors.
+
+        Parameters
+        ----------
+        mock_par : 1D array_like or None
+            If 1D array_like, use the provided parameter estimates to create
+            the mock data. If *None*, a random parameter set will be generated
+            as parameter estimates.
 
         Generates
         ---------
@@ -1290,9 +1297,14 @@ class Pipeline(Projection, object):
 
         # Controller only
         if self._is_controller:
-            # Set non-default parameter estimate
-            self._modellink._par_est = self._modellink._to_par_space(
-                random(self._modellink._n_par)).tolist()
+            # If mock parameter estimates were provided, use them
+            if mock_par is not None:
+                self._modellink._par_est = mock_par.tolist()
+
+            # Else, generate mock parameter estimates
+            else:
+                self._modellink._par_est = self._modellink._to_par_space(
+                    random(self._modellink._n_par)).tolist()
 
         # Controller broadcasting new parameter estimates to workers
         self._modellink._par_est = self._comm.bcast(self._modellink._par_est,

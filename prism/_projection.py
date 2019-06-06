@@ -67,6 +67,7 @@ class Projection(object):
         raise_error(err_msg, RequestError, logger)
 
     # Function that creates all projection figures
+    # TODO: Allow for projection figures to be zoomed? (Cut off all black)
     @docstring_substitute(emul_i=user_emul_i_doc, proj_par=proj_par_doc_d)
     def project(self, emul_i=None, proj_par=None, **kwargs):
         """

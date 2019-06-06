@@ -640,7 +640,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         sam_set = check_vals(sam_set, name, 'float')
 
         # Check if all samples are within parameter space
-        for i, par_set in enumerate(self._to_unit_space(sam_set)):
+        unit_sams = self._to_unit_space(np_array(sam_set, ndmin=2))
+        for i, par_set in enumerate(unit_sams):
             # If not, raise an error
             if not ((par_set >= 0)*(par_set <= 1)).all():
                 err_msg = ("Input argument %r contains a sample outside of "
