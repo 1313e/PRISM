@@ -79,10 +79,13 @@ class ModelLink(object, metaclass=abc.ABCMeta):
     subclass. The :meth:`~get_md_var` method allows for *PRISM* to calculate
     the model discrepancy variance.
 
-    Note
-    ----
+    Notes
+    -----
     The :meth:`~__init__` method may be extended by the :class:`~ModelLink`
     subclass, but the superclass version must always be called.
+
+    If required, one can use the :func:`~prism.modellink.test_subclass`
+    function to test a :class:`~ModelLink` subclass on correct functionality.
 
     """
 
@@ -116,7 +119,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         used to draw illustrative lines when making projection figures.
         An example of a model parameters file can be found in the 'data' folder
         of the *PRISM* package. If required, one can use the
-        :func:`~check_parameters` function to validate their formatting.
+        :func:`~prism.modellink.convert_parameters` function to validate their
+        formatting.
 
         Formatting :
             ``{par_name: [lower_bnd, upper_bnd, par_est]}``
@@ -152,8 +156,9 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         :math:`f(x)`.
 
         An example of a model data file can be found in the 'data' folder of
-        the *PRISM* package. If required, one can use the :func:`~check_data`
-        function to validate their formatting.
+        the *PRISM* package. If required, one can use the
+        :func:`~prism.modellink.convert_data` function to validate their
+        formatting.
 
         Formatting :
             ``{(data_idx_0, data_idx_1, ..., data_idx_n): [data_val,`` \
@@ -774,7 +779,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         variables have locally in the :meth:`~call_model` method at the point
         this method is called. Because of this, making any changes to them may
         cause problems and is therefore heavily discouraged. If changes are
-        necessary, it is advised to assign them to a different variable first.
+        necessary, it is advised to copy them to a different variable first.
 
         """
 

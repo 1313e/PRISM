@@ -1091,6 +1091,7 @@ class Pipeline(Projection, object):
 
     # Obtains the paths for the root directory, working directory, pipeline
     # hdf5-file and prism parameters file
+    # TODO: Start supporting and using pathlib.Path?
     @docstring_substitute(paths=paths_doc_s)
     def _get_paths(self, root_dir, working_dir, prefix):
         """

@@ -99,7 +99,7 @@ def convert_data(model_data):
         # Convert value to an actual data point
         data = convert_str_seq(value)
 
-        # Check if provided data value is correct
+        # Check if provided data value is valid
         val = check_vals(data[0], 'data_val%s' % (idx), 'float')
 
         # Extract data error and space
