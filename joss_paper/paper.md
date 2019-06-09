@@ -17,6 +17,8 @@ affiliations:
 - name: ARC Centre of Excellence for All Sky Astrophysics in 3 Dimensions (ASTRO 3D)
   index: 2
 date: XXX
+aas-doi: 10.3847/1538-4365/ab1f7d
+aas-journal: Astrophysical Journal
 bibliography: paper.bib
 ---
 
