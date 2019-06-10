@@ -18,7 +18,7 @@ affiliations:
   index: 2
 date: XXX
 aas-doi: 10.3847/1538-4365/ab1f7d
-aas-journal: Astrophysical Journal
+aas-journal: Astrophysical Journal Supplement Series
 bibliography: paper.bib
 ---
 
