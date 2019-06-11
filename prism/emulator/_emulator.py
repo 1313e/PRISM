@@ -25,6 +25,7 @@ from e13tools.utils import (check_instance, convert_str_seq, delist,
                             raise_error, raise_warning)
 import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
+from mpi4pyd import MPI
 import numpy as np
 from numpy.linalg import inv
 from sklearn.linear_model import LinearRegression as LR
@@ -477,7 +478,7 @@ class Emulator(object):
         logger.info("Checking requested emulator iteration %s." % (emul_i))
 
         # Determine the emul_i that is constructed on all ranks
-        global_emul_i = min(self._comm.allgather(self._emul_i))
+        global_emul_i = self._comm.allreduce(self._emul_i, op=MPI.MIN)
 
         # Check if provided emul_i is correct/allowed
         # If the current iteration is requested
@@ -2748,6 +2749,7 @@ class Emulator(object):
             raise_error(err_msg, ValueError, logger)
 
         # Check whether or not mock data should be used
+        # TODO: Allow entire dicts to be given as mock_data (configparser?)
         use_mock = convert_str_seq(par_dict['use_mock'])
 
         # If use_mock contains a single element, check if it is a bool

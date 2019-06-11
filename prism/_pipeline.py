@@ -28,6 +28,7 @@ from e13tools.sampling import lhd
 from e13tools.utils import (convert_str_seq, delist, docstring_append,
                             docstring_copy, docstring_substitute,
                             get_outer_frame, raise_error, raise_warning)
+from mpi4pyd import MPI
 from mpi4pyd.MPI import get_HybridComm_obj
 import numpy as np
 from numpy.random import normal, random
@@ -2828,19 +2829,13 @@ class Pipeline(Projection, object):
         logger.info("Collecting details about current pipeline instance.")
 
         # Check if last emulator iteration is finished constructing
-        if(delist(self._emulator._ccheck[-1]) == []):
-            ccheck_flag = 1
-        else:
-            ccheck_flag = 0
+        ccheck_flag = (delist(self._emulator._ccheck[-1]) == [])
 
         # Gather the ccheck_flags on all ranks to see if all are finished
-        ccheck_flag = np.all(self._comm.allgather(ccheck_flag))
+        ccheck_flag = self._comm.allreduce(ccheck_flag, op=MPI.MIN)
 
         # Obtain correct emul_i depending on the construction progress
-        if ccheck_flag:
-            emul_i = self._emulator._get_emul_i(emul_i, True)
-        else:
-            emul_i = self._emulator._get_emul_i(emul_i, False)
+        emul_i = self._emulator._get_emul_i(emul_i, ccheck_flag)
 
         # Gather ccheck information on the controller
         ccheck_list = self._comm.gather(self._emulator._ccheck[emul_i], 0)
@@ -2908,6 +2903,9 @@ class Pipeline(Projection, object):
             # Obtain number of emulator systems
             n_emul_s = self._emulator._n_emul_s_tot
 
+            # Save if requested emulator iteration is fully constructed
+            ccheck_flag = (delist(ccheck_flat) == [])
+
             # Determine the relative path to the working directory
             pwd = os.getcwd()
             if(path.splitdrive(self._working_dir)[0].lower() !=
@@ -2957,7 +2955,7 @@ class Pipeline(Projection, object):
 
             # Availability flags
             # If this iteration is fully constructed, print flags and numbers
-            if(delist(ccheck_flat) == []):
+            if ccheck_flag:
                 # Determine the number of (active) parameters
                 n_active_par = len(self._emulator._active_par[emul_i])
 
@@ -3068,7 +3066,7 @@ class Pipeline(Projection, object):
             # Print details about every model parameter in parameter space
             for i in range(n_par):
                 # Determine what string to use for the active flag
-                if(delist(ccheck_flat) != []):
+                if not ccheck_flag:
                     active_str = "?"
                 elif i in self._emulator._active_par[emul_i]:
                     active_str = "*"
