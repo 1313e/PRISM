@@ -5,7 +5,7 @@
 from os import path
 
 # Package imports
-from e13tools.core import InputError
+from e13tools.core import InputError, ShapeError
 from mpi4pyd import MPI
 import numpy as np
 import pytest
@@ -108,6 +108,78 @@ class Test_ModelLink_Exceptions(object):
                           4: [3, 0.05, 'A']}
             GaussianLink3D(model_parameters=model_parameters_3D,
                            model_data=model_data)
+
+
+# Pytest for ModelLink class checking functions
+class Test_ModelLink_Check_Methods(object):
+    # Initialize a GaussianLink2D object to use for testing
+    @pytest.fixture(scope='class')
+    def modellink_obj(self):
+        return(GaussianLink2D())
+
+    # Test a valid sam_set
+    def test_valid_sam_set(self, modellink_obj):
+        modellink_obj._check_sam_set(np.ones([1, modellink_obj._n_par]),
+                                     'sam_set')
+
+    # Test a valid mod_set
+    def test_valid_mod_set(self, modellink_obj):
+        modellink_obj._check_mod_set(np.ones([1, modellink_obj._n_data]),
+                                     'mod_set')
+
+    # Test a valid single md_var
+    def test_valid_single_md_var(self, modellink_obj):
+        modellink_obj._check_md_var(np.ones([modellink_obj._n_data]),
+                                    'md_var_single')
+
+    # Test a valid dual md_var
+    def test_valid_dual_md_var(self, modellink_obj):
+        modellink_obj._check_md_var(np.ones([modellink_obj._n_data, 2]),
+                                    'md_var_dual')
+
+    # Test a 3D sam_set
+    def test_3D_sam_set(self, modellink_obj):
+        with pytest.raises(ShapeError):
+            modellink_obj._check_sam_set(np.zeros([1, 1, 1]), 'sam_set')
+
+    # Test a 3D mod_set
+    def test_3D_mod_set(self, modellink_obj):
+        with pytest.raises(ShapeError):
+            modellink_obj._check_mod_set(np.zeros([1, 1, 1]), 'mod_set')
+
+    # Test a 3D md_var
+    def test_3D_md_var(self, modellink_obj):
+        with pytest.raises(ShapeError):
+            modellink_obj._check_md_var(np.zeros([1, 1, 1]), 'md_var')
+
+    # Test a sam_set with wrong n_par
+    def test_sam_set_n_par(self, modellink_obj):
+        with pytest.raises(ShapeError):
+            modellink_obj._check_sam_set(np.ones([1, modellink_obj._n_par+1]),
+                                         'sam_set')
+
+    # Test a mod_set with wrong n_data
+    def test_mod_set_n_data(self, modellink_obj):
+        with pytest.raises(ShapeError):
+            modellink_obj._check_mod_set(np.ones([1, modellink_obj._n_data+1]),
+                                         'mod_set')
+
+    # Test a sam_set outside of par_space
+    def test_sam_set_par_space(self, modellink_obj):
+        with pytest.raises(ValueError):
+            modellink_obj._check_sam_set(np.zeros([1, modellink_obj._n_par]),
+                                         'sam_set')
+
+    # Test an md_var with wrong n_Data
+    def test_md_var_n_data(self, modellink_obj):
+        with pytest.raises(ShapeError):
+            modellink_obj._check_md_var(np.ones([1]), 'md_var')
+
+    # Test a md_var with three values
+    def test_md_var_shape(self, modellink_obj):
+        with pytest.raises(ShapeError):
+            modellink_obj._check_md_var(np.ones([modellink_obj._n_data, 3]),
+                                        'md_var')
 
 
 # Pytest for ModelLink class versatility

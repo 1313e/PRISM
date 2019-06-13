@@ -908,6 +908,10 @@ class Pipeline(Projection, object):
             par_set=sdict(zip(self._modellink._par_name, sam)),
             data_idx=data_idx)
 
+#        # If mod_out is a dict, convert it to a NumPy array
+#        if isinstance(mod_out, dict):
+#            mod_out = np_array([mod_out[idx] for idx in data_idx])
+
         # Log that calling model has been finished
         logger.info("Model returned %s." % (mod_out))
 
@@ -930,6 +934,10 @@ class Pipeline(Projection, object):
             emul_i=emul_i,
             par_set=sdict(zip(self._modellink._par_name, sam_set.T)),
             data_idx=data_idx)
+
+#        # If mod_set is a dict, convert it to a NumPy array
+#        if isinstance(mod_set, dict):
+#            mod_set = np_array([mod_set[idx] for idx in data_idx]).T
 
         # Log that multi-calling model has been finished
         logger.info("Finished model multi-call.")
@@ -1887,32 +1895,13 @@ class Pipeline(Projection, object):
             md_var = np_array(md_var, ndmin=2)
 
         # If it was user-defined, check if the values are compatible
-        # OPTIMIZE: Doing this check repeatedly may heavily slow down the code
         else:
             # Make sure that md_var is a NumPy array
             md_var = np_array(md_var)
 
-            # Check if md_var contains n_data values
-            if not(md_var.shape[0] == self._emulator._n_data[emul_i]):
-                err_msg = ("Received array of model discrepancy variances "
-                           "'md_var' has incorrect number of data points (%i "
-                           "!= %i)!"
-                           % (md_var.shape[0], self._emulator._n_data[emul_i]))
-                raise ShapeError(err_msg)
-
-            # Check if single or dual values were given
+            # If single values were given, duplicate them
             if(md_var.ndim == 1):
                 md_var = np_array([md_var]*2).T
-            elif(md_var.shape[1] == 2):
-                pass
-            else:
-                err_msg = ("Received array of model discrepancy variances "
-                           "'md_var' has incorrect number of values (%i != 2)!"
-                           % (md_var.shape[1]))
-                raise ShapeError(err_msg)
-
-            # Check if all values are non-negative floats
-            md_var = check_vals(md_var, 'md_var', 'nneg', 'float')
 
         # Return it
         return(md_var)

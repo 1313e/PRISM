@@ -423,7 +423,7 @@ def test_subclass(subclass, *args, **kwargs):
 
     # If successful, check if obtained md_var has correct shape
     else:
-        md_var = modellink_obj._check_mod_set(md_var, 'md_var')
+        md_var = modellink_obj._check_md_var(md_var, 'md_var')
 
     # Return modellink_obj
     return(modellink_obj)

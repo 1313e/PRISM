@@ -658,6 +658,68 @@ class ModelLink(object, metaclass=abc.ABCMeta):
                     "samples %r." % (name))
         return(sam_set)
 
+    # This function checks if a provided md_var is valid
+    def _check_md_var(self, md_var, name):
+        """
+        Checks validity of provided set of model discrepancy variances `md_var`
+        in this :obj:`~ModelLink` instance.
+
+        Parameters
+        ----------
+        md_var : 1D or 2D array_like
+            Model discrepancy variance set to validate in this
+            :obj:`~ModelLink` instance.
+        name : str
+            The name of the model discrepancy set, which is used in the error
+            message if the validation fails.
+
+        Returns
+        -------
+        md_var : 2D :obj:`~numpy.ndarray` object
+            The (converted) provided `md_var` if the validation was successful.
+
+        """
+
+        # Make logger
+        logger = getCLogger('CHECK')
+        logger.info("Validating provided set of model discrepancy variances "
+                    "%r." % (name))
+
+        # Make sure that md_var is a NumPy array
+        md_var = np_array(md_var)
+
+        # Raise error if md_var is not 1D or 2D
+        if not(md_var.ndim == 1 or md_var.ndim == 2):
+            err_msg = ("Input argument %r is not one-dimensional or "
+                       "two-dimensional!" % (name))
+            raise_error(err_msg, ShapeError, logger)
+
+        # Check if md_var contains n_data values
+        if not(md_var.shape[0] == self._n_data):
+            err_msg = ("Received array of model discrepancy variances %r has "
+                       "incorrect number of data points (%i != %i)!"
+                       % (name, md_var.shape[0], self._n_data))
+            raise ShapeError(err_msg)
+
+        # Check if single or dual values were given
+        if(md_var.ndim == 1):
+            md_var = np_array([md_var]*2).T
+        elif(md_var.shape[1] == 2):
+            pass
+        else:
+            err_msg = ("Received array of model discrepancy variances %r has "
+                       "incorrect number of values (%i != 2)!"
+                       % (name, md_var.shape[1]))
+            raise ShapeError(err_msg)
+
+        # Check if all values are non-negative floats
+        md_var = check_vals(md_var, 'md_var', 'nneg', 'float')
+
+        # Log again and return md_var
+        logger.info("Finished validating provided set of model discrepancy "
+                    "variances %r." % (name))
+        return(md_var)
+
     # This function returns the path to a backup file
     # TODO: Should backup file be saved in emulator working directory of PRISM?
     def _get_backup_path(self, emul_i, suffix):
