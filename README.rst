@@ -2,7 +2,7 @@
     :width: 400 px
     :align: center
 
-|PyPI| |Python| |License| |Travis| |AppVeyor| |ReadTheDocs| |Coverage|
+|PyPI| |Python| |Travis| |AppVeyor| |ReadTheDocs| |Coverage| |JOSS|
 
 Model dispersion with *PRISM*; an alternative to MCMC for rapid analysis of models
 ==================================================================================
@@ -145,15 +145,12 @@ Acknowledgements
 Special thanks to Alan Duffy, Darren Croton, Simon Mutch and Manodeep Sinha for providing many valuable suggestions and constructive feedback points.
 Huge thanks to James Josephides for making the *PRISM* logo.
 
-.. |PyPI| image:: https://img.shields.io/pypi/v/prism.svg?label=PyPI
+.. |PyPI| image:: https://img.shields.io/pypi/v/prism.svg?logo=pypi&logoColor=white&label=PyPI
     :target: https://pypi.python.org/pypi/prism
     :alt: PyPI - Latest Release
 .. |Python| image:: https://img.shields.io/pypi/pyversions/prism.svg?logo=python&logoColor=white&label=Python
     :target: https://pypi.python.org/pypi/prism
     :alt: PyPI - Python Versions
-.. |License| image:: https://img.shields.io/pypi/l/prism.svg?colorB=blue&label=License
-    :target: https://github.com/1313e/PRISM/raw/master/LICENSE
-    :alt: PyPI - License
 .. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis%20ci&logoColor=white&label=Travis%20CI
     :target: https://travis-ci.com/1313e/PRISM
     :alt: Travis CI - Build Status
@@ -166,3 +163,6 @@ Huge thanks to James Josephides for making the *PRISM* logo.
 .. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/master.svg?logo=codecov&logoColor=white&label=Coverage
     :target: https://codecov.io/gh/1313e/PRISM/branches/master
     :alt: CodeCov - Coverage Status
+.. |JOSS| image:: https://img.shields.io/badge/JOSS-accepted-brightgreen.svg
+    :target: https://doi.org/10.21105/joss.01229
+    :alt: JOSS - Paper Review Status
