@@ -5,7 +5,7 @@ MPI implementation
 Given that most scientific models are either already parallelized or could benefit from parallelization, we had to make sure that *PRISM* allows for both MPI and OpenMP coded models to be connected.
 Additionally, since individual emulator systems in an emulator iteration are independent of each other, the extra CPUs required for the model should also be usable by the emulator.
 For that reason, *PRISM* features a high-level MPI implementation for using MPI-coded models, while the Python package *NumPy* handles the OpenMP side.
-A mixture of both is also possible (due to the :attr:`~prism.Pipeline.worker_mode` context manager).
+A mixture of both is also possible (using the :attr:`~prism.Pipeline.worker_mode` context manager).
 
 Here, we discuss the MPI scaling tests that were performed on *PRISM*.
 For the tests, the same :class:`~prism.modellink.GaussianLink` class was used as in :ref:`minimal_example`, but this time with :math:`32` emulator systems (comparison data points) instead of :math:`3`.

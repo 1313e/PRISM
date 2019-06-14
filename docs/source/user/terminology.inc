@@ -116,6 +116,10 @@ Below is a list of the most commonly used terms/abbreviations in *PRISM* and the
     HDF5
         Abbreviation of *Hierarchical Data Format version 5*.
 
+    Hybrid sampling
+        The process of doing a best parameter estimation of a model with MCMC sampling, while using its emulator as an additional Bayesian prior.
+        This process is explained in :ref:`hybrid_sampling`.
+
     Implausibility check
     Implausibility cut-off check
         The process of determining whether or not a given set of implausibility values satisfy the implausibility cut-offs of a specific emulator iteration.

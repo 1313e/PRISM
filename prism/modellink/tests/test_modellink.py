@@ -137,6 +137,24 @@ class Test_ModelLink_Check_Methods(object):
         modellink_obj._check_md_var(np.ones([modellink_obj._n_data, 2]),
                                     'md_var_dual')
 
+    # Test a valid sam_set dict
+    def test_valid_sam_set_dict(self, modellink_obj):
+        sam_dict = dict(zip(modellink_obj._par_name,
+                            np.ones([1, modellink_obj._n_par]).T))
+        modellink_obj._check_sam_set(sam_dict, 'sam_dict')
+
+    # Test a valid mod_set dict
+    def test_valid_mod_set_dict(self, modellink_obj):
+        mod_dict = dict(zip(modellink_obj._data_idx,
+                            np.ones([1, modellink_obj._n_data]).T))
+        modellink_obj._check_mod_set(mod_dict, 'mod_dict')
+
+    # Test a valid md_var dict
+    def test_valid_md_var_dict(self, modellink_obj):
+        md_var_dict = dict(zip(modellink_obj._data_idx,
+                               np.ones([modellink_obj._n_data])))
+        modellink_obj._check_md_var(md_var_dict, 'md_var_dict')
+
     # Test a 3D sam_set
     def test_3D_sam_set(self, modellink_obj):
         with pytest.raises(ShapeError):

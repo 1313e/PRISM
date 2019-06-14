@@ -51,14 +51,19 @@ def lnpost(par_set, pipe):
     if not ((par_rng[:, 0] <= par_set)*(par_set <= par_rng[:, 1])).all():
         return(-np.infty)
 
+    # Obtain mod_out
     emul_i = pipe._emulator._emul_i
     par_dict = sdict(zip(pipe._modellink._par_name, par_set))
     mod_out = pipe._modellink.call_model(emul_i, par_dict,
                                          pipe._modellink._data_idx)
 
+    # As GaussianLink2D returns dicts, convert to NumPy array
+    mod_out = np.array([mod_out[idx] for idx in pipe._modellink._data_idx])
+
     # Get model and data variances. Since val_spc is lin, data_err is centered
     md_var = pipe._modellink.get_md_var(emul_i, par_dict,
                                         pipe._modellink._data_idx)
+    md_var = np.array([md_var[idx] for idx in pipe._modellink._data_idx])
     data_var = [err[0]**2 for err in pipe._modellink._data_err]
     sigma2 = md_var+data_var
     return(-0.5*(np.sum((pipe._modellink._data_val-mod_out)**2/sigma2)))

@@ -53,9 +53,13 @@ Unlike the :meth:`~prism.modellink.ModelLink.call_model` method, the :meth:`~pri
 
 For this reason, the :meth:`~prism.modellink.ModelLink.get_md_var` method is provided with the emulator iteration :pycode:`emul_i`, a single parameter set :pycode:`par_set` and the data identifiers requested by the emulator system :pycode:`data_idx`.
 The :attr:`~prism.modellink.ModelLink.call_type` and :attr:`~prism.modellink.ModelLink.MPI_call` flags have no influence on the way the :meth:`~prism.modellink.ModelLink.get_md_var` method is used, as it is always called in serial for a single parameter set.
-When it is called, *PRISM* expects an array-like container back with shape :pycode:`(n_data)` (if :math:`1\sigma`-interval is centered) or shape :pycode:`(n_data, 2)` (if :math:`1\sigma`-interval is given by upper and lower errors).
+When it is called, *PRISM* expects an array-like container back with shape :pycode:`(n_data)` (if :math:`1\sigma`-interval is centered) or shape :pycode:`(n_data, 2)` (if :math:`1\sigma`-interval is given by upper and lower errors), where the order of the elements is the same as the order of the requested :pycode:`data_idx`.
 The default model discrepancy variance description given above is used if the :meth:`~prism.modellink.ModelLink.get_md_var` method raises a :pycode:`NotImplementedError`, but this is discouraged.
 
 .. warning::
     Because the :meth:`~prism.modellink.ModelLink.get_md_var` method is always called for single parameter sets, it is important that it can be called without requiring any preparation of data or models.
+
+.. versionadded:: 1.1.2
+    It is also possible to make :meth:`~prism.modellink.ModelLink.get_md_var` return a dict instead, where it has the identifiers in the requested :pycode:`data_idx` as its keys and scalars (centered) or 1D array-likes of shape :pycode:`(2)` (non-centered) as its values.
+    *PRISM* will automatically convert the dict back to the array-like container format that is normally expected.
 

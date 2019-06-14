@@ -971,6 +971,8 @@ class Test_Pipeline_ModelLink_Versatility(object):
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
         modellink_obj = GaussianLink2D()
+        with pytest.warns(RequestWarning):
+            modellink_obj.call_type = 'single'
         return(Pipeline(modellink_obj, root_dir=root_dir,
                         working_dir=working_dir, prism_par=prism_file_default))
 

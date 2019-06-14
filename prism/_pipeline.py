@@ -908,9 +908,9 @@ class Pipeline(Projection, object):
             par_set=sdict(zip(self._modellink._par_name, sam)),
             data_idx=data_idx)
 
-#        # If mod_out is a dict, convert it to a NumPy array
-#        if isinstance(mod_out, dict):
-#            mod_out = np_array([mod_out[idx] for idx in data_idx])
+        # If mod_out is a dict, convert it to a NumPy array
+        if isinstance(mod_out, dict):
+            mod_out = np_array([mod_out[idx] for idx in data_idx])
 
         # Log that calling model has been finished
         logger.info("Model returned %s." % (mod_out))
@@ -935,9 +935,9 @@ class Pipeline(Projection, object):
             par_set=sdict(zip(self._modellink._par_name, sam_set.T)),
             data_idx=data_idx)
 
-#        # If mod_set is a dict, convert it to a NumPy array
-#        if isinstance(mod_set, dict):
-#            mod_set = np_array([mod_set[idx] for idx in data_idx]).T
+        # If mod_set is a dict, convert it to a NumPy array
+        if isinstance(mod_set, dict):
+            mod_set = np_array([mod_set[idx] for idx in data_idx]).T
 
         # Log that multi-calling model has been finished
         logger.info("Finished model multi-call.")
@@ -1896,6 +1896,11 @@ class Pipeline(Projection, object):
 
         # If it was user-defined, check if the values are compatible
         else:
+            # If md_var is a dict, convert it to a NumPy array
+            if isinstance(md_var, dict):
+                data_idx = self._emulator._data_idx[emul_i]
+                md_var = np_array([md_var[idx] for idx in data_idx])
+
             # Make sure that md_var is a NumPy array
             md_var = np_array(md_var)
 
