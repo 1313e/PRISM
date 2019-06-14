@@ -1,4 +1,4 @@
-.. image:: ./logo/PRISM_transparent_Logo1.svg
+.. image:: ./logo/svg/PRISM_transparent_Logo1.svg
     :width: 400 px
     :align: center
 
