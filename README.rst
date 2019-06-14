@@ -9,7 +9,7 @@ Starting with v1.1.0, *PRISM* no longer supports Python 2.7, and this branch wil
     :width: 400 px
     :align: center
 
-|PyPI| |Python| |License| |Travis| |AppVeyor| |ReadTheDocs| |Coverage|
+|PyPI| |Python| |Travis| |AppVeyor| |ReadTheDocs| |Coverage| |JOSS|
 
 Model dispersion with *PRISM*; an alternative to MCMC for rapid analysis of models
 ==================================================================================
@@ -159,9 +159,6 @@ Huge thanks to James Josephides for making the *PRISM* logo.
 .. |Python| image:: https://img.shields.io/badge/Python-2.7%20%7C%203.5%20%7C%203.6%20%7C%203.7-blue.svg?logo=python&logoColor=white
     :target: https://pypi.org/project/prism/v1.0.0
     :alt: PyPI - Python Versions
-.. |License| image:: https://img.shields.io/pypi/l/prism.svg?colorB=blue&label=License
-    :target: https://github.com/1313e/PRISM/raw/v1.0.x/LICENSE
-    :alt: PyPI - License
 .. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/v1.0.x.svg?logo=travis%20ci&logoColor=white&label=Travis%20CI
     :target: https://travis-ci.com/1313e/PRISM
     :alt: Travis CI - Build Status
@@ -174,3 +171,6 @@ Huge thanks to James Josephides for making the *PRISM* logo.
 .. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/v1.0.x.svg?logo=codecov&logoColor=white&label=Coverage
     :target: https://codecov.io/gh/1313e/PRISM/branches/v1.0.x
     :alt: CodeCov - Coverage Status
+.. |JOSS| image:: https://img.shields.io/badge/JOSS-accepted-brightgreen.svg
+    :target: https://doi.org/10.21105/joss.01229
+    :alt: JOSS - Paper Review Status
