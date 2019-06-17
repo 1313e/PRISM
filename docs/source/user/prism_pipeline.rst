@@ -12,7 +12,7 @@ The PRISM pipeline
 
 The overall structure of *PRISM* can be seen in :numref:`PRISM` and will be discussed below.
 The :obj:`~prism.Pipeline` object plays a key-role in the *PRISM* framework as it governs all other objects and orchestrates their communications and method calls.
-It also performs the process of history matching and refocusing (as explained in \ref{subsec:History matching}).
+It also performs the process of history matching and refocusing (see the `PRISM paper`_ for the methodology used in *PRISM*).
 It is linked to the model by a user-written :obj:`~prism.modellink.ModelLink` object (see :ref:`modellink_crash_course`), allowing the :obj:`~prism.Pipeline` object to extract all necessary model information and call the model.
 In order to ensure flexibility and clarity, the *PRISM* framework writes all of its data to one or several `HDF5-files`_ using :mod:`~h5py`, as well as :mod:`~numpy`.
 
@@ -39,6 +39,7 @@ More details on the MPI implementation and its scaling can be found in :ref:`MPI
 
 In :ref:`using_prism` and :ref:`modellink_crash_course`, the various components of *PRISM* are described more extensively.
 
+.. _PRISM paper: https://arxiv.org/abs/1901.08725
 .. _e13Tools: https://github.com/1313e/e13Tools
 .. _HDF5-files: https://portal.hdfgroup.org/display/HDF5/HDF5
 

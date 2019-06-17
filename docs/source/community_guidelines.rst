@@ -13,19 +13,24 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 
 .. code-block:: none
     
-    @ARTICLE{2019arXiv190108725V,
-       author = {{van der Velden}, E. and {Duffy}, A.~R. and {Croton}, D. and 
-    	{Mutch}, S.~J. and {Sinha}, M.},
+    @ARTICLE{2019ApJS..242...22V,
+        author = {{van der Velden}, E. and {Duffy}, A.~R. and {Croton}, D. and
+            {Mutch}, S.~J. and {Sinha}, M.},
         title = "{Model dispersion with PRISM; an alternative to MCMC for rapid analysis of models}",
-      journal = {arXiv e-prints},
-    archivePrefix = "arXiv",
-       eprint = {1901.08725},
-     primaryClass = "astro-ph.IM",
-     keywords = {Astrophysics - Instrumentation and Methods for Astrophysics, Physics - Computational Physics},
-         year = 2019,
-        month = jan,
-       adsurl = {http://adsabs.harvard.edu/abs/2019arXiv190108725V},
-      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+        journal = {\apjs},
+        keywords = {Astrophysics - Instrumentation and Methods for Astrophysics, Physics - Computational Physics},
+        year = "2019",
+        month = "Jun",
+        volume = {242},
+        number = {2},
+        eid = {22},
+        pages = {22},
+        doi = {10.3847/1538-4365/ab1f7d},
+        archivePrefix = {arXiv},
+        eprint = {1901.08725},
+        primaryClass = {astro-ph.IM},
+        adsurl = {http://adsabs.harvard.edu/abs/2019ApJS..242...22V},
+        adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
 
 
