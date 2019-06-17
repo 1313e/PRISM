@@ -5,9 +5,10 @@ Starting with v1.1.0, *PRISM* no longer supports Python 2.7, and this branch wil
 
 ----
 
-.. image:: ./logo/svg/PRISM_transparent_Logo1.svg
-    :width: 400 px
+.. image:: https://github.com/1313e/PRISM/raw/master/logo/png/PRISM_transparent_Logo1.png    :width: 400 px
     :align: center
+    :target: https://github.com/1313e/PRISM
+    :alt: PRISM Logo
 
 |PyPI| |Python| |Travis| |AppVeyor| |ReadTheDocs| |Coverage| |JOSS|
 
