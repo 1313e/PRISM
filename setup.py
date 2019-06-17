@@ -48,9 +48,10 @@ setup(name='prism',
       long_description=long_description,
       download_url=("https://github.com/1313e/PRISM/archive/v%s.zip"
                     % (version)),
-      url="https://prism-tool.readthedocs.io",
+      url="https://prism-tool.readthedocs.io/en/latest/",
       project_urls={
-          'Documentation': "https://prism-tool.readthedocs.io/en/latest/",
+          'Documentation': ("https://prism-tool.readthedocs.io/en/v%s/"
+                            % (version)),
           'Method Paper': "https://arxiv.org/abs/1901.08725",
           'Source Code': "https://github.com/1313e/PRISM",
           'Travis CI': "https://travis-ci.com/1313e/PRISM"
