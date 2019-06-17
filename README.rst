@@ -1,4 +1,8 @@
-|PyPI| |Python| |License| |Travis| |AppVeyor| |ReadTheDocs| |Coverage|
+.. image:: ./logo/svg/PRISM_transparent_Logo1.svg
+    :width: 400 px
+    :align: center
+
+|PyPI| |Python| |Travis| |AppVeyor| |ReadTheDocs| |Coverage| |JOSS|
 
 Model dispersion with *PRISM*; an alternative to MCMC for rapid analysis of models
 ==================================================================================
@@ -118,36 +122,41 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 
 ::
 
-    @ARTICLE{2019arXiv190108725V,
-       author = {{van der Velden}, E. and {Duffy}, A.~R. and {Croton}, D. and 
-    	{Mutch}, S.~J. and {Sinha}, M.},
+    @ARTICLE{2019ApJS..242...22V,
+        author = {{van der Velden}, E. and {Duffy}, A.~R. and {Croton}, D. and
+            {Mutch}, S.~J. and {Sinha}, M.},
         title = "{Model dispersion with PRISM; an alternative to MCMC for rapid analysis of models}",
-      journal = {arXiv e-prints},
-    archivePrefix = "arXiv",
-       eprint = {1901.08725},
-     primaryClass = "astro-ph.IM",
-     keywords = {Astrophysics - Instrumentation and Methods for Astrophysics, Physics - Computational Physics},
-         year = 2019,
-        month = jan,
-       adsurl = {http://adsabs.harvard.edu/abs/2019arXiv190108725V},
-      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+        journal = {\apjs},
+        keywords = {Astrophysics - Instrumentation and Methods for Astrophysics, Physics - Computational Physics},
+        year = "2019",
+        month = "Jun",
+        volume = {242},
+        number = {2},
+        eid = {22},
+        pages = {22},
+        doi = {10.3847/1538-4365/ab1f7d},
+        archivePrefix = {arXiv},
+        eprint = {1901.08725},
+        primaryClass = {astro-ph.IM},
+        adsurl = {http://adsabs.harvard.edu/abs/2019ApJS..242...22V},
+        adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
-
 
 .. _BSD-3 license: https://github.com/1313e/PRISM/raw/master/LICENSE
 .. _GitHub issue: https://github.com/1313e/PRISM/issues
 
+Acknowledgements
+================
+Special thanks to Alan Duffy, Darren Croton, Simon Mutch and Manodeep Sinha for providing many valuable suggestions and constructive feedback points.
+Huge thanks to James Josephides for making the *PRISM* logo.
 
-.. |PyPI| image:: https://img.shields.io/pypi/v/prism.svg?label=PyPI
+.. |PyPI| image:: https://img.shields.io/pypi/v/prism.svg?logo=pypi&logoColor=white&label=PyPI
     :target: https://pypi.python.org/pypi/prism
     :alt: PyPI - Latest Release
 .. |Python| image:: https://img.shields.io/pypi/pyversions/prism.svg?logo=python&logoColor=white&label=Python
     :target: https://pypi.python.org/pypi/prism
     :alt: PyPI - Python Versions
-.. |License| image:: https://img.shields.io/pypi/l/prism.svg?colorB=blue&label=License
-    :target: https://github.com/1313e/PRISM/raw/master/LICENSE
-    :alt: PyPI - License
-.. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis&logoColor=white&label=Travis%20CI
+.. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis%20ci&logoColor=white&label=Travis%20CI
     :target: https://travis-ci.com/1313e/PRISM
     :alt: Travis CI - Build Status
 .. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/master.svg?logo=appveyor&logoColor=white&label=AppVeyor
@@ -159,3 +168,6 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 .. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/master.svg?logo=codecov&logoColor=white&label=Coverage
     :target: https://codecov.io/gh/1313e/PRISM/branches/master
     :alt: CodeCov - Coverage Status
+.. |JOSS| image:: https://img.shields.io/badge/JOSS-accepted-brightgreen.svg
+    :target: https://doi.org/10.21105/joss.01229
+    :alt: JOSS - Paper Review Status

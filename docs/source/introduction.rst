@@ -23,7 +23,7 @@ Why use PRISM?
 - Compatible with Windows, Mac OS and Unix-based machines;
 - Accepts any type of model and comparison data;
 - Built as a plug-and-play tool: all main classes can also be used as base classes;
-- Easily linked to any model by writing a single custom ModelLink subclass;
+- Easily linked to any model by writing a single custom :class:`~prism.modellink.ModelLink` subclass;
 - Capable of reducing relevant parameter space by factors over 100,000 using only a few thousand model evaluations;
 - Can be used alone for analyzing models, or combined with MCMC for efficient model parameter estimations.
 

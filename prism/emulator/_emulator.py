@@ -3,7 +3,7 @@
 """
 Emulator
 ========
-Provides the definition of the class holding the emulator of the *PRISM*
+Provides the definition of the base class holding the emulator of the *PRISM*
 package, the :class:`~Emulator` class.
 
 """
@@ -20,27 +20,28 @@ from struct import calcsize
 # Package imports
 from e13tools import InputError
 from e13tools.math import diff, nearest_PD
+from e13tools.utils import (check_instance, convert_str_seq, delist,
+                            docstring_append, docstring_substitute,
+                            raise_error, raise_warning)
 import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
+from mpi4pyd import MPI
 import numpy as np
-from numpy.linalg import inv, norm
+from numpy.linalg import inv
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
 from sklearn.preprocessing import PolynomialFeatures as PF
-from sortedcontainers import SortedSet as sset
+from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
 from prism import __version__
 from prism._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
                                emul_s_seq_doc, eval_doc, full_cov_doc,
-                               get_emul_i_doc, read_par_doc, regr_cov_doc,
-                               save_data_doc_e, std_emul_i_doc)
+                               get_emul_i_doc, regr_cov_doc, save_data_doc_e,
+                               set_par_doc, std_emul_i_doc)
 from prism._internal import (RequestError, RequestWarning, check_compatibility,
-                             check_instance, check_vals, convert_str_seq,
-                             delist, docstring_append, docstring_substitute,
-                             getCLogger, getRLogger, np_array, raise_error,
-                             raise_warning)
+                             check_vals, getCLogger, getRLogger, np_array)
 from prism.modellink import ModelLink
 
 # All declaration
@@ -53,7 +54,7 @@ int_size = 'int%i' % (calcsize('P')*8)
 # %% EMULATOR CLASS DEFINITION
 class Emulator(object):
     """
-    Defines the :class:`~Emulator` class of the *PRISM* package.
+    Defines the :class:`~Emulator` base class of the *PRISM* package.
 
     Description
     -----------
@@ -89,8 +90,8 @@ class Emulator(object):
         Parameters
         ----------
         pipeline_obj : :obj:`~prism.Pipeline` object
-            The :obj:`~prism.Pipeline` instance this :obj:`~prism.Emulator`
-            instance should be linked to.
+            The :obj:`~prism.Pipeline` instance this :obj:`~Emulator` instance
+            should be linked to.
         modellink_obj : :obj:`~prism.modellink.ModelLink` object
             The :obj:`~prism.modellink.ModelLink` instance that should be
             linked to `pipeline_obj`.
@@ -111,8 +112,8 @@ class Emulator(object):
         # Make pointer to File property
         self._File = self._pipeline._File
 
-        # Make pointer to prism_file property
-        self._prism_file = self._pipeline._prism_file
+        # Make pointer to prism_dict property
+        self._prism_dict = self._pipeline._prism_dict
 
         # Load the emulator and data
         self._load_emulator(modellink_obj)
@@ -125,7 +126,9 @@ class Emulator(object):
     @property
     def emul_type(self):
         """
-        str: The type of emulator that is currently loaded.
+        str: The type of emulator that is currently loaded. This determines the
+        way in which the :obj:`~prism.Pipeline` instance will treat this
+        :obj:`~Emulator` instance.
 
         """
 
@@ -282,6 +285,17 @@ class Emulator(object):
         """
 
         return(self._emul_s_to_core)
+
+    @property
+    def data_idx_to_core(self):
+        """
+        list of lists: List of the data identifiers that were assigned to the
+        emulator systems listed in :attr:`~emul_s_to_core`. Only available on
+        the controller rank.
+
+        """
+
+        return(self._data_idx_to_core)
 
     # Active Parameters
     @property
@@ -464,13 +478,14 @@ class Emulator(object):
         logger.info("Checking requested emulator iteration %s." % (emul_i))
 
         # Determine the emul_i that is constructed on all ranks
-        global_emul_i = min(self._comm.allgather(self._emul_i))
+        global_emul_i = self._comm.allreduce(self._emul_i, op=MPI.MIN)
 
         # Check if provided emul_i is correct/allowed
         # If the current iteration is requested
         if cur_iter:
             if(emul_i == 0 or self._emul_load == 0 or global_emul_i == 0):
-                raise RequestError("Emulator is not built yet!")
+                err_msg = "Emulator is not built yet!"
+                raise_error(err_msg, RequestError, logger)
             elif emul_i is None:
                 emul_i = global_emul_i
             elif not(1 <= emul_i <= global_emul_i):
@@ -521,8 +536,8 @@ class Emulator(object):
         # Clean-up all emulator system files
         self._cleanup_emul_files(1)
 
-        # Read in parameters from provided parameter file
-        self._read_parameters()
+        # Set parameters from provided parameter file
+        mock_par = self._set_parameters()
 
         # Set emul_load to 0
         self._emul_load = 0
@@ -557,7 +572,7 @@ class Emulator(object):
             self._data_idx[0] = self._modellink._data_idx
 
             # Call get_mock_data()
-            self._pipeline._get_mock_data()
+            self._pipeline._get_mock_data(mock_par)
 
             # Controller only
             if self._is_controller:
@@ -1231,6 +1246,8 @@ class Emulator(object):
                 self._do_regression(emul_i, ccheck_regression)
 
         # Calculate the covariance matrices of sam_set
+        # TODO: Implement system that, if needed, calculates cov_mat in seq
+        # This is to avoid requiring massive amounts of RAM during calculation
         ccheck_cov_mat = [emul_s for emul_s in emul_s_seq if
                           'cov_mat' in self._ccheck[emul_i][emul_s]]
         if len(ccheck_cov_mat):
@@ -1291,6 +1308,7 @@ class Emulator(object):
 
     # This is function 'Var_D(f(x'))'
     # This function gives the adjusted emulator variance value back
+    # TODO: Find out why many adj_var have a very low value for GaussianLink
     @docstring_append(adj_var_doc)
     def _get_adj_var(self, emul_i, emul_s_seq, par_set, cov_vec):
         # Obtain prior variance value of par_set
@@ -1311,7 +1329,10 @@ class Emulator(object):
     # returns the adjusted expectation and variance values
     # TODO: Take sam_set instead of par_set?
     @docstring_append(eval_doc)
-    def _evaluate(self, emul_i, emul_s_seq, par_set):
+    def _evaluate(self, emul_i, par_set):
+        # Obtain active emulator systems for this iteration
+        emul_s_seq = self._active_emul_s[emul_i]
+
         # Calculate the covariance vector for this par_set
         cov_vec = self._get_cov(emul_i, emul_s_seq, par_set, None)
 
@@ -1539,6 +1560,17 @@ class Emulator(object):
             poly_powers = np.insert(pipe.named_steps['poly'].powers_[poly_idx],
                                     0, 0, 0)
 
+            # Obtain polynomial coefficients and include intercept term
+            poly_coef = np.insert(pipe.named_steps['linear'].coef_, 0,
+                                  pipe.named_steps['linear'].intercept_, 0)
+
+            # Check every polynomial coefficient if it is significant enough
+            poly_sign = ~np.isclose(poly_coef, 0)
+
+            # Only include significant polynomial terms unless none are
+            poly_powers = poly_powers[poly_sign if sum(poly_sign) else ()]
+            poly_coef = poly_coef[poly_sign if sum(poly_sign) else ()]
+
             # Redetermine the active parameters, poly_powers and poly_idx
             new_active_par_idx = [np.any(powers) for powers in poly_powers.T]
             poly_powers = poly_powers[:, new_active_par_idx]
@@ -1551,20 +1583,16 @@ class Emulator(object):
             poly_idx = np_array([i for i, powers in enumerate(new_powers_list)
                                  if powers in poly_powers_list])
 
-            # If regression covariances is requested, calculate it
+            # If regression covariances are requested, calculate them
             if self._use_regr_cov:
                 # Redetermine the active sam_set_poly
                 active_sam_set = self._sam_set[emul_i][:, new_active_par]
                 sam_set_poly =\
                     new_pf_obj.fit_transform(active_sam_set)[:, poly_idx]
 
-                # Calculate the poly_coef covariancesa
+                # Calculate the poly_coef covariances
                 poly_coef_cov =\
                     rsdl_var*inv(sam_set_poly.T @ sam_set_poly).flatten()
-
-            # Obtain polynomial coefficients and include intercept term
-            poly_coef = np.insert(pipe.named_steps['linear'].coef_, 0,
-                                  pipe.named_steps['linear'].intercept_, 0)
 
             # Create regression data dict
             regr_data_dict = {
@@ -1700,6 +1728,7 @@ class Emulator(object):
 
     # This function calculates the covariance between parameter sets
     # This is function 'Cov(f(x), f(x'))' or 'c(x,x')
+    # TODO: Improve Gaussian-only method by making sigma data point dependent
     @docstring_substitute(full_cov=full_cov_doc)
     def _get_cov(self, emul_i, emul_s_seq, par_set1, par_set2):
         """
@@ -1720,7 +1749,7 @@ class Emulator(object):
         if self._method.lower() in ('regression', 'full'):
             rsdl_var = self._rsdl_var[emul_i]
         elif(self.method.lower() == 'gaussian'):
-            rsdl_var = [pow(self._sigma, 2) for _ in emul_s_seq]
+            rsdl_var = [self._sigma**2]*len(emul_s_seq)
 
         # If cov of sam_set with sam_set is requested (cov_mat)
         if par_set1 is None:
@@ -1740,9 +1769,9 @@ class Emulator(object):
 
                     # Gaussian variance
                     cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
-                        np.exp(-1*pow(norm(diff_sam_set[:, :, active_par],
-                                           axis=-1), 2) /
-                               pow(norm(self._l_corr[active_par]), 2))
+                        np.exp(-1*np.sum(diff_sam_set[:, :, active_par]**2,
+                                         axis=-1) /
+                               np.sum(self._l_corr[active_par]**2))
 
                     # Passive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
@@ -1770,9 +1799,9 @@ class Emulator(object):
 
                     # Gaussian variance
                     cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
-                        np.exp(-1*pow(norm(diff_sam_set[:, active_par],
-                                           axis=-1), 2) /
-                               pow(norm(self._l_corr[active_par]), 2))
+                        np.exp(-1*np.sum(diff_sam_set[:, active_par]**2,
+                                         axis=-1) /
+                               np.sum(self._l_corr[active_par]**2))
 
                     # Passive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
@@ -1800,9 +1829,9 @@ class Emulator(object):
 
                     # Gaussian variance
                     cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
-                        np.exp(-1*pow(norm(diff_sam_set[active_par],
-                                           axis=-1), 2) /
-                               pow(norm(self._l_corr[active_par]), 2))
+                        np.exp(-1*np.sum(diff_sam_set[active_par]**2,
+                                         axis=-1) /
+                               np.sum(self._l_corr[active_par]**2))
 
                     # Passive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
@@ -1983,6 +2012,8 @@ class Emulator(object):
         logger.info("Finished calculating covariance matrix.")
 
     # This function calculates the inverse of a given matrix
+    # TODO: Improve the inverse calculation
+    # OPTIMIZE: Use pre-conditioners and linear systems?
     def _get_inv_matrix(self, matrix):
         """
         Calculates the inverse of a given `matrix`.
@@ -2188,6 +2219,7 @@ class Emulator(object):
         self._data_spc = [[]]
         self._data_idx = [[]]
 
+        # Initialize emulator system status lists
         self._ccheck = [[]]
         self._active_emul_s = [[]]
         self._n_emul_s = 0
@@ -2197,6 +2229,7 @@ class Emulator(object):
             self._n_data_tot = [[]]
             self._n_emul_s_tot = 0
             self._emul_s_to_core = [[] for _ in range(self._size)]
+            self._data_idx_to_core = [[]]
             self._active_par = [[]]
 
         # If no file has been provided
@@ -2408,9 +2441,16 @@ class Emulator(object):
                 # Add ccheck for this iteration to global ccheck
                 self._ccheck.append(ccheck)
 
-                # If ccheck has no empty lists, decrease emul_i by 1
+                # If ccheck has no solely empty lists, decrease emul_i by 1
                 if(delist(ccheck) != []):
                     self._emul_i -= 1
+
+                # Gather the data_idx from all MPI ranks on the controller
+                data_idx_list = self._comm.gather(data_idx, 0)
+
+                # Controller saving the received data_idx_list
+                if self._is_controller:
+                    self._data_idx_to_core.append(data_idx_list)
 
         # Log that loading is finished
         logger.info("Finished loading relevant emulator data.")
@@ -2642,28 +2682,20 @@ class Emulator(object):
                     'use_mock': 'False'}
 
         # Return it
-        return(par_dict)
+        return(sdict(par_dict))
 
-    # Read in the parameters from the provided parameter file
-    @docstring_append(read_par_doc.format("Emulator"))
-    def _read_parameters(self):
-        # Log that the PRISM parameter file is being read
+    # Set the parameters that were read in from the provided parameter file
+    @docstring_append(set_par_doc.format("Emulator"))
+    def _set_parameters(self):
+        # Log that the emulator parameters are being set
         logger = getCLogger('INIT')
-        logger.info("Reading emulator parameters.")
+        logger.info("Setting emulator parameters.")
 
         # Obtaining default emulator parameter dict
         par_dict = self._get_default_parameters()
 
-        # Read in data from provided PRISM parameters file
-        if self._prism_file is not None:
-            emul_par = np.genfromtxt(self._prism_file, dtype=(str),
-                                     delimiter=':', autostrip=True)
-
-            # Make sure that emul_par is 2D
-            emul_par = np_array(emul_par, ndmin=2)
-
-            # Combine default parameters with read-in parameters
-            par_dict.update(emul_par)
+        # Add the read-in prism dict to it
+        par_dict.update(self._prism_dict)
 
         # More logging
         logger.info("Checking compatibility of provided emulator parameters.")
@@ -2675,7 +2707,7 @@ class Emulator(object):
 
         # Gaussian correlation length
         l_corr = check_vals(convert_str_seq(par_dict['l_corr']), 'l_corr',
-                            'float', 'pos')
+                            'float', 'pos', 'normal')
         self._l_corr = l_corr*abs(self._modellink._par_rng[:, 1] -
                                   self._modellink._par_rng[:, 0])
 
@@ -2708,15 +2740,27 @@ class Emulator(object):
         # Obtain the number of requested cross-validations
         n_cross_val = check_vals(convert_str_seq(par_dict['n_cross_val'])[0],
                                  'n_cross_val', 'int', 'nneg')
+
+        # Make sure that n_cross_val is not unity
         if(n_cross_val != 1):
             self._n_cross_val = n_cross_val
         else:
-            err_msg = ("Input argument 'n_cross_val' must be zero or higher "
-                       "than two!")
+            err_msg = ("Input argument 'n_cross_val' cannot be unity!")
             raise_error(err_msg, ValueError, logger)
 
-        # Obtain the bool determining whether or not to use mock data
-        use_mock = check_vals(par_dict['use_mock'], 'use_mock', 'bool')
+        # Check whether or not mock data should be used
+        # TODO: Allow entire dicts to be given as mock_data (configparser?)
+        use_mock = convert_str_seq(par_dict['use_mock'])
+
+        # If use_mock contains a single element, check if it is a bool
+        if(len(use_mock) == 1):
+            mock_par = None
+            use_mock = check_vals(use_mock[0], 'use_mock', 'bool')
+
+        # If not, it must be an array of mock parameter values
+        else:
+            mock_par = self._modellink._check_sam_set(use_mock, 'use_mock')
+            use_mock = True
 
         # If a currently loaded emulator used mock data and use_mock is False
         # TODO: Becomes obsolete when mock data does not change ModelLink props
@@ -2730,8 +2774,11 @@ class Emulator(object):
         else:
             self._use_mock = use_mock
 
-        # Log that reading has been finished
-        logger.info("Finished reading emulator parameters.")
+        # Log that setting has been finished
+        logger.info("Finished setting emulator parameters.")
+
+        # Return mock_par
+        return(mock_par)
 
     # This function loads previously generated mock data into ModelLink
     # TODO: Allow user to add/remove mock data? Requires consistency check
@@ -2773,9 +2820,9 @@ class Emulator(object):
                 data_idx = []
 
                 # Loop over all data points in the first iteration
-                for i in range(n_emul_s):
+                for emul_s in range(n_emul_s):
                     # Read in data values, errors and spaces
-                    data_set = group['emul_%i' % (i)]
+                    data_set = group['emul_%i' % (emul_s)]
                     data_val.append(data_set.attrs['data_val'])
                     data_err.append(data_set.attrs['data_err'].tolist())
                     data_spc.append(data_set.attrs['data_spc'].decode('utf-8'))

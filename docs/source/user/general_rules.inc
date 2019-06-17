@@ -4,17 +4,17 @@ General usage rules
 +++++++++++++++++++
 Below is a list of general usage rules that apply to *PRISM*.
 
-- Unless specified otherwise in the documentation, all input arguments in the *PRISM* package that accept...
+- Unless specified otherwise in the documentation, any input argument in the *PRISM* package that accepts...
 
-    - a bool (:pycode:`True`/:pycode:`False`) also accept 0/1 as a valid input;
-    - :pycode:`None` indicate a default value or operation for obtaining this input argument.
+    - a bool (:pycode:`True`/:pycode:`False`) also accepts 0/1 as a valid input;
+    - :pycode:`None` indicates a default value or operation for obtaining this input argument.
       In most of these cases, the default value depends on the current state of the *PRISM* pipeline, and therefore a small operation is required for obtaining this value;
 
       .. admonition:: Example
 
           Providing :pycode:`None` to :attr:`~prism.Pipeline.pot_active_par`, where it indicates that all model parameters should be potentially active.
 
-    - the names of model parameters also accept the internal indices of these model parameters.
+    - the names of model parameters also accepts the internal indices of these model parameters.
       The index is the order in which the parameter names appear in the :attr:`~prism.modellink.ModelLink.par_name` list or as they appear in the output of the :meth:`~prism.Pipeline.details` method;
     - a sequence of integers, floats and/or strings will accept (almost) any formatting including most special characters as separators as long as they do not have any meaning (like a dot for floats or valid escape sequences for strings).
       Keep in mind that providing :pycode:`'1e3'` (or equivalent) will be converted to :pycode:`1000.0`, as per Python standards;
@@ -34,8 +34,8 @@ Below is a list of general usage rules that apply to *PRISM*.
 
   .. admonition:: Examples
 
-      - If :attr:`~prism.Emulator.method` != :pycode:`'gaussian'`, it causes :attr:`~prism.Emulator.sigma` to have no use in the pipeline;
-      - Switching the bool value for :attr:`~prism.Emulator.use_mock` while loading a constructed emulator has no effect, since the mock data is generated (or not) when constructing a new emulator and cannot be changed or swapped out afterward.
+      - If :attr:`~prism.emulator.Emulator.method` != :pycode:`'gaussian'`, it causes :attr:`~prism.emulator.Emulator.sigma` to have no use in the pipeline;
+      - Switching the bool value for :attr:`~prism.emulator.Emulator.use_mock` while loading a constructed emulator has no effect, since the mock data is generated (or not) when constructing a new emulator and cannot be changed or swapped out afterward.
 
 - All docstrings in *PRISM* are written in `RTF`_ (Rich Text Format) and are therefore best viewed in an editor that supports it (like `Spyder`_).
 

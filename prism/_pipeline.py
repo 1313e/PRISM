@@ -11,6 +11,7 @@ Provides the definition of the main class of the *PRISM* package, the
 
 # %% IMPORTS
 # Built-in imports
+from ast import literal_eval
 from contextlib import contextmanager
 from inspect import isclass
 import logging
@@ -24,26 +25,27 @@ from time import time
 from e13tools import InputError, ShapeError
 from e13tools.math import nCr
 from e13tools.sampling import lhd
+from e13tools.utils import (convert_str_seq, delist, docstring_append,
+                            docstring_copy, docstring_substitute,
+                            get_outer_frame, raise_error, raise_warning)
+from mpi4pyd import MPI
+from mpi4pyd.MPI import get_HybridComm_obj
 import numpy as np
 from numpy.random import normal, random
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism._docstrings import (call_emul_i_doc, call_model_doc_s,
-                               call_model_doc_m, def_par_doc, emul_s_seq_doc,
-                               ext_mod_set_doc, ext_real_set_doc_d,
-                               ext_real_set_doc_s, ext_sam_set_doc,
-                               impl_cut_doc, impl_temp_doc, paths_doc_d,
-                               paths_doc_s, read_par_doc, save_data_doc_p,
+                               call_model_doc_m, def_par_doc, ext_mod_set_doc,
+                               ext_real_set_doc_d, ext_real_set_doc_s,
+                               ext_sam_set_doc, impl_cut_doc, paths_doc_d,
+                               paths_doc_s, save_data_doc_p, set_par_doc,
                                std_emul_i_doc, user_emul_i_doc)
-from prism._emulator import Emulator
-from prism._internal import (PRISM_Comm, RequestError, RequestWarning,
-                             check_vals, convert_str_seq, delist,
-                             docstring_append, docstring_copy,
-                             docstring_substitute, getCLogger, get_PRISM_File,
-                             getRLogger, move_logger, np_array, raise_error,
-                             raise_warning, set_base_logger)
+from prism._internal import (RequestError, RequestWarning, check_vals,
+                             getCLogger, get_PRISM_File, getRLogger,
+                             move_logger, np_array, set_base_logger)
 from prism._projection import Projection
+from prism.emulator import Emulator
 
 # All declaration
 __all__ = ['Pipeline']
@@ -54,6 +56,7 @@ __all__ = ['Pipeline']
 # TODO: Implement multivariate implausibilities
 # TODO: Think of a way to allow no ModelLink instance to be provided.
 # This could be done with a DummyLink, but md_var is then uncallable.
+# OPTIMIZE: Use the Numba package to speed up certain calculations?
 class Pipeline(Projection, object):
     """
     Defines the :class:`~Pipeline` class of the *PRISM* package.
@@ -66,7 +69,8 @@ class Pipeline(Projection, object):
 
     @docstring_substitute(paths=paths_doc_d)
     def __init__(self, modellink_obj, *, root_dir=None, working_dir=None,
-                 prefix=None, prism_file=None, emul_type=None, comm=None):
+                 prefix=None, prism_par=None, emul_type=None, comm=None,
+                 **kwargs):
         """
         Initialize an instance of the :class:`~Pipeline` class.
 
@@ -79,20 +83,29 @@ class Pipeline(Projection, object):
         Optional
         --------
         %(paths)s
-        emul_type : :class:`~prism.Emulator` subclass or None. Default: None
-            The type of :class:`~prism.Emulator` to use in this
-            :obj:`~prism.Pipeline` instance. If *None*, use the default
-            emulator instead.
-        comm : :obj:`~MPI.Intracomm` object or None. Default: None
-            The MPI intra-communicator to use in this :class:`~Pipeline`
-            instance or :obj:`MPI.COMM_WORLD` if `comm` is *None*.
-            If :mod:`mpi4py` is not installed, :mod:`~prism._dummyMPI` is used
+        prism_par : array_like, dict, str or None. Default: None
+            A dict containing the values for the *PRISM* parameters that need
+            to be changed from their default values.
+            If array_like, dict(`prism_par`) must generate a dict with the
+            correct lay-out.
+            If str, the string is the absolute or relative path to the file
+            that contains the keys in the first column and the dict values in
+            the second column. If a relative path is given, its path must be
+            relative to `root_dir` or the current directory.
+            If *None*, no changes will be made to the default parameters.
+        emul_type : :class:`~prism.emulator.Emulator` subclass or None.\
+            Default: None
+            The type of :class:`~prism.emulator.Emulator` to use in this
+            :obj:`~Pipeline` instance. If *None*, use the default emulator
             instead.
+        comm : :obj:`~mpi4pyd.MPI.Intracomm` object or None. Default: None
+            The MPI intra-communicator to use in this :obj:`~Pipeline`
+            instance or :obj:`MPI.COMM_WORLD` if `comm` is *None*.
 
         """
 
         # Obtain MPI communicator, ranks and sizes
-        self._comm = PRISM_Comm(comm)
+        self._comm = get_HybridComm_obj(comm)
         self._rank = self._comm.Get_rank()
         self._size = self._comm.Get_size()
 
@@ -114,7 +127,7 @@ class Pipeline(Projection, object):
             logger.info("Initializing Pipeline class.")
 
             # Obtain paths
-            self._get_paths(root_dir, working_dir, prefix, prism_file)
+            self._get_paths(root_dir, working_dir, prefix)
 
             # Move logger to working directory and restart it
             move_logger(self._working_dir)
@@ -123,7 +136,7 @@ class Pipeline(Projection, object):
         else:
             # Obtain paths
             logger = getCLogger('INIT')
-            self._get_paths(root_dir, working_dir, prefix, prism_file)
+            self._get_paths(root_dir, working_dir, prefix)
 
         # MPI Barrier
         self._comm.Barrier()
@@ -131,6 +144,21 @@ class Pipeline(Projection, object):
         # Start logger for workers as well
         if self._is_worker:
             set_base_logger(path.join(self._working_dir, 'prism_log.log'))
+
+        # Check if deprecated prism_file was provided
+        if 'prism_file' in kwargs.keys():
+            # Assign prism_file to prism_par
+            prism_par = kwargs['prism_file']
+
+            # Raise a FutureWarning
+            if self._is_controller:
+                warn_msg = ("Input argument 'prism_file' is deprecated since "
+                            "v1.1.2 in favor of 'prism_par'. It will be "
+                            "removed entirely in v1.2.0.")
+                raise_warning(warn_msg, FutureWarning, logger, stacklevel=2)
+
+        # Read in the provided parameter dict/file
+        self._read_parameters(prism_par)
 
         # Initialize Emulator class
         # If emul_type is None, use default emulator
@@ -154,8 +182,8 @@ class Pipeline(Projection, object):
                        % (emul_type))
             raise_error(err_msg, InputError, logger)
 
-        # Let everybody read in the pipeline parameters
-        self._read_parameters()
+        # Let everybody set the pipeline parameters
+        self._set_parameters()
 
         # Compile pre-defined code snippets
         self._compile_code_snippets()
@@ -219,19 +247,39 @@ class Pipeline(Projection, object):
         str_repr.append("working_dir=%r" % (path.relpath(self._working_dir,
                                                          self._root_dir)))
 
-        # Add the prism_file representation if it is not default
-        if self._prism_file is not None:
-            if(path.splitdrive(self._prism_file)[0].lower() !=
-               path.splitdrive(pwd)[0].lower()):
-                str_repr.append("prism_file=%r" % (self._prism_file))
-            else:
-                str_repr.append("prism_file=%r"
-                                % (path.relpath(self._prism_file, pwd)))
+        # Add the prism_par representation if it is not default
+        if self._prism_dict:
+            # Make empty default dict
+            default_dict = sdict()
+
+            # Make empty list of prism_par representations
+            par_repr = []
+
+            # Add the default parameter dicts to it
+            default_dict.update(self._get_default_parameters())
+            default_dict.update(self._emulator._get_default_parameters())
+            default_dict.update(self._Projection__get_default_parameters())
+
+            # Loop over all items in prism_dict and check if it is default
+            for key, val in self._prism_dict.items():
+                # Convert key to lowercase and val to string
+                key = key.lower()
+                val = str(val)
+
+                # Check if this key exists in default_dict
+                if key in default_dict.keys():
+                    # Check if the corresponding values are not the same
+                    if(val != default_dict[key]):
+                        # Add this parameter to the prism_par_repr list
+                        par_repr.append("%r: %r" % (key, val))
+
+            # Convert par_repr from list to dict and add it to str_repr
+            str_repr.append("prism_par={%s}" % (", ".join(map(str, par_repr))))
 
         # Add the emul_type representation if it is not default
         emul_repr = "%s.%s" % (self._emulator.__class__.__module__,
                                self._emulator.__class__.__name__)
-        if(emul_repr != 'prism._emulator.Emulator'):
+        if(emul_repr != 'prism.emulator._emulator.Emulator'):
             str_repr.append("emul_type=%s" % (emul_repr))
 
         # Return representation
@@ -242,7 +290,7 @@ class Pipeline(Projection, object):
     @property
     def comm(self):
         """
-        :obj:`~mpi4py.MPI.Intracomm`: The global MPI intra-communicator to use
+        :obj:`~mpi4pyd.MPI.Intracomm`: The MPI intra-communicator that is used
         in this :obj:`~Pipeline` instance. By default, this is
         :obj:`MPI.COMM_WORLD`.
 
@@ -312,9 +360,6 @@ class Pipeline(Projection, object):
         # Make logger
         logger = getCLogger('WORKER_M')
 
-        # Set worker_mode to 1
-        self._worker_mode = 1
-
         # Workers start listening for calls
         self._listen_for_calls()
 
@@ -333,7 +378,7 @@ class Pipeline(Projection, object):
         # MPI Barrier
         self._comm.Barrier()
 
-    # Pipeline Settings/Attributes/Details
+    # Pipeline details
     @property
     def do_logging(self):
         """
@@ -395,14 +440,14 @@ class Pipeline(Projection, object):
         return(self._hdf5_file)
 
     @property
-    def prism_file(self):
+    def prism_dict(self):
         """
-        str: Absolute path to the *PRISM* parameters file or *None* if no file
-        was provided.
+        dict: Dictionary containing all *PRISM* parameters that were provided
+        during :class:`~Pipeline` initialization.
 
         """
 
-        return(self._prism_file)
+        return(self._prism_dict)
 
     @property
     def File(self):
@@ -429,7 +474,7 @@ class Pipeline(Projection, object):
     @property
     def emulator(self):
         """
-        :obj:`~prism.Emulator`: The :obj:`~prism.Emulator`
+        :obj:`~prism.emulator.Emulator`: The :obj:`~prism.emulator.Emulator`
         instance created during :class:`~Pipeline` initialization.
 
         """
@@ -446,6 +491,7 @@ class Pipeline(Projection, object):
 
         return(self._code_objects)
 
+    # Pipeline settings
     @property
     def criterion(self):
         """
@@ -455,6 +501,33 @@ class Pipeline(Projection, object):
         """
 
         return(self._criterion)
+
+    @criterion.setter
+    def criterion(self, criterion):
+        # Make logger
+        logger = getRLogger('CHECK')
+
+        # If criterion is None, save it as such
+        if criterion is None:
+            self._criterion = None
+
+        # If criterion is a bool, raise error
+        elif criterion is True or criterion is False:
+            err_msg = ("Input argument 'criterion' does not accept values of "
+                       "type 'bool'!")
+            raise_error(err_msg, TypeError, logger)
+
+        # If anything else is given, it must be a float or string
+        else:
+            # Try to use criterion to check validity
+            try:
+                lhd(3, 2, criterion=criterion)
+            except Exception as error:
+                err_msg = ("Input argument 'criterion' is invalid! (%s)"
+                           % (error))
+                raise_error(err_msg, InputError, logger)
+            else:
+                self._criterion = criterion
 
     @property
     def do_active_anal(self):
@@ -466,6 +539,11 @@ class Pipeline(Projection, object):
 
         return(bool(self._do_active_anal))
 
+    @do_active_anal.setter
+    def do_active_anal(self, do_active_anal):
+        self._do_active_anal = check_vals(do_active_anal, 'do_active_anal',
+                                          'bool')
+
     @property
     def freeze_active_par(self):
         """
@@ -475,6 +553,11 @@ class Pipeline(Projection, object):
         """
 
         return(bool(self._freeze_active_par))
+
+    @freeze_active_par.setter
+    def freeze_active_par(self, freeze_active_par):
+        self._freeze_active_par = check_vals(freeze_active_par,
+                                             'freeze_active_par', 'bool')
 
     @property
     def pot_active_par(self):
@@ -488,6 +571,27 @@ class Pipeline(Projection, object):
 
         return([self._modellink._par_name[i] for i in self._pot_active_par])
 
+    @pot_active_par.setter
+    def pot_active_par(self, pot_active_par):
+        # Make logger
+        logger = getRLogger('CHECK')
+
+        # If pot_active_par is None, save all model parameters
+        if pot_active_par is None:
+            self._pot_active_par = np_array(range(self._modellink._n_par))
+
+        # If pot_active_par is a bool, raise error
+        elif pot_active_par is True or pot_active_par is False:
+            err_msg = ("Input argument 'pot_active_par' does not accept values"
+                       "of type 'bool'!")
+            raise_error(err_msg, TypeError, logger)
+
+        # If anything else is given, it must be a sequence of model parameters
+        else:
+            # Convert the given sequence to an array of indices
+            self._pot_active_par = np_array(self._modellink._get_model_par_seq(
+                pot_active_par, 'pot_active_par'))
+
     @property
     def n_sam_init(self):
         """
@@ -498,17 +602,9 @@ class Pipeline(Projection, object):
 
         return(self._n_sam_init)
 
-    @property
-    def n_eval_sam(self):
-        """
-        int: The number of evaluation samples used to analyze an emulator
-        iteration of the emulator systems. The number of plausible evaluation
-        samples is stored in :attr:`~n_impl_sam`.
-        It is zero if the specified iteration has not been analyzed yet.
-
-        """
-
-        return(self._n_eval_sam)
+    @n_sam_init.setter
+    def n_sam_init(self, n_sam_init):
+        self._n_sam_init = check_vals(n_sam_init, 'n_sam_init', 'int', 'pos')
 
     @property
     def base_eval_sam(self):
@@ -522,16 +618,101 @@ class Pipeline(Projection, object):
 
         return(self._base_eval_sam)
 
+    @base_eval_sam.setter
+    def base_eval_sam(self, base_eval_sam):
+        self._base_eval_sam = check_vals(base_eval_sam, 'base_eval_sam', 'int',
+                                         'pos')
+
     @property
     def impl_cut(self):
         """
-        list of int: The non-wildcard univariate implausibility cut-off values
-        for an emulator iteration.
+        list of float: The non-wildcard univariate implausibility cut-off
+        values for an emulator iteration. Setting it with the reduced
+        implausibility cut-off list will change the values of :attr:`~cut_idx`
+        and this property at the last emulator iteration.
 
         """
 
         return(self._impl_cut)
 
+    @impl_cut.setter
+    def impl_cut(self, impl_cut):
+        # Only the controller can set this value
+        if self._is_controller:
+            # Make logger
+            logger = getRLogger('CHECK')
+
+            # Get last emul_i
+            emul_i = self._emulator._emul_i
+
+            # Raise error if emul_i is 0
+            if not emul_i:
+                err_msg = "Emulator is not built yet!"
+                raise_error(err_msg, RequestError, logger)
+
+            # Do some logging
+            logger.info("Checking compatibility of provided implausibility "
+                        "cut-off values.")
+
+            # Check if analyze() is calling this setter
+            caller_frame = get_outer_frame(self.analyze)
+
+            # Check if the last iteration has already been analyzed
+            try:
+                if self._n_eval_sam[emul_i]:
+                    # If so, check if this setter was called by analyze()
+                    if caller_frame is None:
+                        # If not, raise error
+                        err_msg = ("Pipeline property 'impl_cut' can only be "
+                                   "set if the current emulator iteration has "
+                                   "not been analyzed yet!")
+                        raise_error(err_msg, RequestError, logger)
+
+            # If n_eval_sam at emul_i does not exist, no analyze has been done
+            except IndexError:
+                pass
+
+            # Check if provided impl_cut contains solely non-negative floats
+            impl_cut = check_vals(impl_cut, 'impl_cut', 'float', 'nneg')
+
+            # Complete the impl_cut list
+            # Loop over all values in impl_cut except the first
+            for i in range(1, len(impl_cut)):
+                # If value is zero, take on the value of the previous cut-off
+                if not impl_cut[i]:
+                    impl_cut[i] = impl_cut[i-1]
+
+                # If the value is higher than the previous value, it is invalid
+                elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
+                    err_msg = ("Cut-off %i is higher than cut-off %i "
+                               "(%f > %f)!"
+                               % (i, i-1, impl_cut[i], impl_cut[i-1]))
+                    raise_error(err_msg, ValueError, logger)
+
+            # Get the index identifying where the first real impl_cut is
+            red_impl_cut = impl_cut[:self._emulator._n_data_tot[emul_i]]
+            for i, impl in enumerate(red_impl_cut):
+                if(impl != 0):
+                    cut_idx = i
+                    break
+            # If the loop ends normally, there were only wildcards
+            else:
+                err_msg = ("No non-wildcard implausibility cut-off was "
+                           "provided!")
+                raise_error(err_msg, ValueError, logger)
+
+            # Obtain impl_cut
+            impl_cut = np_array(impl_cut)[cut_idx:]
+
+            # Set impl_par
+            try:
+                self._impl_cut[emul_i] = impl_cut
+                self._cut_idx[emul_i] = cut_idx
+            except IndexError:
+                self._impl_cut.append(impl_cut)
+                self._cut_idx.append(cut_idx)
+
+    # Analysis results/properties
     @property
     def cut_idx(self):
         """
@@ -542,6 +723,18 @@ class Pipeline(Projection, object):
         """
 
         return(self._cut_idx)
+
+    @property
+    def n_eval_sam(self):
+        """
+        int: The number of evaluation samples used to analyze an emulator
+        iteration of the emulator systems. The number of plausible evaluation
+        samples is stored in :attr:`~n_impl_sam`.
+        It is zero if the specified iteration has not been analyzed yet.
+
+        """
+
+        return(self._n_eval_sam)
 
     @property
     def n_impl_sam(self):
@@ -575,9 +768,12 @@ class Pipeline(Projection, object):
         :attr:`~_worker_mode` is set to *False*.
 
         This method is automatically initialized and finalized when using the
-        :attr:`~worker_mode`.
+        :attr:`~worker_mode` context manager.
 
         """
+
+        # Set worker_mode to 1
+        self._worker_mode = 1
 
         # All workers start listening for calls
         if self._is_worker:
@@ -639,6 +835,7 @@ class Pipeline(Projection, object):
     # This function evaluates the model for a given set of evaluation samples
     # TODO: If not MPI_call, all ranks evaluate part of sam_set simultaneously?
     # Requires check/flag that model can be evaluated in multiple instances
+    # TODO: If not MPI_call, should OMP_NUM_THREADS be temporarily unset?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _evaluate_model(self, emul_i, sam_set, data_idx):
         """
@@ -711,6 +908,10 @@ class Pipeline(Projection, object):
             par_set=sdict(zip(self._modellink._par_name, sam)),
             data_idx=data_idx)
 
+        # If mod_out is a dict, convert it to a NumPy array
+        if isinstance(mod_out, dict):
+            mod_out = np_array([mod_out[idx] for idx in data_idx])
+
         # Log that calling model has been finished
         logger.info("Model returned %s." % (mod_out))
 
@@ -734,11 +935,76 @@ class Pipeline(Projection, object):
             par_set=sdict(zip(self._modellink._par_name, sam_set.T)),
             data_idx=data_idx)
 
+        # If mod_set is a dict, convert it to a NumPy array
+        if isinstance(mod_set, dict):
+            mod_set = np_array([mod_set[idx] for idx in data_idx]).T
+
         # Log that multi-calling model has been finished
         logger.info("Finished model multi-call.")
 
         # Return it
         return(np_array(mod_set))
+
+    # This function reads in the parameters from the provided parameters
+    def _read_parameters(self, prism_par):
+        """
+        Reads in all parameters in the provided `prism_par` and saves them as
+        a dict in the current :obj:`~Pipeline` instance.
+
+        """
+
+        # Make a logger
+        logger = getCLogger('INIT')
+        logger.info("Reading in PRISM parameters.")
+
+        # If no PRISM parameters were provided
+        if prism_par is None:
+            prism_dict = sdict()
+
+        # If a PRISM parameter file was provided
+        elif isinstance(prism_par, str):
+            # Check if prism_par was given as an absolute path
+            if path.exists(prism_par):
+                prism_par = path.abspath(prism_par)
+            # If not, check if it was relative to root_dir
+            elif path.exists(path.join(self._root_dir, prism_par)):
+                prism_par = path.join(self._root_dir, prism_par)
+            # If not either, it is invalid
+            else:
+                err_msg = ("Input argument 'prism_par' is a non-existing path"
+                           " (%r)!" % (prism_par))
+                raise_error(err_msg, OSError, logger)
+
+            # Read in the contents of the given prism_par file
+            prism_par = np.genfromtxt(prism_par, dtype=(str), delimiter=':',
+                                      autostrip=True)
+
+            # Make sure that prism_par is 2D
+            prism_par = np_array(prism_par, ndmin=2)
+
+            # Make prism_dict
+            prism_dict = sdict(prism_par)
+
+        # If a PRISM parameters dict was provided
+        elif isinstance(prism_par, dict):
+            # Save parameters dict
+            prism_dict = sdict(prism_par)
+
+        # If anything else is given
+        else:
+            # Check if it can be converted to a dict
+            try:
+                prism_dict = sdict(prism_par)
+            except Exception:
+                err_msg = ("Input argument 'prism_par' cannot be converted to "
+                           "type 'dict'!")
+                raise_error(err_msg, TypeError, logger)
+
+        # Save prism_dict
+        self._prism_dict = prism_dict
+
+        # Log again
+        logger.info("Finished reading in PRISM parameters.")
 
     # This function returns default pipeline parameters
     @docstring_append(def_par_doc.format("pipeline"))
@@ -753,98 +1019,62 @@ class Pipeline(Projection, object):
                     'pot_active_par': 'None'}
 
         # Return it
-        return(par_dict)
+        return(sdict(par_dict))
 
-    # Read in the parameters from the provided parameter file
+    # Set the parameters that were read in from the provided parameter file
     # TODO: May want to use configparser.Configparser for this
-    @docstring_append(read_par_doc.format("Pipeline"))
-    def _read_parameters(self):
-        # Log that the PRISM parameter file is being read
+    @docstring_append(set_par_doc.format("Pipeline"))
+    def _set_parameters(self):
+        # Log that the pipeline parameters are being set
         logger = getCLogger('INIT')
-        logger.info("Reading pipeline parameters.")
+        logger.info("Setting pipeline parameters.")
 
         # Obtaining default pipeline parameter dict
         par_dict = self._get_default_parameters()
 
-        # Read in data from provided PRISM parameters file
-        if self._prism_file is not None:
-            pipe_par = np.genfromtxt(self._prism_file, dtype=(str),
-                                     delimiter=':', autostrip=True)
-
-            # Make sure that pipe_par is 2D
-            pipe_par = np_array(pipe_par, ndmin=2)
-
-            # Combine default parameters with read-in parameters
-            par_dict.update(pipe_par)
+        # Add the read-in prism dict to it
+        par_dict.update(self._prism_dict)
 
         # More logging
         logger.info("Checking compatibility of provided pipeline parameters.")
 
         # GENERAL
-        # Number of starting samples
-        self._n_sam_init =\
-            check_vals(convert_str_seq(par_dict['n_sam_init'])[0],
-                       'n_sam_init', 'int', 'pos')
+        # Set number of starting samples
+        self.n_sam_init = convert_str_seq(par_dict['n_sam_init'])[0]
 
-        # Base number of emulator evaluation samples
-        self._base_eval_sam =\
-            check_vals(convert_str_seq(par_dict['base_eval_sam'])[0],
-                       'base_eval_sam', 'int', 'pos')
+        # Set base number of emulator evaluation samples
+        self.base_eval_sam = convert_str_seq(par_dict['base_eval_sam'])[0]
 
-        # Criterion parameter used for Latin Hypercube Sampling
-        # If criterion is None, save it as such
-        if(par_dict['criterion'].lower() == 'none'):
-            self._criterion = None
+        # Convert criterion to a string
+        criterion = str(par_dict['criterion'])
 
-        # If criterion is a bool, raise error
-        elif par_dict['criterion'].lower() in ('false', 'true'):
-            err_msg = ("Input argument 'criterion' does not accept values of "
-                       "type 'bool'!")
-            raise_error(err_msg, TypeError, logger)
+        # If criterion is None, True or False, try to save it as such
+        if criterion.lower() in ('none', 'true', 'false'):
+            self.criterion = literal_eval(criterion.capitalize())
 
-        # If anything else is given, it must be a float or string
+        # If anything else is given, it must be an int, float or string
         else:
-            # Convert to float or string
-            criterion = convert_str_seq(par_dict['criterion'])[0]
+            self.criterion = convert_str_seq(criterion)[0]
 
-            # Try to use criterion to check validity
-            try:
-                lhd(3, 2, criterion=criterion)
-            except Exception as error:
-                err_msg = ("Input argument 'criterion' is invalid! (%s)"
-                           % (error))
-                raise_error(err_msg, InputError, logger)
-            else:
-                self._criterion = criterion
+        # Set the bool determining whether to do an active parameters analysis
+        self.do_active_anal = par_dict['do_active_anal']
 
-        # Obtain the bool determining whether to do an active parameters
-        # analysis
-        self._do_active_anal = check_vals(par_dict['do_active_anal'],
-                                          'do_active_anal', 'bool')
+        # Set the bool determining whether active parameters stay active
+        self.freeze_active_par = par_dict['freeze_active_par']
 
-        # Obtain the bool determining whether active parameters stay active
-        self._freeze_active_par = check_vals(par_dict['freeze_active_par'],
-                                             'freeze_active_par', 'bool')
+        # Convert pot_active_par to a string
+        pot_active_par = str(par_dict['pot_active_par'])
 
-        # Check which parameters can potentially be active
-        # If pot_active_par is None, save all model parameters
-        if(par_dict['pot_active_par'].lower() == 'none'):
-            self._pot_active_par = np_array(range(self._modellink._n_par))
+        # If pot_active_par is None, True or False, try to save it as such
+        if pot_active_par.lower() in ('none', 'true', 'false'):
+            self.pot_active_par = literal_eval(pot_active_par.capitalize())
 
-        # If pot_active_par is a bool, raise error
-        elif par_dict['pot_active_par'].lower() in ('false', 'true'):
-            err_msg = ("Input argument 'pot_active_par' does not accept values"
-                       "of type 'bool'!")
-            raise_error(err_msg, TypeError, logger)
-
-        # If anything else is given, it must be a sequence of model parameters
+        # If anything else is given, save it
         else:
-            # Convert the given sequence to an array of indices
-            self._pot_active_par = np_array(self._modellink._get_model_par_seq(
-                par_dict['pot_active_par'], 'pot_active_par'))
+            self.pot_active_par = pot_active_par
 
-        # Log that reading has been finished
-        logger.info("Finished reading pipeline parameters.")
+        # Log that setting has been finished
+        logger.info("Finished setting pipeline parameters.")
 
     # This function controls how n_eval_samples is calculated
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -870,8 +1100,9 @@ class Pipeline(Projection, object):
 
     # Obtains the paths for the root directory, working directory, pipeline
     # hdf5-file and prism parameters file
+    # TODO: Start supporting and using pathlib.Path?
     @docstring_substitute(paths=paths_doc_s)
-    def _get_paths(self, root_dir, working_dir, prefix, prism_file):
+    def _get_paths(self, root_dir, working_dir, prefix):
         """
         Obtains the path for the root directory, working directory and
         parameters file for *PRISM*.
@@ -922,18 +1153,16 @@ class Pipeline(Projection, object):
             if prefix is None:
                 prefix_scan = ''
                 prefix_new = 'prism_'
-                prefix_len = 0
             elif isinstance(prefix, str):
                 prefix_scan = prefix
                 prefix_new = prefix
-                prefix_len = len(prefix)
             else:
                 err_msg = "Input argument 'prefix' is not of type 'str'!"
                 raise_error(err_msg, TypeError, logger)
 
             # Obtain working directory path
             # If one did not specify a working directory, obtain it
-            if working_dir is None:
+            if working_dir in (None, False):
                 logger.info("No working directory specified, trying to load "
                             "last one created.")
                 dirnames = next(os.walk(self._root_dir))[1]
@@ -943,7 +1172,7 @@ class Pipeline(Projection, object):
                 # naming scheme of the emulator directories
                 for dirname in dirnames:
                     # If the prefix is the same as the scan prefix
-                    if(dirname[0:prefix_len] == prefix_scan):
+                    if dirname.startswith(prefix_scan):
                         # Obtain full path to this directory
                         dir_path = path.join(self._root_dir, dirname)
 
@@ -971,14 +1200,14 @@ class Pipeline(Projection, object):
                                 % (path.basename(self._working_dir)))
 
             # If one requested a new working directory
-            elif isinstance(working_dir, int):
+            elif working_dir is True:
                 # Obtain list of working directories that satisfy naming scheme
                 dirnames = next(os.walk(self._root_dir))[1]
                 n_dirs = 0
 
                 # Check if there are any directories with the same prefix
                 for dirname in dirnames:
-                    if(dirname[0:prefix_len] == prefix_scan):
+                    if dirname.startswith(prefix_scan):
                         # Obtain full path to this directory
                         dir_path = path.join(self._root_dir, dirname)
 
@@ -1016,6 +1245,12 @@ class Pipeline(Projection, object):
                 else:
                     logger.info("Working directory did not exist, created it.")
 
+            # If one provided an integer, raise warning about it
+            elif isinstance(working_dir, int):
+                err_msg = ("Input argument 'working_dir' cannot be of type "
+                           "int!")
+                raise_error(err_msg, TypeError, logger)
+
             # If anything else is given, it is invalid
             else:
                 err_msg = "Input argument 'working_dir' is invalid!"
@@ -1024,51 +1259,23 @@ class Pipeline(Projection, object):
             # Obtain hdf5-file path
             self._hdf5_file = path.join(self._working_dir, 'prism.hdf5')
 
-            # Obtain PRISM parameter file path
-            # If no PRISM parameter file was provided
-            if prism_file is None:
-                self._prism_file = None
-
-            # If a PRISM parameter file was provided
-            elif isinstance(prism_file, str):
-                # Check if prism_file was given as an absolute path
-                if path.exists(prism_file):
-                    self._prism_file = path.abspath(prism_file)
-                # If not, check if it was relative to root_dir
-                elif path.exists(path.join(self._root_dir, prism_file)):
-                    self._prism_file = path.join(self._root_dir, prism_file)
-                # If not either, it is invalid
-                else:
-                    err_msg = ("Input argument 'prism_file' is a non-existing "
-                               "path (%r)!" % (prism_file))
-                    raise_error(err_msg, OSError, logger)
-                logger.info("PRISM parameters file set to %r."
-                            % (self._prism_file))
-
-            # If anything else is given, it is invalid
-            else:
-                err_msg = "Input argument 'prism_file' is invalid!"
-                raise_error(err_msg, InputError, logger)
-
         # Workers get dummy paths
         else:
             self._root_dir = None
             self._working_dir = None
             self._hdf5_file = None
-            self._prism_file = None
 
         # Broadcast paths to workers
         self._root_dir = self._comm.bcast(self._root_dir, 0)
         self._working_dir = self._comm.bcast(self._working_dir, 0)
         self._hdf5_file = self._comm.bcast(self._hdf5_file, 0)
-        self._prism_file = self._comm.bcast(self._prism_file, 0)
 
         # Generate custom File class using the path to the master HDF5-file
         self._File = get_PRISM_File(self._hdf5_file)
 
     # This function generates mock data and loads it into ModelLink
     # TODO: Find a way to use mock data without changing ModelLink properties
-    def _get_mock_data(self):
+    def _get_mock_data(self, mock_par):
         """
         Generates mock data and loads it into the
         :obj:`~prism.modellink.ModelLink` object that was provided
@@ -1076,6 +1283,13 @@ class Pipeline(Projection, object):
         This function overwrites the
         :class:`~prism.modellink.ModelLink` properties holding the
         parameter estimates, data values and data errors.
+
+        Parameters
+        ----------
+        mock_par : 1D array_like or None
+            If 1D array_like, use the provided parameter estimates to create
+            the mock data. If *None*, a random parameter set will be generated
+            as parameter estimates.
 
         Generates
         ---------
@@ -1093,9 +1307,14 @@ class Pipeline(Projection, object):
 
         # Controller only
         if self._is_controller:
-            # Set non-default parameter estimate
-            self._modellink._par_est = self._modellink._to_par_space(
-                random(self._modellink._n_par)).tolist()
+            # If mock parameter estimates were provided, use them
+            if mock_par is not None:
+                self._modellink._par_est = mock_par.tolist()
+
+            # Else, generate mock parameter estimates
+            else:
+                self._modellink._par_est = self._modellink._to_par_space(
+                    random(self._modellink._n_par)).tolist()
 
         # Controller broadcasting new parameter estimates to workers
         self._modellink._par_est = self._comm.bcast(self._modellink._par_est,
@@ -1198,13 +1417,15 @@ class Pipeline(Projection, object):
                     try:
                         self._impl_cut.append(emul.attrs['impl_cut'])
 
-                    # If not, no plausible regions were found
+                    # If not, use prism_dict to set the impl_par
                     except KeyError:
-                        self._get_impl_par(True)
+                        self._set_impl_par(None)
 
-                    # If so, load in all data
+                    # If so, load the cut_idx as well
                     else:
                         self._cut_idx.append(emul.attrs['cut_idx'])
+
+                    # Load the remaining data (which is always available)
                     finally:
                         self._n_impl_sam.append(emul.attrs['n_impl_sam'])
                         self._n_eval_sam.append(emul.attrs['n_eval_sam'])
@@ -1212,6 +1433,9 @@ class Pipeline(Projection, object):
                 # Read in the samples that survived the implausibility check
                 self._impl_sam = emul['impl_sam'][()]
                 self._impl_sam.dtype = float
+
+        # Log that loading has been finished
+        logger.info("Finished loading pipeline data sets.")
 
     # This function saves pipeline data to hdf5
     @docstring_substitute(save_data=save_data_doc_p)
@@ -1245,16 +1469,11 @@ class Pipeline(Projection, object):
                 # Check what data keyword has been provided
                 # IMPL_PAR
                 if(keyword == 'impl_par'):
-                    # Check if impl_par data has been saved before
-                    try:
-                        self._impl_cut[emul_i] = data['impl_cut']
-                        self._cut_idx[emul_i] = data['cut_idx']
-                    except IndexError:
-                        self._impl_cut.append(data['impl_cut'])
-                        self._cut_idx.append(data['cut_idx'])
-                    finally:
-                        data_set.attrs['impl_cut'] = data['impl_cut']
-                        data_set.attrs['cut_idx'] = data['cut_idx']
+                    # Save impl_par data
+                    self._impl_cut[emul_i] = data['impl_cut']
+                    self._cut_idx[emul_i] = data['cut_idx']
+                    data_set.attrs['impl_cut'] = data['impl_cut']
+                    data_set.attrs['cut_idx'] = data['cut_idx']
 
                 # IMPL_SAM
                 elif(keyword == 'impl_sam'):
@@ -1370,15 +1589,12 @@ class Pipeline(Projection, object):
         # Obtain number of samples
         n_sam = np.shape(sam_set)[0]
 
-        # Gather the data_idx from all MPI ranks on the controller
-        data_idx_list = self._comm.gather(
-            delist(self._emulator._data_idx[emul_i]), 0)
-
-        # Flatten the received data_idx_list on the controller
+        # Flatten the corresponding data_idx_to_core on the controller
         if self._is_controller:
             data_idx_flat = []
             data_idx_len = []
-            for data_idx_rank in data_idx_list:
+            for data_idx_rank in self._emulator._data_idx_to_core[emul_i]:
+                data_idx_rank = delist(data_idx_rank)
                 data_idx_len.append(len(data_idx_rank))
                 data_idx_flat.extend(data_idx_rank)
 
@@ -1555,9 +1771,8 @@ class Pipeline(Projection, object):
 
     # This function calculates the univariate implausibility values
     # This is function 'I²(x)'
-    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _get_uni_impl(self, emul_i, emul_s_seq, par_set, adj_exp_val,
-                      adj_var_val):
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _get_uni_impl(self, emul_i, par_set, adj_exp_val, adj_var_val):
         """
         Calculates the univariate implausibility values at a given emulator
         iteration `emul_i` for specified expectation and variance values
@@ -1566,7 +1781,6 @@ class Pipeline(Projection, object):
         Parameters
         ----------
         %(emul_i)s
-        %(emul_s_seq)s
         par_set : 1D :obj:`~numpy.ndarray` object
             Model parameter value set to calculate the univariate
             implausibility values for. Only used to pass to the
@@ -1585,11 +1799,14 @@ class Pipeline(Projection, object):
         # Obtain model discrepancy variance
         md_var = self._get_md_var(emul_i, par_set)
 
+        # Determine the active emulator systems for this iteration
+        active_emul_s = self._emulator._active_emul_s[emul_i]
+
         # Initialize empty univariate implausibility
-        uni_impl_val_sq = np.zeros(len(emul_s_seq))
+        uni_impl_val_sq = np.zeros(len(active_emul_s))
 
         # Calculate the univariate implausibility values
-        for i, emul_s in enumerate(emul_s_seq):
+        for i, emul_s in enumerate(active_emul_s):
             # Use the upper errors by default
             err_idx = 0
 
@@ -1679,127 +1896,36 @@ class Pipeline(Projection, object):
 
         # If it was user-defined, check if the values are compatible
         else:
+            # If md_var is a dict, convert it to a NumPy array
+            if isinstance(md_var, dict):
+                data_idx = self._emulator._data_idx[emul_i]
+                md_var = np_array([md_var[idx] for idx in data_idx])
+
             # Make sure that md_var is a NumPy array
             md_var = np_array(md_var)
 
-            # Check if md_var contains n_data values
-            if not(md_var.shape[0] == self._emulator._n_data[emul_i]):
-                err_msg = ("Received array of model discrepancy variances "
-                           "'md_var' has incorrect number of data points (%i "
-                           "!= %i)!"
-                           % (md_var.shape[0], self._emulator._n_data[emul_i]))
-                raise ShapeError(err_msg)
-
-            # Check if single or dual values were given
+            # If single values were given, duplicate them
             if(md_var.ndim == 1):
                 md_var = np_array([md_var]*2).T
-            elif(md_var.shape[1] == 2):
-                pass
-            else:
-                err_msg = ("Received array of model discrepancy variances "
-                           "'md_var' has incorrect number of values (%i != 2)!"
-                           % (md_var.shape[1]))
-                raise ShapeError(err_msg)
-
-            # Check if all values are non-negative floats
-            md_var = check_vals(md_var, 'md_var', 'nneg', 'float')
 
         # Return it
         return(md_var)
 
-    # This function completes the list of implausibility cut-offs
-    @docstring_substitute(impl_temp=impl_temp_doc)
-    def _get_impl_cut(self, impl_cut, temp):
-        """
-        Generates the full list of impl_cut-offs from the incomplete, shortened
-        `impl_cut` list.
-
-        Parameters
-        ----------
-        impl_cut : 1D list
-            Incomplete, shortened impl_cut-offs list provided during class
-            initialization.
-        %(impl_temp)s
-
-        Generates
-        ---------
-        impl_cut : 1D :obj:`~numpy.ndarray` object
-            Full list containing the impl_cut-offs for all data points provided
-            to the emulator.
-        cut_idx : int
-            Index of the first impl_cut-off in `impl_cut` that is not a
-            wildcard.
-
-        """
-
-        # Log that impl_cut-off list is being acquired
-        logger = getCLogger('INIT')
-        logger.info("Generating full implausibility cut-off list.")
-
-        # Complete the impl_cut list
-        # Obtain the first impl_cut value
-        try:
-            impl_cut[0] = check_vals(impl_cut[0], 'impl_cut[0]', 'float',
-                                     'nneg')
-        except IndexError:
-            err_msg = ("Provided implausibility cut-off list contains no "
-                       "elements!")
-            raise_error(err_msg, ValueError, logger)
-
-        # Loop over the remaining values in impl_cut
-        for i in range(1, len(impl_cut)):
-            # Check if provided value is non-negative float
-            impl_cut[i] = check_vals(impl_cut[i], 'impl_cut[%i]' % (i),
-                                     'float', 'nneg')
-
-            # If the value is zero, take on the value of the previous cut-off
-            if(impl_cut[i] == 0):
-                impl_cut[i] = impl_cut[i-1]
-
-            # If the value is lower than the previous value, it is invalid
-            elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
-                err_msg = ("Cut-off %i is higher than cut-off %i (%f > %f)!"
-                           % (i, i-1, impl_cut[i], impl_cut[i-1]))
-                raise_error(err_msg, ValueError, logger)
-
-        # Get the index identifying where the first real impl_cut is
-        for i, impl in enumerate(impl_cut[:self._emulator._n_data_tot[-1]]):
-            if(impl != 0):
-                cut_idx = i
-                break
-        # If the loop ends normally, there were only wildcards
-        else:
-            err_msg = "No non-wildcard implausibility cut-off was provided!"
-            raise_error(err_msg, ValueError, logger)
-
-        # Save both impl_cut and cut_idx
-        impl_cut = np_array(impl_cut)[cut_idx:]
-        if temp:
-            # If they need to be stored temporarily
-            self._impl_cut.append(impl_cut)
-            self._cut_idx.append(cut_idx)
-        else:
-            # If they need to be stored to file
-            self._save_data({
-                'impl_par': {
-                    'impl_cut': impl_cut,
-                    'cut_idx': cut_idx}})
-
-        # Log end of process
-        logger.info("Finished generating implausibility cut-off list.")
-
-    # This function reads in the impl_cut list from the PRISM parameters file
+    # This function sets the impl_cut list from read-in PRISM parameters file
     # TODO: Make impl_cut dynamic
-    @docstring_substitute(impl_temp=impl_temp_doc, impl_cut=impl_cut_doc)
-    def _get_impl_par(self, temp):
+    @docstring_substitute(impl_cut=impl_cut_doc)
+    def _set_impl_par(self, impl_cut):
         """
-        Reads in the impl_cut list and other parameters for implausibility
-        evaluations from the *PRISM* parameters file and saves them in the last
-        emulator iteration.
+        Sets the :attr:`~impl_cut` and :attr:`~cut_idx` properties for
+        implausibility evaluations using the read-in *PRISM* parameters file
+        and the provided `impl_cut`.
 
         Parameters
         ----------
-        %(impl_temp)s
+        impl_cut : list of float or None
+            Incomplete, shortened impl_cut-offs list to be used during the
+            analysis of this emulator iteration. If *None*, use the read-in
+            *PRISM* parameters file instead.
 
         Generates
         ---------
@@ -1809,35 +1935,24 @@ class Pipeline(Projection, object):
 
         # Do some logging
         logger = getCLogger('INIT')
-        logger.info("Obtaining implausibility analysis parameters.")
+        logger.info("Setting implausibility cut-off values.")
 
-        # Controller only
-        if self._is_controller:
+        # If impl_cut is None, set the impl_par the standard way
+        if impl_cut is None:
             # Obtaining default pipeline parameter dict
             par_dict = self._get_default_parameters()
 
-            # Read in data from provided PRISM parameters file
-            if self._prism_file is not None:
-                pipe_par = np.genfromtxt(self._prism_file, dtype=(str),
-                                         delimiter=':', autostrip=True)
+            # Add the read-in prism dict to it
+            par_dict.update(self._prism_dict)
 
-                # Make sure that pipe_par is 2D
-                pipe_par = np_array(pipe_par, ndmin=2)
+            # Remove auxiliary characters from impl_cut
+            impl_cut = convert_str_seq(par_dict['impl_cut'])
 
-                # Combine default parameters with read-in parameters
-                par_dict.update(pipe_par)
+        # Set the impl_par
+        self.impl_cut = impl_cut
 
-            # More logging
-            logger.info("Checking compatibility of provided implausibility "
-                        "analysis parameters.")
-
-            # Implausibility cut-off
-            # Remove all unwanted characters from the string and process it
-            self._get_impl_cut(convert_str_seq(par_dict['impl_cut']), temp)
-
-            # Finish logging
-            logger.info("Finished obtaining implausibility analysis "
-                        "parameters.")
+        # Finish logging
+        logger.info("Finished setting implausibility cut-off values.")
 
     # This function processes an externally provided real_set
     # TODO: Additionally allow for an old PRISM master file to be provided
@@ -1985,9 +2100,9 @@ class Pipeline(Projection, object):
                                                   0)
             """), '<string>', 'exec')
         exit_code = compile(dedent("""
-            adj_exp_val = np.concatenate(*[adj_exp_val], axis=1)
-            adj_var_val = np.concatenate(*[adj_var_val], axis=1)
-            uni_impl_val = np.concatenate(*[uni_impl_val_list], axis=1)
+            adj_exp_val = np.concatenate(adj_exp_val, axis=1)
+            adj_var_val = np.concatenate(adj_var_val, axis=1)
+            uni_impl_val = np.concatenate(uni_impl_val_list, axis=1)
             self.results = (adj_exp_val, adj_var_val, uni_impl_val,
                             emul_i_stop, impl_check)
             """), '<string>', 'exec')
@@ -2144,21 +2259,16 @@ class Pipeline(Projection, object):
                 logger.info("Analyzing evaluation sample set of size %i in "
                             "emulator iteration %i." % (n_sam, i))
 
-                # Determine the active emulator systems on every rank
-                active_emul_s = self._emulator._active_emul_s[i]
-
                 # Make empty uni_impl_vals list
                 uni_impl_vals = np.zeros([n_sam, self._emulator._n_data[i]])
 
                 # Loop over all still plausible samples in sam_set
                 for j, par_set in enumerate(eval_sam_set):
                     # Evaluate par_set
-                    adj_val = self._emulator._evaluate(i, active_emul_s,
-                                                       par_set)
+                    adj_val = self._emulator._evaluate(i, par_set)
 
                     # Calculate univariate implausibility value
-                    uni_impl_vals[j] = self._get_uni_impl(i, active_emul_s,
-                                                          par_set, *adj_val)
+                    uni_impl_vals[j] = self._get_uni_impl(i, par_set, *adj_val)
 
                     # Execute the eval_code snippet
                     exec(eval_code)
@@ -2170,7 +2280,7 @@ class Pipeline(Projection, object):
                 if self._is_controller:
                     # Convert uni_impl_vals_list to an array
                     uni_impl_vals_array =\
-                        np.concatenate(*[uni_impl_vals_list], axis=1)
+                        np.concatenate(uni_impl_vals_list, axis=1)
 
                     # Perform implausibility cutoff check on all elements
                     for j, uni_impl_val in enumerate(uni_impl_vals_array):
@@ -2223,12 +2333,22 @@ class Pipeline(Projection, object):
 
     # %% VISIBLE CLASS METHODS
     # This function analyzes the emulator and determines the plausible regions
-    def analyze(self):
+    def analyze(self, *, impl_cut=None):
         """
         Analyzes the emulator at the last emulator iteration for a large number
         of emulator evaluation samples. All samples that survive the
-        implausibility checks, are used in the construction of the next
-        emulator iteration.
+        implausibility checks set by the provided `impl_cut`, are used in the
+        construction of the next emulator iteration.
+
+        Optional
+        --------
+        impl_cut : list of float or None. Default: None
+            Incomplete, shortened impl_cut-offs list to be used during the
+            analysis of this emulator iteration.
+            If *None*, the currently set implausibility cut-off values
+            (:attr:`~impl_cut`) will be used if this is the first analysis or
+            the 'impl_cut' value in :attr:`~prism_dict` is used if this is a
+            reanalysis.
 
         Generates
         ---------
@@ -2268,8 +2388,16 @@ class Pipeline(Projection, object):
             # Save current time
             start_time1 = time()
 
-            # Get the impl_cut list
-            self._get_impl_par(False)
+            # Set the impl_cut list if analyzed before or impl_cut is not None
+            # This is to keep the impl_par set by the user if initial analyze
+            if impl_cut is not None or self._n_eval_sam[emul_i]:
+                self._set_impl_par(impl_cut)
+
+            # Save impl_par to hdf5
+            self._save_data({
+                    'impl_par': {
+                        'impl_cut': self._impl_cut[emul_i],
+                        'cut_idx': self._cut_idx[emul_i]}})
 
             # Create an emulator evaluation sample set
             eval_sam_set = self._get_eval_sam_set(emul_i)
@@ -2298,8 +2426,23 @@ class Pipeline(Projection, object):
             # Calculate the number of plausible samples left
             n_impl_sam = len(impl_sam)
 
+            # Raise warning if no plausible samples were found
+            if not n_impl_sam:
+                warn_msg = ("No plausible regions were found. Constructing the"
+                            " next iteration will not be possible.")
+                raise_warning(warn_msg, RequestWarning, logger, 2)
+
+            # Raise warning if n_impl_sam is less than n_cross_val
+            elif(n_impl_sam < self._emulator._n_cross_val):
+                warn_msg = ("Number of plausible samples is lower than the "
+                            "number of cross validations used during "
+                            "regression (%i < %i). Constructing the next "
+                            "iteration will not be possible."
+                            % (n_impl_sam, self._emulator._n_cross_val))
+                raise_warning(warn_msg, RequestWarning, logger, 2)
+
             # Raise warning if n_impl_sam is less than n_sam_init
-            if(n_impl_sam < self._n_sam_init):
+            elif(n_impl_sam < self._n_sam_init):
                 warn_msg = ("Number of plausible samples is lower than the "
                             "number of samples in the first iteration (%i < "
                             "%i). Constructing the next iteration might not "
@@ -2503,11 +2646,25 @@ class Pipeline(Projection, object):
                             self._make_call('analyze')
 
                         # Check if a new emulator iteration can be constructed
+                        # If no plausible regions were found
                         if not self._n_impl_sam[emul_i-1]:
                             err_msg = ("No plausible regions were found in the"
                                        " analysis of the previous emulator "
                                        "iteration. Construction is not "
                                        "possible!")
+                            raise_error(err_msg, RequestError, logger)
+
+                        # If n_impl_sam is less than n_cross_val
+                        elif(self._n_impl_sam[emul_i-1] <
+                             self._emulator._n_cross_val):
+                            err_msg = ("Number of plausible samples found in "
+                                       "the analysis of the previous iteration"
+                                       " is lower than the number of cross "
+                                       "validations used during regression"
+                                       " (%i < %i). Construction is not "
+                                       "possible!"
+                                       % (self._n_impl_sam[emul_i-1],
+                                          self._emulator._n_cross_val))
                             raise_error(err_msg, RequestError, logger)
 
                         # Make the emulator prepare for a new iteration
@@ -2540,6 +2697,7 @@ class Pipeline(Projection, object):
             self._save_data({
                 'impl_sam': np_array([]),
                 'n_eval_sam': 0})
+            self._set_impl_par(None)
 
             # Log that construction has been completed
             time_diff_total = time()-start_time
@@ -2553,9 +2711,8 @@ class Pipeline(Projection, object):
         # Analyze the emulator iteration if requested
         if analyze:
             self.analyze()
-        # If not, temporarily save implausibility parameters in memory
+        # If not, show details
         else:
-            self._get_impl_par(True)
             self.details(emul_i)
 
     # This function allows one to view the pipeline details/properties
@@ -2578,8 +2735,8 @@ class Pipeline(Projection, object):
             at the current working directory.
         Emulator type
             The type of this emulator, corresponding to the
-            :attr:`~prism.Emulator.emul_type` of the provided `emul_type`
-            during :class:`~Pipeline` initialization.
+            :attr:`~prism.emulator.Emulator.emul_type` of the provided
+            `emul_type` during :class:`~Pipeline` initialization.
             If no emulator type was provided during initialization, this is
             'default'.
         ModelLink subclass
@@ -2657,31 +2814,25 @@ class Pipeline(Projection, object):
 
         """
 
+        # If emulator has not been built yet, return immediately
+        if(len(self._emulator._ccheck) == 1):
+            return
+
         # Define details logger
         logger = getCLogger("DETAILS")
         logger.info("Collecting details about current pipeline instance.")
 
         # Check if last emulator iteration is finished constructing
-        if(delist(self._emulator._ccheck[-1]) == []):
-            ccheck_flag = 1
-        else:
-            ccheck_flag = 0
+        ccheck_flag = (delist(self._emulator._ccheck[-1]) == [])
 
         # Gather the ccheck_flags on all ranks to see if all are finished
-        ccheck_flag = np.all(self._comm.allgather(ccheck_flag))
+        ccheck_flag = self._comm.allreduce(ccheck_flag, op=MPI.MIN)
 
-        # Try to obtain correct emul_i depending on the construction progress
-        try:
-            if ccheck_flag:
-                emul_i = self._emulator._get_emul_i(emul_i, True)
-            else:
-                emul_i = self._emulator._get_emul_i(emul_i, False)
-        # If this fails, return
-        except RequestError:
-            return
-        # If this succeeds, gather ccheck information on the controller
-        else:
-            ccheck_list = self._comm.gather(self._emulator._ccheck[emul_i], 0)
+        # Obtain correct emul_i depending on the construction progress
+        emul_i = self._emulator._get_emul_i(emul_i, ccheck_flag)
+
+        # Gather ccheck information on the controller
+        ccheck_list = self._comm.gather(self._emulator._ccheck[emul_i], 0)
 
         # Controller generating the entire details overview
         if self._is_controller:
@@ -2746,6 +2897,9 @@ class Pipeline(Projection, object):
             # Obtain number of emulator systems
             n_emul_s = self._emulator._n_emul_s_tot
 
+            # Save if requested emulator iteration is fully constructed
+            ccheck_flag = (delist(ccheck_flat) == [])
+
             # Determine the relative path to the working directory
             pwd = os.getcwd()
             if(path.splitdrive(self._working_dir)[0].lower() !=
@@ -2795,7 +2949,7 @@ class Pipeline(Projection, object):
 
             # Availability flags
             # If this iteration is fully constructed, print flags and numbers
-            if(delist(ccheck_flat) == []):
+            if ccheck_flag:
                 # Determine the number of (active) parameters
                 n_active_par = len(self._emulator._active_par[emul_i])
 
@@ -2906,7 +3060,7 @@ class Pipeline(Projection, object):
             # Print details about every model parameter in parameter space
             for i in range(n_par):
                 # Determine what string to use for the active flag
-                if(delist(ccheck_flat) != []):
+                if not ccheck_flag:
                     active_str = "?"
                 elif i in self._emulator._active_par[emul_i]:
                     active_str = "*"
@@ -2943,7 +3097,7 @@ class Pipeline(Projection, object):
         self._comm.Barrier()
 
     # This function allows the user to evaluate a given sam_set in the emulator
-    # TODO: Plot emul_i_stop for large LHDs, giving a nice mental statistic
+    # TODO: Rewrite entire function to enable clarity about what is returned
     @docstring_substitute(emul_i=user_emul_i_doc)
     def evaluate(self, sam_set, emul_i=None):
         """
@@ -2962,8 +3116,8 @@ class Pipeline(Projection, object):
         --------
         %(emul_i)s
 
-        Returns (if ndim(sam_set) > 1)
-        ------------------------------
+        Returns (if 2D `sam_set`)
+        -------------------------
         impl_check : list of bool
             List of bool indicating whether or not the given samples passed the
             implausibility check at the given emulator iteration `emul_i`.
@@ -2980,11 +3134,8 @@ class Pipeline(Projection, object):
             Array containing the univariate implausibility values for all given
             samples.
 
-        Prints (if ndim(sam_set) == 1)
-        ------------------------------
-        impl_check : bool
-            Bool indicating whether or not the given sample passed the
-            implausibility check at the given emulator iteration `emul_i`.
+        Prints (if 1D `sam_set`)
+        ------------------------
         emul_i_stop : int
             Last emulator iteration at which the given sample is still within
             the plausible region of the emulator.
@@ -3001,7 +3152,8 @@ class Pipeline(Projection, object):
         -----
         If given emulator iteration `emul_i` has been analyzed before, the
         implausibility parameters of the last analysis are used. If not, then
-        the values are used that were read in when the emulator was loaded.
+        the values are used that were read in when the emulator was loaded or
+        that have been set by the user.
 
         """
 

@@ -21,6 +21,8 @@ from time import time
 from e13tools import InputError
 from e13tools.pyplot import draw_textline
 from e13tools.sampling import lhd
+from e13tools.utils import (convert_str_seq, docstring_append,
+                            docstring_substitute, raise_error, raise_warning)
 from matplotlib import cm
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
@@ -32,12 +34,10 @@ from tqdm import tqdm
 # PRISM imports
 from prism._docstrings import (def_par_doc, draw_proj_fig_doc, get_emul_i_doc,
                                hcube_doc, proj_data_doc, proj_par_doc_d,
-                               proj_par_doc_s, read_par_doc, save_data_doc_pr,
+                               proj_par_doc_s, save_data_doc_pr, set_par_doc,
                                user_emul_i_doc)
 from prism._internal import (RequestError, RequestWarning, check_vals,
-                             convert_str_seq, docstring_append,
-                             docstring_substitute, getCLogger, np_array,
-                             raise_error, raise_warning)
+                             getCLogger, np_array)
 
 # All declaration
 __all__ = ['Projection']
@@ -67,6 +67,7 @@ class Projection(object):
         raise_error(err_msg, RequestError, logger)
 
     # Function that creates all projection figures
+    # TODO: Allow for projection figures to be zoomed? (Cut off all black)
     @docstring_substitute(emul_i=user_emul_i_doc, proj_par=proj_par_doc_d)
     def project(self, emul_i=None, proj_par=None, **kwargs):
         """
@@ -75,6 +76,11 @@ class Projection(object):
         corresponding to the given `proj_par`.
         The input and output depend on the number of model parameters
         :attr:`~prism.modellink.ModelLink.n_par`.
+
+        All optional keyword arguments (except `force`) control various aspects
+        of drawing the projection figures and do not affect the projection data
+        that is saved to HDF5. This is instead influenced by the
+        :attr:`~proj_res` and :attr:`~proj_depth` properties.
 
         Parameters
         ----------
@@ -98,6 +104,10 @@ class Projection(object):
             If 'row'/'horizontal', the subplots are positioned on a single row.
             If 'col'/'column'/'vertical', the subplots are positioned on a
             single column.
+        show_cuts : bool. Default: False
+            If `figure` is *True* and `proj_type` is not '3D', whether to show
+            all implausibility cut-offs in the 2D projections (*True*) or only
+            the first cut-off (*False*).
         smooth : bool. Default: False
             Controls what to do if a grid point contains no plausible samples,
             but does contain a minimum implausibility value below the first
@@ -140,10 +150,15 @@ class Projection(object):
             (bottom/right) plot in the 3D projection figures. It takes all
             arguments that can be provided to the
             :func:`~matplotlib.pyplot.hexbin` function.
-        line_kwargs : dict. Default: {'linestyle': '--', 'color': 'grey'}
+        line_kwargs_est : dict. Default: {'linestyle': '--', 'color': 'grey'}
             Dict of keyword arguments to be used for drawing the parameter
             estimate lines in both plots. It takes all arguments that can be
             provided to the :func:`~matplotlib.pyplot.draw` function.
+        line_kwargs_cut : dict. Default: {'color': 'r'}
+            Dict of keyword arguments to be used for drawing the implausibility
+            cut-off line(s) in the top/left plot in the 2D projection figures.
+            It takes all arguments that can be provided to the
+            :func:`~matplotlib.pyplot.draw` function.
 
         Returns (if `figure` is *False*)
         --------------------------------
@@ -184,7 +199,8 @@ class Projection(object):
         -----
         If given emulator iteration `emul_i` has been analyzed before, the
         implausibility parameters of the last analysis are used. If not, then
-        the values are used that were read in when the emulator was loaded.
+        the values are used that were read in when the emulator was loaded or
+        that have been set by the user.
 
         """
 
@@ -241,7 +257,7 @@ class Projection(object):
                         self.__get_proj_data(hcube)
                 # Otherwise, the used resolution is the current resolution
                 else:
-                    proj_res = self.__res
+                    proj_res = self._res
 
                 # Draw projection figure
                 if(len(hcube) == 1):
@@ -276,30 +292,32 @@ class Projection(object):
     @property
     def proj_res(self):
         """
-        int: Number of emulator evaluations used to generate the grid for the
-        last created projection figures.
+        int: Number of emulator evaluations that will be used to generate the
+        grid for the projection figures.
 
         """
 
-        try:
-            return(self.__res)
-        except AttributeError:
-            return(None)
+        return(getattr(self, '_res', None))
+
+    @proj_res.setter
+    def proj_res(self, proj_res):
+        self._res = check_vals(proj_res, 'proj_res', 'int', 'pos')
 
     @property
     def proj_depth(self):
         """
-        int: Number of emulator evaluations used to generate the samples in
-        every grid point for the last created projection figures.
-        Note that when making 2D projections of nD models, the used depth was
-        this number multiplied by :attr:`~proj_res`.
+        int: Number of emulator evaluations that will be used to generate the
+        samples in every grid point for the projection figures.
+        Note that when making 2D projections of nD models, the used depth will
+        be this number multiplied by :attr:`~proj_res`.
 
         """
 
-        try:
-            return(self.__depth)
-        except AttributeError:
-            return(None)
+        return(getattr(self, '_depth', None))
+
+    @proj_depth.setter
+    def proj_depth(self, proj_depth):
+        self._depth = check_vals(proj_depth, 'proj_depth', 'int', 'pos')
 
     # %% HIDDEN CLASS METHODS
     # This function draws the 2D projection figure
@@ -308,8 +326,9 @@ class Projection(object):
         # Obtain name of this projection hypercube
         hcube_name = self.__get_hcube_name(hcube)
 
-        # Make abbreviation for first implausibility cut-off value
+        # Make abbreviation for implausibility cut-off values
         impl_cut = self._impl_cut[self.__emul_i][0]
+        impl_cuts = self._impl_cut[self.__emul_i]
 
         # Start logger
         logger = getCLogger('PROJECTION')
@@ -328,6 +347,8 @@ class Projection(object):
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # point
+        # TODO: Allow user to set smooth parameter for Rbf function
+        # This probably means that smoothed figures have to be renamed
         f_min = Rbf(x_proj, impl_min)
         f_los = Rbf(x_proj, impl_los)
 
@@ -389,25 +410,45 @@ class Projection(object):
             f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
                        fontsize='xx-large')
 
+            # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
             ax0.plot(x, y_min, **self.__impl_kwargs_2D)
             ax0_rng = [*self._modellink._par_rng[par], 0, 1.5*impl_cut]
             ax0.axis(ax0_rng)
+
+            # Draw parameter estimate line
             if self._modellink._par_est[par] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
-                              line_kwargs=self.__line_kwargs)
-            draw_textline(r"", y=impl_cut, ax=ax0, line_kwargs={'color': 'r'})
+                              line_kwargs=self.__line_kwargs_est)
+
+            # Draw implausibility cut-off line(s)
+            if self.__show_cuts:
+                # If all lines are requested, draw them
+                for cut in impl_cuts:
+                    draw_textline(r"", y=cut, ax=ax0,
+                                  line_kwargs=self.__line_kwargs_cut)
+            else:
+                # Else, draw the first cut-off line
+                draw_textline(r"", y=impl_cut, ax=ax0,
+                              line_kwargs=self.__line_kwargs_cut)
+
+            # Set axes and label
             ax0.axis(ax0_rng)
             ax0.set_ylabel("Min. Implausibility", fontsize='large')
 
+            # LINE-OF-SIGHT DEPTH PLOT
             # Plot line-of-sight depth
             ax1.plot(x, y_los, **self.__los_kwargs_2D)
             ax1_rng = [*self._modellink._par_rng[par],
                        0, min(1, np.max(y_los))]
             ax1.axis(ax1_rng)
+
+            # Draw parameter estimate line
             if self._modellink._par_est[par] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par], ax=ax1,
-                              line_kwargs=self.__line_kwargs)
+                              line_kwargs=self.__line_kwargs_est)
+
+            # Set axes and label
             ax1.axis(ax1_rng)
             ax1.set_ylabel("Line-of-Sight Depth", fontsize='large')
 
@@ -417,11 +458,9 @@ class Projection(object):
                 label_ax.get_xaxis().set_ticks([])
                 label_ax.get_yaxis().set_ticks([])
                 label_ax.autoscale(tight=True)
-                label_ax.set_xlabel("Model parameter %s" % (par_name),
-                                    fontsize='x-large', labelpad=0)
+                label_ax.set_xlabel(par_name, fontsize='x-large', labelpad=0)
             else:
-                ax1.set_xlabel("Model parameter %s" % (par_name),
-                               fontsize='x-large')
+                ax1.set_xlabel(par_name, fontsize='x-large')
 
             # Save the figure
             plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
@@ -471,6 +510,8 @@ class Projection(object):
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # grid point
+        # TODO: Allow user to set smooth parameter for Rbf function
+        # This probably means that smoothed figures have to be renamed
         f_min = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_min)
         f_los = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_los)
 
@@ -562,30 +603,40 @@ class Projection(object):
             f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
                        fontsize='xx-large')
 
+            # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
             fig1 = ax0.hexbin(x, y, z_min, gridsize, vmin=0, vmax=impl_cut,
                               **self.__impl_kwargs_3D)
+
+            # Draw parameter estimate lines
             if self._modellink._par_est[par1] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par1], ax=ax0,
-                              line_kwargs=self.__line_kwargs)
+                              line_kwargs=self.__line_kwargs_est)
             if self._modellink._par_est[par2] is not None:
                 draw_textline(r"", y=self._modellink._par_est[par2], ax=ax0,
-                              line_kwargs=self.__line_kwargs)
+                              line_kwargs=self.__line_kwargs_est)
+
+            # Set axes and labels
             ax0.axis([*self._modellink._par_rng[par1],
                       *self._modellink._par_rng[par2]])
-            plt.colorbar(fig1, ax=ax0).set_label("Min. Implausibility",
-                                                 fontsize='large')
+            plt.colorbar(fig1, ax=ax0, extend='max').set_label(
+                "Min. Implausibility", fontsize='large')
 
+            # LINE-OF-SIGHT DEPTH PLOT
             # Plot line-of-sight depth
             fig2 = ax1.hexbin(x, y, z_los, gridsize, vmin=0,
                               vmax=min(1, np.max(z_los)),
                               **self.__los_kwargs_3D)
+
+            # Draw parameter estimate lines
             if self._modellink._par_est[par1] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par1], ax=ax1,
-                              line_kwargs=self.__line_kwargs)
+                              line_kwargs=self.__line_kwargs_est)
             if self._modellink._par_est[par2] is not None:
                 draw_textline(r"", y=self._modellink._par_est[par2], ax=ax1,
-                              line_kwargs=self.__line_kwargs)
+                              line_kwargs=self.__line_kwargs_est)
+
+            # Set axes and label
             ax1.axis([*self._modellink._par_rng[par1],
                       *self._modellink._par_rng[par2]])
             plt.colorbar(fig2, ax=ax1).set_label("Line-of-Sight Depth",
@@ -593,21 +644,19 @@ class Projection(object):
 
             # Make super axis labels using dummy Axes object as an empty plot
             if(self.__align == 'row'):
-                ax0.set_ylabel("%s" % (par2_name), fontsize='x-large')
+                ax0.set_ylabel(par2_name, fontsize='x-large')
                 label_ax.set_frame_on(False)
                 label_ax.get_xaxis().set_ticks([])
                 label_ax.get_yaxis().set_ticks([])
                 label_ax.autoscale(tight=True)
-                label_ax.set_xlabel("%s" % (par1_name), fontsize='x-large',
-                                    labelpad=0)
+                label_ax.set_xlabel(par1_name, fontsize='x-large', labelpad=0)
             else:
-                ax1.set_xlabel("%s" % (par1_name), fontsize='x-large')
+                ax1.set_xlabel(par1_name, fontsize='x-large')
                 label_ax.set_frame_on(False)
                 label_ax.get_xaxis().set_ticks([])
                 label_ax.get_yaxis().set_ticks([])
                 label_ax.autoscale(tight=True)
-                label_ax.set_ylabel("%s" % (par2_name), fontsize='x-large',
-                                    labelpad=0)
+                label_ax.set_ylabel(par2_name, fontsize='x-large', labelpad=0)
 
             # Save the figure
             plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
@@ -881,7 +930,7 @@ class Projection(object):
                     'proj_depth': '250'}
 
         # Return it
-        return(par_dict)
+        return(sdict(par_dict))
 
     # This function returns default projection input arguments
     def __get_default_input_arguments(self):
@@ -905,13 +954,15 @@ class Projection(object):
         impl_kwargs_3D = {'cmap': 'rainforest_r'}
         los_kwargs_2D = {}
         los_kwargs_3D = {'cmap': 'blaze'}
-        line_kwargs = {'linestyle': '--',
-                       'color': 'grey'}
+        line_kwargs_est = {'linestyle': '--',
+                           'color': 'grey'}
+        line_kwargs_cut = {'color': 'r'}
 
         # Create input argument dict with default projection parameters
         kwargs_dict = {'proj_type': '2D' if(self.__n_par == 2) else 'both',
                        'figure': 1,
                        'align': 'col',
+                       'show_cuts': 0,
                        'smooth': 0,
                        'force': 0,
                        'fig_kwargs': fig_kwargs,
@@ -919,46 +970,39 @@ class Projection(object):
                        'impl_kwargs_3D': impl_kwargs_3D,
                        'los_kwargs_2D': los_kwargs_2D,
                        'los_kwargs_3D': los_kwargs_3D,
-                       'line_kwargs': line_kwargs,
+                       'line_kwargs_est': line_kwargs_est,
+                       'line_kwargs_cut': line_kwargs_cut,
                        'figsize_c': figsize_c,
                        'figsize_r': figsize_r}
 
         # Return it
-        return(kwargs_dict)
+        return(sdict(kwargs_dict))
 
-    # Read in the parameters from the provided parameter file
-    @docstring_append(read_par_doc.format("Projection"))
-    def __read_parameters(self):
-        # Log that the PRISM parameter file is being read
+    # Set the parameters that were read in from the provided parameter file
+    @docstring_append(set_par_doc.format("Projection"))
+    def __set_parameters(self):
+        # Log that the projection parameters are being set
         logger = getCLogger('INIT')
-        logger.info("Reading projection parameters.")
+        logger.info("Setting projection parameters.")
 
         # Obtaining default projection parameter dict
         par_dict = self.__get_default_parameters()
 
-        # Read in data from provided PRISM parameters file
-        if self._prism_file is not None:
-            pipe_par = np.genfromtxt(self._prism_file, dtype=(str),
-                                     delimiter=':', autostrip=True)
-
-            # Make sure that pipe_par is 2D
-            pipe_par = np_array(pipe_par, ndmin=2)
-
-            # Combine default parameters with read-in parameters
-            par_dict.update(pipe_par)
+        # Add the read-in prism dict to it
+        par_dict.update(self._prism_dict)
 
         # More logging
         logger.info("Checking compatibility of provided projection "
                     "parameters.")
 
         # Number of samples used for implausibility evaluations
-        self.__res = check_vals(convert_str_seq(par_dict['proj_res'])[0],
-                                'proj_res', 'int', 'pos')
-        self.__depth = check_vals(convert_str_seq(par_dict['proj_depth'])[0],
-                                  'proj_depth', 'int', 'pos')
+        if not hasattr(self, '_res'):
+            self.proj_res = convert_str_seq(par_dict['proj_res'])[0]
+        if not hasattr(self, '_depth'):
+            self.proj_depth = convert_str_seq(par_dict['proj_depth'])[0]
 
         # Finish logging
-        logger.info("Finished reading projection parameters.")
+        logger.info("Finished setting projection parameters.")
 
     # This function generates a projection hypercube to be used for emulator
     # evaluations
@@ -997,20 +1041,20 @@ class Projection(object):
             # Calculate the actual depth
             if(self.__n_par == 2):
                 # If n_par == 2, use normal depth
-                depth = self.__depth
+                depth = self._depth
             else:
                 # If n_par > 2, multiply depth by res to have same n_sam as 3D
-                depth = self.__depth*self.__res
+                depth = self._depth*self._res
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([self.__res, depth, self.__n_par])
+            proj_hcube = np.zeros([self._res, depth, self.__n_par])
 
             # Create list that contains all the other parameters
             par_hid = list(chain(range(0, par), range(par+1, self.__n_par)))
 
             # Generate list with values for projected parameter
             proj_sam_set = np.linspace(*self._modellink._par_rng[par],
-                                       self.__res)
+                                       self._res)
 
             # Generate latin hypercube of the remaining parameters
             hidden_sam_set = lhd(depth, self.__n_par-1,
@@ -1018,7 +1062,7 @@ class Projection(object):
                                  self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
-            for i in range(self.__res):
+            for i in range(self._res):
                 proj_hcube[i, :, par] = proj_sam_set[i]
                 proj_hcube[i, :, par_hid] = hidden_sam_set.T
 
@@ -1029,7 +1073,7 @@ class Projection(object):
             par2 = hcube[1]
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([pow(self.__res, 2), self.__depth,
+            proj_hcube = np.zeros([pow(self._res, 2), self._depth,
                                    self.__n_par])
 
             # Generate list that contains all the other parameters
@@ -1038,21 +1082,21 @@ class Projection(object):
 
             # Generate list with values for projected parameters
             proj_sam_set1 = np.linspace(*self._modellink._par_rng[par1],
-                                        self.__res)
+                                        self._res)
             proj_sam_set2 = np.linspace(*self._modellink._par_rng[par2],
-                                        self.__res)
+                                        self._res)
 
             # Generate Latin Hypercube of the remaining parameters
-            hidden_sam_set = lhd(self.__depth, self.__n_par-2,
+            hidden_sam_set = lhd(self._depth, self.__n_par-2,
                                  self._modellink._par_rng[par_hid], 'fixed',
                                  self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
-            for i in range(self.__res):
-                for j in range(self.__res):
-                    proj_hcube[i*self.__res+j, :, par1] = proj_sam_set1[i]
-                    proj_hcube[i*self.__res+j, :, par2] = proj_sam_set2[j]
-                    proj_hcube[i*self.__res+j, :, par_hid] = hidden_sam_set.T
+            for i in range(self._res):
+                for j in range(self._res):
+                    proj_hcube[i*self._res+j, :, par1] = proj_sam_set1[i]
+                    proj_hcube[i*self._res+j, :, par2] = proj_sam_set2[j]
+                    proj_hcube[i*self._res+j, :, par_hid] = hidden_sam_set.T
 
         # Workers get dummy proj_hcube
         else:
@@ -1183,7 +1227,8 @@ class Projection(object):
         # Update kwargs_dict with given kwargs
         for key, value in kwargs.items():
             if key in ('fig_kwargs', 'impl_kwargs_2D', 'impl_kwargs_3D',
-                       'los_kwargs_2D', 'los_kwargs_3D', 'line_kwargs'):
+                       'los_kwargs_2D', 'los_kwargs_3D', 'line_kwargs_est',
+                       'line_kwargs_cut'):
                 if not isinstance(value, dict):
                     err_msg = ("Input argument %r is not of type 'dict'!"
                                % (key))
@@ -1203,13 +1248,15 @@ class Projection(object):
         # Controller checking all other kwargs
         if self._is_controller:
             # Check if several parameters are bools
-            self.__figure = check_vals(kwargs['figure'], 'figure', 'bool')
-            self.__smooth = check_vals(kwargs['smooth'], 'smooth', 'bool')
-            self.__force = check_vals(kwargs['force'], 'force', 'bool')
+            self.__figure = check_vals(kwargs.pop('figure'), 'figure', 'bool')
+            self.__show_cuts = check_vals(kwargs.pop('show_cuts'), 'show_cuts',
+                                          'bool')
+            self.__smooth = check_vals(kwargs.pop('smooth'), 'smooth', 'bool')
+            self.__force = check_vals(kwargs.pop('force'), 'force', 'bool')
 
             # Check if proj_type parameter is a valid string
             proj_type =\
-                str(kwargs['proj_type'].replace("'", '').replace('"', ''))
+                str(kwargs.pop('proj_type')).replace("'", '').replace('"', '')
             if proj_type.lower() in ('2d', '1', 'one'):
                 self.__proj_2D = 1
                 self.__proj_3D = 0
@@ -1225,7 +1272,7 @@ class Projection(object):
                 raise_error(err_msg, ValueError, logger)
 
             # Check if align parameter is a valid string
-            align = str(kwargs['align'].replace("'", '').replace('"', ''))
+            align = str(kwargs.pop('align')).replace("'", '').replace('"', '')
             if align.lower() in ('r', 'row', 'h', 'horizontal'):
                 self.__align = 'row'
                 kwargs['fig_kwargs']['figsize'] =\
@@ -1240,12 +1287,13 @@ class Projection(object):
                 raise_error(err_msg, ValueError, logger)
 
             # Pop all specific kwargs dicts from kwargs
-            fig_kwargs = kwargs['fig_kwargs']
-            impl_kwargs_2D = kwargs['impl_kwargs_2D']
-            impl_kwargs_3D = kwargs['impl_kwargs_3D']
-            los_kwargs_2D = kwargs['los_kwargs_2D']
-            los_kwargs_3D = kwargs['los_kwargs_3D']
-            line_kwargs = kwargs['line_kwargs']
+            fig_kwargs = kwargs.pop('fig_kwargs')
+            impl_kwargs_2D = kwargs.pop('impl_kwargs_2D')
+            impl_kwargs_3D = kwargs.pop('impl_kwargs_3D')
+            los_kwargs_2D = kwargs.pop('los_kwargs_2D')
+            los_kwargs_3D = kwargs.pop('los_kwargs_3D')
+            line_kwargs_est = kwargs.pop('line_kwargs_est')
+            line_kwargs_cut = kwargs.pop('line_kwargs_cut')
 
             # FIG_KWARGS
             # Check if any forbidden kwargs are given and remove them
@@ -1298,7 +1346,8 @@ class Projection(object):
             self.__impl_kwargs_3D = impl_kwargs_3D
             self.__los_kwargs_2D = los_kwargs_2D
             self.__los_kwargs_3D = los_kwargs_3D
-            self.__line_kwargs = line_kwargs
+            self.__line_kwargs_est = line_kwargs_est
+            self.__line_kwargs_cut = line_kwargs_cut
 
         # MPI Barrier
         self._comm.Barrier()
@@ -1356,8 +1405,8 @@ class Projection(object):
             if not self.__figure:
                 self.__fig_data = sdict()
 
-            # Read in projection parameters
-            self.__read_parameters()
+            # Set projection parameters
+            self.__set_parameters()
 
         # Obtain requested projection hypercubes
         self.__get_req_hcubes(proj_par)
@@ -1398,7 +1447,7 @@ class Projection(object):
                     data_set.create_dataset('impl_los', data=data['impl_los'])
                     data_set.attrs['impl_cut'] = self._impl_cut[self.__emul_i]
                     data_set.attrs['cut_idx'] = self._cut_idx[self.__emul_i]
-                    data_set.attrs['proj_res'] = self.__res
+                    data_set.attrs['proj_res'] = self._res
                     data_set.attrs['proj_depth'] = data['proj_depth']
 
                 # INVALID KEYWORD

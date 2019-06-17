@@ -5,12 +5,12 @@ MPI implementation
 Given that most scientific models are either already parallelized or could benefit from parallelization, we had to make sure that *PRISM* allows for both MPI and OpenMP coded models to be connected.
 Additionally, since individual emulator systems in an emulator iteration are independent of each other, the extra CPUs required for the model should also be usable by the emulator.
 For that reason, *PRISM* features a high-level MPI implementation for using MPI-coded models, while the Python package *NumPy* handles the OpenMP side.
-A mixture of both is also possible (due to the :attr:`~prism.Pipeline.worker_mode` context manager).
+A mixture of both is also possible (using the :attr:`~prism.Pipeline.worker_mode` context manager).
 
 Here, we discuss the MPI scaling tests that were performed on *PRISM*.
 For the tests, the same :class:`~prism.modellink.GaussianLink` class was used as in :ref:`minimal_example`, but this time with :math:`32` emulator systems (comparison data points) instead of :math:`3`.
 In *PRISM*, all emulator systems are spread out over the available number of MPI processes as much as possible while also trying to balance the number of calculations performed per MPI process.
-Since all emulator systems are stored in different HDF5-files, it is possible to reinitialize the :class:`~prism.Pipeline` using the same :class:`~prism.Emulator` class and :class:`~prism.modellink.ModelLink` subclass on a different number of MPI processes.
+Since all emulator systems are stored in different HDF5-files, it is possible to reinitialize the :class:`~prism.Pipeline` using the same :class:`~prism.emulator.Emulator` class and :class:`~prism.modellink.ModelLink` subclass on a different number of MPI processes.
 To make sure that the results are not influenced by the variation in evaluation rates, we constructed an emulator of the Gaussian model and used the exact same emulator in every test.
 
 The tests were carried out using any number of MPI processes between :math:`1` and :math:`32`, and using a single OpenMP thread each time for consistency.

@@ -81,4 +81,8 @@ deploy:
         tags: true
     
 notifications:
-  email: false
+  email:
+    recipients:
+      - evandervelden@swin.edu.au
+    on_success: change
+    on_failure: always

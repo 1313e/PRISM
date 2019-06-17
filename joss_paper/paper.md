@@ -34,10 +34,10 @@ We commonly employ Markov chain Monte Carlo (MCMC) methods and Bayesian statisti
 However, as these methods are meant to be used for making approximations of the posterior probability distribution function, we think there is a more efficient way of analyzing them.
 
 Based on the algorithms described by @Vernon10, we have built *PRISM*, a publicly available _Probabilistic Regression Instrument for Simulating Models_ for Python 3.
-*PRISM* uses the Bayes linear approach [@BLA], emulation technique [@Craig96, @Craig97] and history matching [@Raftery95, @Craig96, @Craig97] to construct an approximation ('emulator') of any given model, by combining limited model evaluations with advanced regression techniques, covariances and probability calculations.
+*PRISM* uses the Bayes linear approach [@BLA], emulation technique [@Craig96; @Craig97] and history matching [@Raftery95; @Craig96; @Craig97] to construct an approximation ('emulator') of any given model, by combining limited model evaluations with advanced regression techniques, covariances and probability calculations.
 It is designed to easily facilitate and enhance existing MCMC methods by restricting plausible regions and exploring parameter space more efficiently.
 However, *PRISM* can additionally be used as a standalone alternative to MCMC for model analysis, providing insight into the behavior of complex scientific models.
-These techniques have been used successfully in the past [@Bower10, @Vernon10, @Vernon18] to speed up model analyses, but their algorithms are typically written for a specific application and are not publicly available.
+These techniques have been used successfully in the past [@Bower10; @Vernon10; @Vernon18] to speed up model analyses, but their algorithms are typically written for a specific application and are not publicly available.
 With *PRISM*, the time spent on evaluating a model is minimized, providing developers with an advanced model analysis for a fraction of the time required by more traditional methods.
 
 The API for *PRISM* was designed to work well for both simple and advanced projects, with every class being written as a base class, but also almost every user-method solely taking optional arguments.

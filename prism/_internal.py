@@ -3,15 +3,13 @@
 """
 Internal
 ========
-Contains a collection of support classes/functions/lists for the *PRISM*
-package.
+Contains a collection of support classes/functions for the *PRISM* package.
 
 """
 
 
 # %% IMPORTS
 # Built-in imports
-from inspect import isclass
 import logging
 import logging.config
 import os
@@ -21,32 +19,24 @@ import shutil
 from struct import calcsize
 from tempfile import mkstemp
 from textwrap import dedent
-import warnings
 
 # Package imports
 from e13tools import InputError, compare_versions
+from e13tools.utils import raise_error, raise_warning
 import h5py
-from matplotlib.cm import register_cmap
-from matplotlib.colors import LinearSegmentedColormap as LSC
+from mpi4pyd import MPI
 import numpy as np
 from pkg_resources import get_distribution
 
 # PRISM imports
-try:
-    from mpi4py import MPI
-except ImportError:
-    import prism._dummyMPI as MPI
-from prism.__version__ import compat_version, prism_version
+from prism.__version__ import __version__, compat_version
 
 # All declaration
-__all__ = ['CFilter', 'FeatureWarning', 'PRISM_Comm', 'PRISM_Logger',
-           'RFilter', 'RequestError', 'RequestWarning', 'aux_char_list',
-           'check_compatibility', 'check_instance', 'check_vals',
-           'convert_str_seq', 'delist', 'docstring_append', 'docstring_copy',
-           'docstring_substitute', 'get_PRISM_File', 'get_formatter',
-           'get_handler', 'get_info', 'getCLogger', 'getLogger', 'getRLogger',
-           'import_cmaps', 'move_logger', 'np_array', 'raise_error',
-           'raise_warning', 'rprint', 'set_base_logger']
+__all__ = ['CFilter', 'FeatureWarning', 'PRISM_Logger', 'RFilter',
+           'RequestError', 'RequestWarning', 'check_compatibility',
+           'check_vals', 'get_PRISM_File', 'get_formatter', 'get_handler',
+           'get_info', 'getCLogger', 'getLogger', 'getRLogger', 'move_logger',
+           'np_array', 'set_base_logger']
 
 # Determine MPI size and ranks
 size = MPI.COMM_WORLD.Get_size()
@@ -82,192 +72,6 @@ class FeatureWarning(FutureWarning):
     """
 
     pass
-
-
-# Make a custom MPI.Comm class that uses a special broadcast method
-class PRISM_Comm(object):
-    """
-    Custom :class:`~MPI.Intracomm` class that automatically makes use of the
-    :class:`~numpy.ndarray` buffers when using communications. Is functionally
-    the same as the provided `comm` for everything else.
-
-    Optional
-    --------
-    comm : :obj:`~MPI.Intracomm` object or None. Default: None
-        The MPI intra-communicator to use in this :class:`~PRISM_Comm`
-        instance.
-        If *None*, use :obj:`MPI.COMM_WORLD` instead.
-
-    """
-
-    def __init__(self, comm=None):
-        # If comm is None, use MPI.COMM_WORLD
-        if comm is None:
-            comm = MPI.COMM_WORLD
-        # Else, raise error if provided comm is not an MPI intra-communicator
-        elif not isinstance(comm, MPI.Intracomm):
-            raise TypeError("Input argument 'comm' must be an instance of the "
-                            "MPI.Intracomm class!")
-
-        # Bind provided communicator
-        self._comm = comm
-        self._rank = self._comm.Get_rank()
-        self._size = self._comm.Get_size()
-
-    # Override getattr property to use self._comm attributes if necessary
-    def __getattribute__(self, name):
-        try:
-            return(super().__getattribute__(name))
-        except AttributeError:
-            return(getattr(self._comm, name))
-
-    # Override __dir__ attribute to use the one from self._comm
-    def __dir__(self):
-        return(dir(self._comm))
-
-    # Specialized bcast function that automatically makes use of NumPy buffers
-    def bcast(self, obj, root):
-        """
-        Special broadcast method that automatically uses the appropriate method
-        (:meth:`~MPI.Intracomm.bcast` or :meth:`~MPI.Intracomm.Bcast`)
-        depending on the type of the provided `obj`.
-
-        Parameters
-        ----------
-        obj : :obj:`~numpy.ndarray` or object
-            The object to broadcast to all MPI ranks.
-            If :obj:`~numpy.ndarray`, use :meth:`~MPI.Intracomm.Bcast`.
-            If not, use :meth:`~MPI.Intracomm.bcast` instead.
-        root : int
-            The MPI rank that broadcasts `obj`.
-
-        Returns
-        -------
-        obj : object
-            The broadcasted `obj`.
-
-        """
-
-        # Sender
-        if(self._rank == root):
-            # Check if provided object is a NumPy array
-            if isinstance(obj, np.ndarray):
-                # If so, send shape and dtype of the NumPy array
-                self._comm.bcast(['NumPy ndarray', [obj.shape, obj.dtype]],
-                                 root=root)
-
-                # Then send the NumPy array as a buffer object
-                self._comm.Bcast(obj, root=root)
-
-            # If not, send obj the normal way
-            else:
-                # Try to send object
-                try:
-                    self._comm.bcast([obj.__class__.__name__, obj], root=root)
-                # If this fails, raise error about byte size
-                except OverflowError:
-                    raise InputError("Input argument `obj` has a byte size "
-                                     "that cannot be stored in a 32-bit int "
-                                     "(%i > %i)!"
-                                     % (obj.__sizeof__(), 2**31-1))
-
-        # Receivers wait for instructions
-        else:
-            # Receive object
-            obj_type, obj = self._comm.bcast(obj, root=root)
-
-            # If obj_type is NumPy ndarray, obj contains shape and dtype
-            if(obj_type == 'NumPy ndarray'):
-                # Create empty NumPy array with given shape and dtype
-                obj = np.empty(*obj)
-
-                # Receive NumPy array
-                self._comm.Bcast(obj, root=root)
-
-        # Return obj
-        return(obj)
-
-    # Specialized gather function that automatically makes use of NumPy buffers
-    def gather(self, obj, root):
-        """
-        Special gather method that automatically uses the appropriate method
-        (:meth:`~MPI.Intracomm.gather` or :meth:`~MPI.Intracomm.Gatherv`)
-        depending on the type of the provided `obj`.
-
-        Parameters
-        ----------
-        obj : :obj:`~numpy.ndarray` or object
-            The object to gather from all MPI ranks.
-            If :obj:`~numpy.ndarray`, use :meth:`~MPI.Intracomm.Gatherv`.
-            If not, use :meth:`~MPI.Intracomm.gather` instead.
-        root : int
-            The MPI rank that gathers `obj`.
-
-        Returns
-        -------
-        obj : list or None
-            If MPI rank is `root`, returns a list of the gathered objects.
-            Else, returns *None*.
-
-        Warnings
-        --------
-        If some but not all MPI ranks use a NumPy array, this method will hang
-        indefinitely.
-        When gathering NumPy arrays, all arrays must have the same number of
-        dimensions and the same shape, except for one axis.
-
-        """
-
-        # Check if provided object is a NumPy array
-        if isinstance(obj, np.ndarray):
-            # If so, gather the shapes of obj on the receiver
-            shapes = self._comm.gather(obj.shape, root=root)
-
-            # If obj has an empty dimension anywhere, replace it with a dummy
-            if not np.all(obj.shape):
-                obj = np.empty([1]*obj.ndim)
-
-            # Receiver sets up a buffer array and receives NumPy array
-            if(self._rank == root):
-                # Obtain the required shape of the buffer array
-                buff_shape = (self._size, np.product(np.max(shapes, axis=0)))
-
-                # Create buffer array
-                buff = np.empty(buff_shape)
-
-                # Gather all NumPy arrays
-                self._comm.Gatherv(obj.ravel(), buff, root=root)
-
-                # Make an empty list holding individual arrays
-                arr_list = []
-
-                # Loop over gathered buff and transform back to single arrays
-                for array, shape in zip(buff, shapes):
-                    array_temp = array[:np.product(shape)]
-                    arr_list.append(array_temp.reshape(shape))
-
-                # Replace buff by arr_list
-                buff = arr_list
-
-            # Senders send the array
-            else:
-                # Senders set up dummy buffer
-                buff = None
-
-                # Send array
-                self._comm.Gatherv(obj.ravel(), buff, root=root)
-
-        # If not, gather obj the normal way
-        else:
-            # Try to send the obj
-            try:
-                buff = self._comm.gather(obj, root=root)
-            # If this fails, raise error about byte size
-            except SystemError:
-                raise InputError("Input argument 'obj' is too large!")
-
-        # Return buff
-        return(buff)
 
 
 # Define custom Logger class that allows for filters to be easily used
@@ -352,64 +156,6 @@ class RequestWarning(UserWarning):
     pass
 
 
-# %% DECORATOR DEFINITIONS
-# Define custom decorator for appending docstrings to a function's docstring
-def docstring_append(addendum, join=''):
-    """
-    Custom decorator that allows a given string `addendum` to be appended to
-    the docstring of the target function, separated by a given string `join`.
-
-    """
-
-    def do_append(target):
-        if target.__doc__:
-            target.__doc__ = join.join([target.__doc__, addendum])
-        else:
-            target.__doc__ = addendum
-        return(target)
-    return(do_append)
-
-
-# Define custom decorator for copying docstrings from one function to another
-def docstring_copy(source):
-    """
-    Custom decorator that allows the docstring of a function `source` to be
-    copied to the target function.
-
-    """
-
-    def do_copy(target):
-        if source.__doc__:
-            target.__doc__ = source.__doc__
-        return(target)
-    return(do_copy)
-
-
-# Define custom decorator for substituting strings into a function's docstring
-def docstring_substitute(*args, **kwargs):
-    """
-    Custom decorator that allows either given positional arguments `args` or
-    keyword arguments `kwargs` to be substituted into the docstring of the
-    target function.
-
-    """
-
-    if len(args) and len(kwargs):
-        raise InputError("Either only positional or keyword arguments are "
-                         "allowed!")
-    else:
-        params = args or kwargs
-
-    def do_substitution(target):
-        if target.__doc__:
-            target.__doc__ = target.__doc__ % (params)
-        else:
-            raise InputError("Target has no docstring available for "
-                             "substitutions!")
-        return(target)
-    return(do_substitution)
-
-
 # %% FUNCTION DEFINITIONS
 # Function for checking if emulator system is compatible with PRISM version
 def check_compatibility(emul_version):
@@ -432,7 +178,7 @@ def check_compatibility(emul_version):
         if compare_versions(version, emul_version):
             err_msg = ("The provided emulator is incompatible with the current"
                        " version of PRISM (v%s). The last compatible version "
-                       "is v%s." % (prism_version, version))
+                       "is v%s." % (__version__, version))
             raise_error(err_msg, RequestError, logger)
 
     # Check if emul_version is 1.0.x and raise warning if so
@@ -444,57 +190,13 @@ def check_compatibility(emul_version):
         raise_warning(warn_msg, RequestWarning, logger, 2)
 
     # Check if emul_version is not newer than prism_version
-    if not compare_versions(prism_version, emul_version):
+    if not compare_versions(__version__, emul_version):
         err_msg = ("The provided emulator was constructed with a version later"
                    " than the current version of PRISM (v%s). Use v%s or later"
-                   " to use this emulator." % (prism_version, emul_version))
+                   " to use this emulator." % (__version__, emul_version))
         raise_error(err_msg, RequestError, logger)
     else:
         logger.info("Version compatibility check was successful.")
-
-
-# This function checks if a given instance was initialized properly
-def check_instance(instance, cls):
-    """
-    Checks if provided `instance` has been initialized from a proper `cls`
-    (sub)class. Raises a :class:`~TypeError` if `instance` is not an instance
-    of `cls`.
-
-    Parameters
-    ----------
-    instance : object
-        Class instance that needs to be checked.
-    cls : class
-        The class which `instance` needs to be properly initialized from.
-
-    Returns
-    -------
-    result : bool
-        Bool indicating whether or not the provided `instance` was initialized
-        from a proper `cls` (sub)class.
-
-    """
-
-    # Check if cls is a class
-    if not isclass(cls):
-        raise InputError("Input argument 'cls' must be a class!")
-
-    # Check if instance was initialized from a cls (sub)class
-    if not isinstance(instance, cls):
-        raise TypeError("Input argument 'instance' must be an instance of the "
-                        "%s.%s class!" % (cls.__module__, cls.__name__))
-
-    # Retrieve a list of all cls attributes
-    class_attrs = dir(cls)
-
-    # Check if all cls attributes can be called in instance
-    for attr in class_attrs:
-        try:
-            getattr(instance, attr)
-        except AttributeError:
-            return(0)
-    else:
-        return(1)
 
 
 # This function checks if the input values meet all given criteria
@@ -508,20 +210,20 @@ def check_vals(values, name, *args):
 
     Parameters
     ----------
-    values : array_like of {int, float, str, bool}
+    values : array_like of {int, float, complex, str, bool}
         The values to be checked against all given criteria in `args`. It must
         be possible to convert `values` to a :obj:`~numpy.ndarray` object.
     name : str
         The name of the input argument, which is used in the error message if
         a criterion is not met.
-    args : tuple of {'bool', 'float', 'int', 'neg', 'nneg', 'normal', 'npos', \
-        'nzero', 'pos', 'str'}
+    args : tuple of {'bool', 'complex', 'float', 'int', 'neg', 'nneg', \
+        'normal', 'npos', 'nzero', 'pos', 'str'}
         Sequence of strings determining the criteria that `values` must meet.
         If `args` is empty, it is checked if `values` are finite.
 
     Returns
     -------
-    return_values : array_like of {int, float, str}
+    return_values : array_like of {int, float, complex, str}
         If `args` contained 'bool', returns 0s or 1s. Else, returns `values`.
 
     Notes
@@ -565,6 +267,11 @@ def check_vals(values, name, *args):
                        % (name))
             raise_error(err_msg, InputError, logger)
 
+    # Check if values is not empty and raise error if so
+    if not values.size:
+        err_msg = "Input argument %r is empty!" % (name)
+        raise_error(err_msg, InputError, logger)
+
     # Loop over all criteria
     while len(args):
         # Check for bool
@@ -600,6 +307,20 @@ def check_vals(values, name, *args):
                 break
             else:
                 err_msg = "Input argument %r is not of type 'str'!" % (name)
+                raise_error(err_msg, TypeError, logger)
+
+        # Check for complex
+        elif 'complex' in args:
+            # Check if complex is provided and continue if so
+            if issubclass(values.dtype.type, (np.integer, np.floating,
+                                              np.complexfloating)):
+                # Remove 'complex' from args and check it again
+                args.remove('complex')
+                values = np.asanyarray(values, dtype=complex)
+                continue
+            else:
+                err_msg = ("Input argument %r is not of type 'complex'!"
+                           % (name))
                 raise_error(err_msg, TypeError, logger)
 
         # Check for float
@@ -737,106 +458,6 @@ def check_vals(values, name, *args):
     return(values)
 
 
-# Function for converting a string sequence to a sequence of elements
-def convert_str_seq(seq):
-    """
-    Converts a provided sequence to a string, removes all auxiliary characters
-    from it, splits it up into individual elements and converts all elements
-    back to integers, floats and/or strings.
-
-    The auxiliary characters are given by the :obj:`~aux_char_list` list. One
-    can add, change and remove characters from the list if required.
-
-    Parameters
-    ----------
-    seq : str or array_like
-        The sequence that needs to be converted to individual elements.
-        If array_like, `seq` is first converted to a string.
-
-    Returns
-    -------
-    new_seq : list
-        A list with all individual elements converted to integers, floats
-        and/or strings.
-
-    """
-
-    # Convert sequence to a string
-    seq = str(seq)
-
-    # Remove all unwanted characters from the string
-    for char in aux_char_list:
-        seq = seq.replace(char, ' ')
-
-    # Split sequence up into elements
-    seq = seq.split()
-
-    # Loop over all elements in seq
-    for i, val in enumerate(seq):
-        # Try to convert to int or float
-        try:
-            # If string contains an E or e, check if it is a float
-            if 'e' in val.lower():
-                seq[i] = float(val)
-            # If string contains a dot, check if it is a float
-            elif '.' in val:
-                seq[i] = float(val)
-            # If string contains no dot, E or e, check if it is an int
-            else:
-                seq[i] = int(val)
-        # If it cannot be converted to int or float, save as string
-        except ValueError:
-            seq[i] = val
-
-    # Return it
-    return(seq)
-
-
-# List of auxiliary characters to be used in convert_str_seq()
-aux_char_list = ['(', ')', '[', ']', ',', "'", '"', '|', '/', '{', '}', '<',
-                 '>', '´', '¨', '`', '\\', '?', '!', '%', ';', '=', '$', '~',
-                 '#', '@', '^', '&', '*']
-
-
-# Function that returns a copy of a list with all empty lists/tuples removed
-def delist(list_obj):
-    """
-    Returns a copy of `list_obj` with all empty lists and tuples removed.
-
-    Parameters
-    ----------
-    list_obj : list
-        A list object that requires its empty list/tuple elements to be
-        removed.
-
-    Returns
-    -------
-    delisted_copy : list
-        Copy of `list_obj` with all empty lists/tuples removed.
-
-    """
-
-    # Check if list_obj is a list
-    if(type(list_obj) != list):
-        raise TypeError("Input argument 'list_obj' is not of type 'list'!")
-
-    # Make a copy of itself
-    delisted_copy = list(list_obj)
-
-    # Remove all empty lists/tuples from this copy
-    off_dex = len(delisted_copy)-1
-    for i, element in enumerate(reversed(delisted_copy)):
-        # Remove empty lists
-        if(isinstance(element, list) and element == []):
-            delisted_copy.pop(off_dex-i)
-        # Remove empty tuples
-        elif(isinstance(element, tuple) and element == ()):
-            delisted_copy.pop(off_dex-i)
-
-    # Return the copy
-    return(delisted_copy)
-
-
 # This function returns a logging.Formatter used for PRISM logging
 def get_formatter():
     """
@@ -900,18 +521,14 @@ def get_info():
     # Add python version to info_list
     info_list.append("Python: %s" % (platform.python_version()))
 
+    # Add PRISM version to info_list
+    info_list.append("Version: %s" % (__version__))
+
     # Access PRISM metadata
     prism_dist = get_distribution('prism')
 
-    # Add PRISM version to info_list
-    info_list.append("Version: %s" % (prism_dist.version))
-
     # Get list of all PRISM requirements
     req_list = [req.name for req in prism_dist.requires()]
-
-    # If imported MPI is mpi4py, add it to the list as well
-    if(MPI.__package__ == 'mpi4py'):
-        req_list.append('mpi4py')
 
     # Sort the requirements list
     req_list.sort()
@@ -1068,7 +685,8 @@ def getLogger(name=None, filters=None):
     filters : list of str or None. Default: None
         List of strings naming the filters that must be applied to the created
         :obj:`~PRISM_Logger` instance.
-        If *None*, no filters will be applied.
+        If *None* or the :obj:`~PRISM_Logger` instance already existed, no
+        filters will be applied.
 
     Returns
     -------
@@ -1083,6 +701,7 @@ def getLogger(name=None, filters=None):
     # Check what the provided name is
     if name is None:
         child_name = prefix
+        name = 'PRISM_ROOT'
     else:
         child_name = ".".join([prefix, name])
 
@@ -1091,11 +710,13 @@ def getLogger(name=None, filters=None):
     logger = logging.getLogger(child_name)
     logging.setLoggerClass(logging.Logger)
 
-    # Remove prefix from the name of the PRISM_Logger instance
-    logger.name = name
+    # Set name and filters if this logger did not already exist
+    if(logger.name != name):
+        # Remove prefix from the name of the PRISM_Logger instance
+        logger.name = name
 
-    # Set the requested filter(s)
-    logger.set_filters(filters)
+        # Set the requested filter(s)
+        logger.set_filters(filters)
 
     # Return it
     return(logger)
@@ -1111,81 +732,6 @@ def getRLogger(name=None):
 
     # Create PRISM_Logger with an RFilter
     return(getLogger(name, ['RFilter']))
-
-
-# Function to import all custom colormaps in a directory
-def import_cmaps(cmap_dir):
-    """
-    Reads in custom colormaps from a provided directory `cmap_dir`, transforms
-    them into :obj:`~matplotlib.colors.LinearSegmentedColormap` objects and
-    registers them in the :mod:`~matplotlib.cm` module. Both the imported
-    colormap and its reversed version will be registered.
-
-    This function is called automatically when *PRISM* is imported.
-
-    Parameters
-    ----------
-    cmap_dir : str
-        Relative or absolute path to the directory that contains custom
-        colormap files. A colormap file can be a NumPy binary file ('.npy' or
-        '.npz') or any text file.
-
-    Notes
-    -----
-    All colormap files in `cmap_dir` must have names starting with 'cm\\_'. The
-    resulting colormaps will have the name of their file without the prefix and
-    extension.
-
-    """
-
-    # Obtain path to directory with colormaps
-    cmap_dir = path.abspath(cmap_dir)
-
-    # Check if provided directory exists
-    if not path.exists(cmap_dir):
-        raise OSError("Input argument 'cmap_dir' is a non-existing path (%r)!"
-                      % (cmap_dir))
-
-    # Obtain the names of all files in cmap_dir
-    filenames = next(os.walk(cmap_dir))[2]
-    cm_files = []
-
-    # Extract the files with defined colormaps
-    for filename in filenames:
-        if(filename[:3] == 'cm_'):
-            cm_files.append(filename)
-    cm_files.sort()
-
-    # Read in all the defined colormaps, transform and register them
-    for cm_file in cm_files:
-        # Split basename and extension
-        base_str, ext_str = path.splitext(cm_file)
-        cm_name = base_str[3:]
-
-        # Process colormap files
-        try:
-            # Obtain absolute path to colormap data file
-            cm_file_path = path.join(cmap_dir, cm_file)
-
-            # Read in colormap data
-            if ext_str in ('.npy', '.npz'):
-                # If file is a NumPy binary file
-                colorlist = np.load(cm_file_path).tolist()
-            else:
-                # If file is anything else
-                colorlist = np.genfromtxt(cm_file_path).tolist()
-
-            # Transform colorlist into a Colormap
-            cmap = LSC.from_list(cm_name, colorlist, N=len(colorlist))
-            cmap_r = LSC.from_list(cm_name+'_r', list(reversed(colorlist)),
-                                   N=len(colorlist))
-
-            # Add cmap to matplotlib's cmap list
-            register_cmap(cmap=cmap)
-            register_cmap(cmap=cmap_r)
-        except Exception as error:
-            raise InputError("Provided colormap %r is invalid! (%s)"
-                             % (cm_name, error))
 
 
 # Define function that can move the logging file of PRISM and restart logging
@@ -1229,81 +775,8 @@ def np_array(obj, *args, **kwargs):
     """
 
     # Return NumPy array with copy=False
-    return(np.array(obj, *args, copy=False, **kwargs))
-
-
-# This function raises a given error after logging the error
-def raise_error(err_msg, err_type=Exception, logger=None):
-    """
-    Raises a given error `err_msg` of type `err_type` and logs the error using
-    the provided `logger`.
-
-    Parameters
-    ----------
-    err_msg : str
-        The message included in the error.
-
-    Optional
-    --------
-    err_type : :class:`Exception` subclass. Default: :class:`Exception`
-        The type of error that needs to be raised.
-    logger : :obj:`~logging.Logger` object or None. Default: None
-        The logger to which the error message must be written.
-        If *None*, the :obj:`~logging.RootLogger` logger is used instead.
-
-    """
-
-    # Log the error and raise it right after
-    logger = logging.root if logger is None else logger
-    logger.error(err_msg)
-    raise err_type(err_msg)
-
-
-# This function raises a given warning after logging the warning
-def raise_warning(warn_msg, warn_type=UserWarning, logger=None, stacklevel=1):
-    """
-    Raises a given warning `warn_msg` of type `warn_type` and logs the warning
-    using the provided `logger`.
-
-    Parameters
-    ----------
-    warn_msg : str
-        The message included in the warning.
-
-    Optional
-    --------
-    warn_type : :class:`Warning` subclass. Default: :class:`UserWarning`
-        The type of warning that needs to be raised.
-    logger : :obj:`~logging.Logger` object or None. Default: None
-        The logger to which the warning message must be written.
-        If *None*, the :obj:`~logging.RootLogger` logger is used instead.
-    stacklevel : int. Default: 1
-        The stack level of the warning message at the location of this function
-        call. The actual used stack level is increased by one.
-
-    """
-
-    # Log the warning and raise it right after
-    logger = logging.root if logger is None else logger
-    logger.warning(warn_msg)
-    warnings.warn(warn_msg, warn_type, stacklevel=stacklevel+1)
-
-
-# Redefine the print function to include the MPI rank if MPI is used
-def rprint(*args, **kwargs):
-    """
-    Custom :func:`~print` function that prepends the rank of the MPI process
-    that calls it to the message if the size of the intra-communicator is more
-    than 1.
-    Takes the same input arguments as the normal :func:`~print` function.
-
-    """
-
-    # If MPI is used and size > 1, prepend rank to message
-    if(MPI.__name__ == 'mpi4py.MPI' and size > 1):
-        args = list(args)
-        args.insert(0, "Rank %i:" % (rank))
-    print(*args, **kwargs)
+    copy = kwargs.pop('copy', False)
+    return(np.array(obj, *args, copy=copy, **kwargs))
 
 
 # This function sets the base PRISM logger
@@ -1336,5 +809,8 @@ def set_base_logger(filename=None):
     # Initialize base handler and add it to base_logger
     base_logger.addHandler(get_handler(filename))
 
-    # Set logLevel to DEBUG
-    base_logger.setLevel('DEBUG')
+    # Set logLevel to the same as the logLevel of the handler
+    base_logger.setLevel(base_logger.handlers[0].level)
+
+    # Make sure that the base_logger does not propagate logging messages
+    base_logger.propagate = False

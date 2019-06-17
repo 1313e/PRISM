@@ -14,28 +14,32 @@ ds = ". Default: "
 
 
 # %% EMUL_I DOCSTRINGS
+# Base description of emul_i parameter
+base_emul_i_doc = "Number indicating the requested emulator iteration."
+
 # Description of emul_i used in __call__/construct
 call_emul_i_doc =\
         """emul_i : int or None. Default: None
-            If int, number indicating the requested emulator iteration.
+            If int, {0}
             If *None*, the next iteration of the emulator will be
-            constructed."""
+            constructed.""".format(base_emul_i_doc.lower())
 
 # Description of emul_i used in the get_emul_i() method of the Emulator class
 get_emul_i_doc =\
         """emul_i : int or None
-            Number indicating the requested emulator iteration."""
+            {0}""".format(base_emul_i_doc)
 
 # Description of emul_i used in basically all standard hidden functions
 std_emul_i_doc =\
         """emul_i : int
-            Number indicating the requested emulator iteration."""
+            {0}""".format(base_emul_i_doc)
 
 # Description of emul_i used in all user functions except __call__/construct
 user_emul_i_doc =\
         """emul_i : int or None. Default: None
-            If int, number indicating the requested emulator iteration.
-            If *None*, the last iteration of the emulator will be used."""
+            If int, {0}
+            If *None*, the last iteration of the emulator will be
+            used.""".format(base_emul_i_doc.lower())
 
 
 # %% EMUL_S DOCSTRINGS
@@ -95,37 +99,27 @@ ext_sam_set_doc =\
             Array containing the externally provided model evaluation
             samples."""
 
-# Description of the temp parameter for the impl_cut list
-impl_temp_doc =\
-        """temp : bool
-            Whether the implausibility parameters should only be stored in
-            memory (*True*) or should also be saved to HDF5 (*False*)."""
-
 # Docstrings for the different paths parameters
 paths_doc =\
         """root_dir : str or None{0}{1}
             String containing the absolute path of the root directory where all
             working directories are stored. If *None*, root directory will be
             set to the directory this class was initialized in.
-        working_dir : str, int or None{0}{2}
+        working_dir : str, bool or None{0}{2}
             String containing the name of the working directory of the emulator
-            in `root_dir`. If int, a new working directory will be created in
-            `root_dir`. If *None*, working directory is set to the last one
-            that was created in `root_dir` that starts with the given `prefix`.
+            in `root_dir`. If *True*, a new working directory will be created
+            in `root_dir`. If *None* or *False*, working directory is set to
+            the last one that was created in `root_dir` that starts with the
+            given `prefix`. Note that providing an integer instead of a bool
+            will not work here.
             If no directories are found, one will be created.
         prefix : str or None{0}{3}
             String containing a prefix that is used for naming new working
             directories or scan for existing ones. If *None*, all directories
             in `root_dir` are considered working directories and 'prism\\_'
-            will be used as a prefix for new ones.
-        prism_file : str or None{0}{4}
-            String containing the absolute or relative path to the TXT-file
-            containing the *PRISM* parameters that need to be changed from
-            their default values. If a relative path is given, its path must be
-            relative to `root_dir` or the current directory. If *None*, no
-            changes will be made to the default parameters."""
-paths_doc_s = paths_doc.format("", "", "", "", "", "")
-paths_doc_d = paths_doc.format(ds, "None", "None", "None", "None")
+            will be used as a prefix for new ones."""
+paths_doc_s = paths_doc.format("", "", "", "")
+paths_doc_d = paths_doc.format(ds, "None", "None", "None")
 
 
 # %% EMULATOR DOCSTRINGS
@@ -280,10 +274,10 @@ impl_cut_doc =\
             Index of the first impl_cut-off in the impl_cut list that is not
             0."""
 
-# Docstrings for the various read_parameters methods
-read_par_doc =\
-        """Reads in the {0} parameters from the provided *PRISM* parameter
-        file and saves them in the current :obj:`~{0}` instance."""
+# Docstrings for the various set_parameters methods
+set_par_doc =\
+        """Sets the {0} parameters from the :attr:`~prism.Pipeline.prism_dict`
+        property and saves them in the current :obj:`~{0}` instance."""
 
 # Description of the various save_data methods
 save_data_doc =\

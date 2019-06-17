@@ -11,28 +11,29 @@ Provides the definition of the :class:`~ModelLink` abstract base class.
 # %% IMPORTS
 # Built-in imports
 import abc
-from inspect import _empty, currentframe, getframeinfo, isclass, signature
-from inspect import _VAR_KEYWORD, _VAR_POSITIONAL
+import os
 from os import path
+from tempfile import mktemp
 import warnings
 
 # Package imports
 from e13tools import InputError, ShapeError
+from e13tools.utils import (convert_str_seq, docstring_substitute,
+                            get_outer_frame, raise_error)
 import h5py
 import hickle
 import numpy as np
-from numpy.random import rand
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
+from prism import __version__
 from prism._docstrings import std_emul_i_doc
-from prism._internal import (FeatureWarning, PRISM_Comm, RequestWarning,
-                             check_instance, check_vals, convert_str_seq,
-                             docstring_substitute, getCLogger, np_array,
-                             raise_error)
+from prism._internal import (FeatureWarning, RequestWarning, check_vals,
+                             getCLogger, np_array)
+from prism.modellink.utils import convert_data, convert_parameters
 
 # All declaration
-__all__ = ['ModelLink', 'test_subclass']
+__all__ = ['ModelLink']
 
 
 # %% MODELLINK CLASS DEFINITION
@@ -78,10 +79,13 @@ class ModelLink(object, metaclass=abc.ABCMeta):
     subclass. The :meth:`~get_md_var` method allows for *PRISM* to calculate
     the model discrepancy variance.
 
-    Note
-    ----
+    Notes
+    -----
     The :meth:`~__init__` method may be extended by the :class:`~ModelLink`
     subclass, but the superclass version must always be called.
+
+    If required, one can use the :func:`~prism.modellink.test_subclass`
+    function to test a :class:`~ModelLink` subclass on correct functionality.
 
     """
 
@@ -114,7 +118,9 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         required to provide an estimate for every parameter. The estimates are
         used to draw illustrative lines when making projection figures.
         An example of a model parameters file can be found in the 'data' folder
-        of the *PRISM* package.
+        of the *PRISM* package. If required, one can use the
+        :func:`~prism.modellink.convert_parameters` function to validate their
+        formatting.
 
         Formatting :
             ``{par_name: [lower_bnd, upper_bnd, par_est]}``
@@ -150,7 +156,9 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         :math:`f(x)`.
 
         An example of a model data file can be found in the 'data' folder of
-        the *PRISM* package.
+        the *PRISM* package. If required, one can use the
+        :func:`~prism.modellink.convert_data` function to validate their
+        formatting.
 
         Formatting :
             ``{(data_idx_0, data_idx_1, ..., data_idx_n): [data_val,`` \
@@ -162,21 +170,15 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         """
 
         # Save name of this class if not saved already
-        try:
-            self._name
-        except AttributeError:
+        if not hasattr(self, '_name'):
             self.name = self.__class__.__name__
 
         # Set call_type to default ('single') if not modified before
-        try:
-            self._call_type
-        except AttributeError:
+        if not hasattr(self, '_call_type'):
             self.call_type = 'single'
 
         # Set MPI_call to default (False) if not modified before
-        try:
-            self._MPI_call
-        except AttributeError:
+        if not hasattr(self, '_MPI_call'):
             self.MPI_call = False
 
         # Generate model parameter properties
@@ -245,7 +247,22 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
     @name.setter
     def name(self, name):
+        # If name is set outside of __init__, save current value
+        outer_frame = get_outer_frame(self.__init__)
+        if outer_frame is None and not hasattr(self, '_init_name'):
+            self._init_name = str(self._name)
+
+        # Save new name
         self._name = check_vals(name, 'name', 'str')
+
+        # If name is set outside of __init__, raise warning
+        if outer_frame is None and (self._name != self._init_name):
+            warn_msg = ("The 'name' property of this %s instance is being set "
+                        "outside its constructor. This may have unexpected "
+                        "effects. It is advised to set it back to its original"
+                        " value (%r)!"
+                        % (self.__class__.__name__, self._init_name))
+            warnings.warn(warn_msg, RequestWarning, stacklevel=2)
 
     @property
     def single_call(self):
@@ -285,6 +302,11 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
     @call_type.setter
     def call_type(self, call_type):
+        # If call_type is set outside of __init__, save current value
+        outer_frame = get_outer_frame(self.__init__)
+        if outer_frame is None and not hasattr(self, '_init_call_type'):
+            self._init_call_type = str(self._call_type)
+
         # Check if call_type is a string
         call_type = check_vals(call_type, 'call_type', 'str')
 
@@ -305,6 +327,15 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             raise ValueError("Input argument 'call_type' is invalid (%r)!"
                              % (call_type))
 
+        # If call_type is set outside of __init__, raise warning
+        if outer_frame is None and (self._call_type != self._init_call_type):
+            warn_msg = ("The 'call_type' property of this %s instance is being"
+                        " set outside its constructor. This may have "
+                        "unexpected effects. It is advised to set it back to "
+                        "its original value (%r)!"
+                        % (self.__class__.__name__, self._init_call_type))
+            warnings.warn(warn_msg, RequestWarning, stacklevel=2)
+
     @property
     def MPI_call(self):
         """
@@ -314,11 +345,26 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         """
 
-        return(bool(self._multi_call))
+        return(bool(self._MPI_call))
 
     @MPI_call.setter
     def MPI_call(self, MPI_call):
+        # If MPI_call is set outside of __init__, save current value
+        outer_frame = get_outer_frame(self.__init__)
+        if outer_frame is None and not hasattr(self, '_init_MPI_call'):
+            self._init_MPI_call = bool(self._MPI_call)
+
+        # Save new MPI_call
         self._MPI_call = check_vals(MPI_call, 'MPI_call', 'bool')
+
+        # If MPI_call is set outside of __init__, raise warning
+        if outer_frame is None and (self._MPI_call != self._init_MPI_call):
+            warn_msg = ("The 'MPI_call' property of this %s instance is being "
+                        "set outside its constructor. This may have unexpected"
+                        " effects. It is advised to set it back to its "
+                        "original value (%r)!"
+                        % (self.__class__.__name__, self._init_MPI_call))
+            warnings.warn(warn_msg, RequestWarning, stacklevel=2)
 
     # Model Parameters
     @property
@@ -484,7 +530,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
                     par_seq[i] = par_idx % self._n_par
             # If any operation above fails, raise error
             except Exception as error:
-                err_msg = "Input argument %r is invalid! (%s)" % (name, error)
+                err_msg = ("Input argument %r[%i] is invalid! (%s)"
+                           % (name, i, error))
                 raise_error(err_msg, InputError, logger)
 
         # If everything went without exceptions, check if list is not empty and
@@ -510,7 +557,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        mod_set : 1D or 2D array_like
+        mod_set : 1D or 2D array_like or dict
             Model output (set) to validate in this :obj:`~ModelLink` instance.
         name : str
             The name of the model output (set), which is used in the error
@@ -519,13 +566,19 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         Returns
         -------
         mod_set : 1D or 2D :obj:`~numpy.ndarray` object
-            The provided `mod_set` if the validation was successful.
+            The provided `mod_set` if the validation was successful. If
+            `mod_set` was a dict, it will be converted to a
+            :obj:`~numpy.ndarray` object.
 
         """
 
         # Make logger
         logger = getCLogger('CHECK')
         logger.info("Validating provided set of model outputs %r." % (name))
+
+        # If mod_set is a dict, convert it to a NumPy array
+        if isinstance(mod_set, dict):
+            mod_set = np_array([mod_set[idx] for idx in mod_set.keys()]).T
 
         # Make sure that mod_set is a NumPy array
         mod_set = np_array(mod_set)
@@ -559,7 +612,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        sam_set : 1D or 2D array_like
+        sam_set : 1D or 2D array_like or dict
             Parameter/sample set to validate in this :obj:`~ModelLink`
             instance.
         name : str
@@ -569,7 +622,9 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         Returns
         -------
         sam_set : 1D or 2D :obj:`~numpy.ndarray` object
-            The provided `sam_set` if the validation was successful.
+            The provided `sam_set` if the validation was successful. If
+            `sam_set` was a dict, it will be converted to a
+            :obj:`~numpy.ndarray` object.
 
         """
 
@@ -577,6 +632,10 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         logger = getCLogger('CHECK')
         logger.info("Validating provided set of model parameter samples %r."
                     % (name))
+
+        # If sam_set is a dict, convert it to a NumPy array
+        if isinstance(sam_set, dict):
+            sam_set = np_array([sam_set[par] for par in self._par_name]).T
 
         # Make sure that sam_set is a NumPy array
         sam_set = np_array(sam_set)
@@ -598,7 +657,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         sam_set = check_vals(sam_set, name, 'float')
 
         # Check if all samples are within parameter space
-        for i, par_set in enumerate(self._to_unit_space(sam_set)):
+        unit_sams = self._to_unit_space(np_array(sam_set, ndmin=2))
+        for i, par_set in enumerate(unit_sams):
             # If not, raise an error
             if not ((par_set >= 0)*(par_set <= 1)).all():
                 err_msg = ("Input argument %r contains a sample outside of "
@@ -610,23 +670,159 @@ class ModelLink(object, metaclass=abc.ABCMeta):
                     "samples %r." % (name))
         return(sam_set)
 
+    # This function checks if a provided md_var is valid
+    def _check_md_var(self, md_var, name):
+        """
+        Checks validity of provided set of model discrepancy variances `md_var`
+        in this :obj:`~ModelLink` instance.
+
+        Parameters
+        ----------
+        md_var : 1D or 2D array_like or dict
+            Model discrepancy variance set to validate in this
+            :obj:`~ModelLink` instance.
+        name : str
+            The name of the model discrepancy set, which is used in the error
+            message if the validation fails.
+
+        Returns
+        -------
+        md_var : 2D :obj:`~numpy.ndarray` object
+            The (converted) provided `md_var` if the validation was successful.
+            If `md_var` was a dict, it will be converted to a
+            :obj:`~numpy.ndarray` object.
+
+        """
+
+        # Make logger
+        logger = getCLogger('CHECK')
+        logger.info("Validating provided set of model discrepancy variances "
+                    "%r." % (name))
+
+        # If md_var is a dict, convert it to a NumPy array
+        if isinstance(md_var, dict):
+            md_var = np_array([md_var[idx] for idx in md_var.keys()])
+
+        # Make sure that md_var is a NumPy array
+        md_var = np_array(md_var)
+
+        # Raise error if md_var is not 1D or 2D
+        if not(md_var.ndim == 1 or md_var.ndim == 2):
+            err_msg = ("Input argument %r is not one-dimensional or "
+                       "two-dimensional!" % (name))
+            raise_error(err_msg, ShapeError, logger)
+
+        # Check if md_var contains n_data values
+        if not(md_var.shape[0] == self._n_data):
+            err_msg = ("Received array of model discrepancy variances %r has "
+                       "incorrect number of data points (%i != %i)!"
+                       % (name, md_var.shape[0], self._n_data))
+            raise ShapeError(err_msg)
+
+        # Check if single or dual values were given
+        if(md_var.ndim == 1):
+            md_var = np_array([md_var]*2).T
+        elif(md_var.shape[1] == 2):
+            pass
+        else:
+            err_msg = ("Received array of model discrepancy variances %r has "
+                       "incorrect number of values (%i != 2)!"
+                       % (name, md_var.shape[1]))
+            raise ShapeError(err_msg)
+
+        # Check if all values are non-negative floats
+        md_var = check_vals(md_var, 'md_var', 'nneg', 'float')
+
+        # Log again and return md_var
+        logger.info("Finished validating provided set of model discrepancy "
+                    "variances %r." % (name))
+        return(md_var)
+
     # This function returns the path to a backup file
     # TODO: Should backup file be saved in emulator working directory of PRISM?
-    def _get_backup_path(self, emul_i):
+    def _get_backup_path(self, emul_i, suffix):
         """
         Returns the absolute path to a backup file made by this
-        :obj:`~ModelLink` instance, using the provided `emul_i`.
+        :obj:`~ModelLink` instance, using the provided `emul_i` and `suffix`.
+
+        This method is used by the :meth:`~_make_backup` and
+        :meth:`~_read_backup` methods, and should not be called directly.
+
+        Parameters
+        ----------
+        emul_i : int
+            The emulator iteration for which a backup filepath is needed.
+        suffix : str or None
+            If str, determine path to associated backup file using provided
+            `suffix`. If `suffix` is empty, obtain last created backup file.
+            If *None*, create a new path to a backup file.
+
+        Returns
+        -------
+        filepath : str
+            Absolute path to requested backup file.
 
         """
 
-        # Determine the name of the backup hdf5-file
-        filename = "backup_%i_%s.hdf5" % (emul_i, self._name)
+        # Determine the prefix of the backup hdf5-file
+        prefix = "backup_%i_%s(" % (emul_i, self._name)
 
-        # Determine the path of the backup hdf5-file
-        filepath = path.join(path.abspath('.'), filename)
+        # If suffix is None, generate new backup filepath
+        if suffix is None:
+            # Determine the path of the backup hdf5-file
+            filepath = path.abspath(mktemp(').hdf5', prefix, '.'))
 
-        # Return it
-        return(filepath)
+            # Return determined filepath
+            return(filepath)
+
+        # If suffix is a string, determine the path
+        elif isinstance(suffix, str):
+            # If the string is empty, find the last created backup file
+            if(suffix == ''):
+                # Make list of all files in current directory
+                filenames = next(os.walk('.'))[2]
+
+                # Make empty list of all backup files
+                backup_files = []
+
+                # Loop over all filenames
+                for filename in filenames:
+                    # If the filename has the correct prefix
+                    if filename.startswith(prefix):
+                        # Obtain full path to the file
+                        filepath = path.abspath(path.join('.', filename))
+
+                        # Obtain creation time and append to backup_files
+                        ctime = path.getctime(filepath)
+                        backup_files.append([filepath, ctime])
+
+                # Sort backup_files list on creation time
+                backup_files.sort(key=lambda x: x[1], reverse=True)
+
+                # If backup_files is not empty, return last one created
+                if len(backup_files):
+                    return(backup_files[0][0])
+                # Else, raise error
+                else:
+                    err_msg = ("No backup files can be found in the current "
+                               "directory for input argument 'emul_i'!")
+                    raise OSError(err_msg)
+
+            # If the string is not empty, check if provided suffix is valid
+            else:
+                # Obtain full filepath
+                filepath = path.abspath(path.join(
+                        '.', ''.join([prefix, suffix, ').hdf5'])))
+
+                # If filepath exists, return it
+                if path.exists(filepath):
+                    return(filepath)
+                # If not, raise error
+                else:
+                    err_msg = ("Input argument 'suffix' does not yield an "
+                               "existing path to a backup file (%r)!"
+                               % (filepath))
+                    raise OSError(err_msg)
 
     # This function makes a backup of args/kwargs to be used during call_model
     def _make_backup(self, *args, **kwargs):
@@ -638,6 +834,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         called by the :meth:`~call_model` method or any of its inner functions.
         Additionally, the backup will contain the `emul_i`, `par_set` and
         `data_idx` values that were passed to the :meth:`~call_model` method.
+        It also contains the version of *PRISM* that made the backup.
         The backup can be restored using the :meth:`~_read_backup` method.
 
         If it is detected that this method is used incorrectly, a
@@ -654,15 +851,15 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         Notes
         -----
-        If an HDF5-file already exists with the same name as the to be created
-        backup, it will be replaced. However, *PRISM* itself will never remove
-        any backup files (e.g., reconstructing an iteration).
+        The name of the created backup file contains the value of `emul_i`,
+        :attr:`~name` and a random string to avoid replacing an already
+        existing backup file.
 
         The saved `emul_i`, `par_set` and `data_idx` are the values these
         variables have locally in the :meth:`~call_model` method at the point
         this method is called. Because of this, making any changes to them may
         cause problems and is therefore heavily discouraged. If changes are
-        necessary, it is advised to assign them to a different variable first.
+        necessary, it is advised to copy them to a different variable first.
 
         """
 
@@ -680,13 +877,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             warnings.warn(warn_msg, RequestWarning, stacklevel=2)
             return
 
-        # Initialize the caller's frame with the current frame
-        caller_frame = currentframe()
-
         # Obtain the call_model frame
-        while(caller_frame is not None and
-              getframeinfo(caller_frame)[2] != 'call_model'):
-            caller_frame = caller_frame.f_back
+        caller_frame = get_outer_frame(self.call_model)
 
         # If caller_frame is None, the call_model frame was not found
         if caller_frame is None:
@@ -725,11 +917,12 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             return
 
         # Obtain path to backup file
-        filepath = self._get_backup_path(emul_i)
+        filepath = self._get_backup_path(emul_i, None)
 
         # Save emul_i, par_set, data_idx, args and kwargs to hdf5
         with h5py.File(filepath, 'w') as file:
-            hickle.dump(emul_i, file, path='/emul_i')
+            file.attrs['emul_i'] = emul_i
+            file.attrs['prism_version'] = __version__
             hickle.dump(dict(par_set), file, path='/par_set')
             hickle.dump(data_idx, file, path='/data_idx')
             hickle.dump(args, file, path='/args')
@@ -737,7 +930,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
     # This function reads in a backup made by _make_backup
     # TODO: Allow for absolute path to backup file to be given?
-    def _read_backup(self, emul_i):
+    def _read_backup(self, emul_i, *, suffix=None):
         """
         Reads in a backup HDF5-file created by the :meth:`~_make_backup`
         method, using the provided `emul_i` and the value of :attr:`~name`.
@@ -748,10 +941,18 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             The emulator iteration that was provided to the :meth:`~call_model`
             method when the backup was made.
 
+        Optional
+        --------
+        suffix : str or None. Default: None
+            The suffix of the backup file (everything between parentheses) that
+            needs to be read. If *None*, the last created backup will be read.
+
         Returns
         -------
-        data : dict with keys `('emul_i', 'par_set', 'data_idx', 'args',` \
-            `'kwargs')`
+        filename : str
+            The absolute path to the backup file that has been read.
+        data : dict with keys `('emul_i', 'prism_version', 'par_set',` \
+            `'data_idx', 'args', 'kwargs')`
             A dict containing the data that was provided to the
             :meth:`~_make_backup` method.
 
@@ -766,28 +967,29 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         # Check if provided emul_i is an integer
         emul_i = check_vals(emul_i, 'emul_i', 'int', 'nneg')
 
-        # Obtain name of backup file
-        filepath = self._get_backup_path(emul_i)
+        # Check if provided suffix is None or a string
+        if suffix is None:
+            suffix = ''
+        else:
+            suffix = check_vals(suffix, 'suffix', 'str')
 
-        # Check if filepath exists
-        if not path.exists(filepath):
-            err_msg = ("Input argument 'emul_i' does not yield an existing "
-                       "path to a backup file (%r)!" % (filepath))
-            raise OSError(err_msg)
+        # Obtain name of backup file
+        filepath = self._get_backup_path(emul_i, suffix)
 
         # Initialize empty data dict
         data = sdict()
 
         # Read emul_i, par_set, data_idx, args and kwargs from hdf5
         with h5py.File(filepath, 'r') as file:
-            data['emul_i'] = hickle.load(file, path='/emul_i')
+            data['emul_i'] = file.attrs['emul_i']
+            data['prism_version'] = file.attrs['prism_version']
             data['par_set'] = sdict(hickle.load(file, path='/par_set'))
             data['data_idx'] = hickle.load(file, path='/data_idx')
             data['args'] = hickle.load(file, path='/args')
             data['kwargs'] = hickle.load(file, path='/kwargs')
 
         # Return data
-        return(data)
+        return(filepath, data)
 
     @property
     def _default_model_parameters(self):
@@ -838,41 +1040,12 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         """
 
         # Obtain default model parameters
-        model_parameters = sdict(self.get_default_model_parameters())
+        model_parameters =\
+            convert_parameters(self.get_default_model_parameters())
 
-        # If no additional model parameters information is given
-        if add_model_parameters is None:
-            pass
-
-        # If a parameter file is given
-        elif isinstance(add_model_parameters, str):
-            # Obtain absolute path to given file
-            par_file = path.abspath(add_model_parameters)
-
-            # Read the parameter file in as a string
-            pars = np.genfromtxt(par_file, dtype=(str), delimiter=':',
-                                 autostrip=True)
-
-            # Make sure that pars is 2D
-            pars = np_array(pars, ndmin=2)
-
-            # Combine default parameters with read-in parameters
-            model_parameters.update(pars)
-
-        # If a parameter dict is given
-        elif isinstance(add_model_parameters, dict):
-            model_parameters.update(add_model_parameters)
-
-        # If anything else is given
-        else:
-            # Check if it can be converted to a dict
-            try:
-                par_dict = sdict(add_model_parameters)
-            except Exception:
-                raise TypeError("Input model parameters cannot be converted to"
-                                " type 'dict'!")
-            else:
-                model_parameters.update(par_dict)
+        # If additional model parameters information is given, add it
+        if add_model_parameters is not None:
+            model_parameters.update(convert_parameters(add_model_parameters))
 
         # Save number of model parameters
         n_par = len(model_parameters.keys())
@@ -888,36 +1061,11 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         self._par_est = []
 
         # Save model parameters as class properties
-        for i, (name, values_str) in enumerate(model_parameters.items()):
-            # Convert values_str to values
-            values = convert_str_seq(values_str)
-
-            # Save parameter name and range
-            self._par_name.append(check_vals(name, 'par_name', 'str'))
-            self._par_rng[i] = check_vals(values[:2], 'par_rng[%s]' % (name),
-                                          'float')
-
-            # Check if a float parameter estimate was provided
-            try:
-                est = check_vals(values[2], 'par_est[%s]' % (name), 'float')
-            # If no estimate was provided, save it as None
-            except IndexError:
-                self._par_est.append(None)
-            # If no float was provided, check if it was None
-            except TypeError as error:
-                # If it is None, save it as such
-                if(values[2].lower() == 'none'):
-                    self._par_est.append(None)
-                # If it is not None, reraise the previous error
-                else:
-                    raise error
-            # If a float was provided, check if it is within parameter range
-            else:
-                if(values[0] <= est <= values[1]):
-                    self._par_est.append(est)
-                else:
-                    raise ValueError("Input argument 'par_est[%s]' is outside "
-                                     "of defined parameter range!" % (name))
+        for i, (name, (*rng, est)) in enumerate(model_parameters.items()):
+            # Save parameter name, range and est
+            self._par_name.append(name)
+            self._par_rng[i] = rng
+            self._par_est.append(est)
 
     @property
     def _default_model_data(self):
@@ -969,63 +1117,14 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         """
 
         # Obtain default model data
-        model_data = dict(self.get_default_model_data())
+        model_data = convert_data(self.get_default_model_data())
 
-        # If no additional model data information is given
-        if add_model_data is None:
-            pass
-
-        # If a data file is given
-        elif isinstance(add_model_data, str):
-            # Obtain absolute path to given file
-            data_file = path.abspath(add_model_data)
-
-            # Read the data file in as a string
-            data_points = np.genfromtxt(data_file, dtype=(str),
-                                        delimiter=':', autostrip=True)
-
-            # Make sure that data_points is 2D
-            data_points = np_array(data_points, ndmin=2)
-
-            # Combine default data with read-in data
-            model_data.update(data_points)
-
-        # If a data dict is given
-        elif isinstance(add_model_data, dict):
-            model_data.update(add_model_data)
-
-        # If anything else is given
-        else:
-            # Check if it can be converted to a dict
-            try:
-                data_dict = dict(add_model_data)
-            except Exception:
-                raise TypeError("Input model data cannot be converted to type "
-                                "'dict'!")
-            else:
-                model_data.update(data_dict)
-
-        # Make an empty model_data dict
-        model_data_dict = dict()
-
-        # Loop over all data points in model_data and process data identifiers
-        for key, value in model_data.items():
-            # Convert key to an actual data_idx
-            tmp_idx = convert_str_seq(key)
-
-            # Check if tmp_idx is not empty
-            if not len(tmp_idx):
-                raise InputError("Model data contains a data point with no "
-                                 "identifier!")
-
-            # Convert value to an actual data point
-            tmp_point = convert_str_seq(value)
-
-            # Save data_idx with corresponding point to model_data_dict
-            model_data_dict[tuple(tmp_idx)] = tmp_point
+        # If additional model data information is given, add it
+        if add_model_data is not None:
+            model_data.update(convert_data(add_model_data))
 
         # Determine the number of data points
-        self._n_data = check_vals(len(model_data_dict), 'n_data', 'pos')
+        self._n_data = check_vals(len(model_data), 'n_data', 'pos')
 
         # Create empty data value, error, space and identifier lists
         self._data_val = []
@@ -1034,63 +1133,12 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         self._data_idx = []
 
         # Save model data as class properties
-        for idx, data in model_data_dict.items():
-            # Convert idx to list for error messages
-            idx = list(idx)
-
-            # Save data value
-            self._data_val.append(check_vals(data[0], 'data_val%s' % (idx),
-                                             'float'))
-
-            # Save data error and extract space
-            # If length is two, centered error and no data space were given
-            if(len(data) == 2):
-                self._data_err.append(
-                    [check_vals(data[1], 'data_err%s' % (idx), 'float',
-                                'pos')]*2)
-                spc = 'lin'
-
-            # If length is three, there are two possibilities
-            elif(len(data) == 3):
-                # If the third column contains a string, it is the data space
-                if isinstance(data[2], str):
-                    self._data_err.append(
-                        [check_vals(data[1], 'data_err%s' % (idx), 'float',
-                                    'pos')]*2)
-                    spc = data[2]
-
-                # If the third column contains no string, it is error interval
-                else:
-                    self._data_err.append(
-                        check_vals(data[1:3], 'data_err%s' % (idx), 'float',
-                                   'pos'))
-                    spc = 'lin'
-
-            # If length is four+, error interval and data space were given
-            else:
-                self._data_err.append(
-                    check_vals(data[1:3], 'data_err%s' % (idx), 'float',
-                               'pos'))
-                spc = data[3]
-
-            # Save data space
-            # Check if valid data space has been provided
-            spc = str(spc).replace("'", '').replace('"', '')
-            if spc.lower() in ('lin', 'linear'):
-                self._data_spc.append('lin')
-            elif spc.lower() in ('log', 'log10', 'log_10'):
-                self._data_spc.append('log10')
-            elif spc.lower() in ('ln', 'loge', 'log_e'):
-                self._data_spc.append('ln')
-            else:
-                raise ValueError("Input argument 'data_spc%s' is invalid (%r)!"
-                                 % (idx, spc))
-
-            # Save data identifier as tuple or single element
-            if(len(idx) == 1):
-                self._data_idx.append(idx[0])
-            else:
-                self._data_idx.append(tuple(idx))
+        for idx, (val, *err, spc) in model_data.items():
+            # Save data value, errors, space and identifier
+            self._data_val.append(val)
+            self._data_err.append(err)
+            self._data_spc.append(spc)
+            self._data_idx.append(idx)
 
     # %% ABSTRACT USER METHODS
     @abc.abstractmethod
@@ -1112,8 +1160,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         par_set : dict of :class:`~numpy.float64`
             Dict containing the values for all model parameters corresponding
             to the requested model realization(s). If model is single-called,
-            dict is formatted as ``{par_name: par_val}``. If multi-called, it
-            is formatted as ``{par_name: [par_val_1, par_val_2, ...,
+            dict item is formatted as ``{par_name: par_val}``. If multi-called,
+            it is formatted as ``{par_name: [par_val_1, par_val_2, ...,
             par_val_n]}``.
         data_idx : list of tuples
             List containing the user-defined data point identifiers
@@ -1121,10 +1169,12 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         Returns
         -------
-        data_val : 1D or 2D array_like
+        data_val : 1D or 2D array_like or dict
             Array containing the data values corresponding to the requested
             data points generated by the requested model realization(s). If
             model is multi-called, `data_val` is of shape ``(n_sam, n_data)``.
+            If dict, it has the identifiers in `data_idx` as its keys with
+            either scalars or 1D array_likes as its values.
 
         """
 
@@ -1165,6 +1215,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             is assumed to have a centered one sigma confidence interval. If 2D
             array_like, the values determine the upper and lower variances and
             the array is of shape ``(n_data, 2)``.
+            If dict, it has the identifiers in `data_idx` as its keys with
+            either scalars or 1D array_likes of length 2 as its values.
 
         Notes
         -----
@@ -1178,179 +1230,3 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         # Raise NotImplementedError if only super() was called
         raise NotImplementedError("This method must be user-written in the "
                                   "ModelLink subclass!")
-
-
-# %% UTILITY FUNCTIONS
-# This function tests a given ModelLink subclass
-# TODO: Are there any more tests that can be done here?
-def test_subclass(subclass, *args, **kwargs):
-    """
-    Tests a provided :class:`~ModelLink` `subclass` by initializing it with the
-    given `args` and `kwargs` and checking if all required methods can be
-    properly called.
-
-    This function needs to be called by all MPI ranks.
-
-    Parameters
-    ----------
-    subclass : :class:`~ModelLink` subclass
-        The :class:`~ModelLink` subclass that requires testing.
-    args : tuple
-        Positional arguments that need to be provided to the constructor of the
-        `subclass`.
-    kwargs : dict
-        Keyword arguments that need to be provided to the constructor of the
-        `subclass`.
-
-    Returns
-    -------
-    modellink_obj : :obj:`~ModelLink` object
-        Instance of the provided `subclass` if all tests pass successfully.
-        Specific exceptions are raised if a test fails.
-
-    Note
-    ----
-    Depending on the complexity of the model wrapped in the given `subclass`,
-    this function may take a while to execute.
-
-    """
-
-    # Check if provided subclass is a class
-    if not isclass(subclass):
-        raise InputError("Input argument 'subclass' must be a class!")
-
-    # Check if provided subclass is a subclass of ModelLink
-    if not issubclass(subclass, ModelLink):
-        raise TypeError("Input argument 'subclass' must be a subclass of the "
-                        "ModelLink class!")
-
-    # Try to initialize provided subclass
-    try:
-        modellink_obj = subclass(*args, **kwargs)
-    except Exception as error:
-        raise InputError("Input argument 'subclass' cannot be initialized! "
-                         "(%s)" % (error))
-
-    # Check if modellink_obj was initialized properly
-    if not check_instance(modellink_obj, ModelLink):
-        obj_name = modellink_obj.__class__.__name__
-        raise InputError("Provided ModelLink subclass %r was not "
-                         "initialized properly! Make sure that %r calls "
-                         "the super constructor during initialization!"
-                         % (obj_name, obj_name))
-
-    # Obtain list of arguments call_model should take
-    call_model_args = list(signature(ModelLink.call_model).parameters)
-    call_model_args.remove('self')
-
-    # Check if call_model takes the correct arguments
-    obj_call_model_args = dict(signature(modellink_obj.call_model).parameters)
-    for arg in call_model_args:
-        if arg not in obj_call_model_args.keys():
-            raise InputError("The 'call_model()'-method in provided ModelLink "
-                             "subclass %r does not take required input "
-                             "argument %r!" % (modellink_obj._name, arg))
-        else:
-            obj_call_model_args.pop(arg)
-
-    # Check if call_model takes any other arguments
-    for arg, par in obj_call_model_args.items():
-        # If this parameter has no default value and is not *args or **kwargs
-        if(par.default == _empty and par.kind != _VAR_POSITIONAL and
-           par.kind != _VAR_KEYWORD):
-            # Raise error
-            raise InputError("The 'call_model()'-method in provided ModelLink "
-                             "subclass %r takes an unknown non-optional input "
-                             "argument %r!" % (modellink_obj._name, arg))
-
-    # Obtain list of arguments get_md_var should take
-    get_md_var_args = list(signature(ModelLink.get_md_var).parameters)
-    get_md_var_args.remove('self')
-
-    # Check if get_md_var takes the correct arguments
-    obj_get_md_var_args = dict(signature(modellink_obj.get_md_var).parameters)
-    for arg in get_md_var_args:
-        if arg not in obj_get_md_var_args.keys():
-            raise InputError("The 'get_md_var()'-method in provided ModelLink "
-                             "subclass %r does not take required input "
-                             "argument %r!" % (modellink_obj._name, arg))
-        else:
-            obj_get_md_var_args.pop(arg)
-
-    # Check if get_md_var takes any other arguments
-    for arg, par in obj_get_md_var_args.items():
-        # If this parameter has no default value and is not *args or **kwargs
-        if(par.default == _empty and par.kind != _VAR_POSITIONAL and
-           par.kind != _VAR_KEYWORD):
-            # Raise an error
-            raise InputError("The 'get_md_var()'-method in provided ModelLink "
-                             "subclass %r takes an unknown non-optional input "
-                             "argument %r!" % (modellink_obj._name, arg))
-
-    # Set MPI intra-communicator
-    comm = PRISM_Comm()
-
-    # Obtain random sam_set on controller
-    if not comm._rank:
-        sam_set = modellink_obj._to_par_space(rand(1, modellink_obj._n_par))
-    # Workers get dummy sam_set
-    else:
-        sam_set = []
-
-    # Broadcast random sam_set to workers
-    sam_set = comm.bcast(sam_set, 0)
-
-    # Try to evaluate sam_set in the model
-    try:
-        # Check who needs to call the model
-        if not comm._rank or modellink_obj._MPI_call:
-            # Do multi-call
-            if modellink_obj._multi_call:
-                mod_set = modellink_obj.call_model(
-                    emul_i=0,
-                    par_set=sdict(zip(modellink_obj._par_name, sam_set.T)),
-                    data_idx=modellink_obj._data_idx)
-
-            # Single-call
-            else:
-                # Initialize mod_set
-                mod_set = np.zeros([sam_set.shape[0], modellink_obj._n_data])
-
-                # Loop over all samples in sam_set
-                for i, par_set in enumerate(sam_set):
-                    mod_set[i] = modellink_obj.call_model(
-                        emul_i=0,
-                        par_set=sdict(zip(modellink_obj._par_name, par_set)),
-                        data_idx=modellink_obj._data_idx)
-
-    # If call_model was not overridden, catch NotImplementedError
-    except NotImplementedError:
-        raise NotImplementedError("Provided ModelLink subclass %r has no "
-                                  "user-written 'call_model()'-method!"
-                                  % (modellink_obj._name))
-
-    # If successful, check if obtained mod_set has correct shape
-    if not comm._rank:
-        mod_set = modellink_obj._check_mod_set(mod_set, 'mod_set')
-
-    # Check if the model discrepancy variance can be obtained
-    try:
-        md_var = modellink_obj.get_md_var(
-            emul_i=0,
-            par_set=sdict(zip(modellink_obj._par_name, sam_set[0])),
-            data_idx=modellink_obj._data_idx)
-
-    # If get_md_var was not overridden, catch NotImplementedError
-    except NotImplementedError:
-        warn_msg = ("Provided ModelLink subclass %r has no user-written "
-                    "get_md_var()-method! Default model discrepancy variance "
-                    "description would be used instead!"
-                    % (modellink_obj._name))
-        warnings.warn(warn_msg, RequestWarning, stacklevel=2)
-
-    # If successful, check if obtained md_var has correct shape
-    else:
-        md_var = modellink_obj._check_mod_set(md_var, 'md_var')
-
-    # Return modellink_obj
-    return(modellink_obj)

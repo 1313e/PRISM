@@ -11,7 +11,7 @@ Input arguments
 ###############
 Depending on the values of the :attr:`~prism.modellink.ModelLink.multi_call` and :attr:`~prism.modellink.ModelLink.MPI_call` flags (where the first is set by the :attr:`~prism.modellink.ModelLink.call_type` flag), the :obj:`~prism.Pipeline` instance will use the :meth:`~prism.modellink.ModelLink.call_model` method differently.
 As explained in :ref:`writing_modellink`, every model evaluation sample is requested individually in serial by default, which corresponds to :attr:`~prism.modellink.ModelLink.multi_call` is :pycode:`False` and :attr:`~prism.modellink.ModelLink.MPI_call` is :pycode:`False`.
-When single-calling a model, *PRISM* expects an array-like container back with shape :pycode:`(n_data)`.
+When single-calling a model, *PRISM* expects an array-like container back with shape :pycode:`(n_data)`, where the order of the elements is the same as the order of the requested :pycode:`data_idx`.
 If we assume that we have an instance of the :class:`LineLink` class (introduced in `line_link.py`_) called :pycode:`modellink_obj` and want to evaluate the model three times for all data points, then the model would be called as (solely by the controller rank)::
 
     # Get emul_i, sam_set and data_idx
@@ -22,25 +22,27 @@ If we assume that we have an instance of the :class:`LineLink` class (introduced
     # Evaluate model
     mod_set = np.zeros([sam_set.shape[0], len(data_idx)])
     for i, par_set in enumerate(sam_set):
-        par_dict = dict(zip(modellink_obj.par_name, par_set))
-        mod_set[i] = modellink_obj.call_model(emul_i, par_dict, data_idx)
+        par_dict = sdict(zip(modellink_obj.par_name, par_set))
+        mod_set[i] = modellink_obj.call_model(emul_i=emul_i,
+                                              par_set=par_dict,
+                                              data_idx=data_idx)
 
-Here, we looped through the entire sample set one-by-one, converted every individual sample to a dict and called the model with it.
+Here, we looped through the entire sample set one-by-one, converted every individual sample to a (sorted) dict and called the model with it.
 The emulator iteration is given as a normal integer and the data identifiers :pycode:`data_idx` is provided as a list of individual data identifiers (which are either single elements or tuples of elements, as described in :ref:`data_idx`).
 The requested data identifiers are not necessarily the same as those given in :attr:`~prism.modellink.ModelLink.data_idx`.
 An individual sample provided in this way will be of the form::
 
-    par_dict = {'par_name_1': par_1_val,
-                'par_name_2': par_2_val,
+    par_dict = {'par_1_name': par_1_val,
+                'par_2_name': par_2_val,
                 ...,
-                'par_name_n': par_n_val}
+                'par_n_name': par_n_val}
 
 An example of this would be :pycode:`par_dict = {'A': 1.0, 'B': 2.0}` for the :class:`LineLink` class.
 This works very well for models that do not require any preparation before they can start evaluating and requires a minimal amount of effort to implement.
 However, if the sample set is very large, then evaluating the model in this fashion can be inefficient due to many memory look-ups.
 
 Therefore, the :class:`~prism.modellink.GaussianLink` class accepts both single and multi-calls.
-When multi-calling a model, *PRISM* expects an array-like container back with shape :pycode:`(n_sam, n_data)`.
+When multi-calling a model, *PRISM* expects an array-like container back with shape :pycode:`(n_sam, n_data)`, where the order of the columns is the same as the order of the requested :pycode:`data_idx`.
 So, if we use the same example again, but this time have an instance of the :class:`~prism.modellink.GaussianLink` class with :attr:`~prism.modellink.ModelLink.multi_call` is :pycode:`True`, then the model would be called as (again solely by the controller rank)::
 
     # Get emul_i, sam_set and data_idx
@@ -49,16 +51,18 @@ So, if we use the same example again, but this time have an instance of the :cla
     data_idx = modellink_obj.data_idx
     
     # Evaluate model
-    sam_dict = dict(zip(modellink_obj.par_name, sam_set.T))
-    mod_set = modellink_obj.call_model(emul_i, sam_dict, data_idx)
+    sam_dict = sdict(zip(modellink_obj.par_name, sam_set.T))
+    mod_set = modellink_obj.call_model(emul_i=emul_i,
+                                       par_set=sam_dict,
+                                       data_idx=data_idx)
 
-This call is roughly the same as before, but this time the entire sample set is provided as a dict instead of individual samples.
+This call is roughly the same as before, but this time the entire sample set is provided as a (sorted) dict instead of individual samples.
 The lay-out of this sample dict is of the form::
 
-    sam_dict = {'par_name_1': [par_1_val_1, par_1_val_2, ..., par_1_val_m],
-                'par_name_2': [par_2_val_1, par_2_val_2, ..., par_2_val_m],
+    sam_dict = {'par_1_name': [par_1_val_1, par_1_val_2, ..., par_1_val_m],
+                'par_2_name': [par_2_val_1, par_2_val_2, ..., par_2_val_m],
                 ...,
-                'par_name_n': [par_n_val_1, par_n_val_2, ..., par_n_val_m]}
+                'par_n_name': [par_n_val_1, par_n_val_2, ..., par_n_val_m]}
     
 Again, in the case of the :class:`~prism.modellink.GaussianLink` class, this sample dict could look like :pycode:`sam_dict = {'A1': [1.0, 5.5, 10.0], 'B1': [0.0, 5.0, 10.0], 'C1': [0.0, 2.5, 5.0]}`.
 This can be used when the model requires some kind of preparation before being able to perform evaluations, or when it is simply more efficient to provide all requested samples at once (like for the :class:`~prism.modellink.GaussianLink` class).
@@ -66,6 +70,14 @@ This can be used when the model requires some kind of preparation before being a
 .. note::
     If a model uses OpenMP parallelization, it is recommended to set :attr:`~prism.modellink.ModelLink.MPI_call` to :pycode:`False` in the :class:`~prism.modellink.ModelLink` subclass.
     This allows for all worker ranks to be used in OpenMP threads, while only the controller rank calls the model.
+
+.. note::
+    If one wishes to transform the received :pycode:`sam_dict` back into a normal NumPy array of shape :pycode:`(n_sam, n_par)`, this can be done quite easily by executing :pycode:`sam_set = np.array(par_set.values()).T`, where :pycode:`par_set` is the :pycode:`sam_dict` provided to the :meth:`~prism.modellink.ModelLink.call_model` method.
+    Keep in mind that doing so means that the columns are sorted on the names of the model parameters.
+
+.. versionadded:: 1.1.2
+    It is also possible to make :meth:`~prism.modellink.ModelLink.call_model` return a dict instead, where it has the identifiers in the requested :pycode:`data_idx` as its keys and scalars (single-call) or 1D array-likes of shape :pycode:`(n_sam)` (multi-call) as its values.
+    *PRISM* will automatically convert the dict back to the array-like container format that is normally expected.
 
 When the :attr:`~prism.modellink.ModelLink.MPI_call` flag is set to :pycode:`True`, the calls to the :meth:`~prism.modellink.ModelLink.call_model` method are almost the same as described above.
 The only difference is that all ranks call the method (each providing the same :pycode:`emul_i`, :pycode:`par_dict`/:pycode:`sam_dict` and :pycode:`data_idx`) instead of just the controller rank.
@@ -130,10 +142,10 @@ The :meth:`~prism.modellink.ModelLink._make_backup` method is meant to be used f
 Attempting to call it incorrectly (e.g., not from within :meth:`~prism.modellink.ModelLink.call_model` or with incorrect arguments), will raise a :class:`~prism._internal.RequestWarning` and simply return without doing anything, rather than raising a :class:`~prism._internal.RequestError`.
 This is to make sure that using it incorrectly does not disrupt the :meth:`~prism.modellink.ModelLink.call_model` call, as that has the exact opposite effect of what the backup system tries to achieve.
 
-The :meth:`~prism.modellink.ModelLink._make_backup` method takes two arguments, ``*args`` and ``**kwargs``, of which at least one is required.
-Calling it from within the :meth:`~prism.modellink.ModelLink.call_model` method will produce an HDF5-file containing the ``emul_i``, ``par_set`` and ``data_idx`` argument values that were used to call :meth:`~prism.modellink.ModelLink.call_model` with, and the supplied ``*args`` and ``**kwargs``.
-The name of the HDF5-file contains the values of ``emul_i`` and :attr:`~prism.modellink.ModelLink.name`, and will be saved in the current working directory (NOT the emulator working directory, as the :obj:`~prism.modellink.ModelLink` instance has no access to its path).
-The backup can be read in by passing the value of ``emul_i`` to the :meth:`~prism.modellink.ModelLink._read_backup` method of the corresponding :obj:`~prism.modellink.ModelLink` instance, which will return a dict containing the values of the five arguments that were saved to the file.
+The :meth:`~prism.modellink.ModelLink._make_backup` method takes two arguments, :pycode:`*args` and :pycode:`**kwargs`, of which at least one is required.
+Calling it from within the :meth:`~prism.modellink.ModelLink.call_model` method will produce an HDF5-file containing the :pycode:`emul_i`, :pycode:`par_set` and :pycode:`data_idx` argument values that were used to call :meth:`~prism.modellink.ModelLink.call_model` with, and the supplied :pycode:`*args` and :pycode:`**kwargs`.
+The name of the HDF5-file contains the values of :pycode:`emul_i` and :attr:`~prism.modellink.ModelLink.name`, and will be saved in the current working directory (NOT the emulator working directory, as the :obj:`~prism.modellink.ModelLink` instance has no access to its path).
+The backup can be read in by passing the value of :pycode:`emul_i` to the :meth:`~prism.modellink.ModelLink._read_backup` method of the corresponding :obj:`~prism.modellink.ModelLink` instance, which will return a dict containing the values of the five arguments that were saved to the file.
 
 Backups can be made at any point during the execution of :meth:`~prism.modellink.ModelLink.call_model`, and basically all types of objects are compatible and can be viewed freely in the HDF5-file.
 It is possible that instances of certain custom classes may not be supported by the `hickle`_ package, in which case they will be pickled and saved as a string, causing them to not be able to be viewed freely (but they can still be backed up).
@@ -177,7 +189,7 @@ The code above shows an example of a model that needs to be initialized before i
 Since such a model is probably quite complex, it may be a good idea to make a backup every once in a while.
 Therefore, whenever 500 evaluations have been done, a backup is made of all results gained up to that point.
 This means that whenever the model evaluation process is interrupted, a maximum of the last 500 evaluations is lost.
-The evaluations that are not lost can be loaded back in by using the :meth:`~prism.modellink.ModelLink._read_backup` method, and potentially (after a bit of formatting) be passed to the ``ext_real_set`` input argument of the :meth:`~prism.Pipeline.construct` method when attempting to construct the emulator iteration again.
+The evaluations that are not lost can be loaded back in by using the :meth:`~prism.modellink.ModelLink._read_backup` method, and potentially (after a bit of formatting) be passed to the :pycode:`ext_real_set` input argument of the :meth:`~prism.Pipeline.construct` method when attempting to construct the emulator iteration again.
 
 Note that if :pycode:`model.evaluate()` was implemented such that it takes the entire sample set at once rather than one at a time, calling :meth:`~prism.modellink.ModelLink._make_backup` in :pycode:`model.evaluate()` works perfectly fine, as long as :pycode:`model.evaluate()` is always called by :meth:`~prism.modellink.ModelLink.call_model` or any other function for which this is true.
 Put a little bit more simple: :meth:`~prism.modellink.ModelLink._make_backup` must be called either directly or indirectly by :meth:`~prism.modellink.ModelLink.call_model`, as shown in the following example.
@@ -217,7 +229,7 @@ Put a little bit more simple: :meth:`~prism.modellink.ModelLink._make_backup` mu
                 
                 # Make a backup every 500 evaluations
                 if not((i+1) % 500):
-                    modellink_obj._make_backup(mod_set=mod_set[:i])
+                    modellink_obj._make_backup(mod_set=mod_set[:i+1])
 
             # Return mod_set
             return(mod_set)

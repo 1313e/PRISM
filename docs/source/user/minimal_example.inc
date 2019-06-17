@@ -27,7 +27,7 @@ One can check this by looking at the representation of this :obj:`~prism.modelli
                                    'C1': [0.0, 5.0, 2.0]},
                  model_data={7: [3.0, 0.1], 5: [5.0, 0.1], 3: [3.0, 0.1]})
 
-The :class:`~prism.Pipeline` class takes several optional arguments, which are mostly paths and the type of :class:`~prism.Emulator` class that must be used.
+The :class:`~prism.Pipeline` class takes several optional arguments, which are mostly paths and the type of :class:`~prism.emulator.Emulator` class that must be used.
 It also takes one mandatory argument, which is an instance of the :class:`~prism.modellink.ModelLink` subclass to use.
 Since it has already been initialized above, the :class:`~prism.Pipeline` class can be initialized::
 

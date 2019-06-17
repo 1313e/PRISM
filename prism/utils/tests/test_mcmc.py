@@ -14,7 +14,7 @@ import pytest
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
-from prism._internal import RequestError
+from prism._internal import RequestError, RequestWarning
 from prism._pipeline import Pipeline
 from prism.modellink.tests.modellink import GaussianLink2D
 from prism.utils.mcmc import get_lnpost_fn, get_walkers
@@ -38,8 +38,9 @@ def pipe(tmpdir_factory):
     working_dir = path.basename(tmpdir.strpath)
     prism_file = path.join(dirpath, 'data/prism_default.txt')
     modellink_obj = GaussianLink2D()
+    np.random.seed(0)
     pipeline_obj = Pipeline(modellink_obj, root_dir=root_dir,
-                            working_dir=working_dir, prism_file=prism_file)
+                            working_dir=working_dir, prism_par=prism_file)
     pipeline_obj.construct(analyze=False)
     return(pipeline_obj)
 
@@ -48,16 +49,21 @@ def pipe(tmpdir_factory):
 def lnpost(par_set, pipe):
     par_rng = pipe._modellink._par_rng
     if not ((par_rng[:, 0] <= par_set)*(par_set <= par_rng[:, 1])).all():
-            return(-np.infty)
+        return(-np.infty)
 
+    # Obtain mod_out
     emul_i = pipe._emulator._emul_i
     par_dict = sdict(zip(pipe._modellink._par_name, par_set))
     mod_out = pipe._modellink.call_model(emul_i, par_dict,
                                          pipe._modellink._data_idx)
 
+    # As GaussianLink2D returns dicts, convert to NumPy array
+    mod_out = np.array([mod_out[idx] for idx in pipe._modellink._data_idx])
+
     # Get model and data variances. Since val_spc is lin, data_err is centered
     md_var = pipe._modellink.get_md_var(emul_i, par_dict,
                                         pipe._modellink._data_idx)
+    md_var = np.array([md_var[idx] for idx in pipe._modellink._data_idx])
     data_var = [err[0]**2 for err in pipe._modellink._data_err]
     sigma2 = md_var+data_var
     return(-0.5*(np.sum((pipe._modellink._data_val-mod_out)**2/sigma2)))
@@ -84,9 +90,17 @@ class Test_get_lnpost_fn(object):
         with pytest.raises(TypeError):
             get_lnpost_fn(lnpost, np.array(1))
 
+    # Try to provide a Pipeline object that uses a non-default emulator
+    def test_invalid_emulator(self, pipe):
+        pipe._emulator._emul_type = 'test'
+        with pytest.raises(InputError):
+            get_lnpost_fn(lnpost, pipe)
+        pipe._emulator._emul_type = 'default'
+
     # Try to provide a bound ModelLink object solely requesting multi-calls
     def test_multi_call_ModelLink(self, pipe):
-        pipe._modellink.call_type = 'multi'
+        with pytest.warns(RequestWarning):
+            pipe._modellink.call_type = 'multi'
         if pipe._is_controller:
             with pytest.warns(UserWarning):
                 get_lnpost_fn(lnpost, pipe)
@@ -118,6 +132,13 @@ class Test_get_walkers(object):
     def test_no_Pipeline(self):
         with pytest.raises(TypeError):
             get_walkers(np.array(1))
+
+    # Try to provide a Pipeline object that uses a non-default emulator
+    def test_invalid_emulator(self, pipe):
+        pipe._emulator._emul_type = 'test'
+        with pytest.raises(InputError):
+            get_walkers(pipe)
+        pipe._emulator._emul_type = 'default'
 
     # Try to provide a non-callable function
     def test_non_callable(self, pipe):

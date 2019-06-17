@@ -17,12 +17,12 @@ import warnings
 # Package imports
 from e13tools import InputError
 from e13tools.sampling import lhd
+from e13tools.utils import docstring_substitute
 import numpy as np
 
 # PRISM imports
 from prism._docstrings import user_emul_i_doc
-from prism._internal import (RequestError, check_vals, docstring_substitute,
-                             np_array)
+from prism._internal import RequestError, check_vals, np_array
 from prism._pipeline import Pipeline
 
 # All declaration
@@ -75,11 +75,12 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, *, emul_i=None, unit_space=True,
 
     See also
     --------
-    :func:`~get_walkers`: Analyzes proposed `init_walkers` and returns valid \
-        `p0_walkers`.
+    :func:`~get_walkers`
+        Analyzes proposed `init_walkers` and returns valid `p0_walkers`.
 
-    :attr:`~prism.Pipeline.worker_mode`: Special context manager within which \
-        all code is executed in worker mode.
+    :attr:`~prism.Pipeline.worker_mode`
+        Special context manager within which all code is executed in worker
+        mode.
 
     Warning
     -------
@@ -102,6 +103,11 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, *, emul_i=None, unit_space=True,
     if not isinstance(pipe, Pipeline):
         raise TypeError("Input argument 'pipeline_obj' must be an instance of "
                         "the Pipeline class!")
+
+    # Check if the provided pipeline_obj uses a default emulator
+    if(pipe._emulator._emul_type != 'default'):
+        raise InputError("Input argument 'pipeline_obj' does not use a default"
+                         " emulator!")
 
     # Get emulator iteration
     emul_i = pipe._emulator._get_emul_i(emul_i, True)
@@ -243,11 +249,12 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
 
     See also
     --------
-    :func:`~get_lnpost_fn`: Returns a function definition \
-        ``get_lnpost(par_set, *args, **kwargs)``.
+    :func:`~get_lnpost_fn`
+        Returns a function definition ``get_lnpost(par_set, *args, **kwargs)``.
 
-    :attr:`~prism.Pipeline.worker_mode`: Special context manager within which \
-        all code is executed in worker mode.
+    :attr:`~prism.Pipeline.worker_mode`
+        Special context manager within which all code is executed in worker
+        mode.
 
     Notes
     -----
@@ -263,6 +270,11 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
     if not isinstance(pipe, Pipeline):
         raise TypeError("Input argument 'pipeline_obj' must be an instance of "
                         "the Pipeline class!")
+
+    # Check if the provided pipeline_obj uses a default emulator
+    if(pipe._emulator._emul_type != 'default'):
+        raise InputError("Input argument 'pipeline_obj' does not use a default"
+                         " emulator!")
 
     # Get emulator iteration
     emul_i = pipe._emulator._get_emul_i(emul_i, True)

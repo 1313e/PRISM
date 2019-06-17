@@ -12,8 +12,8 @@ PRISM parameters file
 #####################
 This file contains the non-default values that must be used for the :ref:`parameters`.
 These parameters control various different functionalities of *PRISM*.
-It is provided as the `prism_file` argument when initializing the :class:`~prism.Pipeline` class.
-When certain parameters are read-in depends on their type:
+It is provided as the `prism_par` argument when initializing the :class:`~prism.Pipeline` class and stored in the :attr:`~prism.Pipeline.prism_dict` property (a dict or array-like can be provided instead as well).
+When certain parameters are set depends on their type:
     
     - Emulator parameters: Whenever a new emulator is created;
     - Pipeline parameters: When the :class:`~prism.Pipeline` class is initialized;
@@ -28,6 +28,45 @@ The default *PRISM* parameters file can be found in the ``prism/data`` folder an
 In this file, the key is the name of the parameter that needs to be changed, and the value what it needs to be changed to.
 *PRISM* itself does not require this default file, as all of the default values are hard-coded, and is therefore never read-in.
 An externally provided *PRISM* parameters file is only required to have the non-default values.
+The contents of this file is equal to providing the following as `prism_par`::
+
+    # As a dict
+    prism_par = {'n_sam_init': 500,
+                 'proj_res': 25,
+                 'proj_depth': 250,
+                 'base_eval_sam': 800,
+                 'sigma': 0.8,
+                 'l_corr': 0.3,
+                 'impl_cut': [0.0, 4.0, 3.8, 3.5],
+                 'criterion': None,
+                 'method': 'full',
+                 'use_regr_cov': False,
+                 'poly_order': 3,
+                 'n_cross_val': 5,
+                 'do_active_anal': True,
+                 'freeze_active_par': True,
+                 'pot_active_par': None,
+                 'use_mock': False}
+
+    # As an array_like
+    prism_par = [['n_sam_init', 500],
+                 ['proj_res', 25],
+                 ['proj_depth', 250],
+                 ['base_eval_sam', 800],
+                 ['sigma', 0.8],
+                 ['l_corr', 0.3],
+                 ['impl_cut', [0.0, 4.0, 3.8, 3.5]],
+                 ['criterion', None],
+                 ['method', 'full'],
+                 ['use_regr_cov', False],
+                 ['poly_order', 3],
+                 ['n_cross_val', 5],
+                 ['do_active_anal', True],
+                 ['freeze_active_par', True],
+                 ['pot_active_par', None],
+                 ['use_mock', False]]
+ 
+Note that it is also possible to set any parameter besides :class:`~prism.emulator.Emulator` parameters by using the corresponding class property.
 
 Model parameters file
 #####################
@@ -41,7 +80,7 @@ An example of the various different ways model parameter information can be prov
     :language: none
 
 In this file, the key is the name of the model parameter and the value is a sequence of integers or floats, specifying the *lower* and *upper* boundaries of the parameter and, optionally, its estimate.
-The contents of this file is equal to providing the following as `model_parameters` during initialization of a :class:`~prism.modellink.ModelLink` subclass::
+Similarly to the *PRISM* parameters, one can provide the following equivalent as `model_parameters` during initialization of a :class:`~prism.modellink.ModelLink` subclass::
 
     # As a dict
     model_parameters = {'A': [1, 5, 3],
@@ -58,6 +97,7 @@ The contents of this file is equal to providing the following as `model_paramete
                            [[1, 5, 3], [2, 7, None], [3, 6.74]])
 
 Providing :pycode:`None` as the parameter estimate or not providing it at all, implies that no parameter estimate (for the corresponding parameter) should be used in the projection figures.
+If required, one can use the :func:`~prism.modellink.convert_parameters` function to validate their parameters formatting before using it to initialize a :class:`~prism.modellink.ModelLink` subclass.
 
 Model data file
 ###############
@@ -73,7 +113,7 @@ An example of the various different ways model comparison data information can b
 Here, the key is the full sequence of the data identifier of a data point, where any character that is not a letter, number, minus/plus or period acts as a separator between the elements of the data identifier.
 The corresponding value specifies the data value, data error(s) and data value space.
 Braces, parentheses, brackets and many other characters can be used as mark-up in the data identifier, to make it easier for the user to find a suitable file lay-out.
-A full list of all characters that can be used for this can be found in :attr:`prism._internal.aux_char_list`.
+A full list of all characters that can be used for this can be found in :attr:`prism.aux_char_set` and can be freely edited.
 
 Similarly to the model parameters, the following is equal to the contents of this file::
 
@@ -98,6 +138,7 @@ The data error can be given as either a single value, where it assumed that the 
 The data value space can be given as a string or omitted, in which case it is assumed that the value space is linear.
 Keep in mind that, as mentioned in :ref:`data_idx`, providing a single element data identifier causes it to be saved as a scalar instead of a tuple.
 Therefore, :pycode:`['A']` or :pycode:`('A')` is the same as :pycode:`'A'`.
+If required, one can use the :func:`~prism.modellink.convert_data` function to validate their data formatting before using it to initialize a :class:`~prism.modellink.ModelLink` subclass.
 
 .. note::
     The parameter value bounds are given as [*lower bound*, *upper bound*], whereas the data errors are given as [*upper error*, *lower error*].

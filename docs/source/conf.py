@@ -15,6 +15,7 @@
 import os
 import sys
 from codecs import open
+import re
 sys.path.insert(0, os.path.abspath('../..'))
 
 
@@ -27,8 +28,11 @@ author = 'Ellert van der Velden'
 # The short X.Y version
 version = 'latest'
 # The full version, including alpha/beta/rc tags
-exec(open('../../prism/__version__.py', 'r').read())
-release = prism_version
+with open('../../prism/__version__.py', 'r') as f:
+    vf = f.read()
+
+# Obtain version from read-in __version__.py file
+version = re.search(r"^_*version_* = ['\"]([^'\"]*)['\"]", vf, re.M).group(1)
 
 
 # -- General configuration ---------------------------------------------------
@@ -54,7 +58,8 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'numpy': ('https://docs.scipy.org/doc/numpy', None),
                        'mpi4py': ('https://mpi4py.readthedocs.io/en/stable', None),
                        'matplotlib': ('https://matplotlib.org', None),
-                       'h5py': ('https://h5py.readthedocs.io/en/stable', None)}
+                       'h5py': ('https://h5py.readthedocs.io/en/stable', None),
+                       'e13tools': ('https://e13tools.readthedocs.io/en/latest', None)}
 
 # Autodoc configuration
 autodoc_default_options = {'members': None,
@@ -71,7 +76,7 @@ napoleon_use_keyword = False
 napoleon_use_rtype = False
 napoleon_custom_sections = [
     ('Optional', 'Other Parameters'),
-    ('Returns (if ndim(sam_set) > 1)', 'Returns'),
+    ('Returns (if 2D `sam_set`)', 'Returns'),
     ('Returns (if `figure` is *False*)', 'Returns'),
     ('Dict variables', 'Keyword Arguments'),
     'Description',
@@ -82,7 +87,7 @@ napoleon_custom_sections = [
     'Formatting data_idx',
     'Notes (model_parameters)',
     'Notes (model_data)',
-    'Prints (if ndim(sam_set) == 1)']
+    'Prints (if 1D `sam_set`)']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -111,6 +116,7 @@ exclude_patterns = []
 # The name of the Pygments (syntax highlighting) style to use.
 highlight_language = 'default'
 pygments_style = 'sphinx'
+modindex_common_prefix = ['prism.']
 
 add_function_parentheses = True
 add_module_names = True
@@ -141,7 +147,9 @@ html_theme_options = {
     'collapse_navigation': False,
     'sticky_navigation': False,
     'includehidden': False,
-    'titles_only': False
+    'titles_only': False,
+    'logo_only': True,
+    'display_version': False
 }
 
 # Title formatting
@@ -170,7 +178,8 @@ html_use_opensearch = 'https://prism-tool.readthedocs.io/en/latest'
 
 html_split_index = True
 
-html_favicon = 'py.png'
+html_logo = 'PRISM_Logo.png'
+html_favicon = 'PRISM_Icon.ico'
 
 html_baseurl = 'https://prism-tool.readthedocs.io/en/latest'
 
@@ -228,7 +237,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, project, html_title,
-     author, project, '"Probabilistic Regression Instrument for Simulating Models"',
+     author, project, "An alternative to MCMC for rapid analysis of models",
      'Miscellaneous'),
 ]
 

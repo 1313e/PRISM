@@ -7,6 +7,8 @@ Classes
     prism.modellink.ModelLink
     prism.modellink.SineWaveLink
 
-Functions
+Utilities
 ---------
+.. autofunction:: prism.modellink.convert_data
+.. autofunction:: prism.modellink.convert_parameters
 .. autofunction:: prism.modellink.test_subclass

@@ -19,7 +19,7 @@ Hybrid sampling works in the following way:
        Else, it will be evaluated in the emulator;
     3. If the sample is labeled as *implausible* by the emulator, it also receives a prior probability of zero.
        If it is plausible, the sample is evaluated in the same way as for normal sampling;
-    4. Optionally, a scaled value of the first implausibility cut-off is used as an additional (non-zero) prior probability.
+    4. Optionally, a scaled value of the first implausibility cut-off is used as an exploratory method by adding an additional (non-zero) prior probability.
        This can be enabled by using the `hybrid` input argument for the :func:`~prism.utils.get_lnpost_fn` function.
 
 Since the emulator that *PRISM* makes of a model is not defined outside of the parameter space given by :attr:`~prism.modellink.ModelLink.par_rng`, the second step is necessary to make sure the results are valid.

@@ -90,7 +90,11 @@ Aligning the subplots in a row (`'row'`) would give :numref:`1_proj_A1` as the f
 
     2D projection figure of model parameter :math:`A_1` with the `'row'` alignment.
 
-The `smooth` argument is also a bool, that determines what to do if a grid point in the projection figure contains no plausible samples, but does contain a minimum implausibility value below the first non-wildcard cut-off.
+.. versionadded:: 1.1.2
+    The `show_cuts` argument is also a bool, that determines whether to show all implausibility cut-off values in 2D projections (:pycode:`True`) or only the first cut-off value (:pycode:`False`, default).
+    In some cases, this may be useful when the first cut-off is not definitive in accepting or rejecting parameter values (as explained below for the `smooth` parameter).
+
+The `smooth` argument is yet another bool, that determines what to do if a grid point in the projection figure contains no plausible samples, but does contain a minimum implausibility value below the first non-wildcard cut-off.
 If :pycode:`False`, which is the default, these values are kept in the figure, which may show up as artifact-like features.
 If :pycode:`True`, these values are set to the first cut-off, basically removing them from the projection figure.
 This may however also remove interesting features.
@@ -123,9 +127,9 @@ The `force` argument is a bool, which controls what to do if a projection is req
 If :pycode:`False` (default), it will use the previously acquired projection data to create the projection figure if it does not exist, skip if it does or return the figure data if `figure` is :pycode:`False`.
 If :pycode:`True`, the projection data and all associated projection figures will be deleted, and the projection will be recalculated.
 
-The remaining six arguments are keyword argument dicts, that need to be passed to the various different plotting functions that are used for creating the projection figures.
+The remaining seven arguments are keyword argument dicts, that need to be passed to the various different plotting functions that are used for creating the projection figures.
 The `fig_kwargs` dict is passed to the :func:`~matplotlib.pyplot.figure` function when creating the projection figure instance.
 The `impl_kwargs_2D` and `los_kwargs_2D` dicts are passed to the :func:`~matplotlib.pyplot.plot` function when making the minimum implausibility and line-of-sight depth subplots, respectively, for the 2D projections.
 Similarly, the `impl_kwargs_3D` and `los_kwargs_3D` dicts are passed to the :func:`~matplotlib.pyplot.hexbin` function for 3D projections.
-And, finally, the `line_kwargs` dict is passed to the :func:`~matplotlib.pyplot.draw` function for drawing the parameter estimate lines.
+And, finally, the `line_kwargs_est` and `line_kwargs_cut` dicts are passed to the :func:`~matplotlib.pyplot.draw` function for drawing the parameter estimate and implausibility cut-off lines.
 

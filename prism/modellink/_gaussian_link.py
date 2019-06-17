@@ -17,7 +17,7 @@ import numpy as np
 
 # PRISM imports
 from prism._internal import check_vals, np_array
-from prism.modellink._modellink import ModelLink
+from prism.modellink import ModelLink
 
 # All declaration
 __all__ = ['GaussianLink']
@@ -68,6 +68,17 @@ class GaussianLink(ModelLink):
         # Inheriting ModelLink __init__()
         super().__init__(*args, **kwargs)
 
+    # %% GAUSSIANLINK CLASS PROPERTIES
+    @property
+    def n_gaussians(self):
+        """
+        int: Number of Gaussians used in this :obj:`~GaussianLink` instance.
+
+        """
+
+        return(self._n_gaussians)
+
+    # %% GAUSSIANLINK CLASS METHODS
     def get_str_repr(self):
         return(['n_gaussians=%r' % (self._n_gaussians)] if(
                 self._n_gaussians != 1) else [])
@@ -99,13 +110,3 @@ class GaussianLink(ModelLink):
 
     def get_md_var(self, emul_i, par_set, data_idx):
         return(pow(0.1*np.ones_like(data_idx), 2))
-
-    # %% GAUSSIANLINK CLASS PROPERTIES
-    @property
-    def n_gaussians(self):
-        """
-        int: Number of Gaussians used in this :obj:`~GaussianLink` instance.
-
-        """
-
-        return(self._n_gaussians)
