@@ -1592,11 +1592,11 @@ class Pipeline(Projection, object):
         # Flatten the corresponding data_idx_to_core on the controller
         if self._is_controller:
             data_idx_flat = []
-            data_idx_len = []
+            n_data = []
             for data_idx_rank in self._emulator._data_idx_to_core[emul_i]:
                 data_idx_rank = delist(data_idx_rank)
-                data_idx_len.append(len(data_idx_rank))
                 data_idx_flat.extend(data_idx_rank)
+                n_data.append(len(data_idx_rank))
 
         # Use dummy data_idx_flat on workers
         else:
@@ -1630,22 +1630,16 @@ class Pipeline(Projection, object):
             else:
                 use_ext_real_set = 0
 
+            # Determine what data needs to go to what rank
+            disps = np.cumsum([0, *n_data[:-1]])
+            idx = [np.arange(disp, disp+i) for i, disp in zip(n_data, disps)]
+            mod_set_list = [mod_set[i] for i in idx]
+
             # Sent the specific mod_set parts to the corresponding workers
             logger.info("Distributing model realization data to corresponding "
                         "emulator systems.")
-            s_idx = 0
-            for rank, n_data in enumerate(data_idx_len):
-                # Controller data must be saved last
-                if not rank:
-                    pass
-
-                # Send the remaining parts to the workers
-                else:
-                    self._comm.send([sam_set, mod_set[s_idx:s_idx+n_data]],
-                                    dest=rank, tag=777+rank)
-
-                # Save which data parts have already been sent
-                s_idx += n_data
+            sam_set = self._comm.bcast(sam_set, 0)
+            mod_set = self._comm.scatter(mod_set_list, 0)
 
             # MPI Barrier to make sure that workers have saved their data
             self._comm.Barrier()
@@ -1654,18 +1648,21 @@ class Pipeline(Projection, object):
             self._emulator._save_data(emul_i, None, {
                 'mod_real_set': {
                     'sam_set': sam_set,
-                    'mod_set': mod_set[0:data_idx_len[0]],
+                    'mod_set': mod_set,
                     'use_ext_real_set': use_ext_real_set}})
 
         # Workers waiting for controller to send them their data values
         else:
-            sam_set, mod_set = self._comm.recv(source=0, tag=777+self._rank)
+            # Obtain sam_set and mod_set from the controller
+            sam_set = self._comm.bcast(None, 0)
+            mod_set = self._comm.scatter(None, 0)
 
             # Save all the data to the specific hdf5-files
-            for i, lemul_s in enumerate(self._emulator._active_emul_s[emul_i]):
+            for lemul_s, mod_out in zip(self._emulator._active_emul_s[emul_i],
+                                        mod_set):
                 self._emulator._save_data(emul_i, lemul_s, {
                     'mod_real_set': {
-                        'mod_set': mod_set[i]}})
+                        'mod_set': mod_out}})
 
             # Save sam_set data to memory
             self._emulator._sam_set[emul_i] = sam_set

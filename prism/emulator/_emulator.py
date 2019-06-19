@@ -2555,15 +2555,15 @@ class Emulator(object):
                     self._n_sam[emul_i] = np.shape(data['sam_set'])[0]
 
                     # Loop over all received mod_sets
-                    for i, lemul_s in enumerate(self._active_emul_s[emul_i]):
+                    for lemul_s, mod_out in zip(self._active_emul_s[emul_i],
+                                                data['mod_set']):
                         # Determine the emulator system for this mod_set
                         emul_s = self._emul_s[lemul_s]
 
                         # Save mod_set data to file and memory
                         data_set_s = data_set['emul_%i' % (emul_s)]
-                        data_set_s.create_dataset('mod_set',
-                                                  data=data['mod_set'][i])
-                        self._mod_set[emul_i][lemul_s] = data['mod_set'][i]
+                        data_set_s.create_dataset('mod_set', data=mod_out)
+                        self._mod_set[emul_i][lemul_s] = mod_out
 
                     # Save whether or not ext_real_set was used
                     data_set.attrs['use_ext_real_set'] =\
