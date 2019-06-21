@@ -683,7 +683,7 @@ class Pipeline(Projection, object):
                     impl_cut[i] = impl_cut[i-1]
 
                 # If the value is higher than the previous value, it is invalid
-                elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
+                elif(impl_cut[i] > impl_cut[i-1] and impl_cut[i-1]):
                     err_msg = ("Cut-off %i is higher than cut-off %i "
                                "(%f > %f)!"
                                % (i, i-1, impl_cut[i], impl_cut[i-1]))
