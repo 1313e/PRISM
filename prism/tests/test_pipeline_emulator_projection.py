@@ -555,13 +555,6 @@ class Test_Pipeline_Init_Exceptions(object):
         with pytest.raises(ValueError):
             pipe._emulator._create_new_emulator()
 
-    # Try to use an invalid MPI world communicator
-    def test_invalid_MPI_comm(self, root_working_dir, modellink_obj):
-        with pytest.raises(TypeError):
-            Pipeline(modellink_obj, **root_working_dir,
-                     prism_par=prism_file_default,
-                     comm=object)
-
 
 # Pytest for Pipeline class user exception handling
 @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
