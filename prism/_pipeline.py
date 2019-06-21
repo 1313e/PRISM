@@ -836,6 +836,7 @@ class Pipeline(Projection, object):
     # TODO: If not MPI_call, all ranks evaluate part of sam_set simultaneously?
     # Requires check/flag that model can be evaluated in multiple instances
     # TODO: If not MPI_call, should OMP_NUM_THREADS be temporarily unset?
+    # TODO: Find out how to check what the waiting mode is on an architecture
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _evaluate_model(self, emul_i, sam_set, data_idx):
         """
@@ -878,7 +879,7 @@ class Pipeline(Projection, object):
             # Request evaluation samples one-by-one
             else:
                 # Initialize mod_set
-                mod_set = np.zeros([sam_set.shape[0], self._modellink._n_data])
+                mod_set = np.empty([sam_set.shape[0], self._modellink._n_data])
 
                 # Loop over all requested evaluation samples
                 for i, par_set in enumerate(sam_set):
@@ -887,6 +888,9 @@ class Pipeline(Projection, object):
         # If workers did not call model, give them a dummy mod_set
         else:
             mod_set = []
+
+        # MPI Barrier
+        self._comm.Barrier()
 
         # Log that evaluation is completed and return mod_set
         logger.info("Finished evaluating model samples.")

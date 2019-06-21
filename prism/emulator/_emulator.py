@@ -33,6 +33,7 @@ from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
 from sklearn.preprocessing import PolynomialFeatures as PF
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
+import threadpoolctl as tpc
 
 # PRISM imports
 from prism import __version__
@@ -2255,12 +2256,25 @@ class Emulator(object):
             # Save total number of emulator systems
             self._n_emul_s_tot = sum([len(seq) for seq in emul_s_to_core])
 
-        # Workers get dummy emul_s_to_core
-        else:
-            emul_s_to_core = []
+            # Assign the emulator systems to the various MPI ranks
+            self._emul_s = self._comm.scatter(emul_s_to_core, 0)
 
-        # Assign the emulator systems to the various MPI ranks
-        self._emul_s = self._comm.scatter(emul_s_to_core, 0)
+            # Calculate the most optimal number of OpenMP threads if using MPI
+            if(MPI.COMM_WORLD.Get_size() > 1):
+                omp_num_threads = max(1, self._size//self._n_emul_s_tot)
+            else:
+                omp_num_threads = None
+
+            # Tell workers to use this number of OpenMP threads
+            tpc.threadpool_limits(self._comm.bcast(omp_num_threads, 0), 'blas')
+
+        # Workers get their emulator systems assigned
+        else:
+            # Receive assigned emulator systems
+            self._emul_s = self._comm.scatter(None, 0)
+
+            # Set number of OpenMP threads
+            tpc.threadpool_limits(self._comm.bcast(None, 0), 'blas')
 
         # Temporarily manually swap the CFilter for RFilter
         # Every rank logs what systems were assigned to it

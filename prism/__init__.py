@@ -25,8 +25,6 @@ the *PRISM* pipeline and holds all information about this model.
 # %% IMPORTS
 # Built-in imports
 import os
-import platform
-import warnings
 
 # Package imports
 from e13tools import compare_versions as _compare_versions
@@ -63,22 +61,3 @@ if(_MPI.__package__ == 'mpi4py' and _MPI.COMM_WORLD.Get_size() > 1 and
         raise ImportError("mpi4py v%s detected. PRISM requires mpi4py "
                           "v3.0.0 or later to work in MPI!"
                           % (_mpi4py_version))
-
-    # Raise warning if OMP_NUM_THREADS is not set to 1
-    if(os.environ.get('OMP_NUM_THREADS') != '1'):
-        # Get platform-dependent string on how to set environment variable
-        set_str = ""
-
-        # Windows
-        if (platform.system().lower() == 'windows'):
-            set_str = " (\">set OMP_NUM_THREADS=1\")"
-        # Linux/MacOS-X
-        elif (platform.system().lower() in ('linux', 'darwin')):
-            set_str = " (\"$ export OMP_NUM_THREADS=1\")"
-
-        # Print warning message
-        warn_msg = ("Environment variable 'OMP_NUM_THREADS' is currently "
-                    "not set to 1 (%s), with MPI enabled. Unless this was "
-                    "intentional, it is advised to set it to 1%s."
-                    % (os.environ.get('OMP_NUM_THREADS'), set_str))
-        warnings.warn(warn_msg, RuntimeWarning, stacklevel=2)
