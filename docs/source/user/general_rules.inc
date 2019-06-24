@@ -16,6 +16,8 @@ Below is a list of general usage rules that apply to *PRISM*.
 
     - the names of model parameters also accepts the internal indices of these model parameters.
       The index is the order in which the parameter names appear in the :attr:`~prism.modellink.ModelLink.par_name` list or as they appear in the output of the :meth:`~prism.Pipeline.details` method;
+    - a parameter/sample set will accept a 1D/2D array-like or a dict of sample(s).
+      As with the previous rule, the columns in an array-like are in the order in which the parameter names appear in the :attr:`~prism.modellink.ModelLink.par_name` list;
     - a sequence of integers, floats and/or strings will accept (almost) any formatting including most special characters as separators as long as they do not have any meaning (like a dot for floats or valid escape sequences for strings).
       Keep in mind that providing :pycode:`'1e3'` (or equivalent) will be converted to :pycode:`1000.0`, as per Python standards;
 
