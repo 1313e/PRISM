@@ -19,6 +19,7 @@ from e13tools import InputError
 from e13tools.sampling import lhd
 from e13tools.utils import docstring_substitute
 import numpy as np
+from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism._docstrings import user_emul_i_doc
@@ -33,7 +34,7 @@ __all__ = ['get_lnpost_fn', 'get_walkers']
 # This function returns a specialized version of the lnpost function
 @docstring_substitute(emul_i=user_emul_i_doc)
 def get_lnpost_fn(ext_lnpost, pipeline_obj, *, emul_i=None, unit_space=True,
-                  hybrid=True):
+                  hybrid=True, par_dict=False):
     """
     Returns a function definition ``get_lnpost(par_set, *args, **kwargs)``.
 
@@ -60,12 +61,14 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, *, emul_i=None, unit_space=True,
     --------
     %(emul_i)s
     unit_space : bool. Default: True
-        Bool determining whether or not the provided sample will be given in
-        unit space.
+        Bool determining whether or not `par_set` will be given in unit space.
     hybrid : bool. Default: True
         Bool determining whether or not the `get_lnpost` function should
         use the implausibility values of a given `par_set` as an additional
         prior.
+    par_dict : bool. Default: False
+        Bool determining whether or not `par_set` will be an array_like
+        (*False*) or a dict (*True*).
 
     Returns
     -------
@@ -81,6 +84,13 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, *, emul_i=None, unit_space=True,
     :attr:`~prism.Pipeline.worker_mode`
         Special context manager within which all code is executed in worker
         mode.
+
+    Note
+    ----
+    The input arguments `unit_space` and `par_dict` state in what form
+    `par_set` will be provided to the ``get_lnpost()`` function, such that it
+    can be properly converted to the format used in :class:`~prism.Pipeline`.
+    The `par_set` that is passed to the ``ext_lnpost()`` function is unchanged.
 
     Warning
     -------
@@ -118,6 +128,9 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, *, emul_i=None, unit_space=True,
     # Check if hybrid is a bool
     hybrid = check_vals(hybrid, 'hybrid', 'bool')
 
+    # Check if par_dict is a bool
+    par_dict = check_vals(par_dict, 'par_dict', 'bool')
+
     # Disable PRISM logging
     pipe.do_logging = False
 
@@ -133,10 +146,10 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, *, emul_i=None, unit_space=True,
 
         Parameters
         ----------
-        par_set : 1D array_like
+        par_set : 1D array_like or dict
             Sample to calculate the posterior probability for. This sample is
             first analyzed in `pipeline_obj` and only given to `ext_lnpost` if
-            it is plausible.
+            it is plausible. If `par_dict` is *True*, this is a dict.
         args : tuple
             Positional arguments that need to be passed to the `ext_lnpost`
             function.
@@ -155,11 +168,15 @@ def get_lnpost_fn(ext_lnpost, pipeline_obj, *, emul_i=None, unit_space=True,
 
         """
 
-        # If unit_space is True, convert par_set to par_space
-        if unit_space:
-            sam = pipe._modellink._to_par_space(par_set)
+        # If par_dict is True, convert par_set to a NumPy array
+        if par_dict:
+            sam = np_array(sdict(par_set).values()).T
         else:
             sam = par_set
+
+        # If unit_space is True, convert par_set to par_space
+        if unit_space:
+            sam = pipe._modellink._to_par_space(sam)
 
         # Check if par_set is within parameter space and return -inf if not
         par_rng = pipe._modellink._par_rng
@@ -220,7 +237,7 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
     Optional
     --------
     %(emul_i)s
-    init_walkers : 2D array_like, int or None. Default: None
+    init_walkers : 2D array_like, dict, int or None. Default: None
         Sample set of proposed initial MCMC walker positions. All plausible
         samples in `init_walkers` will be returned.
         If int, generate an LHD of provided size and return all plausible
@@ -240,8 +257,9 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
     -------
     n_walkers : int
         Number of returned MCMC walkers.
-    p0_walkers : 2D :obj:`~numpy.ndarray` object
+    p0_walkers : 2D :obj:`~numpy.ndarray` object or dict
         Array containing starting positions of valid MCMC walkers.
+        If `init_walkers` was provided as a dict, `p0_walkers` will be a dict.
     get_lnpost : function (if `ext_lnpost` is a function)
         The function returned by :func:`~get_lnpost_fn` function factory using
         `ext_lnpost`, `pipeline_obj`, `emul_i`, `unit_space` and `kwargs` as
@@ -281,6 +299,9 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
 
     # Check if unit_space is a bool
     unit_space = check_vals(unit_space, 'unit_space', 'bool')
+
+    # Assume that walkers are not to be returned as a dict
+    walker_dict = False
 
     # Check if ext_lnpost is None and try to obtain lnpost function if not
     if ext_lnpost is not None:
@@ -322,8 +343,19 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
                                    pipe._modellink._par_rng, 'center',
                                    pipe._criterion, 100)
 
-            # If init_walkers is not an int, it must be array_like
+            # If init_walkers is not an int, it must be array_like or dict
             else:
+                # If init_walkers is provided as a dict, convert it
+                if isinstance(init_walkers, dict):
+                    # Make sure that init_walkers is a SortedDict
+                    init_walkers = sdict(init_walkers)
+
+                    # Convert it to normal
+                    init_walkers = np_array(init_walkers.values()).T
+
+                    # Return p0_walkers as a dict
+                    walker_dict = True
+
                 # Make sure that init_walkers is a NumPy array
                 init_walkers = np_array(init_walkers, ndmin=2)
 
@@ -352,6 +384,10 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
     # Check if p0_walkers needs to be converted
     if unit_space:
         p0_walkers = pipe._modellink._to_unit_space(p0_walkers)
+
+    # Check if p0_walkers needs to be returned as a dict
+    if walker_dict:
+        p0_walkers = sdict(zip(pipe._modellink._par_name, p0_walkers.T))
 
     # Check if lnpost_fn was requested and return it as well if so
     if ext_lnpost is not None:

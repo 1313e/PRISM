@@ -914,7 +914,7 @@ class Pipeline(Projection, object):
 
         # If mod_out is a dict, convert it to a NumPy array
         if isinstance(mod_out, dict):
-            mod_out = np_array([mod_out[idx] for idx in data_idx])
+            mod_out = np_array([mod_out[idx] for idx in data_idx]).T
 
         # Log that calling model has been finished
         logger.info("Model returned %s." % (mod_out))

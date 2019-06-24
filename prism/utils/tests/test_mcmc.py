@@ -47,13 +47,12 @@ def pipe(tmpdir_factory):
 
 # Create lnpost function
 def lnpost(par_set, pipe):
-    par_rng = pipe._modellink._par_rng
-    if not ((par_rng[:, 0] <= par_set)*(par_set <= par_rng[:, 1])).all():
-        return(-np.infty)
-
     # Obtain mod_out
     emul_i = pipe._emulator._emul_i
-    par_dict = sdict(zip(pipe._modellink._par_name, par_set))
+    if not isinstance(par_set, dict):
+        par_dict = sdict(zip(pipe._modellink._par_name, par_set))
+    else:
+        par_dict = par_set
     mod_out = pipe._modellink.call_model(emul_i, par_dict,
                                          pipe._modellink._data_idx)
 
@@ -111,9 +110,10 @@ class Test_get_lnpost_fn(object):
     # Try to obtain the non-default get_lnpost function definition
     def test_non_default(self, pipe):
         get_lnpost = get_lnpost_fn(lnpost, pipe, unit_space=False,
-                                   hybrid=False)
-        assert get_lnpost([0.5, 0.5], pipe) == -np.infty
-        get_lnpost(pipe._modellink._par_est, pipe)
+                                   hybrid=False, par_dict=True)
+        assert get_lnpost({'A': 0.5, 'B': 0.5}, pipe) == -np.infty
+        get_lnpost(sdict(zip(pipe._modellink._par_name,
+                             pipe._modellink._par_est)), pipe)
 
 
 # Pytest for get_walkers
@@ -149,6 +149,15 @@ class Test_get_walkers(object):
     def test_init_walkers_set(self, pipe):
         get_walkers(pipe, init_walkers=lhd(10, pipe._modellink._n_par, None,
                                            'center', pipe._criterion, 100))
+
+    # Try to provide a custom dict of init_walkers
+    def test_init_walkers_dict(self, pipe):
+        sam_set = lhd(10, pipe._modellink._n_par, None, 'center',
+                      pipe._criterion, 100)
+        sam_dict = sdict(zip(pipe._modellink._par_name, sam_set.T))
+        p0_walkers = get_walkers(pipe, init_walkers=sam_dict)[1]
+        if pipe._is_controller:
+            assert isinstance(p0_walkers, dict)
 
     # Try to provide a custom size of init_walkers
     def test_init_walkers_size(self, pipe):
