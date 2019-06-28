@@ -359,10 +359,15 @@ class Projection(object):
         f_los = Rbf(x_proj, impl_los)
 
         # Set the size of the grid
-        gridsize = max(10*self.__fig_kwargs['dpi'], proj_res)
+        gridsize =\
+            self.__fig_kwargs['dpi']*np_array(self.__fig_kwargs['figsize'])
+        gridsize = np_array(gridsize, dtype=int)
+
+        # Multiply the longer axis by two
+        gridsize[int(self.__align == 'row')] *= 2
 
         # Create normalized parameter value array for interpolation functions
-        x = np.linspace(0, 1, gridsize)
+        x = np.linspace(0, 1, gridsize[0])
 
         # Calculate y_min and y_los
         y_min = f_min(x)
@@ -382,7 +387,7 @@ class Projection(object):
             y_min[y_los <= 0] = impl_cut
 
         # Create plotted parameter value array
-        x = np.linspace(*self._modellink._par_rng[par], gridsize)
+        x = np.linspace(*self._modellink._par_rng[par], gridsize[0])
 
         # Create figure object if the figure is requested
         if self.__figure:
@@ -518,16 +523,21 @@ class Projection(object):
         f_los = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_los)
 
         # Set the size of the hexbin grid
-        gridsize = max(10*self.__fig_kwargs['dpi'], proj_res)
+        gridsize =\
+            self.__fig_kwargs['dpi']*np_array(self.__fig_kwargs['figsize'])
+        gridsize = np_array(gridsize, dtype=int)
+
+        # Multiply the longer axis by two
+        gridsize[int(self.__align == 'row')] *= 2
 
         # Create normalized parameter value grid for interpolation functions
-        x = np.linspace(0, 1, gridsize)
-        y = np.linspace(0, 1, gridsize)
+        x = np.linspace(0, 1, gridsize[0])
+        y = np.linspace(0, 1, gridsize[1])
         X, Y = np.meshgrid(x, y, indexing='ij')
 
         # Calculate impl_min and impl_los for X, Y
-        Z_min = np.zeros([gridsize, gridsize])
-        Z_los = np.zeros([gridsize, gridsize])
+        Z_min = np.zeros(gridsize)
+        Z_los = np.zeros(gridsize)
         for i, (xi, yi) in enumerate(zip(X, Y)):
             Z_min[i] = f_min(xi, yi)
             Z_los[i] = f_los(xi, yi)
@@ -563,8 +573,8 @@ class Projection(object):
             z_min[z_los <= min_los] = impl_cut
 
         # Create plotted parameter value grid
-        x = np.linspace(*self._modellink._par_rng[par1], gridsize)
-        y = np.linspace(*self._modellink._par_rng[par2], gridsize)
+        x = np.linspace(*self._modellink._par_rng[par1], gridsize[0])
+        y = np.linspace(*self._modellink._par_rng[par2], gridsize[1])
         X, Y = np.meshgrid(x, y, indexing='ij')
         x = X.ravel()
         y = Y.ravel()
