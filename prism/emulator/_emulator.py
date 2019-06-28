@@ -27,7 +27,7 @@ import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 from mpi4pyd import MPI
 import numpy as np
-from numpy.linalg import inv
+from numpy.linalg import pinv
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
@@ -1592,8 +1592,8 @@ class Emulator(object):
                     new_pf_obj.fit_transform(active_sam_set)[:, poly_idx]
 
                 # Calculate the poly_coef covariances
-                poly_coef_cov =\
-                    rsdl_var*inv(sam_set_poly.T @ sam_set_poly).flatten()
+                poly_coef_cov = rsdl_var*self._get_inv_matrix(
+                    sam_set_poly.T @ sam_set_poly).flatten()
 
             # Create regression data dict
             regr_data_dict = {
@@ -2018,7 +2018,7 @@ class Emulator(object):
     def _get_inv_matrix(self, matrix):
         """
         Calculates the inverse of a given `matrix`.
-        Right now only uses the :func:`~numpy.linalg.inv` function.
+        Right now only uses the :func:`~numpy.linalg.pinv` function.
 
         Parameters
         ----------
@@ -2032,8 +2032,8 @@ class Emulator(object):
 
         """
 
-        # Calculate the inverse of the given matrix
-        matrix_inv = inv(matrix)
+        # Calculate the Moore-Penrose generalized inverse of the given matrix
+        matrix_inv = pinv(matrix)
 
         # Return it
         return(matrix_inv)

@@ -2443,12 +2443,12 @@ class Pipeline(Projection, object):
                 raise_warning(warn_msg, RequestWarning, logger, 2)
 
             # Raise warning if n_impl_sam is less than n_sam_init
-            elif(n_impl_sam < self._n_sam_init):
+            elif(n_impl_sam < self._emulator._n_sam[1]):
                 warn_msg = ("Number of plausible samples is lower than the "
                             "number of samples in the first iteration (%i < "
                             "%i). Constructing the next iteration might not "
                             "produce a more accurate emulator."
-                            % (n_impl_sam, self._n_sam_init))
+                            % (n_impl_sam, self._emulator._n_sam[1]))
                 raise_warning(warn_msg, RequestWarning, logger, 2)
 
             # Save the results
