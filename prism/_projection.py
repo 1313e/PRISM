@@ -610,7 +610,7 @@ class Projection(object):
 
             # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
-            fig1 = ax0.hexbin(x, y, z_min, gridsize, vmin=0, vmax=impl_cut,
+            fig1 = ax0.hexbin(x, y, z_min, gridsize-1, vmin=0, vmax=impl_cut,
                               **self.__impl_kwargs_3D)
 
             # Draw parameter estimate lines
@@ -629,7 +629,7 @@ class Projection(object):
 
             # LINE-OF-SIGHT DEPTH PLOT
             # Plot line-of-sight depth
-            fig2 = ax1.hexbin(x, y, z_los, gridsize, vmin=0,
+            fig2 = ax1.hexbin(x, y, z_los, gridsize-1, vmin=0,
                               vmax=min(1, np.max(z_los)),
                               **self.__los_kwargs_3D)
 
