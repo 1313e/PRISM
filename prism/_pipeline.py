@@ -1773,7 +1773,7 @@ class Pipeline(Projection, object):
     # This function calculates the univariate implausibility values
     # This is function 'I²(x)'
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def _get_uni_impl(self, emul_i, par_set, adj_exp_val, adj_var_val):
+    def _get_uni_impl(self, emul_i, sam_set, adj_exp_val, adj_var_val):
         """
         Calculates the univariate implausibility values at a given emulator
         iteration `emul_i` for specified expectation and variance values
@@ -1798,27 +1798,29 @@ class Pipeline(Projection, object):
         """
 
         # Obtain model discrepancy variance
-        md_var = self._get_md_var(emul_i, par_set)
+        md_var = self._get_md_var(emul_i, sam_set)
 
         # Determine the active emulator systems for this iteration
         active_emul_s = self._emulator._active_emul_s[emul_i]
 
         # Initialize empty univariate implausibility
-        uni_impl_val_sq = np.zeros(len(active_emul_s))
+        uni_impl_val_sq = np.zeros([len(active_emul_s), sam_set.shape[0]])
 
         # Calculate the univariate implausibility values
         for i, emul_s in enumerate(active_emul_s):
-            # Use the upper errors by default
-            err_idx = 0
+            # Check if upper or lower errors should be used
+            err_idx = adj_exp_val[i] < self._emulator._data_val[emul_i][emul_s]
+            err_idx2 = np_array([~err_idx, err_idx]).T
+            err_idx = np_array(err_idx, dtype=int)
 
-            # If adj_exp_val < data_val, use the lower error instead
-            if(adj_exp_val[i] < self._emulator._data_val[emul_i][emul_s]):
-                err_idx = 1
+#            # If adj_exp_val < data_val, use the lower error instead
+#            if(adj_exp_val[i] < self._emulator._data_val[emul_i][emul_s]):
+#                err_idx = 1
 
             # Calculate the univariate implausibility value
             uni_impl_val_sq[i] =\
                 pow(adj_exp_val[i]-self._emulator._data_val[emul_i][emul_s],
-                    2)/(adj_var_val[i]+md_var[i][err_idx] +
+                    2)/(adj_var_val[i]+md_var[i][err_idx2] +
                         pow(self._emulator._data_err[emul_i][emul_s][err_idx],
                             2))
 
@@ -1830,7 +1832,7 @@ class Pipeline(Projection, object):
 
     # This function calculates the model discrepancy variance
     @docstring_substitute(emul_i=std_emul_i_doc)
-    def _get_md_var(self, emul_i, par_set):
+    def _get_md_var(self, emul_i, sam_set):
         """
         Retrieves the model discrepancy variances, which includes all variances
         that are created by the model provided by the
@@ -1854,13 +1856,19 @@ class Pipeline(Projection, object):
 
         """
 
+        # Initialize empty md_var array
+        md_var = np.zeros([self._emulator._n_data[emul_i], sam_set.shape[0], 2])
+
+        data_idx = delist(self._emulator._data_idx[emul_i])
+
         # Obtain md variances
         # Try to use the user-defined md variances
         try:
-            md_var = self._modellink.get_md_var(
-                emul_i=emul_i,
-                par_set=sdict(zip(self._modellink._par_name, par_set)),
-                data_idx=delist(self._emulator._data_idx[emul_i]))
+            for i, par_set in enumerate(sam_set):
+                md_var[:, i] = np.reshape(self._modellink.get_md_var(
+                    emul_i=emul_i,
+                    par_set=sdict(zip(self._modellink._par_name, par_set)),
+                    data_idx=data_idx), [self._emulator._n_data[emul_i], -1])
 
         # If it was not user-defined, use a default value
         except NotImplementedError:
@@ -1868,46 +1876,42 @@ class Pipeline(Projection, object):
             # Imagine that 2 sigma range is given if lower and upper are factor
             # 2 apart. This gives that sigma must be 1/6th of the data value
 
-            # Create empty md_var list
-            md_var = []
-
             # Loop over all data points and check their values spaces
-            for data_val, data_spc in zip(
+            for i, (data_val, data_spc) in enumerate(zip(
                     delist(self._emulator._data_val[emul_i]),
-                    delist(self._emulator._data_spc[emul_i])):
+                    delist(self._emulator._data_spc[emul_i]))):
                 # If value space is linear, take 1/6th of the data value
                 if(data_spc == 'lin'):
-                    md_var.append([pow(data_val/6, 2)]*2)
+                    md_var[i] = [pow(data_val/6, 2)]*2
 
                 # If value space is log10, take log10(7/6) and log10(5/6)
                 elif(data_spc == 'log10'):
-                    md_var.append([0.0044818726418455815,
-                                   0.006269669725654501])
+                    md_var[i] = [0.0044818726418455815, 0.006269669725654501]
 
                 # If value space is ln, take ln(7/6) and ln(5/6)
                 elif(data_spc == 'ln'):
-                    md_var.append([0.023762432091205918, 0.03324115007177121])
+                    md_var[i] = [0.023762432091205918, 0.03324115007177121]
 
                 # If value space is anything else
                 else:
                     raise NotImplementedError
 
-            # Make sure that md_var is a NumPy array
-            md_var = np_array(md_var, ndmin=2)
+#            # Make sure that md_var is a NumPy array
+#            md_var = np_array(md_var, ndmin=2)
 
         # If it was user-defined, check if the values are compatible
         else:
             # If md_var is a dict, convert it to a NumPy array
             if isinstance(md_var, dict):
-                data_idx = self._emulator._data_idx[emul_i]
+#                data_idx = self._emulator._data_idx[emul_i]
                 md_var = np_array([md_var[idx] for idx in data_idx])
 
-            # Make sure that md_var is a NumPy array
-            md_var = np_array(md_var)
-
-            # If single values were given, duplicate them
-            if(md_var.ndim == 1):
-                md_var = np_array([md_var]*2).T
+#            # Make sure that md_var is a NumPy array
+#            md_var = np_array(md_var)
+#
+#            # If single values were given, duplicate them
+#            if(md_var.ndim == 1):
+#                md_var = np_array([md_var]*2).T
 
         # Return it
         return(md_var)
@@ -2260,19 +2264,28 @@ class Pipeline(Projection, object):
                 logger.info("Analyzing evaluation sample set of size %i in "
                             "emulator iteration %i." % (n_sam, i))
 
-                # Make empty uni_impl_vals list
-                uni_impl_vals = np.zeros([n_sam, self._emulator._n_data[i]])
+#                # Make empty uni_impl_vals list
+#                uni_impl_vals = np.zeros([n_sam, self._emulator._n_data[i]])
 
-                # Loop over all still plausible samples in sam_set
-                for j, par_set in enumerate(eval_sam_set):
-                    # Evaluate par_set
-                    adj_val = self._emulator._evaluate(i, par_set)
+                # Evaluate all still plausible samples in sam_set
+                adj_vals = self._emulator._evaluate(i, eval_sam_set)
 
-                    # Calculate univariate implausibility value
-                    uni_impl_vals[j] = self._get_uni_impl(i, par_set, *adj_val)
+                # Calculate univariate implausibility values
+                uni_impl_vals = self._get_uni_impl(i, eval_sam_set, *adj_vals).T
 
-                    # Execute the eval_code snippet
-                    exec(eval_code)
+                # Execute the eval_code snippet
+                exec(eval_code)
+
+#                # Loop over all still plausible samples in sam_set
+#                for j, par_set in enumerate(eval_sam_set):
+#                    # Evaluate par_set
+#                    adj_val = self._emulator._evaluate(i, par_set)
+#
+#                    # Calculate univariate implausibility value
+#                    uni_impl_vals[j] = self._get_uni_impl(i, par_set, *adj_val)
+#
+#                    # Execute the eval_code snippet
+#                    exec(eval_code)
 
                 # Gather the results on the controller after evaluating
                 uni_impl_vals_list = self._comm.gather(uni_impl_vals, 0)

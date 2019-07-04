@@ -1130,7 +1130,7 @@ class Emulator(object):
                 diff_flag = 0
 
             # Gather the diff_flags on the controller
-            diff_flag = np.any(self._comm.gather(diff_flag, 0))
+            diff_flag = self._comm.reduce(diff_flag, 0, op=MPI.MAX)
 
             # If all diff_flags were 0, give out a warning
             if self._is_controller and not diff_flag:
@@ -1292,17 +1292,17 @@ class Emulator(object):
     # This is function 'E_D(f(x'))'
     # This function gives the adjusted emulator expectation value back
     @docstring_append(adj_exp_doc)
-    def _get_adj_exp(self, emul_i, emul_s_seq, par_set, cov_vec):
-        # Obtain prior expectation value of par_set
-        prior_exp_par_set = self._get_prior_exp(emul_i, emul_s_seq, par_set)
+    def _get_adj_exp(self, emul_i, emul_s_seq, sam_set, cov_vec):
+        # Obtain prior expectation value of sam_set
+        prior_exp_sam_set = self._get_prior_exp(emul_i, emul_s_seq, sam_set)
 
         # Create empty adj_exp_val
-        adj_exp_val = np.zeros(len(emul_s_seq))
+        adj_exp_val = np.zeros([len(emul_s_seq), sam_set.shape[0]])
 
-        # Calculate the adjusted emulator expectation value at given par_set
+        # Calculate the adjusted emulator expectation value at given sam_set
         for i, emul_s in enumerate(emul_s_seq):
-            adj_exp_val[i] = prior_exp_par_set[i] +\
-                cov_vec[i].T @ self._exp_dot_term[emul_i][emul_s]
+            adj_exp_val[i] = prior_exp_sam_set[i] +\
+                cov_vec[i] @ self._exp_dot_term[emul_i][emul_s]
 
         # Return it
         return(adj_exp_val)
@@ -1311,35 +1311,35 @@ class Emulator(object):
     # This function gives the adjusted emulator variance value back
     # TODO: Find out why many adj_var have a very low value for GaussianLink
     @docstring_append(adj_var_doc)
-    def _get_adj_var(self, emul_i, emul_s_seq, par_set, cov_vec):
-        # Obtain prior variance value of par_set
-        prior_var_par_set = self._get_cov(emul_i, emul_s_seq, par_set, par_set)
+    def _get_adj_var(self, emul_i, emul_s_seq, sam_set, cov_vec):
+        # Obtain prior variance value of sam_set
+        prior_var_sam_set = np.apply_along_axis(lambda x: self._get_cov(emul_i, emul_s_seq, np_array(x, ndmin=2), np_array(x, ndmin=2)), 1, sam_set)
+#        prior_var_sam_set = self._get_cov(emul_i, emul_s_seq, sam_set, sam_set)
 
         # Create empty adj_var_val
-        adj_var_val = np.zeros(len(emul_s_seq))
+        adj_var_val = np.zeros([len(emul_s_seq), sam_set.shape[0]])
 
-        # Calculate the adjusted emulator variance value at given par_set
+        # Calculate the adjusted emulator variance value at given sam_set
         for i, emul_s in enumerate(emul_s_seq):
-            adj_var_val[i] = prior_var_par_set[i] -\
-                cov_vec[i].T @ self._cov_mat_inv[emul_i][emul_s] @ cov_vec[i]
+            adj_var_val[i] = prior_var_sam_set[:, i].T -\
+                np.apply_along_axis(lambda x: x @ self._cov_mat_inv[emul_i][emul_s] @ x, 1, cov_vec[i]).T
 
         # Return it
         return(adj_var_val)
 
-    # This function evaluates the emulator at a given emul_i and par_set and
+    # This function evaluates the emulator at a given emul_i and sam_set and
     # returns the adjusted expectation and variance values
-    # TODO: Take sam_set instead of par_set?
     @docstring_append(eval_doc)
-    def _evaluate(self, emul_i, par_set):
+    def _evaluate(self, emul_i, sam_set):
         # Obtain active emulator systems for this iteration
         emul_s_seq = self._active_emul_s[emul_i]
 
-        # Calculate the covariance vector for this par_set
-        cov_vec = self._get_cov(emul_i, emul_s_seq, par_set, None)
+        # Calculate the covariance vector for this sam_set
+        cov_vec = self._get_cov(emul_i, emul_s_seq, sam_set, None)
 
         # Calculate the adjusted expectation and variance values
-        adj_exp_val = self._get_adj_exp(emul_i, emul_s_seq, par_set, cov_vec)
-        adj_var_val = self._get_adj_var(emul_i, emul_s_seq, par_set, cov_vec)
+        adj_exp_val = self._get_adj_exp(emul_i, emul_s_seq, sam_set, cov_vec)
+        adj_var_val = self._get_adj_var(emul_i, emul_s_seq, sam_set, cov_vec)
 
         # Make sure that adj_var_val cannot drop below zero
         adj_var_val[adj_var_val < 0] = 0
@@ -1618,7 +1618,7 @@ class Emulator(object):
     # This function gives the prior expectation value
     # This is function 'E(f(x'))' or 'u(x')'
     @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
-    def _get_prior_exp(self, emul_i, emul_s_seq, par_set):
+    def _get_prior_exp(self, emul_i, emul_s_seq, sam_set):
         """
         Calculates the prior expectation value for requested emulator systems
         `emul_s_seq` at a given emulator iteration `emul_i` for specified
@@ -1641,44 +1641,67 @@ class Emulator(object):
 
         """
 
-        # If prior_exp of sam_set is requested (exp_dot_term)
-        if par_set is None:
-            # Initialize empty prior expectation
-            prior_exp = np.zeros([len(emul_s_seq), self._n_sam[emul_i]])
+        # If E(D) is requested (exp_dot_term)
+        if sam_set is None:
+            sam_set = self._sam_set[emul_i]
 
-            # Check what 'method' is given
-            if self._method.lower() in ('gaussian', 'full'):
-                # Gaussian prior expectation is equal to the mean, which is 0
-                prior_exp += 0
-            if self._method.lower() in ('regression', 'full'):
-                for i, emul_s in enumerate(emul_s_seq):
-                    # Initialize PF object
-                    pf_obj = PF(self._poly_order)
+        # Initialize empty prior expectation array
+        prior_exp = np.zeros([len(emul_s_seq), sam_set.shape[0]])
 
-                    # Obtain the polynomial terms
-                    poly_terms = pf_obj.fit_transform(
-                        self._sam_set[emul_i][
-                            :, self._active_par_data[emul_i][emul_s]])[
+        # Calculate the regression contribution if requested
+        if self._method.lower() in ('regression', 'full'):
+            # Get regression contribution for every emulator system
+            for i, emul_s in enumerate(emul_s_seq):
+                # Initialize PF object
+                pf_obj = PF(self._poly_order)
+
+                # Obtain the polynomial terms
+                poly_terms = pf_obj.fit_transform(
+                    sam_set[:, self._active_par_data[emul_i][emul_s]])[
                                 :, self._poly_idx[emul_i][emul_s]]
-                    prior_exp[i] += np.sum(
-                        self._poly_coef[emul_i][emul_s]*poly_terms, axis=-1)
 
-        # If prior_exp of par_set is requested (adj_exp)
-        else:
-            # Initialize empty prior expectation
-            prior_exp = np.zeros(len(emul_s_seq))
+                # Add regression contribution
+                prior_exp[i] += np.sum(
+                    self._poly_coef[emul_i][emul_s]*poly_terms, axis=-1)
 
-            # Check what 'method' is given
-            if self._method.lower() in ('gaussian', 'full'):
-                # Gaussian prior expectation is equal to the mean, which is 0
-                prior_exp += 0
-            if self._method.lower() in ('regression', 'full'):
-                for i, emul_s in enumerate(emul_s_seq):
-                    poly_terms = np.product(pow(
-                        par_set[self._active_par_data[emul_i][emul_s]],
-                        self._poly_powers[emul_i][emul_s]), axis=-1)
-                    prior_exp[i] += np.sum(
-                        self._poly_coef[emul_i][emul_s]*poly_terms, axis=-1)
+#        # If prior_exp of sam_set is requested (exp_dot_term)
+#        if par_set is None:
+#            # Initialize empty prior expectation
+#            prior_exp = np.zeros([len(emul_s_seq), self._n_sam[emul_i]])
+#
+#            # Check what 'method' is given
+#            if self._method.lower() in ('gaussian', 'full'):
+#                # Gaussian prior expectation is equal to the mean, which is 0
+#                prior_exp += 0
+#            if self._method.lower() in ('regression', 'full'):
+#                for i, emul_s in enumerate(emul_s_seq):
+#                    # Initialize PF object
+#                    pf_obj = PF(self._poly_order)
+#
+#                    # Obtain the polynomial terms
+#                    poly_terms = pf_obj.fit_transform(
+#                        self._sam_set[emul_i][
+#                            :, self._active_par_data[emul_i][emul_s]])[
+#                                :, self._poly_idx[emul_i][emul_s]]
+#                    prior_exp[i] += np.sum(
+#                        self._poly_coef[emul_i][emul_s]*poly_terms, axis=-1)
+#
+#        # If prior_exp of par_set is requested (adj_exp)
+#        else:
+#            # Initialize empty prior expectation
+#            prior_exp = np.zeros(len(emul_s_seq))
+#
+#            # Check what 'method' is given
+#            if self._method.lower() in ('gaussian', 'full'):
+#                # Gaussian prior expectation is equal to the mean, which is 0
+#                prior_exp += 0
+#            if self._method.lower() in ('regression', 'full'):
+#                for i, emul_s in enumerate(emul_s_seq):
+#                    poly_terms = np.product(pow(
+#                        par_set[self._active_par_data[emul_i][emul_s]],
+#                        self._poly_powers[emul_i][emul_s]), axis=-1)
+#                    prior_exp[i] += np.sum(
+#                        self._poly_coef[emul_i][emul_s]*poly_terms, axis=-1)
 
         # Return it
         return(prior_exp)
@@ -1727,15 +1750,15 @@ class Emulator(object):
         logger.info("Finished pre-calculating second adjustment dot-term "
                     "values.")
 
-    # This function calculates the covariance between parameter sets
+    # This function calculates the covariance between sample sets
     # This is function 'Cov(f(x), f(x'))' or 'c(x,x')
     # TODO: Improve Gaussian-only method by making sigma data point dependent
     @docstring_substitute(full_cov=full_cov_doc)
-    def _get_cov(self, emul_i, emul_s_seq, par_set1, par_set2):
+    def _get_cov(self, emul_i, emul_s_seq, sam_set1, sam_set2):
         """
         Calculates the full emulator covariances for requested emulator systems
         `emul_s_seq` at emulator iteration `emul_i` for given parameter sets
-        `par_set1` and `par_set2`. The contributions to these covariances
+        `sam_set1` and `sam_set2`. The contributions to these covariances
         depend on :attr:`~method`.
 
         %(full_cov)s
@@ -1752,96 +1775,137 @@ class Emulator(object):
         elif(self.method.lower() == 'gaussian'):
             rsdl_var = [self._sigma**2]*len(emul_s_seq)
 
-        # If cov of sam_set with sam_set is requested (cov_mat)
-        if par_set1 is None:
-            # Calculate covariance between sam_set and sam_set
-            cov = np.zeros([len(emul_s_seq), self._n_sam[emul_i],
-                            self._n_sam[emul_i]])
+        # If Var(D) is requested (cov_mat)
+        if sam_set1 is None:
+            sam_set1 = sam_set2 = self._sam_set[emul_i]
+        # If Cov(f(x), D) is requested (cov_vec)
+        elif sam_set2 is None:
+            sam_set2 = self._sam_set[emul_i]
 
-            # Check what 'method' is given
-            if self._method.lower() in ('gaussian', 'full'):
-                # Obtain the difference between sam_set and sam_set
-                diff_sam_set = diff(self._sam_set[emul_i], flatten=False)
+        # Calculate the number of samples in both sample sets
+        n_sam1 = sam_set1.shape[0]
+        n_sam2 = sam_set2.shape[0]
 
-                # If Gaussian needs to be taken into account
-                for i, emul_s in enumerate(emul_s_seq):
-                    # Get active_par
-                    active_par = self._active_par_data[emul_i][emul_s]
+        # Initialize empty covariance array
+        cov = np.zeros([len(emul_s_seq), n_sam1, n_sam2])
 
-                    # Gaussian variance
-                    cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
-                        np.exp(-1*np.sum(diff_sam_set[:, :, active_par]**2,
-                                         axis=-1) /
-                               np.sum(self._l_corr[active_par]**2))
+        # Add the passive parameter variance
+#        cov += np.apply_along_axis(lambda x: (x == sam_set2).all(axis=-1), 1,
+#                                   sam_set1)
+#        for i, emul_s in enumerate(emul_s_seq):
+#            cov[i] *= weight[emul_s]*rsdl_var[emul_s]
 
-                    # Passive parameter variety
-                    cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
-                        np.eye(self._n_sam[emul_i])
+        # Calculate Gaussian contribution if requested
+        if self._method.lower() in ('gaussian', 'full'):
+            # Obtain the difference between sam_set1 and sam_set2
+            diff_sam_set = diff(sam_set1, sam_set2, flatten=False)
 
-            if(self._method.lower() in ('regression', 'full') and
-               self._use_regr_cov):
-                # If regression needs to be taken into account
-                cov += self._get_regr_cov(emul_i, emul_s_seq, None, None)
+            # Get Gaussian contribution for every emulator system
+            for i, emul_s in enumerate(emul_s_seq):
+                # Obtain the active parameters of this emulator system
+                active_par = self._active_par_data[emul_i][emul_s]
 
-        # If cov of par_set1 with sam_set is requested (cov_vec)
-        elif par_set2 is None:
-            # Calculate covariance between par_set1 and sam_set
-            cov = np.zeros([len(emul_s_seq), self._n_sam[emul_i]])
+                # Add Gaussian variance
+                cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
+                    np.exp(-1*np.sum(diff_sam_set[:, :, active_par]**2,
+                                     axis=-1) /
+                           np.sum(self._l_corr[active_par]**2))
 
-            # Check what 'method' is given
-            if self._method.lower() in ('gaussian', 'full'):
-                # Obtain the difference between par_set1 and sam_set
-                diff_sam_set = par_set1-self._sam_set[emul_i]
+        # Calculate regression contribution if requested
+        if self._use_regr_cov and self._method.lower() in ('regression',
+                                                           'full'):
+            cov += self._get_regr_cov(emul_i, emul_s_seq, sam_set1, sam_set2)
 
-                # If Gaussian needs to be taken into account
-                for i, emul_s in enumerate(emul_s_seq):
-                    # Get active_par
-                    active_par = self._active_par_data[emul_i][emul_s]
-
-                    # Gaussian variance
-                    cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
-                        np.exp(-1*np.sum(diff_sam_set[:, active_par]**2,
-                                         axis=-1) /
-                               np.sum(self._l_corr[active_par]**2))
-
-                    # Passive parameter variety
-                    cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
-                        (par_set1 == self._sam_set[emul_i]).all(axis=-1)
-
-            if(self._method.lower() in ('regression', 'full') and
-               self._use_regr_cov):
-                # If regression needs to be taken into account
-                cov += self._get_regr_cov(emul_i, emul_s_seq, par_set1, None)
-
-        # If cov of par_set1 with par_set2 is requested (cov)
-        else:
-            # Calculate covariance between par_set1 and par_set2
-            cov = np.zeros([len(emul_s_seq)])
-
-            # Check what 'method' is given
-            if self._method.lower() in ('gaussian', 'full'):
-                # Obtain the difference between par_set1 and par_set2
-                diff_sam_set = par_set1-par_set2
-
-                # If Gaussian needs to be taken into account
-                for i, emul_s in enumerate(emul_s_seq):
-                    # Get active_par
-                    active_par = self._active_par_data[emul_i][emul_s]
-
-                    # Gaussian variance
-                    cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
-                        np.exp(-1*np.sum(diff_sam_set[active_par]**2,
-                                         axis=-1) /
-                               np.sum(self._l_corr[active_par]**2))
-
-                    # Passive parameter variety
-                    cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
-                        (par_set1 == par_set2).all()
-            if(self._method.lower() in ('regression', 'full') and
-               self._use_regr_cov):
-                # If regression needs to be taken into account
-                cov += self._get_regr_cov(emul_i, emul_s_seq, par_set1,
-                                          par_set2)
+#        # If cov of sam_set with sam_set is requested (cov_mat)
+#        if sam_set1 is None:
+#            # Calculate covariance between sam_set and sam_set
+#            cov = np.zeros([len(emul_s_seq), self._n_sam[emul_i],
+#                            self._n_sam[emul_i]])
+#
+#            # Check what 'method' is given
+#            if self._method.lower() in ('gaussian', 'full'):
+#                # Obtain the difference between sam_set and sam_set
+#                diff_sam_set = diff(self._sam_set[emul_i], flatten=False)
+#
+#                # If Gaussian needs to be taken into account
+#                for i, emul_s in enumerate(emul_s_seq):
+#                    # Get active_par
+#                    active_par = self._active_par_data[emul_i][emul_s]
+#
+#                    # Gaussian variance
+#                    cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
+#                        np.exp(-1*np.sum(diff_sam_set[:, :, active_par]**2,
+#                                         axis=-1) /
+#                               np.sum(self._l_corr[active_par]**2))
+#
+#                    # Passive parameter variety
+#                    cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
+#                        np.eye(self._n_sam[emul_i])
+#
+#            if(self._method.lower() in ('regression', 'full') and
+#               self._use_regr_cov):
+#                # If regression needs to be taken into account
+#                cov += self._get_regr_cov(emul_i, emul_s_seq, None, None)
+#
+#        # If cov of par_set1 with sam_set is requested (cov_vec)
+#        elif sam_set2 is None:
+#            # Calculate covariance between par_set1 and sam_set
+#            cov = np.zeros([len(emul_s_seq), self._n_sam[emul_i]])
+#
+#            # Check what 'method' is given
+#            if self._method.lower() in ('gaussian', 'full'):
+#                # Obtain the difference between par_set1 and sam_set
+#                diff_sam_set = par_set1-self._sam_set[emul_i]
+#
+#                # If Gaussian needs to be taken into account
+#                for i, emul_s in enumerate(emul_s_seq):
+#                    # Get active_par
+#                    active_par = self._active_par_data[emul_i][emul_s]
+#
+#                    # Gaussian variance
+#                    cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
+#                        np.exp(-1*np.sum(diff_sam_set[:, active_par]**2,
+#                                         axis=-1) /
+#                               np.sum(self._l_corr[active_par]**2))
+#
+#                    # Passive parameter variety
+#                    cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
+#                        (par_set1 == self._sam_set[emul_i]).all(axis=-1)
+#
+#            if(self._method.lower() in ('regression', 'full') and
+#               self._use_regr_cov):
+#                # If regression needs to be taken into account
+#                cov += self._get_regr_cov(emul_i, emul_s_seq, par_set1, None)
+#
+#        # If cov of par_set1 with par_set2 is requested (cov)
+#        else:
+#            # Calculate covariance between par_set1 and par_set2
+#            cov = np.zeros([len(emul_s_seq)])
+#
+#            # Check what 'method' is given
+#            if self._method.lower() in ('gaussian', 'full'):
+#                # Obtain the difference between par_set1 and par_set2
+#                diff_sam_set = par_set1-par_set2
+#
+#                # If Gaussian needs to be taken into account
+#                for i, emul_s in enumerate(emul_s_seq):
+#                    # Get active_par
+#                    active_par = self._active_par_data[emul_i][emul_s]
+#
+#                    # Gaussian variance
+#                    cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
+#                        np.exp(-1*np.sum(diff_sam_set[active_par]**2,
+#                                         axis=-1) /
+#                               np.sum(self._l_corr[active_par]**2))
+#
+#                    # Passive parameter variety
+#                    cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
+#                        (par_set1 == par_set2).all()
+#            if(self._method.lower() in ('regression', 'full') and
+#               self._use_regr_cov):
+#                # If regression needs to be taken into account
+#                cov += self._get_regr_cov(emul_i, emul_s_seq, par_set1,
+#                                          par_set2)
 
         # Return it
         return(cov)
@@ -2424,7 +2488,7 @@ class Emulator(object):
 
                     # Read in data values, errors and spaces
                     data_val.append(data_set.attrs['data_val'])
-                    data_err.append(data_set.attrs['data_err'].tolist())
+                    data_err.append(data_set.attrs['data_err'])
                     data_spc.append(
                         data_set.attrs['data_spc'].decode('utf-8'))
 
