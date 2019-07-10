@@ -3208,8 +3208,11 @@ class Pipeline(Projection, object):
 
             # If print_output is True, print the results
             if print_output:
+                # Convert sam_set to a dict for printing purposes
+                par_dict = dict(zip(self._modellink._par_name, sam_set[0]))
+
                 # Print results
-                pr_str = "Evaluation results of %s" % (sam_set[0])
+                pr_str = "Evaluation results of %s" % (par_dict)
                 print(pr_str)
                 print("-"*len(pr_str))
                 if impl_check[0]:
