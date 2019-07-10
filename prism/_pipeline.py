@@ -2928,13 +2928,13 @@ class Pipeline(Projection, object):
                                             self._emulator._emul_type))
             print("{0: <{1}}\t{2}".format("ModelLink subclass", width,
                                           self._modellink._name))
-            if(self._emulator._method.lower() == 'regression'):
+            if(self._emulator._method == 'regression'):
                 print("{0: <{1}}\t{2}".format("Emulation method", width,
                                               "Regression"))
-            elif(self._emulator._method.lower() == 'gaussian'):
+            elif(self._emulator._method == 'gaussian'):
                 print("{0: <{1}}\t{2}".format("Emulation method", width,
                                               "Gaussian"))
-            elif(self._emulator._method.lower() == 'full'):
+            elif(self._emulator._method == 'full'):
                 print("{0: <{1}}\t{2}".format("Emulation method", width,
                                               "Regression + Gaussian"))
             print("{0: <{1}}\t{2}".format("Mock data used?", width,
@@ -3023,7 +3023,7 @@ class Pipeline(Projection, object):
                     len(ccheck_i) else "Yes"))
 
                 # Check if all regression processes have been done if requested
-                if self._emulator._method.lower() in ('regression', 'full'):
+                if self._emulator._method in ('regression', 'full'):
                     ccheck_i = [i for i in range(n_emul_s) if
                                 'regression' in ccheck_flat[i]]
                     print("  - {0: <{1}}\t{2}".format(

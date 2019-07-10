@@ -338,6 +338,46 @@ class Emulator(object):
         return(self._rsdl_var)
 
     @property
+    def poly_terms(self):
+        """
+        dict of dicts: Overview of all polynomial terms with non-zero
+        coefficients in the regression function for every emulator system on
+        this MPI rank.
+        Empty if :attr:`~method` == 'gaussian'.
+
+        This is basically a human readable representation of :attr:`~poly_coef`
+        plus :attr:`~poly_powers`. Given its formatting, it is not advised to
+        use this for any operations.
+
+        """
+
+        # If only Gaussian is used, return a list of empty lists
+        if(self._method == 'gaussian'):
+            return([]*(self._emul_i+1))
+
+        # Initialize empty poly_term_list
+        poly_terms_list = [[]]
+
+        # Loop over all emulator iterations
+        for emul_i in range(1, self._emul_i+1):
+            # Obtain required data
+            data_idx = self._data_idx[emul_i]
+            poly_powers = self._poly_powers[emul_i]
+            poly_coefs = self._poly_coef[emul_i]
+
+            # Convert all poly_powers to their string representations
+            poly_terms_dict = {}
+            for idx, powers, coefs in zip(data_idx, poly_powers, poly_coefs):
+                poly_terms_dict[idx] = {self._get_poly_term_str(poly): coef
+                                        for poly, coef in zip(powers, coefs)}
+
+            # Add poly_terms_dict to poly_terms_list
+            poly_terms_list.append(poly_terms_dict)
+
+        # Return it
+        return(poly_terms_list)
+
+    @property
     def poly_coef(self):
         """
         list of :obj:`~numpy.ndarray`: The non-zero coefficients for the
@@ -1239,7 +1279,7 @@ class Emulator(object):
             self._get_active_par(emul_i, ccheck_active_par)
 
         # Check if regression is required
-        if(self._method.lower() in ('regression', 'full')):
+        if(self._method in ('regression', 'full')):
             # Perform regression
             ccheck_regression = [emul_s for emul_s in emul_s_seq if
                                  'regression' in self._ccheck[emul_i][emul_s]]
@@ -1647,10 +1687,10 @@ class Emulator(object):
             prior_exp = np.zeros([len(emul_s_seq), self._n_sam[emul_i]])
 
             # Check what 'method' is given
-            if self._method.lower() in ('gaussian', 'full'):
+            if self._method in ('gaussian', 'full'):
                 # Gaussian prior expectation is equal to the mean, which is 0
                 prior_exp += 0
-            if self._method.lower() in ('regression', 'full'):
+            if self._method in ('regression', 'full'):
                 for i, emul_s in enumerate(emul_s_seq):
                     # Initialize PF object
                     pf_obj = PF(self._poly_order)
@@ -1669,10 +1709,10 @@ class Emulator(object):
             prior_exp = np.zeros(len(emul_s_seq))
 
             # Check what 'method' is given
-            if self._method.lower() in ('gaussian', 'full'):
+            if self._method in ('gaussian', 'full'):
                 # Gaussian prior expectation is equal to the mean, which is 0
                 prior_exp += 0
-            if self._method.lower() in ('regression', 'full'):
+            if self._method in ('regression', 'full'):
                 for i, emul_s in enumerate(emul_s_seq):
                     poly_terms = np.product(pow(
                         par_set[self._active_par_data[emul_i][emul_s]],
@@ -1747,9 +1787,9 @@ class Emulator(object):
                   for active_par in self._active_par_data[emul_i]]
 
         # Determine which residual variance should be used
-        if self._method.lower() in ('regression', 'full'):
+        if self._method in ('regression', 'full'):
             rsdl_var = self._rsdl_var[emul_i]
-        elif(self.method.lower() == 'gaussian'):
+        elif(self._method == 'gaussian'):
             rsdl_var = [self._sigma**2]*len(emul_s_seq)
 
         # If cov of sam_set with sam_set is requested (cov_mat)
@@ -1759,7 +1799,7 @@ class Emulator(object):
                             self._n_sam[emul_i]])
 
             # Check what 'method' is given
-            if self._method.lower() in ('gaussian', 'full'):
+            if self._method in ('gaussian', 'full'):
                 # Obtain the difference between sam_set and sam_set
                 diff_sam_set = diff(self._sam_set[emul_i], flatten=False)
 
@@ -1778,8 +1818,7 @@ class Emulator(object):
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
                         np.eye(self._n_sam[emul_i])
 
-            if(self._method.lower() in ('regression', 'full') and
-               self._use_regr_cov):
+            if(self._method in ('regression', 'full') and self._use_regr_cov):
                 # If regression needs to be taken into account
                 cov += self._get_regr_cov(emul_i, emul_s_seq, None, None)
 
@@ -1789,7 +1828,7 @@ class Emulator(object):
             cov = np.zeros([len(emul_s_seq), self._n_sam[emul_i]])
 
             # Check what 'method' is given
-            if self._method.lower() in ('gaussian', 'full'):
+            if self._method in ('gaussian', 'full'):
                 # Obtain the difference between par_set1 and sam_set
                 diff_sam_set = par_set1-self._sam_set[emul_i]
 
@@ -1808,8 +1847,7 @@ class Emulator(object):
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
                         (par_set1 == self._sam_set[emul_i]).all(axis=-1)
 
-            if(self._method.lower() in ('regression', 'full') and
-               self._use_regr_cov):
+            if(self._method in ('regression', 'full') and self._use_regr_cov):
                 # If regression needs to be taken into account
                 cov += self._get_regr_cov(emul_i, emul_s_seq, par_set1, None)
 
@@ -1819,7 +1857,7 @@ class Emulator(object):
             cov = np.zeros([len(emul_s_seq)])
 
             # Check what 'method' is given
-            if self._method.lower() in ('gaussian', 'full'):
+            if self._method in ('gaussian', 'full'):
                 # Obtain the difference between par_set1 and par_set2
                 diff_sam_set = par_set1-par_set2
 
@@ -1837,8 +1875,7 @@ class Emulator(object):
                     # Passive parameter variety
                     cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
                         (par_set1 == par_set2).all()
-            if(self._method.lower() in ('regression', 'full') and
-               self._use_regr_cov):
+            if(self._method in ('regression', 'full') and self._use_regr_cov):
                 # If regression needs to be taken into account
                 cov += self._get_regr_cov(emul_i, emul_s_seq, par_set1,
                                           par_set2)
@@ -2404,7 +2441,7 @@ class Emulator(object):
                         poly_coef_cov.append([])
                         poly_powers.append([])
                         poly_idx.append([])
-                        if self._method.lower() in ('regression', 'full'):
+                        if self._method in ('regression', 'full'):
                             ccheck_s.append('regression')
 
                     # Check if cov_mat is available
@@ -2728,14 +2765,14 @@ class Emulator(object):
         # Method used to calculate emulator functions
         # Future will include 'gaussian', 'regression', 'auto' and 'full'
         self._method = check_vals(convert_str_seq(par_dict['method'])[0],
-                                  'method', 'str')
-        if self._method.lower() in ('gaussian', 'regression', 'full'):
+                                  'method', 'str').lower()
+        if self._method in ('gaussian', 'regression', 'full'):
             pass
-        elif(self._method.lower() == 'auto'):
+        elif(self._method == 'auto'):
             raise NotImplementedError
         else:
             err_msg = ("Input argument 'method' is invalid (%r)!"
-                       % (self._method.lower()))
+                       % (self._method))
             raise_error(err_msg, ValueError, logger)
 
         # Obtain the bool determining whether or not to use regr_cov
@@ -2743,7 +2780,7 @@ class Emulator(object):
                                         'use_regr_cov', 'bool')
 
         # Check if method == 'regression' and set use_regr_cov to True if so
-        if(self._method.lower() == 'regression'):
+        if(self._method == 'regression'):
             self._use_regr_cov = 1
 
         # Obtain the polynomial order for the regression selection process
@@ -2868,3 +2905,35 @@ class Emulator(object):
 
         # Log end
         logger.info("Loaded mock data.")
+
+    # This function returns the string representation of a polynomial term
+    def _get_poly_term_str(self, poly_power):
+        """
+        Returns the string representation of a polynomial term given by the
+        provided `poly_power`.
+
+        """
+
+        # Initialize empty poly term representation
+        poly_term = ''
+
+        # Loop over all parameters in this polynomial term
+        for i, (par, power) in enumerate(zip(self._modellink._par_name,
+                                             poly_power)):
+            # If this parameter has a power of zero, skip it
+            if(power == 0):
+                continue
+            # If not, process this parameters
+            else:
+                # Add an asterisk if this is not the first parameter in term
+                poly_term += "*" if(poly_term != '') else ''
+
+                # If the power is unity, just add it
+                if(power == 1):
+                    poly_term += par
+                # Else, add it with a power
+                else:
+                    poly_term += "%s**%i" % (par, power)
+
+        # Return the string representation
+        return(poly_term)

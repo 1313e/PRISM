@@ -1001,6 +1001,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         # Emulation methods
         pipe2D._emulator._method = 'gaussian'
         pipe2D.details()
+        check_instance(pipe2D, Pipeline)
         pipe2D._emulator._method = 'regression'
         pipe2D.details()
         pipe2D._emulator._method = 'full'
