@@ -63,7 +63,7 @@ class Pipeline(Projection, object):
 
     The :class:`~Pipeline` class is the main user class of the *PRISM* package
     and provides a user-friendly environment that gives access to all
-    operations within the package.
+    operations within the pipeline.
 
     """
 
@@ -1025,7 +1025,7 @@ class Pipeline(Projection, object):
         # Return it
         return(sdict(par_dict))
 
-    # Set the parameters that were read in from the provided parameter file
+    # Set the parameters that were read-in from the provided parameter dict
     # TODO: May want to use configparser.Configparser for this
     @docstring_append(set_par_doc.format("Pipeline"))
     def _set_parameters(self):
@@ -1912,21 +1912,21 @@ class Pipeline(Projection, object):
         # Return it
         return(md_var)
 
-    # This function sets the impl_cut list from read-in PRISM parameters file
+    # This function sets the impl_cut list from read-in parameter dict
     # TODO: Make impl_cut dynamic
     @docstring_substitute(impl_cut=impl_cut_doc)
     def _set_impl_par(self, impl_cut):
         """
         Sets the :attr:`~impl_cut` and :attr:`~cut_idx` properties for
-        implausibility evaluations using the read-in *PRISM* parameters file
-        and the provided `impl_cut`.
+        implausibility evaluations using :attr:`~prism.Pipeline.prism_dict` and
+        the provided `impl_cut`.
 
         Parameters
         ----------
         impl_cut : list of float or None
             Incomplete, shortened impl_cut-offs list to be used during the
-            analysis of this emulator iteration. If *None*, use the read-in
-            *PRISM* parameters file instead.
+            analysis of this emulator iteration. If *None*, use
+            :attr:`~prism.Pipeline.prism_dict` instead.
 
         Generates
         ---------
@@ -2086,7 +2086,7 @@ class Pipeline(Projection, object):
             adj_exp_val = [[] for _ in range(n_sam)]
             adj_var_val = [[] for _ in range(n_sam)]
             uni_impl_val_list = [[] for _ in range(n_sam)]
-            emul_i_stop = np.zeros([n_sam])
+            emul_i_stop = np.zeros([n_sam], dtype=int)
             """), '<string>', 'exec')
         eval_code = compile(dedent("""
             adj_exp_val[sam_idx[j]] = adj_val[0]
@@ -2898,7 +2898,7 @@ class Pipeline(Projection, object):
             # Obtain number of emulator systems
             n_emul_s = self._emulator._n_emul_s_tot
 
-            # Save if requested emulator iteration is fully constructed
+            # Update ccheck_flag with requested emulator iteration
             ccheck_flag = (delist(ccheck_flat) == [])
 
             # Determine the relative path to the working directory

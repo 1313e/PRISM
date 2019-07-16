@@ -498,7 +498,7 @@ def get_handler(filename):
     return(handler)
 
 
-# Define function that returns a string with all PRISM package information
+# Define function that prints a string with all PRISM package information
 def get_info():
     """
     Prints a string that gives an overview of all information relevant to the

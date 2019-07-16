@@ -983,7 +983,7 @@ class Projection(object):
         # Return it
         return(sdict(kwargs_dict))
 
-    # Set the parameters that were read in from the provided parameter file
+    # Set the parameters that were read in from the provided parameter dict
     @docstring_append(set_par_doc.format("Projection"))
     def __set_parameters(self):
         # Log that the projection parameters are being set

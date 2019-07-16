@@ -2735,7 +2735,7 @@ class Emulator(object):
         # Return it
         return(sdict(par_dict))
 
-    # Set the parameters that were read in from the provided parameter file
+    # Set the parameters that were read in from the provided parameter dict
     @docstring_append(set_par_doc.format("Emulator"))
     def _set_parameters(self):
         # Log that the emulator parameters are being set
