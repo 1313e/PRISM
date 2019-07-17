@@ -219,7 +219,7 @@ class Pipeline(Projection, object):
         self.construct(emul_i, force=force)
 
         # Perform projection
-        self.project()
+        self.project(emul_i)
 
     # Define the representation of a Pipeline object
     # TODO: Find out if there is a way to represent an MPI intra-communicator
@@ -2589,9 +2589,14 @@ class Pipeline(Projection, object):
         # Broadcast construct_emul_i to workers
         c_from_start = self._comm.bcast(c_from_start, 0)
 
-        # If iteration is already finished, show the details
+        # If iteration is already finished, analyze or show the details
         if c_from_start is None:
-            self.details(emul_i)
+            # If analyze was requested and has not been done yet, do analysis
+            if analyze and not self._n_eval_sam[emul_i]:
+                self.analyze()
+            # Else, show details
+            else:
+                self.details(emul_i)
             return
 
         # If iteration needs to be constructed from the beginning

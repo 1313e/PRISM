@@ -154,8 +154,12 @@ class Test_Pipeline_Gaussian2D(object):
     def test_reload(self, pipe):
         pipe._load_data()
 
-    # Check if first iteration can be analyzed
-    def test_analyze(self, pipe):
+    # Check if first iteration can be analyzed through using construct
+    def test_construct_analyze(self, pipe):
+        pipe.construct(1)
+
+    # Check if first iteration can be reanalyzed
+    def test_reanalyze(self, pipe):
         pipe.analyze()
 
     # Check if first iteration can be reprojected (forced)
