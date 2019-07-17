@@ -81,6 +81,11 @@ deploy:
         tags: true
     
 notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/7027496921d111b98149
+    on_success: change
+    on_failure: always
   email:
     recipients:
       - evandervelden@swin.edu.au
