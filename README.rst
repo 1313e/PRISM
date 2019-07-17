@@ -11,7 +11,7 @@ Starting with v1.1.0, *PRISM* no longer supports Python 2.7, and this branch wil
     :target: https://github.com/1313e/PRISM
     :alt: PRISM Logo
 
-|PyPI| |Python| |Travis| |AppVeyor| |ReadTheDocs| |Coverage| |JOSS|
+|PyPI| |Python| |Travis| |AppVeyor| |ReadTheDocs| |Coverage| |Gitter|
 
 Model dispersion with *PRISM*; an alternative to MCMC for rapid analysis of models
 ==================================================================================
@@ -125,7 +125,7 @@ Community guidelines
 
 Users are highly encouraged to make contributions to the package or request new features by opening a `GitHub issue`_.
 If you would like to contribute to the package, but do not know what, then there are quite a few ToDos in the code that may give you some inspiration.
-As with contributions, if you find a problem or issue with *PRISM*, please do not hesitate to open a `GitHub issue`_ about it.
+As with contributions, if you find a problem or issue with *PRISM*, please do not hesitate to open a `GitHub issue`_ about it or post it on `Gitter`_.
 Keep in mind that this branch of *PRISM* is not actively maintained, and therefore issues specific to this branch have a lower priority.
 
 And, finally, if you use *PRISM* as part of your workflow in a scientific publication, please consider including an acknowledgement like *"Parts of the results in this work were derived using the PRISM Python package."* and citing the *PRISM* pipeline paper:
@@ -154,6 +154,7 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 
 .. _BSD-3 license: https://github.com/1313e/PRISM/raw/v1.0.x/LICENSE
 .. _GitHub issue: https://github.com/1313e/PRISM/issues
+.. _Gitter: https://gitter.im/1313e/PRISM
 
 Acknowledgements
 ================
@@ -178,6 +179,6 @@ Huge thanks to James Josephides for making the *PRISM* logo.
 .. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/v1.0.x.svg?logo=codecov&logoColor=white&label=Coverage
     :target: https://codecov.io/gh/1313e/PRISM/branches/v1.0.x
     :alt: CodeCov - Coverage Status
-.. |JOSS| image:: https://img.shields.io/badge/JOSS-accepted-brightgreen.svg
-    :target: https://doi.org/10.21105/joss.01229
-    :alt: JOSS - Paper Review Status
+.. |Gitter| image:: https://img.shields.io/gitter/room/1313e/PRISM.svg?logo=gitter&logoColor=white&label=Chat
+    :target: https://gitter.im/1313e/PRISM
+    :alt: Gitter - Chat Room

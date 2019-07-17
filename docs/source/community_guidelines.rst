@@ -6,7 +6,7 @@ Community guidelines
 
 Users are highly encouraged to make contributions to the package or request new features by opening a `GitHub issue`_.
 If you would like to contribute to the package, but do not know what, then there are quite a few ToDos in the code that may give you some inspiration.
-As with contributions, if you find a problem or issue with *PRISM*, please do not hesitate to open a `GitHub issue`_ about it.
+As with contributions, if you find a problem or issue with *PRISM*, please do not hesitate to open a `GitHub issue`_ about it or post it on `Gitter`_.
 Keep in mind that issues solely related to the `v1.0.x` branch are given a lower priority.
 
 And, finally, if you use *PRISM* as part of your workflow in a scientific publication, please consider including an acknowledgement like *"Parts of the results in this work were derived using the PRISM Python package."* and citing the *PRISM* pipeline paper:
@@ -35,6 +35,7 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 
 
 .. _GitHub issue: https://github.com/1313e/PRISM/issues
+.. _Gitter: https://gitter.im/1313e/PRISM
 
 
 License
