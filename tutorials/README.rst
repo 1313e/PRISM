@@ -1,6 +1,6 @@
 PRISM tutorials
 ===============
-This directory contains a series of Jupyter notebooks that serve as tutorals for the *PRISM* package.
+This directory contains a series of Jupyter notebooks that serve as tutorials for the *PRISM* package.
 
 Getting started
 ---------------
@@ -21,6 +21,7 @@ Available tutorials
 -------------------
 Below is a list of all tutorials that are available:
 
-1. `Basic usage <1_basic_usage.ipynb>`_: Gives a basic overview of the user-methods in *PRISM* and how to use the ``Pipeline`` class;
-2. `ModelLink subclasses <2_modellink_subclasses>`_: Introduction to the ``ModelLink`` abstract base class and how to write a subclass.
+1. `Basic usage <1_basic_usage.ipynb>`_: Basic overview of the user-methods in *PRISM* and how to use the ``Pipeline`` class;
+2. `ModelLink subclasses <2_modellink_subclasses.ipynb>`_: Introduction to the ``ModelLink`` abstract base class and how to write a subclass;
+3. `Pipeline properties <3_pipeline_properties.ipynb>`_: Overview of the various different ``Pipeline`` properties and how to use them.
 
