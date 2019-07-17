@@ -158,10 +158,6 @@ class Test_Pipeline_Gaussian2D(object):
     def test_construct_analyze(self, pipe):
         pipe.construct(1)
 
-    # Check if first iteration can be reanalyzed
-    def test_reanalyze(self, pipe):
-        pipe.analyze()
-
     # Check if first iteration can be reprojected (forced)
     def test_reproject_forced(self, pipe):
         with pytest_mpl.plugin.switch_backend('Agg'):
