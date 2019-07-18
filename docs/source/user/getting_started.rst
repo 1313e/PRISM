@@ -19,11 +19,11 @@ For using *PRISM* in MPI, ``mpi4py >= 3.0.0`` is required (not installed automat
 
 The *PRISM* package comes with two ModelLink subclasses.
 These ModelLink subclasses can be used to experiment with *PRISM* to see how it works.
-:ref:`using_prism` and `tutorials`_ has several examples explaining the different functionalities of the package.
+:ref:`using_prism` and `the tutorials`_ has several examples explaining the different functionalities of the package.
 
 .. _repository: https://github.com/1313e/PRISM
 .. _PyPI: https://pypi.org/project/prism
-.. _tutorials: https://github.com/1313e/PRISM/tree/master/tutorials
+.. _the tutorials: https://github.com/1313e/PRISM/tree/master/tutorials
 
 
 Running tests
@@ -47,7 +47,7 @@ When using Anaconda, the installation directory path is probably of the form ``<
 
 Example usage
 -------------
-See :ref:`minimal_example` or `tutorials`_ for a documented explanation on this example.
+See :ref:`minimal_example` or `the tutorials`_ for a documented explanation on this example.
 
 ::
 

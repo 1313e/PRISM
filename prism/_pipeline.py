@@ -2523,7 +2523,7 @@ class Pipeline(Projection, object):
         If no implausibility analysis is requested, then the implausibility
         parameters are read in from the *PRISM* parameters file and temporarily
         stored in memory in order to enable the usage of the :meth:`~evaluate`
-        and :meth:`~prism._projection.Projection.project` methods.
+        and :meth:`~project` methods.
 
         """
 
