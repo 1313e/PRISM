@@ -595,8 +595,8 @@ class Pipeline(Projection, object):
     @property
     def n_sam_init(self):
         """
-        int: Number of evaluation samples used to construct the first iteration
-        of the emulator systems.
+        int: Number of evaluation samples that will be used to construct the
+        first iteration of the emulator systems.
 
         """
 

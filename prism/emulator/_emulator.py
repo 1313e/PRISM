@@ -314,28 +314,41 @@ class Emulator(object):
     @property
     def active_par_data(self):
         """
-        list of str: The model parameter names that are considered active for
+        dict of lists: The model parameter names that are considered active for
         every emulator system on this MPI rank.
 
         """
 
-        return([[[self._modellink._par_name[par] for
-                  par in active_par] for
-                 active_par in active_par_data] for
-                active_par_data in self._active_par_data])
+        # Initialize empty active_par_data_list
+        active_par_data_list = []
+
+        # Loop over all emulator iterations
+        for data_idx, active_par_data in zip(self._data_idx,
+                                             self._active_par_data):
+            # Convert active_par_data from integers to strings
+            active_par_data = [[self._modellink._par_name[par] for
+                                par in active_par] for
+                               active_par in active_par_data]
+
+            # Add dict to active_par_data_list for this iteration
+            active_par_data_list.append(dict(zip(data_idx, active_par_data)))
+
+        # Return it
+        return(active_par_data_list)
 
     # Regression
     @property
     def rsdl_var(self):
         """
-        list of float: The residual variances for every emulator system on this
+        dict of float: The residual variances for every emulator system on this
         MPI rank.
         Obtained from regression process and replaces the Gaussian sigma.
         Empty if :attr:`~method` == 'gaussian'.
 
         """
 
-        return(self._rsdl_var)
+        return([dict(zip(data_idx, rsdl_var)) for
+                data_idx, rsdl_var in zip(self._data_idx, self._rsdl_var)])
 
     @property
     def poly_terms(self):
@@ -345,26 +358,19 @@ class Emulator(object):
         this MPI rank.
         Empty if :attr:`~method` == 'gaussian'.
 
-        This is basically a human readable representation of :attr:`~poly_coef`
+        This is basically a human-readable representation of :attr:`~poly_coef`
         plus :attr:`~poly_powers`. Given its formatting, it is not advised to
         use this for any operations.
 
         """
 
-        # If only Gaussian is used, return a list of empty lists
-        if(self._method == 'gaussian'):
-            return([]*(self._emul_i+1))
-
         # Initialize empty poly_term_list
-        poly_terms_list = [[]]
+        poly_terms_list = []
 
         # Loop over all emulator iterations
-        for emul_i in range(1, self._emul_i+1):
-            # Obtain required data
-            data_idx = self._data_idx[emul_i]
-            poly_powers = self._poly_powers[emul_i]
-            poly_coefs = self._poly_coef[emul_i]
-
+        for data_idx, poly_powers, poly_coefs in zip(self._data_idx,
+                                                     self._poly_powers,
+                                                     self._poly_coef):
             # Convert all poly_powers to their string representations
             poly_terms_dict = {}
             for idx, powers, coefs in zip(data_idx, poly_powers, poly_coefs):
@@ -2918,8 +2924,7 @@ class Emulator(object):
         poly_term = ''
 
         # Loop over all parameters in this polynomial term
-        for i, (par, power) in enumerate(zip(self._modellink._par_name,
-                                             poly_power)):
+        for par, power in zip(self._modellink._par_name, poly_power):
             # If this parameter has a power of zero, skip it
             if(power == 0):
                 continue
