@@ -117,7 +117,7 @@ Below is a list of the most commonly used terms/abbreviations in *PRISM* and the
         Abbreviation of *Hierarchical Data Format version 5*.
 
     Hybrid sampling
-        The process of doing a best parameter estimation of a model with MCMC sampling, while using its emulator as an additional Bayesian prior.
+        The process of performing a best parameter estimation of a model with MCMC sampling, while using its emulator as an additional Bayesian prior.
         This process is explained in :ref:`hybrid_sampling`.
 
     Implausibility check
@@ -167,6 +167,9 @@ Below is a list of the most commonly used terms/abbreviations in *PRISM* and the
     ModelLink subclass
         The user-provided wrapper around the model that needs to be emulated, provided by a :obj:`~prism.modellink.ModelLink` object.
 
+    Model data
+        The set of all data points that are provided to a :class:`~prism.modellink.ModelLink` subclass, to be used to constrain the model with.
+
     Model discrepancy variance
         A user-defined value that includes all contributions to the overall variance on a model output that is created/caused by the model itself.
         More information on this can be found in :ref:`md_var`.
@@ -177,6 +180,10 @@ Below is a list of the most commonly used terms/abbreviations in *PRISM* and the
     Model output
     Model outputs
         The model output(s) corresponding to a single (set of) model realization/evaluation sample(s).
+
+    Model parameter
+    Model parameters
+        The (set of) details about every (all) degree(s)-of-freedom that a model has and whose value range(s) must be explored by the emulator.
 
     Model realization samples
         Same as model evaluation samples.

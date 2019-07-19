@@ -18,6 +18,12 @@ It has two abstract methods that need to be overridden; :meth:`~prism.modellink.
 A :class:`~prism.modellink.ModelLink` subclass cannot be initialized if either method has not been overridden.
 Given the importance of both methods, detailed descriptions are given in :ref:`call_model` and :ref:`md_var`, respectively.
 
+Every :class:`~prism.modellink.ModelLink` subclass needs to be provided with two different data sets: `model parameters` and `model data`.
+The model parameters define which parameters the model can take, what their names are and in what value range each parameter must be.
+The model data on the other hand, states where in a model realization a data value must be retrieved and compared with a provided observational value.
+One can think of the model data as the observational constraints used to calculate the likelihood in a Bayesian analysis.
+The different ways in which these two data sets can be provided are explained further in this section.
+
 Since every model is different, with some requiring preparations in order to work properly, the :meth:`~prism.modellink.ModelLink.__init__` constructor method may be extended to include any custom code to be executed when the subclass is initialized.
 The superclass version of the :meth:`~prism.modellink.ModelLink.__init__` method must always be called, as it sets several important flags and properties, but the time at which this is done does not matter.
 During the initialization of the :class:`~prism.emulator.Emulator` class, it is checked whether or not the superclass constructor of a provided :obj:`~prism.modellink.ModelLink` instance was called (to avoid this from being forgotten).

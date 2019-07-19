@@ -65,12 +65,21 @@ class ModelLink(object, metaclass=abc.ABCMeta):
     :class:`~ModelLink` subclass, or are set to a default value if they are not
     modified.
 
-    The model parameters and comparison data can be set in two different ways.
-    They can be hard-coded into the :class:`~ModelLink` subclass by altering
-    the :meth:`~get_default_model_parameters` and
-    :meth:`~get_default_model_data` methods or set by providing them during
-    class initialization. A combination of both is also possible. More details
-    on this can be found in :meth:`~__init__`.
+    Every :class:`~ModelLink` subclass needs to be provided with two different
+    data sets: `model parameters` and `model data`. The model parameters define
+    which parameters the model can take, what their names are and in what value
+    range each parameter must be. The model data on the other hand, states
+    where in a model realization a data value must be retrieved and compared
+    with a provided observational value. One can think of the model data as the
+    observational constraints used to calculate the likelihood in a Bayesian
+    analysis.
+
+    The model parameters and model data can be set in two different ways. They
+    can be hard-coded into the :class:`~ModelLink` subclass by altering the
+    :meth:`~get_default_model_parameters` and :meth:`~get_default_model_data`
+    methods or set by providing them during class initialization. A combination
+    of both is also possible. More details on this can be found in
+    :meth:`~__init__`.
 
     The :class:`~ModelLink` class has two abstract methods that must be
     overridden before the subclass can be initialized.
@@ -112,6 +121,10 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         Notes (model_parameters)
         ------------------------
+        The model parameters provides this :class:`~ModelLink` subclass with
+        the names, ranges and estimates of all model parameters that need to be
+        explored.
+
         The model parameters dict requires to have the name of the parameters
         as the keyword, and a 1D list containing the lower bound, the upper
         bound and, if applicable, the estimate of this parameter. It is not
@@ -127,6 +140,10 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         Notes (model_data)
         ------------------
+        The model data provides this :class:`~ModelLink` subclass with the
+        observational data points that need to be used to constrain this model
+        with.
+
         The model data dict requires to have the data identifiers
         (:attr:`~data_idx`) as the keyword, and a 1D list containing the data
         value (:attr:`~data_val`); the data errors (:attr:`~data_err`) and the
