@@ -326,6 +326,9 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
             else:
                 init_walkers = pipe._emulator._sam_set[emul_i+1]
 
+            # Make sure to make a copy of init_walkers to avoid modifications
+            init_walkers = init_walkers.copy()
+
         # Broadcast init_walkers to workers as p0_walkers
         p0_walkers = pipe._comm.bcast(init_walkers, 0)
 
