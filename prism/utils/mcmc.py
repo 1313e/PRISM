@@ -41,7 +41,7 @@ def get_hybrid_lnpost_fn(lnpost_fn, pipeline_obj, *, emul_i=None,
     This `hybrid_lnpost()` function can be used to calculate the natural
     logarithm of the posterior probability, which analyzes a given `par_set`
     first in the provided `pipeline_obj` at iteration `emul_i` and passes it to
-    the `lnpost_fn()` function if it is plausible.
+    `lnpost_fn` if it is plausible.
 
     This function needs to be called by all MPI ranks.
 
@@ -89,7 +89,7 @@ def get_hybrid_lnpost_fn(lnpost_fn, pipeline_obj, *, emul_i=None,
     The input arguments `unit_space` and `par_dict` state in what form
     `par_set` will be provided to the `hybrid_lnpost()` function, such that it
     can be properly converted to the format used in :class:`~prism.Pipeline`.
-    The `par_set` that is passed to the `lnpost_fn()` function is unchanged.
+    The `par_set` that is passed to `lnpost_fn` is unchanged.
 
     Warning
     -------
@@ -137,7 +137,7 @@ def get_hybrid_lnpost_fn(lnpost_fn, pipeline_obj, *, emul_i=None,
     def hybrid_lnpost(par_set, *args, **kwargs):
         """
         Calculates the natural logarithm of the posterior probability of
-        `par_set` using the provided function `lnpost_fn()`, in addition to
+        `par_set` using the provided function `lnpost_fn`, in addition to
         constraining it first with the emulator defined in the `pipeline_obj`.
 
         This function needs to be called by all MPI ranks unless called within
@@ -147,21 +147,19 @@ def get_hybrid_lnpost_fn(lnpost_fn, pipeline_obj, *, emul_i=None,
         ----------
         par_set : 1D array_like or dict
             Sample to calculate the posterior probability for. This sample is
-            first analyzed in `pipeline_obj` and only given to `lnpost_fn()` if
+            first analyzed in `pipeline_obj` and only given to `lnpost_fn` if
             it is plausible. If `par_dict` is *True*, this is a dict.
         args : tuple
-            Positional arguments that need to be passed to the `lnpost_fn()`
-            function.
+            Positional arguments that need to be passed to `lnpost_fn`.
         kwargs : dict
-            Keyword arguments that need to be passed to the `lnpost_fn()`
-            function.
+            Keyword arguments that need to be passed to `lnpost_fn`.
 
         Returns
         -------
         lnp : float
             The natural logarithm of the posterior probability of `par_set`, as
-            determined by the `lnpost_fn()` function if `par_set` is plausible.
-            If `impl_prior` is *True*, `lnp` is calculated as `lnprior` +
+            determined by `lnpost_fn` if `par_set` is plausible. If
+            `impl_prior` is *True*, `lnp` is calculated as `lnprior` +
             `lnpost_fn()`, with `lnprior` the natural logarithm of the first
             implausibility cut-off value of `par_set` scaled with its maximum.
 

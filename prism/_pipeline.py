@@ -3216,7 +3216,7 @@ class Pipeline(Projection, object):
                 par_dict = dict(zip(self._modellink._par_name, sam_set[0]))
 
                 # Print results
-                pr_str = "Evaluation results of %s" % (par_dict)
+                pr_str = "Evaluation results for %s" % (par_dict)
                 print(pr_str)
                 print("-"*len(pr_str))
                 if impl_check[0]:

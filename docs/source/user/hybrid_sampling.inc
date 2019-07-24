@@ -38,7 +38,7 @@ Usage
 #####
 In order to help the user with combining *PRISM* with MCMC to use hybrid sampling, the :mod:`~prism.utils` module provides two functions: :func:`~prism.utils.get_walkers` and :func:`~prism.utils.get_hybrid_lnpost_fn`.
 The :func:`~prism.utils.get_walkers` function analyzes a set of proposed `init_walkers` and returns the positions that are plausible (and the number of positions that are plausible).
-By default, it uses the available :attr:`~prism.Pipeline.impl_sam` of the last constructed iteration, but it can also be supplied with a custom set of proposed walkers or an integer stating how many proposed walkers the function should check::
+By default, it uses the available :attr:`~prism.Pipeline.impl_sam` of the last constructed iteration, but it can also be supplied with a custom set of proposed walkers or an integer stating how many proposed positions the function should check::
 
     >>> # Use impl_sam if it is available
     >>> n, p0 = get_walkers(pipe)
@@ -52,26 +52,26 @@ By default, it uses the available :attr:`~prism.Pipeline.impl_sam` of the last c
     >>> init_walkers = lhd(n_walkers, pipe.modellink.n_par, pipe.modellink.par_rng)
     >>> n, p0 = get_walkers(pipe, init_walkers=init_walkers)
 
-As *PRISM*'s sampling methods operate in parameter space, the :func:`~prism.utils.get_walkers` function automatically assumes that all samples are defined in parameter space.
-However, as some sampling methods use unit space, it can be enabled by setting the `unit_space` input argument to :pycode:`True`.
-One has to keep in mind that, because of the way the emulator works, there is no guarantee for a specific number of valid walkers to be obtained.
-Having the desired emulator iteration already analyzed may give an indication how many samples in total need to be proposed to be left with a specific number.
+As *PRISM*'s sampling methods operate in parameter space, the :func:`~prism.utils.get_walkers` function automatically assumes that all starting positions are defined in parameter space.
+However, as some sampling methods use unit space, normalized starting positions can be requested by setting the `unit_space` input argument to :pycode:`True`.
+One has to keep in mind that, because of the way the emulator works, there is no guarantee for a specific number of plausible starting positions to be obtained.
+Having the desired emulator iteration already analyzed may give an indication how many starting positions in total need to be proposed to be left with a specific number.
 
 When the initial positions of the MCMC walkers have been determined, one can use them in an MCMC parameter estimation algorithm, avoiding the burn-in phase.
 This in itself can already be very useful, but it does not allow for hybrid sampling yet.
-Most MCMC methods require the definition of an `lnpost_fn()` function, which takes a parameter set and returns the corresponding natural logarithm of the posterior probability.
-In order to do hybrid sampling, this `lnpost_fn()` function must have the algorithm described above implemented.
+Most MCMC methods require the definition of an `lnpost()` function, which takes a parameter set and returns the corresponding natural logarithm of the posterior probability.
+In order to do hybrid sampling, this `lnpost()` function must have the algorithm described above implemented.
 
 The :func:`~prism.utils.get_hybrid_lnpost_fn` function factory provides exactly that.
-It takes a user-defined `lnpost_fn()` function and a :obj:`~prism.Pipeline` object, and returns a function definition :pycode:`hybrid_lnpost(par_set, *args, **kwargs)`.
-This `hybrid_lnpost()` function first analyzes a proposed `par_set` in the emulator, passes `par_set` (along with any additional arguments) to `lnpost_fn()` if the sample is plausible, or returns :math:`-\infty` if it is not.
-The return-value of the `lnpost_fn()` function is then returned by the `hybrid_lnpost()` function as well.
+It takes a user-defined `lnpost()` function (as `lnpost_fn`) and a :obj:`~prism.Pipeline` object, and returns a function definition :pycode:`hybrid_lnpost(par_set, *args, **kwargs)`.
+This `hybrid_lnpost()` function first analyzes a proposed `par_set` in the emulator, passes `par_set` (along with any additional arguments) to `lnpost()` if the sample is plausible, or returns :math:`-\infty` if it is not.
+The return-value of the `lnpost()` function is then returned by the `hybrid_lnpost()` function as well.
 To make sure that the `hybrid_lnpost()` function can be used in both execution modes (see :ref:`dual_nature`), all parallel calls to the :obj:`~prism.Pipeline` object are done with the :meth:`~prism.Pipeline._make_call` method.
 
 The use of a function factory here allows for all input arguments to be validated once and then saved as local variables for the `hybrid_lnpost()` function.
 Not only does this avoid that all arguments have to be provided and validated for every individual call, but it also ensures that the same arguments are used every time, as local variables of a function cannot be modified by anything.
-Since users most likely use :func:`~prism.utils.get_walkers` and :func:`~prism.utils.get_hybrid_lnpost_fn` frequently together, the :func:`~prism.utils.get_walkers` function allows for the `lnpost_fn()` argument to be supplied to it.
-This will automatically call the :func:`~prism.utils.get_hybrid_lnpost_fn` function factory using the provided `lnpost_fn()` and the same input arguments given to :func:`~prism.utils.get_walkers`, and return the obtained `hybrid_lnpost()` function in addition to the initial MCMC walkers.
+Since users most likely use :func:`~prism.utils.get_walkers` and :func:`~prism.utils.get_hybrid_lnpost_fn` frequently together, the :func:`~prism.utils.get_walkers` function allows for the `lnpost_fn` argument to be supplied to it.
+This will automatically call the :func:`~prism.utils.get_hybrid_lnpost_fn` function factory using the provided `lnpost_fn` and the same input arguments given to :func:`~prism.utils.get_walkers`, and return the obtained `hybrid_lnpost()` function in addition to the initial MCMC walkers.
 
 Application
 ###########
@@ -89,9 +89,9 @@ So, we first have to make an emulator of the model::
     >>> pipe.construct()
 
 Using the constructed emulator, we can perform a model parameter optimization using hybrid sampling.
-For this, we need to define an `lnpost_fn()` function, for which we will use a simple Gaussian probability function::
+For this, we need to define an `lnpost()` function, for which we will use a simple Gaussian probability function::
 
-    def lnpost_fn(par_set, pipe):
+    def lnpost(par_set, pipe):
         # Create parameter dict for call_model
         par_dict = dict(zip(pipe.modellink.par_name, par_set))
 
@@ -121,10 +121,10 @@ Since we want to do hybrid sampling, we can obtain the `hybrid_lnpost()` functio
 
     >>> from prism.utils import get_walkers
     >>> n, p0, hybrid_lnpost = get_walkers(pipe, unit_space=False,
-                                           lnpost_fn=lnpost_fn, impl_prior=True)
+                                           lnpost_fn=lnpost, impl_prior=True)
 
 By setting `impl_prior` to :pycode:`True`, we use the implausibility cut-off value as an additional prior.
-Now we only still need the :class:`~emcee.EnsembleSampler` class and NumPy (for the `lnpost_fn()` function)::
+Now we only still need the :class:`~emcee.EnsembleSampler` class and NumPy (for the `lnpost()` function)::
 
     >>> import numpy as np
     >>> from emcee import EnsembleSampler
@@ -146,6 +146,6 @@ In most cases, MCMC methods require to be executed on only a single MPI rank, so
             # For example, saving the chain data or plotting the results
 
 And that is basically all that is required for using *PRISM* together with MCMC.
-For a normal MCMC approach, the same code can be used, except that one has to use `lnpost_fn()` instead of `hybrid_lnpost()` (and, obtain the starting positions of the walkers in a different way).
+For a normal MCMC approach, the same code can be used, except that one has to use `lnpost()` instead of `hybrid_lnpost()` (and, obtain the starting positions of the walkers in a different way).
 
 .. _emcee: http://dfm.io/emcee/current
