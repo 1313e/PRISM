@@ -2017,7 +2017,7 @@ class Emulator(object):
         # slower but less memory-intensive method
         try:
             cov_mat = self._get_cov(emul_i, emul_s_seq, None, None)
-        except MemoryError:
+        except MemoryError:  # pragma: no cover
             # For some odd reason, overwriting cov_mat does not clear memory,
             # and the only way to remove cov_mat from it is by attempting to
             # delete it. It always raises a NameError, but does actually clear

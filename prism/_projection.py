@@ -291,7 +291,7 @@ class Projection(object):
     # Function that creates master projection figures
     # TODO: Write this function!
 #    @docstring_substitute(emul_i=user_emul_i_doc)
-    def project_master(self, emul_i=None, **kwargs):
+    def project_master(self, emul_i=None, **kwargs):  # pragma: no cover
         raise NotImplementedError
 
     # %% CLASS PROPERTIES

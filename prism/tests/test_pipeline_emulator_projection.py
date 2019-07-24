@@ -908,19 +908,6 @@ class Test_Pipeline_Init_Versatility(object):
                         working_dir=working_dir, prism_par='prism_default.txt')
         repr(pipe)
 
-    # Create a Pipeline object using the prism_file input argument
-    @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
-                        reason="Cannot be pytested in MPI")
-    def test_PRISM_par_file(self, tmpdir, modellink_obj):
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
-        shutil.copy(prism_file_default, root_dir)
-        with pytest.warns(FutureWarning):
-            pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                            working_dir=working_dir,
-                            prism_file='prism_default.txt')
-        repr(pipe)
-
     # Create a Pipeline object using a PRISM parameters dict
     def test_PRISM_par_dict(self, tmpdir, modellink_obj):
         root_dir = path.dirname(tmpdir.strpath)

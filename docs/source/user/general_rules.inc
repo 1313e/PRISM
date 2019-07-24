@@ -27,7 +27,7 @@ Below is a list of general usage rules that apply to *PRISM*.
               - :pycode:`A, 1, 20.0, B`;
               - :pycode:`[A,1,2e1,B]`;
               - :pycode:`"A 1 20. B"`;
-              - :pycode:`"'[" (A / }| \n; <1{}) \,,">20.000000 !! \t< )?%\\B '`.
+              - :pycode:`"'[" (A / }| \n; <1{}) ,,">20.000000 !! \t< )?%\\B '`.
     - the path to a data file (*PRISM* parameters, model parameters, model data) will read in all the data from that file as a Python dict, with a colon :pycode:`:` acting as the separator between the key and value.
 
 

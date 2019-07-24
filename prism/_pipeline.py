@@ -146,7 +146,7 @@ class Pipeline(Projection, object):
             set_base_logger(path.join(self._working_dir, 'prism_log.log'))
 
         # Check if deprecated prism_file was provided
-        if 'prism_file' in kwargs.keys():
+        if 'prism_file' in kwargs.keys():  # pragma: no cover
             # Assign prism_file to prism_par
             prism_par = kwargs['prism_file']
 
@@ -235,7 +235,7 @@ class Pipeline(Projection, object):
 
         # Add the root_dir representation if it is not default
         if(path.splitdrive(self._root_dir)[0].lower() !=
-           path.splitdrive(pwd)[0].lower()):
+           path.splitdrive(pwd)[0].lower()):  # pragma: no cover
             rel_root_path = self._root_dir
         else:
             rel_root_path = path.relpath(self._root_dir, pwd)
@@ -1973,7 +1973,6 @@ class Pipeline(Projection, object):
         %(ext_sam)s
         %(ext_mod)s
 
-
         """
 
         # If no ext_real_set is provided, return empty arrays without logging
@@ -2909,7 +2908,7 @@ class Pipeline(Projection, object):
             # Determine the relative path to the working directory
             pwd = os.getcwd()
             if(path.splitdrive(self._working_dir)[0].lower() !=
-               path.splitdrive(pwd)[0].lower()):
+               path.splitdrive(pwd)[0].lower()):  # pragma: no cover
                 working_dir_rel_path = self._working_dir
             else:
                 working_dir_rel_path = path.relpath(self._working_dir, pwd)

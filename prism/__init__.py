@@ -54,7 +54,7 @@ import_cmaps(os.path.join(os.path.dirname(__file__), 'data'))
 
 # Check if MPI is being used and perform some checks on controller if size > 1
 if(_MPI.__package__ == 'mpi4py' and _MPI.COMM_WORLD.Get_size() > 1 and
-   _MPI.COMM_WORLD.Get_rank() == 0):
+   _MPI.COMM_WORLD.Get_rank() == 0):  # pragma: no cover
     # Check if imported mpi4py package is at least 3.0.0
     from mpi4py import __version__ as _mpi4py_version
     if not _compare_versions(_mpi4py_version, '3.0.0'):
