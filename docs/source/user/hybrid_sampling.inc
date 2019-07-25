@@ -71,7 +71,7 @@ To make sure that the `hybrid_lnpost()` function can be used in both execution m
 The use of a function factory here allows for all input arguments to be validated once and then saved as local variables for the `hybrid_lnpost()` function.
 Not only does this avoid that all arguments have to be provided and validated for every individual call, but it also ensures that the same arguments are used every time, as local variables of a function cannot be modified by anything.
 Since users most likely use :func:`~prism.utils.get_walkers` and :func:`~prism.utils.get_hybrid_lnpost_fn` frequently together, the :func:`~prism.utils.get_walkers` function allows for the `lnpost_fn` argument to be supplied to it.
-This will automatically call the :func:`~prism.utils.get_hybrid_lnpost_fn` function factory using the provided `lnpost_fn` and the same input arguments given to :func:`~prism.utils.get_walkers`, and return the obtained `hybrid_lnpost()` function in addition to the initial MCMC walkers.
+This will automatically call the :func:`~prism.utils.get_hybrid_lnpost_fn` function factory using the provided `lnpost_fn` and the same input arguments given to :func:`~prism.utils.get_walkers`, and return the obtained `hybrid_lnpost()` function in addition to the starting positions of the MCMC walkers.
 
 Application
 ###########

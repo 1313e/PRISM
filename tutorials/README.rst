@@ -24,4 +24,4 @@ Below is a list of all tutorials that are available:
 1. `Basic usage <1_basic_usage.ipynb>`_: Basic overview of the user-methods in *PRISM* and how to use the ``Pipeline`` class;
 2. `ModelLink subclasses <2_modellink_subclasses.ipynb>`_: Introduction to the ``ModelLink`` abstract base class and how to write a subclass;
 3. `PRISM class properties <3_class_properties.ipynb>`_: Overview of the various different class properties in *PRISM* and how to use them;
-4. `Hybrid sampling <4_hybrid_sampling.ipynb>`_: Introduction to the concept of hybrid sampling and how to use it.
+4. `Hybrid sampling <4_hybrid_sampling.ipynb>`_: Introduction to the concept of hybrid sampling and how to use it with ``emcee``.
