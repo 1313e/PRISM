@@ -4,11 +4,12 @@ include MANIFEST.in
 include requirements*.txt
 recursive-include prism data/*
 
-exclude docs joss_paper logo prism_trash .github
+exclude docs joss_paper logo prism_trash tutorials .github
 recursive-exclude docs *
 recursive-exclude joss_paper *
 recursive-exclude logo *
 recursive-exclude prism_trash *
+recursive-exclude tutorials *
 recursive-exclude .github *
 exclude *.yml
 recursive-exclude * __pycache__

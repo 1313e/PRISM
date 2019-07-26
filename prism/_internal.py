@@ -107,14 +107,14 @@ class PRISM_Logger(logging.Logger):
 # Make a custom Filter class that logs the rank of the process that calls it
 class RFilter(logging.Filter):
     """
-    Custom :class:`~logging.Filter` class that prepends the rank of the MPI
-    process that calls it to the logging message. If the size of the used MPI
-    intra-communicator is 1, this filter does nothing.
+    Custom :class:`~logging.Filter` class that prepends the world rank of the
+    MPI process that calls it to the logging message. If the size of
+    :obj:`MPI.COMM_WORLD` is 1, this filter does nothing.
 
     """
 
     def __init__(self, MPI_rank):
-        if(MPI.__package__ == 'mpi4py' and size > 1):
+        if(size > 1):
             self.prefix = "Rank %i: " % (MPI_rank)
         else:
             self.prefix = ""
@@ -498,7 +498,7 @@ def get_handler(filename):
     return(handler)
 
 
-# Define function that returns a string with all PRISM package information
+# Define function that prints a string with all PRISM package information
 def get_info():
     """
     Prints a string that gives an overview of all information relevant to the

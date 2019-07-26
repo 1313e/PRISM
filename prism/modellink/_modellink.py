@@ -652,7 +652,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         # If sam_set is a dict, convert it to a NumPy array
         if isinstance(sam_set, dict):
-            sam_set = np_array([sam_set[par] for par in self._par_name]).T
+            sam_set = np_array(sdict(sam_set).values()).T
 
         # Make sure that sam_set is a NumPy array
         sam_set = np_array(sam_set)
@@ -674,13 +674,20 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         sam_set = check_vals(sam_set, name, 'float')
 
         # Check if all samples are within parameter space
-        unit_sams = self._to_unit_space(np_array(sam_set, ndmin=2))
-        for i, par_set in enumerate(unit_sams):
-            # If not, raise an error
-            if not ((par_set >= 0)*(par_set <= 1)).all():
-                err_msg = ("Input argument %r contains a sample outside of "
-                           "parameter space at index %i!" % (name, i))
-                raise_error(err_msg, ValueError, logger)
+        sam_set_2D = np_array(sam_set, ndmin=2)
+        rng = self._par_rng
+        check = np.apply_along_axis(
+            lambda x: ((rng[:, 0] <= x)*(x <= rng[:, 1])).all(), 1, sam_set_2D)
+
+        # If check is not empty (can be indexed), raise error
+        try:
+            index = np.argwhere(~check)[0]
+        except IndexError:
+            pass
+        else:
+            err_msg = ("Input argument '%s%s' is outside parameter space!"
+                       % (name, index if sam_set.ndim != 1 else ''))
+            raise_error(err_msg, ValueError, logger)
 
         # Log again and return sam_set
         logger.info("Finished validating provided set of model parameter "

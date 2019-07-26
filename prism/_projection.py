@@ -288,6 +288,12 @@ class Projection(object):
         if self._is_controller and not self.__figure:
             return(self.__fig_data)
 
+    # Function that creates master projection figures
+    # TODO: Write this function!
+#    @docstring_substitute(emul_i=user_emul_i_doc)
+    def project_master(self, emul_i=None, **kwargs):  # pragma: no cover
+        raise NotImplementedError
+
     # %% CLASS PROPERTIES
     @property
     def proj_res(self):
@@ -353,26 +359,27 @@ class Projection(object):
         f_los = Rbf(x_proj, impl_los)
 
         # Set the size of the grid
-        gridsize = max(10*self.__fig_kwargs['dpi'], proj_res)
+        gridsize =\
+            self.__fig_kwargs['dpi']*np_array(self.__fig_kwargs['figsize'])
+        gridsize = np_array(gridsize, dtype=int)
+
+        # Multiply the longer axis by two
+        gridsize[int(self.__align == 'row')] *= 2
 
         # Create normalized parameter value array for interpolation functions
-        x = np.linspace(0, 1, gridsize)
+        x = np.linspace(0, 1, gridsize[0])
 
         # Calculate y_min and y_los
         y_min = f_min(x)
         y_los = f_los(x)
 
-        # Check for every interpolated grid point if the corresponding y_los is
-        # non-zero due to interpolation artifacts
-        for i, xi in enumerate(x):
-            # Obtain the 1D indices of the two corner projected grid points
-            corner_1D = [
-                max(x_proj.searchsorted(xi)-1, 0),
-                min(x_proj.searchsorted(xi, side='right'), proj_res-1)]
+        # Obtain the 1D indices of the grid corners of all interpolated points
+        corners_1D = np.clip([x_proj.searchsorted(x)-1,
+                              x_proj.searchsorted(x, side='right')],
+                             0, proj_res-1).T
 
-            # If both corner points are zero, a point in between should be zero
-            if not (impl_los[corner_1D] > 0).any():
-                y_los[i] = 0
+        # If all corners of a point are zero, a point in between should be zero
+        y_los[~impl_los[corners_1D].any(axis=1)] = 0
 
         # Check if y_min is requested to be smoothed
         if self.__smooth:
@@ -380,7 +387,7 @@ class Projection(object):
             y_min[y_los <= 0] = impl_cut
 
         # Create plotted parameter value array
-        x = np.linspace(*self._modellink._par_rng[par], gridsize)
+        x = np.linspace(*self._modellink._par_rng[par], gridsize[0])
 
         # Create figure object if the figure is requested
         if self.__figure:
@@ -516,16 +523,21 @@ class Projection(object):
         f_los = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_los)
 
         # Set the size of the hexbin grid
-        gridsize = max(10*self.__fig_kwargs['dpi'], proj_res)
+        gridsize =\
+            self.__fig_kwargs['dpi']*np_array(self.__fig_kwargs['figsize'])
+        gridsize = np_array(gridsize, dtype=int)
+
+        # Multiply the longer axis by two
+        gridsize[int(self.__align == 'row')] *= 2
 
         # Create normalized parameter value grid for interpolation functions
-        x = np.linspace(0, 1, gridsize)
-        y = np.linspace(0, 1, gridsize)
+        x = np.linspace(0, 1, gridsize[0])
+        y = np.linspace(0, 1, gridsize[1])
         X, Y = np.meshgrid(x, y, indexing='ij')
 
         # Calculate impl_min and impl_los for X, Y
-        Z_min = np.zeros([gridsize, gridsize])
-        Z_los = np.zeros([gridsize, gridsize])
+        Z_min = np.zeros(gridsize)
+        Z_los = np.zeros(gridsize)
         for i, (xi, yi) in enumerate(zip(X, Y)):
             Z_min[i] = f_min(xi, yi)
             Z_los[i] = f_los(xi, yi)
@@ -536,26 +548,19 @@ class Projection(object):
         z_min = Z_min.ravel()
         z_los = Z_los.ravel()
 
-        # Check for every interpolated grid point if the corresponding z_los is
-        # non-zero due to interpolation artifacts
-        for i, (xi, yi) in enumerate(zip(x, y)):
-            # Obtain the 2D indices of the four corner projected grid points
-            corner_2D = [
-                [max(x_proj.searchsorted(xi)-1, 0),
-                 min(x_proj.searchsorted(xi, side='right'), proj_res-1),
-                 max(x_proj.searchsorted(xi)-1, 0),
-                 min(x_proj.searchsorted(xi, side='right'), proj_res-1)],
-                [max(y_proj.searchsorted(yi)-1, 0),
-                 min(y_proj.searchsorted(yi, side='right'), proj_res-1),
-                 min(y_proj.searchsorted(yi, side='right'), proj_res-1),
-                 max(y_proj.searchsorted(yi)-1, 0)]]
+        # Obtain the 2D indices of the grid corners of all interpolated points
+        corners_2D = [
+            [x_proj.searchsorted(x)-1, x_proj.searchsorted(x, side='right'),
+             x_proj.searchsorted(x)-1, x_proj.searchsorted(x, side='right')],
+            [y_proj.searchsorted(y)-1, y_proj.searchsorted(y, side='right'),
+             y_proj.searchsorted(y, side='right'), y_proj.searchsorted(y)-1]]
 
-            # Convert 2D indices to 1D indices
-            corner_1D = np.ravel_multi_index(corner_2D, [proj_res, proj_res])
+        # Convert 2D indices to 1D indices
+        corners_1D = np.ravel_multi_index(corners_2D, [proj_res, proj_res],
+                                          mode='clip').T
 
-            # If all corner points are zero, a point in between should be zero
-            if not (impl_los[corner_1D] > 0).any():
-                z_los[i] = 0
+        # If all corners of a point are zero, a point in between should be zero
+        z_los[~impl_los[corners_1D].any(axis=1)] = 0
 
         # Check if z_min is requested to be smoothed
         if self.__smooth:
@@ -568,8 +573,8 @@ class Projection(object):
             z_min[z_los <= min_los] = impl_cut
 
         # Create plotted parameter value grid
-        x = np.linspace(*self._modellink._par_rng[par1], gridsize)
-        y = np.linspace(*self._modellink._par_rng[par2], gridsize)
+        x = np.linspace(*self._modellink._par_rng[par1], gridsize[0])
+        y = np.linspace(*self._modellink._par_rng[par2], gridsize[1])
         X, Y = np.meshgrid(x, y, indexing='ij')
         x = X.ravel()
         y = Y.ravel()
@@ -605,7 +610,7 @@ class Projection(object):
 
             # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
-            fig1 = ax0.hexbin(x, y, z_min, gridsize, vmin=0, vmax=impl_cut,
+            fig1 = ax0.hexbin(x, y, z_min, gridsize-1, vmin=0, vmax=impl_cut,
                               **self.__impl_kwargs_3D)
 
             # Draw parameter estimate lines
@@ -624,7 +629,7 @@ class Projection(object):
 
             # LINE-OF-SIGHT DEPTH PLOT
             # Plot line-of-sight depth
-            fig2 = ax1.hexbin(x, y, z_los, gridsize, vmin=0,
+            fig2 = ax1.hexbin(x, y, z_los, gridsize-1, vmin=0,
                               vmax=min(1, np.max(z_los)),
                               **self.__los_kwargs_3D)
 
@@ -978,7 +983,7 @@ class Projection(object):
         # Return it
         return(sdict(kwargs_dict))
 
-    # Set the parameters that were read in from the provided parameter file
+    # Set the parameters that were read in from the provided parameter dict
     @docstring_append(set_par_doc.format("Projection"))
     def __set_parameters(self):
         # Log that the projection parameters are being set

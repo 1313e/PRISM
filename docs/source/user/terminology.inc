@@ -129,12 +129,12 @@ Below is a list of the most commonly used terms/abbreviations in *PRISM* and the
 
     Implausibility value
     Univariate implausibility value : I
-        The number of sigmas an emulator system expects the (real) model output corresponding to a given parameter set, to be away from the data point it is compared against, given its adjusted values.
+        The minimum :math:`\sigma`-confidence level (standard deviations) that the real model realization cannot explain the comparison data.
         It takes into account all variances associated with the parameter set, which are the observational variance (given by `data_err`), adjusted emulator variance (`adj_var`) and the model discrepancy variance (`md_var`).
 
     Implausibility wildcard
         A maximum implausibility value, preceding the implausibility cut-offs, that is not taken into account during the implausibility cut-off check.
-        It is denoted as :math:`0` in provided implausibility cut-off lists.
+        It is denoted as :math:`0` in provided implausibility parameters lists.
 
     LHD
         Abbreviation of *Latin-Hypercube design*.

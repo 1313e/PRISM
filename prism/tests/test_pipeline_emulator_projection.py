@@ -154,9 +154,9 @@ class Test_Pipeline_Gaussian2D(object):
     def test_reload(self, pipe):
         pipe._load_data()
 
-    # Check if first iteration can be analyzed
-    def test_analyze(self, pipe):
-        pipe.analyze()
+    # Check if first iteration can be analyzed through using construct
+    def test_construct_analyze(self, pipe):
+        pipe.construct(1)
 
     # Check if first iteration can be reprojected (forced)
     def test_reproject_forced(self, pipe):
@@ -555,13 +555,6 @@ class Test_Pipeline_Init_Exceptions(object):
         with pytest.raises(ValueError):
             pipe._emulator._create_new_emulator()
 
-    # Try to use an invalid MPI world communicator
-    def test_invalid_MPI_comm(self, root_working_dir, modellink_obj):
-        with pytest.raises(TypeError):
-            Pipeline(modellink_obj, **root_working_dir,
-                     prism_par=prism_file_default,
-                     comm=object)
-
 
 # Pytest for Pipeline class user exception handling
 @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
@@ -915,19 +908,6 @@ class Test_Pipeline_Init_Versatility(object):
                         working_dir=working_dir, prism_par='prism_default.txt')
         repr(pipe)
 
-    # Create a Pipeline object using the prism_file input argument
-    @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
-                        reason="Cannot be pytested in MPI")
-    def test_PRISM_par_file(self, tmpdir, modellink_obj):
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
-        shutil.copy(prism_file_default, root_dir)
-        with pytest.warns(FutureWarning):
-            pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                            working_dir=working_dir,
-                            prism_file='prism_default.txt')
-        repr(pipe)
-
     # Create a Pipeline object using a PRISM parameters dict
     def test_PRISM_par_dict(self, tmpdir, modellink_obj):
         root_dir = path.dirname(tmpdir.strpath)
@@ -1008,6 +988,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         # Emulation methods
         pipe2D._emulator._method = 'gaussian'
         pipe2D.details()
+        check_instance(pipe2D, Pipeline)
         pipe2D._emulator._method = 'regression'
         pipe2D.details()
         pipe2D._emulator._method = 'full'

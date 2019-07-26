@@ -63,7 +63,7 @@ class Pipeline(Projection, object):
 
     The :class:`~Pipeline` class is the main user class of the *PRISM* package
     and provides a user-friendly environment that gives access to all
-    operations within the package.
+    operations within the pipeline.
 
     """
 
@@ -146,7 +146,7 @@ class Pipeline(Projection, object):
             set_base_logger(path.join(self._working_dir, 'prism_log.log'))
 
         # Check if deprecated prism_file was provided
-        if 'prism_file' in kwargs.keys():
+        if 'prism_file' in kwargs.keys():  # pragma: no cover
             # Assign prism_file to prism_par
             prism_par = kwargs['prism_file']
 
@@ -219,7 +219,7 @@ class Pipeline(Projection, object):
         self.construct(emul_i, force=force)
 
         # Perform projection
-        self.project()
+        self.project(emul_i)
 
     # Define the representation of a Pipeline object
     # TODO: Find out if there is a way to represent an MPI intra-communicator
@@ -235,7 +235,7 @@ class Pipeline(Projection, object):
 
         # Add the root_dir representation if it is not default
         if(path.splitdrive(self._root_dir)[0].lower() !=
-           path.splitdrive(pwd)[0].lower()):
+           path.splitdrive(pwd)[0].lower()):  # pragma: no cover
             rel_root_path = self._root_dir
         else:
             rel_root_path = path.relpath(self._root_dir, pwd)
@@ -595,8 +595,8 @@ class Pipeline(Projection, object):
     @property
     def n_sam_init(self):
         """
-        int: Number of evaluation samples used to construct the first iteration
-        of the emulator systems.
+        int: Number of evaluation samples that will be used to construct the
+        first iteration of the emulator systems.
 
         """
 
@@ -683,7 +683,7 @@ class Pipeline(Projection, object):
                     impl_cut[i] = impl_cut[i-1]
 
                 # If the value is higher than the previous value, it is invalid
-                elif(impl_cut[i-1] != 0 and impl_cut[i] > impl_cut[i-1]):
+                elif(impl_cut[i] > impl_cut[i-1] and impl_cut[i-1]):
                     err_msg = ("Cut-off %i is higher than cut-off %i "
                                "(%f > %f)!"
                                % (i, i-1, impl_cut[i], impl_cut[i-1]))
@@ -836,6 +836,7 @@ class Pipeline(Projection, object):
     # TODO: If not MPI_call, all ranks evaluate part of sam_set simultaneously?
     # Requires check/flag that model can be evaluated in multiple instances
     # TODO: If not MPI_call, should OMP_NUM_THREADS be temporarily unset?
+    # TODO: Find out how to check what the waiting mode is on an architecture
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _evaluate_model(self, emul_i, sam_set, data_idx):
         """
@@ -878,7 +879,7 @@ class Pipeline(Projection, object):
             # Request evaluation samples one-by-one
             else:
                 # Initialize mod_set
-                mod_set = np.zeros([sam_set.shape[0], self._modellink._n_data])
+                mod_set = np.empty([sam_set.shape[0], self._modellink._n_data])
 
                 # Loop over all requested evaluation samples
                 for i, par_set in enumerate(sam_set):
@@ -887,6 +888,9 @@ class Pipeline(Projection, object):
         # If workers did not call model, give them a dummy mod_set
         else:
             mod_set = []
+
+        # MPI Barrier
+        self._comm.Barrier()
 
         # Log that evaluation is completed and return mod_set
         logger.info("Finished evaluating model samples.")
@@ -910,7 +914,7 @@ class Pipeline(Projection, object):
 
         # If mod_out is a dict, convert it to a NumPy array
         if isinstance(mod_out, dict):
-            mod_out = np_array([mod_out[idx] for idx in data_idx])
+            mod_out = np_array([mod_out[idx] for idx in data_idx]).T
 
         # Log that calling model has been finished
         logger.info("Model returned %s." % (mod_out))
@@ -1021,7 +1025,7 @@ class Pipeline(Projection, object):
         # Return it
         return(sdict(par_dict))
 
-    # Set the parameters that were read in from the provided parameter file
+    # Set the parameters that were read-in from the provided parameter dict
     # TODO: May want to use configparser.Configparser for this
     @docstring_append(set_par_doc.format("Pipeline"))
     def _set_parameters(self):
@@ -1592,11 +1596,11 @@ class Pipeline(Projection, object):
         # Flatten the corresponding data_idx_to_core on the controller
         if self._is_controller:
             data_idx_flat = []
-            data_idx_len = []
+            n_data = []
             for data_idx_rank in self._emulator._data_idx_to_core[emul_i]:
                 data_idx_rank = delist(data_idx_rank)
-                data_idx_len.append(len(data_idx_rank))
                 data_idx_flat.extend(data_idx_rank)
+                n_data.append(len(data_idx_rank))
 
         # Use dummy data_idx_flat on workers
         else:
@@ -1630,22 +1634,16 @@ class Pipeline(Projection, object):
             else:
                 use_ext_real_set = 0
 
+            # Determine what data needs to go to what rank
+            disps = np.cumsum([0, *n_data[:-1]])
+            idx = [np.arange(disp, disp+i) for i, disp in zip(n_data, disps)]
+            mod_set_list = [mod_set[i] for i in idx]
+
             # Sent the specific mod_set parts to the corresponding workers
             logger.info("Distributing model realization data to corresponding "
                         "emulator systems.")
-            s_idx = 0
-            for rank, n_data in enumerate(data_idx_len):
-                # Controller data must be saved last
-                if not rank:
-                    pass
-
-                # Send the remaining parts to the workers
-                else:
-                    self._comm.send([sam_set, mod_set[s_idx:s_idx+n_data]],
-                                    dest=rank, tag=777+rank)
-
-                # Save which data parts have already been sent
-                s_idx += n_data
+            sam_set = self._comm.bcast(sam_set, 0)
+            mod_set = self._comm.scatter(mod_set_list, 0)
 
             # MPI Barrier to make sure that workers have saved their data
             self._comm.Barrier()
@@ -1654,18 +1652,21 @@ class Pipeline(Projection, object):
             self._emulator._save_data(emul_i, None, {
                 'mod_real_set': {
                     'sam_set': sam_set,
-                    'mod_set': mod_set[0:data_idx_len[0]],
+                    'mod_set': mod_set,
                     'use_ext_real_set': use_ext_real_set}})
 
         # Workers waiting for controller to send them their data values
         else:
-            sam_set, mod_set = self._comm.recv(source=0, tag=777+self._rank)
+            # Obtain sam_set and mod_set from the controller
+            sam_set = self._comm.bcast(None, 0)
+            mod_set = self._comm.scatter(None, 0)
 
             # Save all the data to the specific hdf5-files
-            for i, lemul_s in enumerate(self._emulator._active_emul_s[emul_i]):
+            for lemul_s, mod_out in zip(self._emulator._active_emul_s[emul_i],
+                                        mod_set):
                 self._emulator._save_data(emul_i, lemul_s, {
                     'mod_real_set': {
-                        'mod_set': mod_set[i]}})
+                        'mod_set': mod_out}})
 
             # Save sam_set data to memory
             self._emulator._sam_set[emul_i] = sam_set
@@ -1911,21 +1912,21 @@ class Pipeline(Projection, object):
         # Return it
         return(md_var)
 
-    # This function sets the impl_cut list from read-in PRISM parameters file
+    # This function sets the impl_cut list from read-in parameter dict
     # TODO: Make impl_cut dynamic
     @docstring_substitute(impl_cut=impl_cut_doc)
     def _set_impl_par(self, impl_cut):
         """
         Sets the :attr:`~impl_cut` and :attr:`~cut_idx` properties for
-        implausibility evaluations using the read-in *PRISM* parameters file
-        and the provided `impl_cut`.
+        implausibility evaluations using :attr:`~prism.Pipeline.prism_dict` and
+        the provided `impl_cut`.
 
         Parameters
         ----------
         impl_cut : list of float or None
             Incomplete, shortened impl_cut-offs list to be used during the
-            analysis of this emulator iteration. If *None*, use the read-in
-            *PRISM* parameters file instead.
+            analysis of this emulator iteration. If *None*, use
+            :attr:`~prism.Pipeline.prism_dict` instead.
 
         Generates
         ---------
@@ -1971,7 +1972,6 @@ class Pipeline(Projection, object):
         -------
         %(ext_sam)s
         %(ext_mod)s
-
 
         """
 
@@ -2085,7 +2085,7 @@ class Pipeline(Projection, object):
             adj_exp_val = [[] for _ in range(n_sam)]
             adj_var_val = [[] for _ in range(n_sam)]
             uni_impl_val_list = [[] for _ in range(n_sam)]
-            emul_i_stop = np.zeros([n_sam])
+            emul_i_stop = np.zeros([n_sam], dtype=int)
             """), '<string>', 'exec')
         eval_code = compile(dedent("""
             adj_exp_val[sam_idx[j]] = adj_val[0]
@@ -2442,12 +2442,12 @@ class Pipeline(Projection, object):
                 raise_warning(warn_msg, RequestWarning, logger, 2)
 
             # Raise warning if n_impl_sam is less than n_sam_init
-            elif(n_impl_sam < self._n_sam_init):
+            elif(n_impl_sam < self._emulator._n_sam[1]):
                 warn_msg = ("Number of plausible samples is lower than the "
                             "number of samples in the first iteration (%i < "
                             "%i). Constructing the next iteration might not "
                             "produce a more accurate emulator."
-                            % (n_impl_sam, self._n_sam_init))
+                            % (n_impl_sam, self._emulator._n_sam[1]))
                 raise_warning(warn_msg, RequestWarning, logger, 2)
 
             # Save the results
@@ -2522,7 +2522,7 @@ class Pipeline(Projection, object):
         If no implausibility analysis is requested, then the implausibility
         parameters are read in from the *PRISM* parameters file and temporarily
         stored in memory in order to enable the usage of the :meth:`~evaluate`
-        and :meth:`~prism._projection.Projection.project` methods.
+        and :meth:`~project` methods.
 
         """
 
@@ -2588,9 +2588,14 @@ class Pipeline(Projection, object):
         # Broadcast construct_emul_i to workers
         c_from_start = self._comm.bcast(c_from_start, 0)
 
-        # If iteration is already finished, show the details
+        # If iteration is already finished, analyze or show the details
         if c_from_start is None:
-            self.details(emul_i)
+            # If analyze was requested and has not been done yet, do analysis
+            if analyze and not self._n_eval_sam[emul_i]:
+                self.analyze()
+            # Else, show details
+            else:
+                self.details(emul_i)
             return
 
         # If iteration needs to be constructed from the beginning
@@ -2897,13 +2902,13 @@ class Pipeline(Projection, object):
             # Obtain number of emulator systems
             n_emul_s = self._emulator._n_emul_s_tot
 
-            # Save if requested emulator iteration is fully constructed
+            # Update ccheck_flag with requested emulator iteration
             ccheck_flag = (delist(ccheck_flat) == [])
 
             # Determine the relative path to the working directory
             pwd = os.getcwd()
             if(path.splitdrive(self._working_dir)[0].lower() !=
-               path.splitdrive(pwd)[0].lower()):
+               path.splitdrive(pwd)[0].lower()):  # pragma: no cover
                 working_dir_rel_path = self._working_dir
             else:
                 working_dir_rel_path = path.relpath(self._working_dir, pwd)
@@ -2927,13 +2932,13 @@ class Pipeline(Projection, object):
                                             self._emulator._emul_type))
             print("{0: <{1}}\t{2}".format("ModelLink subclass", width,
                                           self._modellink._name))
-            if(self._emulator._method.lower() == 'regression'):
+            if(self._emulator._method == 'regression'):
                 print("{0: <{1}}\t{2}".format("Emulation method", width,
                                               "Regression"))
-            elif(self._emulator._method.lower() == 'gaussian'):
+            elif(self._emulator._method == 'gaussian'):
                 print("{0: <{1}}\t{2}".format("Emulation method", width,
                                               "Gaussian"))
-            elif(self._emulator._method.lower() == 'full'):
+            elif(self._emulator._method == 'full'):
                 print("{0: <{1}}\t{2}".format("Emulation method", width,
                                               "Regression + Gaussian"))
             print("{0: <{1}}\t{2}".format("Mock data used?", width,
@@ -3022,7 +3027,7 @@ class Pipeline(Projection, object):
                     len(ccheck_i) else "Yes"))
 
                 # Check if all regression processes have been done if requested
-                if self._emulator._method.lower() in ('regression', 'full'):
+                if self._emulator._method in ('regression', 'full'):
                     ccheck_i = [i for i in range(n_emul_s) if
                                 'regression' in ccheck_flat[i]]
                     print("  - {0: <{1}}\t{2}".format(
@@ -3207,8 +3212,11 @@ class Pipeline(Projection, object):
 
             # If print_output is True, print the results
             if print_output:
+                # Convert sam_set to a dict for printing purposes
+                par_dict = dict(zip(self._modellink._par_name, sam_set[0]))
+
                 # Print results
-                pr_str = "Evaluation results of %s" % (sam_set[0])
+                pr_str = "Evaluation results for %s" % (par_dict)
                 print(pr_str)
                 print("-"*len(pr_str))
                 if impl_check[0]:
