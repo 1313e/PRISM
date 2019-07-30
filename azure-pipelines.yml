@@ -3,36 +3,79 @@
 # Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/languages/python
 
-pool:
-  vmImage: 'ubuntu-latest'
+variables:
+  python.arch: 'x64'
+
 strategy:
   matrix:
-    Python35:
+    linux-python35:
+      imageName: 'ubuntu-16.04'
       python.version: '3.5'
-    Python36:
+    linux-python36:
+      imageName: 'ubuntu-16.04'
       python.version: '3.6'
-    Python37:
+    linux-python37:
+      imageName: 'ubuntu-16.04'
       python.version: '3.7'
+    mac-python35:
+      imageName: 'macos-10.13'
+      python.version: '3.5'
+    mac-python36:
+      imageName: 'macos-10.13'
+      python.version: '3.6'
+    mac-python37:
+      imageName: 'macos-10.13'
+      python.version: '3.7'
+    windows-x86-python35:
+      imageName: 'vs2017-win2016'
+      python.version: '3.5'
+      python.arch: 'x86'
+    windows-x86-python36:
+      imageName: 'vs2017-win2016'
+      python.version: '3.6'
+      python.arch: 'x86'
+    windows-x86-python37:
+      imageName: 'vs2017-win2016'
+      python.version: '3.7'
+      python.arch: 'x86'
+    windows-x64-python35:
+      imageName: 'vs2017-win2016'
+      python.version: '3.5'
+      python.arch: 'x64'
+    windows-x64-python36:
+      imageName: 'vs2017-win2016'
+      python.version: '3.6'
+      python.arch: 'x64'
+    windows-x64-python37:
+      imageName: 'vs2017-win2016'
+      python.version: '3.7'
+      python.arch: 'x64'
+  maxParallel: 3
+
+pool:
+  vmImage: $(imageName)
 
 steps:
 - task: UsePythonVersion@0
   inputs:
-    versionSpec: '$(python.version)'
-  displayName: 'Use Python $(python.version)'
+    versionSpec: $(python.version)
+    architecture: $(python.arch)
+    addToPath: true
+  displayName: 'Use Python $(python.version) $(python.arch)'
 
 - script: |
     python -m pip install --upgrade pip setuptools wheel
     pip install -r requirements_dev.txt
     pip install pytest-azurepipelines
-  displayName: 'Install testing dependencies'
+  displayName: "Install testing dependencies"
 
 - script: |
     check-manifest
     python setup.py sdist bdist_wheel
     twine check dist/*
     python -c "import prism; prism.get_info()"
-  displayName: 'Test deployability'
+  displayName: "Test deployability"
 
 - script: |
     pytest
-  displayName: 'Test package'
+  displayName: "Test package"
