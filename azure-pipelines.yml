@@ -17,9 +17,6 @@ strategy:
     linux-python37:
       imageName: 'ubuntu-16.04'
       python.version: '3.7'
-    mac-python35:
-      imageName: 'macos-10.13'
-      python.version: '3.5'
     mac-python36:
       imageName: 'macos-10.13'
       python.version: '3.6'
@@ -27,7 +24,7 @@ strategy:
       imageName: 'macos-10.13'
       python.version: '3.7'
     windows-x86-python35:
-      imageName: 'vs2017-win2016'
+      imageName: 'windows-2019'
       python.version: '3.5'
       python.arch: 'x86'
     windows-x86-python36:
