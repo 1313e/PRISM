@@ -28,26 +28,26 @@ strategy:
       python.version: '3.5'
       python.arch: 'x86'
     windows-x86-python36:
-      imageName: 'vs2017-win2016'
+      imageName: 'windows-2019'
       python.version: '3.6'
       python.arch: 'x86'
     windows-x86-python37:
-      imageName: 'vs2017-win2016'
+      imageName: 'windows-2019'
       python.version: '3.7'
       python.arch: 'x86'
     windows-x64-python35:
-      imageName: 'vs2017-win2016'
+      imageName: 'windows-2019'
       python.version: '3.5'
       python.arch: 'x64'
     windows-x64-python36:
-      imageName: 'vs2017-win2016'
+      imageName: 'windows-2019'
       python.version: '3.6'
       python.arch: 'x64'
     windows-x64-python37:
-      imageName: 'vs2017-win2016'
+      imageName: 'windows-2019'
       python.version: '3.7'
       python.arch: 'x64'
-  maxParallel: 3
+  maxParallel: 10
 
 pool:
   vmImage: $(imageName)
