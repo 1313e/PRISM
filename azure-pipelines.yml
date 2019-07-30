@@ -92,6 +92,6 @@ steps:
   displayName: Install MPI distribution on Mac OS-X
 # Windows
 - powershell: |
-
+    
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
