@@ -94,8 +94,7 @@ steps:
 - powershell: |
     iwr -outf ../MSIMpiSetup.exe https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSetup.exe
     ../MSIMpiSetup.exe -unattend -force
-    set MSMPI
-    set PATH
+    Get-ChildItem Env:
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
 
