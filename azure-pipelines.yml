@@ -63,12 +63,13 @@ steps:
     addToPath: true
   displayName: 'Use Python $(python.version) $(python.arch)'
 
+# Install dependencies and PRISM
 - script: |
     python -m pip install --upgrade pip setuptools wheel
     pip install -r requirements_dev.txt
-    pip install pytest-azurepipelines
   displayName: "Install testing dependencies"
 
+# Test deployability
 - script: |
     check-manifest
     python setup.py sdist bdist_wheel
@@ -76,6 +77,24 @@ steps:
     python -c "import prism; prism.get_info()"
   displayName: "Test deployability"
 
+# Test package in serial
 - script: |
-    pytest
-  displayName: "Test package"
+    coverage run --rcfile=setup.cfg -m pytest
+  displayName: "Test package in serial"
+
+# Install MPI
+# Linux
+- bash: |
+    sudo apt-get install -y -q openmpi-bin libopenmpi-dev
+  condition: eq(variables['Agent.OS'], 'Linux')
+  displayName: Install MPI distribution on Linux
+# Mac OS-X
+- bash: |
+    brew install openmpi
+  condition: eq(variables['Agent.OS'], 'Darwin')
+  displayName: Install MPI distribution on Mac OS-X
+# Windows
+- powershell: |
+
+  condition: eq(variables['Agent.OS'], 'Windows_NT')
+  displayName: Install MPI distribution on Windows
