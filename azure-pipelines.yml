@@ -58,13 +58,13 @@ steps:
     versionSpec: $(python.version)
     architecture: $(python.arch)
     addToPath: true
-  displayName: 'Use Python $(python.version) $(python.arch)'
+  displayName: Use Python $(python.version) $(python.arch)
 
 # Install dependencies and PRISM
 - script: |
     python -m pip install --upgrade pip setuptools wheel
     pip install -r requirements_dev.txt
-  displayName: "Install testing dependencies"
+  displayName: Install testing dependencies
 
 # Test deployability
 - script: |
@@ -72,12 +72,12 @@ steps:
     python setup.py sdist bdist_wheel
     twine check dist/*
     python -c "import prism; prism.get_info()"
-  displayName: "Test deployability"
+  displayName: Test deployability
 
 # Test package in serial
 - script: |
     coverage run --rcfile=setup.cfg -m pytest
-  displayName: "Test package in serial"
+  displayName: Test package in serial
 
 # Install MPI
 # Linux
@@ -92,6 +92,28 @@ steps:
   displayName: Install MPI distribution on Mac OS-X
 # Windows
 - powershell: |
-    
+    iwr -outf ../MSIMpiSetup.exe https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSetup.exe
+    ../MSIMpiSetup.exe -unattend -force
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
+
+# Install mpi4py
+- script: |
+    pip install mpi4py --no-cache-dir
+  displayName: Install mpi4py
+
+# Test package in MPI
+- script: |
+    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
+  displayName: Test package in MPI
+
+# Report coverage
+- script: |
+    coverage combine
+    coverage report -m
+  displayName: Coverage report
+
+# Upload covarage report to CodeCov
+- script: |
+    codecov
+  displayName: Upload coverage report
