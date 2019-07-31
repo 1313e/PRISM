@@ -104,7 +104,7 @@ steps:
 
 # Install mpi4py
 - script: |
-    echo variables['Agent.Path']
+    echo $Path
     pip install mpi4py --no-cache-dir
   displayName: Install mpi4py
 
