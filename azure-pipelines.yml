@@ -99,7 +99,6 @@ steps:
     iwr -outf ..\MSMpiSetup.exe https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSetup.exe
     Start-Process ..\MSMpiSetup.exe -ArgumentList "-unattend -force -verbose" -Wait
     pip install --no-cache-dir mpi4py
-    python -c "import mpi4py.MPI; print(mpi4py.MPI.get_vendor())"
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
 
@@ -111,6 +110,8 @@ steps:
 
 # Test package in MPI
 - script: |
+    if [[eq(variables['Agent.OS'], 'Windows_NT')]]; then
+      echo Hoi
     mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
   displayName: Test package in MPI
 
