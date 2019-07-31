@@ -111,6 +111,7 @@ steps:
 # Install mpi4py
 - script: |
     pip install mpi4py --no-cache-dir
+    python -c "import mpi4py; mpi4py.MPI.get_vendor()"
   displayName: Install mpi4py
 
 # Test package in MPI
