@@ -92,13 +92,10 @@ steps:
   displayName: Install MPI distribution on Mac OS-X
 # Windows
 - powershell: |
-    iwr -outf ..\MSIMpiSetup.exe https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSetup.exe
-    Start-Process ..\MSIMpiSetup.exe -ArgumentList "-unattend -force -verbose" -Wait
-    $Env:MSMPI_BIN = "C:\Program Files\Microsoft MPI\Bin"
-    $Env:Path += "C:\Program Files\Microsoft MPI\Bin"
-    refreshenv
-    Get-ChildItem Env:
-    Get-ChildItem Env:Path
+    iwr -outf ..\MSMpiSetup.exe https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSetup.exe
+    Start-Process ..\MSMpiSetup.exe -ArgumentList "-unattend -force -verbose" -Wait
+    iwr -outf ..\MSMpiSDK.msi https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSDK.msi
+    Start-Process ..\MSMpiSDK.msi -ArgumentList "/quiet /qn" -Wait
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
 
@@ -111,7 +108,7 @@ steps:
 # Install mpi4py
 - script: |
     pip install mpi4py --no-cache-dir
-    python -c "import mpi4py; mpi4py.MPI.get_vendor()"
+    python -c "import mpi4py.MPI; mpi4py.MPI.get_vendor()"
   displayName: Install mpi4py
 
 # Test package in MPI
