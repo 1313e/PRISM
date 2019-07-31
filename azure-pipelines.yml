@@ -102,9 +102,14 @@ steps:
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
 
+- powershell: |
+    Get-ChildItem Env:
+    Get-ChildItem Env:Path
+  condition: eq(variables['Agent.OS'], 'Windows_NT')
+  displayName: Testing
+
 # Install mpi4py
 - script: |
-    echo $Path
     pip install mpi4py --no-cache-dir
   displayName: Install mpi4py
 
