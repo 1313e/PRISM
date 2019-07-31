@@ -97,7 +97,7 @@ steps:
     $Env:MSMPI_BIN = "C:\Program Files\Microsoft MPI\Bin"
     $Env:Path += "C:\Program Files\Microsoft MPI\Bin"
     refreshenv
-    Get-ChildItem $Env
+    Get-ChildItem Env:
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
 
