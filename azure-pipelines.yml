@@ -98,11 +98,13 @@ steps:
     $Env:Path += "C:\Program Files\Microsoft MPI\Bin"
     refreshenv
     Get-ChildItem Env:
+    Get-ChildItem Env:Path
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
 
 # Install mpi4py
 - script: |
+    echo variables['Agent.Path']
     pip install mpi4py --no-cache-dir
   displayName: Install mpi4py
 
