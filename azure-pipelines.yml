@@ -100,6 +100,7 @@ steps:
     Start-Process ..\MSMpiSetup.exe -ArgumentList "-unattend -force -verbose" -Wait
     [Environment]::SetEnvironmentVariable("MSMPI_BIN", "C:\Program Files\Microsoft MPI\Bin", "Machine")
     [Environment]::SetEnvironmentVariable("Path", "C:\Program Files\Microsoft MPI\Bin;"+[Environment]::GetEnvironmentVariable("Path","Machine"), "Machine")
+    refreshenv
     [Environment]::GetEnvironmentVariable("Path","Machine")
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
