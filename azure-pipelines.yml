@@ -63,6 +63,8 @@ steps:
 # Set PATH variables for Windows
 - powershell: |
     [Environment]::SetEnvironmentVariable("TestVariable", "Test value.", "User")
+    iets = [Environment]::GetEnvironmentVariable("TestVariable", "User")
+    [Environment]::SetEnvironmentVariable("TestVariable", "Test value2."+$iets, "User")
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Setting PATH on Windows
 
@@ -106,6 +108,8 @@ steps:
     Start-Process ..\MSMpiSetup.exe -ArgumentList "-unattend -force -verbose" -Wait
     Get-ChildItem Env:
     [Environment]::GetEnvironmentVariable("TestVariable","User")
+#    [Environment]::SetEnvironmentVariable("MSMPI_BIN", "C:\Program Files\Microsoft MPI\Bin", "User")
+#    [Environment]::SetEnvironmentVariable("MSMPI_BIN", "C:\Program Files\Microsoft MPI\Bin", "User")
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
 
