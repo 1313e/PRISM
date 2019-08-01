@@ -100,7 +100,6 @@ steps:
     Start-Process ..\MSMpiSetup.exe -ArgumentList "-unattend -force -verbose" -Wait
     [Environment]::SetEnvironmentVariable("MSMPI_BIN", "C:\Program Files\Microsoft MPI\Bin", "Machine")
     [Environment]::SetEnvironmentVariable("Path", "C:\Program Files\Microsoft MPI\Bin;"+[Environment]::GetEnvironmentVariable("Path","Machine"), "Machine")
-#    [Environment]::SetEnvironmentVariable("Path", "C:\Program Files\Microsoft MPI\Bin;"+[Environment]::GetEnvironmentVariable("Path", "User"), "User")
     refreshenv
     [Environment]::GetEnvironmentVariable("Path","Machine")
     Get-ChildItem Env:
