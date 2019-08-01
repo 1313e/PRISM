@@ -62,7 +62,7 @@ steps:
 
 # Set PATH variables for Windows
 - powershell: |
-    [Environment]::SetEnvironmentVariable("TestVariable", "Test value.", "User")
+    [Environment]::SetEnvironmentVariable("TestVariable", "Test value.", "Process")
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Setting PATH on Windows
 
