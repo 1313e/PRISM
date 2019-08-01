@@ -101,6 +101,7 @@ steps:
     [Environment]::SetEnvironmentVariable("MSMPI_BIN", "C:\Program Files\Microsoft MPI\Bin", "User")
     [Environment]::SetEnvironmentVariable("Path", "C:\Program Files\Microsoft MPI\Bin;"+[Environment]::GetEnvironmentVariable("Path","User"), "User")
     [Environment]::GetEnvironmentVariable("Path","User")
+    mpiexec
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
 
