@@ -110,15 +110,6 @@ class CustomModelLink(ModelLink):
         return([[1, 1]]*len(data_idx))
 
 
-## Flat ModelLink class
-#class FlatLink(ModelLink):
-#    def call_model(self, data_idx, *args, **kwargs):
-#        return(np.ones_like(data_idx)*1000)
-#
-#    def get_md_var(self, data_idx, *args, **kwargs):
-#        return([[1, 1]]*len(data_idx))
-
-
 # Custom List class that reports wrong length
 class InvalidLen2List(list):
     def __len__(self):
@@ -1135,21 +1126,6 @@ class Test_Pipeline_Emulator_Versatility(object):
         pipe = Pipeline(modellink_obj, root_dir=root_dir,
                         working_dir=working_dir, prism_par=prism_dict)
         pipe.construct(1)
-
-#    # Test if using a flat model returns valid regression functions
-#    def test_flat_model(self, tmpdir):
-#        root_dir = path.dirname(tmpdir.strpath)
-#        working_dir = path.basename(tmpdir.strpath)
-#        model_parameters = {'A': [0, 1],
-#                            'B': [0, 1]}
-#        model_data = {1: [1, 0.05, 'lin'],
-#                      2: [2, 0.05, 'lin'],
-#                      4: [3, 0.05, 'lin']}
-#        modellink_obj = FlatLink(model_parameters=model_parameters,
-#                                 model_data=model_data)
-#        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-#                        working_dir=working_dir, prism_par=prism_dict_def)
-#        pipe.construct(1, analyze=False)
 
     # Test if different data_idx sequences can be loaded properly
     def test_data_idx_seq(self, tmpdir):
