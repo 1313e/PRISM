@@ -79,42 +79,43 @@ steps:
 #    coverage run --rcfile=setup.cfg -m pytest
 #  displayName: Test package in serial
 
-# Install MPI
+# Install MPI, mpi4py and run MPI tests
 # Linux
 - bash: |
     sudo apt-get install -y -q openmpi-bin libopenmpi-dev
     pip install --no-cache-dir mpi4py
+    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
   condition: eq(variables['Agent.OS'], 'Linux')
-  displayName: Install MPI distribution on Linux
+  displayName: Install MPI distribution on Linux and run in MPI
 # Mac OS-X
 - bash: |
     brew install openmpi
     pip install --no-cache-dir mpi4py
+    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
   condition: eq(variables['Agent.OS'], 'Darwin')
-  displayName: Install MPI distribution on Mac OS-X
+  displayName: Install MPI distribution on Mac OS-X and run in MPI
 # Windows
 - powershell: |
     iwr -outf ..\MSMpiSDK.msi https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSDK.msi
     Start-Process ..\MSMpiSDK.msi -ArgumentList "/quiet /qn" -Wait
     iwr -outf ..\MSMpiSetup.exe https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSetup.exe
     Start-Process ..\MSMpiSetup.exe -ArgumentList "-unattend -force -verbose" -Wait
-    [Environment]::SetEnvironmentVariable("MSMPI_BIN", "C:\Program Files\Microsoft MPI\Bin", "Machine")
-    [Environment]::SetEnvironmentVariable("Path", "C:\Program Files\Microsoft MPI\Bin;"+[Environment]::GetEnvironmentVariable("Path", "User"), "User")
-    refreshenv
-    [Environment]::GetEnvironmentVariable("Path","Machine")
-    Get-ChildItem Env:
+    $env:MSMPI_BIN = "C:\Program Files\Microsoft MPI\Bin"
+    $env:Path += C:\Program Files\Microsoft MPI\Bin;"
+    pip install --no-cache-dir mpi4py
+    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
   condition: eq(variables['Agent.OS'], 'Windows_NT')
-  displayName: Install MPI distribution on Windows
+  displayName: Install MPI distribution on Windows and run in MPI
 
 # Install mpi4py
-- script: |
-    pip install --no-cache-dir mpi4py
-  displayName: Install mpi4py
+#- script: |
+#    pip install --no-cache-dir mpi4py
+#  displayName: Install mpi4py
 
 # Test package in MPI
-- script: |
-    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
-  displayName: Test package in MPI
+#- script: |
+#    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
+#  displayName: Test package in MPI
 
 # Report coverage
 - script: |
