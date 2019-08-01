@@ -1619,6 +1619,8 @@ class Emulator(object):
             poly_coef = poly_coef[poly_sign if sum(poly_sign) else ()]
 
             # Redetermine the active parameters, poly_powers and poly_idx
+            # TODO: If no parameters are active, this fails
+            # Should this be allowed (intercept only)?
             new_active_par_idx = [np.any(powers) for powers in poly_powers.T]
             poly_powers = poly_powers[:, new_active_par_idx]
             new_active_par =\
