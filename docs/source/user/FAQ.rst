@@ -24,8 +24,8 @@ A list of the most commonly used terms in *PRISM* can be found on the :ref:`term
 What OS are supported?
 ----------------------
 *PRISM* should be compatible with all Windows, Mac OS and UNIX-based machines, as long as they support one of the required Python versions.
-Compatibility is currently tested for Linux 16.04 (Xenial)/Mac OS-X using `Travis CI`_ and Windows 32-bit/64-bit using `AppVeyor`_.
+Compatibility is currently tested for Linux 16.04 (Xenial)/Mac OS-X using `Travis CI`_, Windows 32-bit/64-bit using `AppVeyor`_ and all OS using `Azure Pipelines`_.
 
 .. _Travis CI: https://travis-ci.com/1313e/PRISM
 .. _AppVeyor: https://ci.appveyor.com/project/1313e/PRISM
-
+.. _Azure Pipelines: https://dev.azure.com/1313e/PRISM/_build/latest?definitionId=1
