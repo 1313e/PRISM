@@ -60,6 +60,12 @@ steps:
     addToPath: true
   displayName: Use Python $(python.version) $(python.arch)
 
+# Set PATH variables for Windows
+- powershell: |
+    [Environment]::SetEnvironmentVariable("TestVariable", "Test value.", "User")
+  condition: eq(variables['Agent.OS'], 'Windows_NT')
+  displayName: Setting PATH on Windows
+
 # Install dependencies and PRISM
 #- script: |
 #    python -m pip install --upgrade pip setuptools wheel
@@ -79,7 +85,7 @@ steps:
 #    coverage run --rcfile=setup.cfg -m pytest
 #  displayName: Test package in serial
 
-# Install MPI and mpi4py
+# Install MPI
 # Linux
 - bash: |
     sudo apt-get install -y -q openmpi-bin libopenmpi-dev
@@ -98,20 +104,17 @@ steps:
     Start-Process ..\MSMpiSDK.msi -ArgumentList "/quiet /qn" -Wait
     iwr -outf ..\MSMpiSetup.exe https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSetup.exe
     Start-Process ..\MSMpiSetup.exe -ArgumentList "-unattend -force -verbose" -Wait
-    pip install --no-cache-dir mpi4py
+    Get-ChildItem Env:
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
 
-- powershell: |
-    Get-ChildItem Env:
-    Get-ChildItem Env:Path
-  condition: eq(variables['Agent.OS'], 'Windows_NT')
-  displayName: Testing
+# Install mpi4py
+- script: |
+    pip install --no-cache-dir mpi4py
+  displayName: Install mpi4py
 
 # Test package in MPI
 - script: |
-    if [[eq(variables['Agent.OS'], 'Windows_NT')]]; then
-      echo Hoi
     mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
   displayName: Test package in MPI
 
