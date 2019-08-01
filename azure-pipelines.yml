@@ -17,9 +17,6 @@ strategy:
     linux-python37:
       imageName: 'ubuntu-16.04'
       python.version: '3.7'
-    mac-python36:
-      imageName: 'macos-10.13'
-      python.version: '3.6'
     mac-python37:
       imageName: 'macos-10.13'
       python.version: '3.7'
