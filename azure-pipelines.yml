@@ -60,13 +60,6 @@ steps:
     addToPath: true
   displayName: Use Python $(python.version) $(python.arch)
 
-# Set PATH variables for Windows
-- powershell: |
-    [Environment]::SetEnvironmentVariable("TestVariable", "Test value.", "User")
-    [Environment]::SetEnvironmentVariable("TestVariable", "Test value2."+[Environment]::GetEnvironmentVariable("TestVariable", "User"), "User")
-  condition: eq(variables['Agent.OS'], 'Windows_NT')
-  displayName: Setting PATH on Windows
-
 # Install dependencies and PRISM
 #- script: |
 #    python -m pip install --upgrade pip setuptools wheel
@@ -105,10 +98,9 @@ steps:
     Start-Process ..\MSMpiSDK.msi -ArgumentList "/quiet /qn" -Wait
     iwr -outf ..\MSMpiSetup.exe https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSetup.exe
     Start-Process ..\MSMpiSetup.exe -ArgumentList "-unattend -force -verbose" -Wait
-    Get-ChildItem Env:
-    [Environment]::GetEnvironmentVariable("TestVariable","User")
-#    [Environment]::SetEnvironmentVariable("MSMPI_BIN", "C:\Program Files\Microsoft MPI\Bin", "User")
-#    [Environment]::SetEnvironmentVariable("MSMPI_BIN", "C:\Program Files\Microsoft MPI\Bin", "User")
+    [Environment]::SetEnvironmentVariable("MSMPI_BIN", "C:\Program Files\Microsoft MPI\Bin", "User")
+    [Environment]::SetEnvironmentVariable("Path", "C:\Program Files\Microsoft MPI\Bin"+[Environment]::GetEnvironmentVariable("Path","User"), "User")
+    [Environment]::GetEnvironmentVariable("Path","User")
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows
 
