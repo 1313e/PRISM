@@ -88,9 +88,9 @@ ext_mod_set_doc =\
             provided model evaluation samples."""
 ext_real_set_doc =\
         """ext_real_set : list, dict or None{0}{1}
-            List of arrays containing an externally calculated set of model
+            List of dicts containing an externally calculated set of model
             evaluation samples and its data values, a dict with keys
-            ``['sam_set', 'mod_set']`` containing these arrays or *None* if no
+            ``['sam_set', 'mod_set']`` containing these dicts or *None* if no
             external set needs to be used."""
 ext_real_set_doc_s = ext_real_set_doc.format("", "")
 ext_real_set_doc_d = ext_real_set_doc.format(ds, "None")

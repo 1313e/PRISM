@@ -613,12 +613,29 @@ class Test_Pipeline_User_Exceptions(object):
         with pytest.raises(InputError):
             pipe.construct(1, analyze=0, ext_real_set=(1))
 
+    # Try using an ext_real_set with ext_sam_set list
+    def test_ext_sam_set_list(self, pipe):
+        with pytest.raises(TypeError):
+            pipe.construct(1, analyze=0, ext_real_set=[
+                np.ones([2, pipe._modellink._n_par]),
+                np.ones([2, pipe._modellink._n_data])])
+
+    # Try using an ext_real_set with ext_mod_set list
+    def test_ext_mod_set_list(self, pipe):
+        with pytest.raises(TypeError):
+            pipe.construct(1, analyze=0, ext_real_set=[
+                dict(zip(pipe._modellink._par_name,
+                         np.ones([2, pipe._modellink._n_par]).T)),
+                np.ones([2, pipe._modellink._n_data])])
+
     # Try using an ext_real_set with inconsistent n_sam
     def test_ext_real_set_n_sam(self, pipe):
         with pytest.raises(ShapeError):
             pipe.construct(1, analyze=0, ext_real_set=[
-                np.ones([2, pipe._modellink._n_par]),
-                np.ones([1, pipe._modellink._n_data])])
+                dict(zip(pipe._modellink._par_name,
+                         np.ones([1, pipe._modellink._n_par]).T)),
+                dict(zip(pipe._modellink._data_idx,
+                         np.ones([2, pipe._modellink._n_data]).T))])
 
     # Try analyzing the emulator with an emul_type other than 'default'
     def test_non_default_emul_type_analyze(self, pipe):
@@ -1040,11 +1057,11 @@ class Test_Pipeline_ModelLink_Versatility(object):
         sam_set = lhd(pipe2D._n_sam_init*2, pipe2D._modellink._n_par,
                       pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
         sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
-        mod_set = pipe2D._modellink.call_model(
+        mod_dict = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
         # Try to construct the iteration
-        pipe2D.construct(1, analyze=0, ext_real_set=[sam_set, mod_set])
+        pipe2D.construct(1, analyze=0, ext_real_set=[sam_dict, mod_dict])
 
     # Test if an ext_real_set smaller than n_sam_init can be provided
     def test_ext_real_set_small(self, pipe2D):
@@ -1052,11 +1069,11 @@ class Test_Pipeline_ModelLink_Versatility(object):
         sam_set = lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
                       pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
         sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
-        mod_set = pipe2D._modellink.call_model(
+        mod_dict = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
         # Try to construct the iteration
-        pipe2D.construct(1, analyze=0, ext_real_set=[sam_set, mod_set])
+        pipe2D.construct(1, analyze=0, ext_real_set=[sam_dict, mod_dict])
 
     # Test if an ext_real_set dict can be provided
     def test_ext_real_set_dict(self, pipe2D):
@@ -1064,12 +1081,12 @@ class Test_Pipeline_ModelLink_Versatility(object):
         sam_set = lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
                       pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
         sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
-        mod_set = pipe2D._modellink.call_model(
+        mod_dict = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
         # Try to construct the iteration
         pipe2D.construct(1, analyze=0, ext_real_set={
-            'sam_set': sam_set, 'mod_set': mod_set})
+            'sam_set': sam_dict, 'mod_set': mod_dict})
 
     # Test if double md_var values can be returned
     def test_double_md_var(self, tmpdir):
@@ -1145,13 +1162,27 @@ class Test_Pipeline_Emulator_Versatility(object):
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
         prism_dict = get_prism_dict({'use_mock': False})
+        model_data = {2: [1, 0.05, 'lin'],
+                      3: [2, 0.05, 'lin'],
+                      4: [3, 0.05, 'lin'],
+                      5: [3, 0.05, 'lin']}
         modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
-                                       model_data=model_data_single)
+                                       model_data=model_data)
         pipe = Pipeline(modellink_obj, root_dir=root_dir,
                         working_dir=working_dir, prism_par=prism_dict)
         pipe.construct(1)
 
-        # Change data for second iteration
+        # Change data for first iteration
+        model_data = {2: [1, 0.05, 'lin'],
+                      3: [2, 0.05, 'lin'],
+                      4: [3, 0.05, 'lin']}
+        modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
+                                       model_data=model_data)
+        pipe = Pipeline(modellink_obj, root_dir=root_dir,
+                        working_dir=working_dir, prism_par=prism_dict)
+        pipe.construct(1, force=1)
+
+        # Change data back again for second iteration
         model_data = {2: [1, 0.05, 'lin'],
                       3: [2, 0.05, 'lin'],
                       4: [3, 0.05, 'lin'],

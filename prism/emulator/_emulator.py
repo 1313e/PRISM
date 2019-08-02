@@ -898,7 +898,12 @@ class Emulator(object):
         emul_s_counter = Counter()
 
         # Calculate the total number of active and passive emulator systems
-        n_emul_s = max(self._modellink._n_data, self._n_emul_s_tot)
+        if not self._emul_load:
+            # If no emulator is loaded, this is always n_data
+            n_emul_s = self._modellink._n_data
+        else:
+            # Else, it is either n_data or n_emul_s_tot
+            n_emul_s = max(self._modellink._n_data, self._n_emul_s_tot)
 
         # Create some empty lists
         active_emul_s_list = [[]]
@@ -1178,8 +1183,9 @@ class Emulator(object):
             # Gather the diff_flags on the controller
             diff_flag = np.any(self._comm.gather(diff_flag, 0))
 
-            # If all diff_flags were 0, give out a warning
-            if self._is_controller and not diff_flag:
+            # If all diff_flags were 0 and no n_data diff, give out a warning
+            if(self._is_controller and not diff_flag and
+               (self._n_data_tot[emul_i] == self._modellink._n_data)):
                 warn_msg = ("No differences in model comparison data detected."
                             "\nUnless this repreparation was intentional, "
                             "using the 'analyze' method of the Pipeline class "

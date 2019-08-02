@@ -188,6 +188,12 @@ class Test_ModelLink_Check_Methods(object):
             modellink_obj._check_sam_set(np.zeros([1, modellink_obj._n_par]),
                                          'sam_set')
 
+    # Test a mod_dict with incorrect data_idx
+    def test_mod_dict_invalid_data_idx(self, modellink_obj):
+        mod_dict = dict(zip(['test'], np.ones([1, modellink_obj._n_data]).T))
+        with pytest.raises(KeyError):
+            modellink_obj._check_mod_set(mod_dict, 'mod_dict')
+
     # Test an md_var with wrong n_Data
     def test_md_var_n_data(self, modellink_obj):
         with pytest.raises(ShapeError):

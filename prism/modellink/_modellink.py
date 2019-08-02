@@ -585,7 +585,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         mod_set : 1D or 2D :obj:`~numpy.ndarray` object
             The provided `mod_set` if the validation was successful. If
             `mod_set` was a dict, it will be converted to a
-            :obj:`~numpy.ndarray` object.
+            :obj:`~numpy.ndarray` object (sorted on :attr:`~data_idx`).
 
         """
 
@@ -593,9 +593,14 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         logger = getCLogger('CHECK')
         logger.info("Validating provided set of model outputs %r." % (name))
 
-        # If mod_set is a dict, convert it to a NumPy array
+        # If mod_set is a dict, try to convert it to a NumPy array
         if isinstance(mod_set, dict):
-            mod_set = np_array([mod_set[idx] for idx in mod_set.keys()]).T
+            try:
+                mod_set = np_array([mod_set[idx] for idx in self._data_idx]).T
+            except KeyError as error:
+                err_msg = ("Input argument %r is missing data identifier '%r'!"
+                           % (name, error.args[0]))
+                raise_error(err_msg, KeyError, logger)
 
         # Make sure that mod_set is a NumPy array
         mod_set = np_array(mod_set)

@@ -1593,14 +1593,21 @@ class Pipeline(Projection, object):
         # Obtain number of samples
         n_sam = np.shape(sam_set)[0]
 
-        # Flatten the corresponding data_idx_to_core on the controller
+        # Do some preparations on the controller
         if self._is_controller:
+            # Flatten the corresponding data_idx_to_core
             data_idx_flat = []
             n_data = []
             for data_idx_rank in self._emulator._data_idx_to_core[emul_i]:
                 data_idx_rank = delist(data_idx_rank)
                 data_idx_flat.extend(data_idx_rank)
                 n_data.append(len(data_idx_rank))
+
+            # Sort ext_mod_set accordingly to data_idx_flat if provided
+            if ext_mod_set.shape[0]:
+                sort_idx = [self._modellink._data_idx.index(idx)
+                            for idx in data_idx_flat]
+                ext_mod_set = ext_mod_set[sort_idx]
 
         # Use dummy data_idx_flat on workers
         else:
@@ -2023,6 +2030,14 @@ class Pipeline(Projection, object):
         else:
             err_msg = "Input argument 'ext_real_set' is invalid!"
             raise_error(err_msg, InputError, logger)
+
+        # Check that ext_sam_set and ext_mod_set are dicts
+        if not isinstance(ext_sam_set, dict):
+            err_msg = "Input argument 'ext_sam_set' is not of type 'dict'!"
+            raise_error(err_msg, TypeError, logger)
+        if not isinstance(ext_mod_set, dict):
+            err_msg = "Input argument 'ext_mod_set' is not of type 'dict'!"
+            raise_error(err_msg, TypeError, logger)
 
         # Check ext_sam_set and ext_mod_set
         ext_sam_set = self._modellink._check_sam_set(ext_sam_set,
