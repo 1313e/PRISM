@@ -145,7 +145,7 @@ class Projection(object):
             (bottom/right) plot in the 2D projection figures. It takes all
             arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
-        los_kwargs_3D : dict. Default: {'cmap': 'blaze'}
+        los_kwargs_3D : dict. Default: {'cmap': 'frost'}
             Dict of keyword arguments to be used for making the line-of-sight
             (bottom/right) plot in the 3D projection figures. It takes all
             arguments that can be provided to the
@@ -201,6 +201,9 @@ class Projection(object):
         implausibility parameters of the last analysis are used. If not, then
         the values are used that were read in when the emulator was loaded or
         that have been set by the user.
+
+        All colormaps defined in the :mod:`~e13tools` package are loaded
+        automatically when *PRISM* is imported and can be used.
 
         """
 
@@ -958,7 +961,7 @@ class Projection(object):
         impl_kwargs_2D = {}
         impl_kwargs_3D = {'cmap': 'rainforest_r'}
         los_kwargs_2D = {}
-        los_kwargs_3D = {'cmap': 'blaze'}
+        los_kwargs_3D = {'cmap': 'frost'}
         line_kwargs_est = {'linestyle': '--',
                            'color': 'grey'}
         line_kwargs_cut = {'color': 'r'}

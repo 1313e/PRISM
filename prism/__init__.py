@@ -23,12 +23,8 @@ the *PRISM* pipeline and holds all information about this model.
 
 
 # %% IMPORTS
-# Built-in imports
-import os
-
 # Package imports
 from e13tools import compare_versions as _compare_versions
-from e13tools.pyplot import import_cmaps
 from e13tools.utils import aux_char_set
 from mpi4pyd import MPI as _MPI
 
@@ -42,16 +38,13 @@ from ._pipeline import Pipeline
 
 # All declaration
 __all__ = ['emulator', 'modellink', 'utils', 'Pipeline', 'aux_char_set',
-           'get_info', 'import_cmaps']
+           'get_info']
 
 # Author declaration
 __author__ = "Ellert van der Velden (@1313e)"
 
 
 # %% EXECUTE INITIALIZING CODE
-# Import PRISM's custom cmaps
-import_cmaps(os.path.join(os.path.dirname(__file__), 'data'))
-
 # Check if MPI is being used and perform some checks on controller if size > 1
 if(_MPI.__package__ == 'mpi4py' and _MPI.COMM_WORLD.Get_size() > 1 and
    _MPI.COMM_WORLD.Get_rank() == 0):  # pragma: no cover
