@@ -164,6 +164,14 @@ class Test_get_walkers(object):
     def test_init_walkers_size(self, pipe):
         get_walkers(pipe, init_walkers=10)
 
+    # Try to request a specific number of walkers
+    def test_req_n_walkers(self, pipe):
+        if pipe._is_controller:
+            req_n_walkers = pipe._comm.bcast(pipe._n_impl_sam[-1]+1, 0)
+        else:
+            req_n_walkers = pipe._comm.bcast(None, 0)
+        get_walkers(pipe, req_n_walkers=req_n_walkers)
+
     # Try to provide a set of implausible init_walkers
     def test_no_plausible_init_walkers(self, pipe):
         with pytest.raises(InputError):

@@ -52,10 +52,17 @@ By default, it uses the available :attr:`~prism.Pipeline.impl_sam` of the last c
     >>> init_walkers = lhd(n_walkers, pipe.modellink.n_par, pipe.modellink.par_rng)
     >>> n, p0 = get_walkers(pipe, init_walkers=init_walkers)
 
+    >>> # Request 100 plausible starting positions (requires v1.1.4 or later)
+    >>> n, p0 = get_walkers(pipe, req_n_walkers=100)
+
 As *PRISM*'s sampling methods operate in parameter space, the :func:`~prism.utils.get_walkers` function automatically assumes that all starting positions are defined in parameter space.
 However, as some sampling methods use unit space, normalized starting positions can be requested by setting the `unit_space` input argument to :pycode:`True`.
 One has to keep in mind that, because of the way the emulator works, there is no guarantee for a specific number of plausible starting positions to be obtained.
 Having the desired emulator iteration already analyzed may give an indication how many starting positions in total need to be proposed to be left with a specific number.
+
+.. versionchanged:: 1.1.4
+    It is now possible to request a specific number of plausible starting positions by using the `req_n_walkers` input argument.
+    This will use a custom Metropolis-Hastings sampling algorithm to obtain the required number of starting positions, using the plausible samples in `init_walkers` as the start of every MCMC chain.
 
 When the initial positions of the MCMC walkers have been determined, one can use them in an MCMC parameter estimation algorithm, avoiding the burn-in phase.
 This in itself can already be very useful, but it does not allow for hybrid sampling yet.

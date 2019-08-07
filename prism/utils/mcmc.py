@@ -19,7 +19,9 @@ from e13tools import InputError
 from e13tools.sampling import lhd
 from e13tools.utils import docstring_substitute
 import numpy as np
+from numpy.random import multivariate_normal
 from sortedcontainers import SortedDict as sdict
+from tqdm import tqdm
 
 # PRISM imports
 from prism._docstrings import user_emul_i_doc
@@ -210,14 +212,15 @@ def get_hybrid_lnpost_fn(lnpost_fn, pipeline_obj, *, emul_i=None,
 # This function returns a set of valid MCMC walkers
 @docstring_substitute(emul_i=user_emul_i_doc)
 def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
-                unit_space=False, lnpost_fn=None, **kwargs):
+                req_n_walkers=None, unit_space=False, lnpost_fn=None,
+                **kwargs):
     """
     Analyzes proposed `init_walkers` and returns plausible `p0_walkers`.
 
     Analyzes sample set `init_walkers` in the provided `pipeline_obj` at
     iteration `emul_i` and returns all samples that are plausible to be used as
-    MCMC walkers. The provided samples and returned walkers should be/are given
-    in unit space if `unit_space` is *True*.
+    starting positions for MCMC walkers. The provided samples and returned
+    walkers should be/are given in unit space if `unit_space` is *True*.
 
     If `init_walkers` is *None*, returns :attr:`~prism.Pipeline.impl_sam`
     instead if it is available.
@@ -228,7 +231,8 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
     ----------
     pipeline_obj : :obj:`~prism.Pipeline` object
         The instance of the :class:`~prism.Pipeline` class that needs to be
-        used for determining the plausibility of the proposed walkers.
+        used for determining the plausibility of the proposed starting
+        positions.
 
     Optional
     --------
@@ -240,6 +244,12 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
         samples.
         If *None*, return :attr:`~prism.Pipeline.impl_sam` corresponding to
         iteration `emul_i` instead.
+    req_n_walkers : int or None. Default: None
+        The minimum required number of plausible starting positions that should
+        be returned. If *None*, all plausible starting positions in
+        `init_walkers` are returned instead.
+
+        .. versionadded:: 1.1.4
     unit_space : bool. Default: False
         Bool determining whether or not the provided samples and returned
         walkers are given in unit space.
@@ -252,7 +262,8 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
     Returns
     -------
     n_walkers : int
-        Number of returned MCMC walkers.
+        Number of returned MCMC walkers. Note that this number can be higher
+        than `req_n_walkers` if not *None*.
     p0_walkers : 2D :obj:`~numpy.ndarray` object or dict
         Array containing plausible starting positions of valid MCMC walkers.
         If `init_walkers` was provided as a dict, `p0_walkers` will be a dict.
@@ -276,6 +287,13 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
     If `init_walkers` is *None* and emulator iteration `emul_i` has not been
     analyzed yet, a :class:`~prism._internal.RequestError` will be raised.
 
+    If `req_n_walkers` is not *None*, a custom Metropolis-Hastings sampling
+    algorithm is used to generate the required number of starting positions.
+    All plausible samples in `init_walkers` are used as the start of every MCMC
+    chain. Note that if the number of plausible samples in `init_walkers` is
+    small, it is possible that the returned `p0_walkers` are not spread out
+    properly over parameter space.
+
     """
 
     # Make abbreviation for pipeline_obj
@@ -293,6 +311,11 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
 
     # Get emulator iteration
     emul_i = pipe._emulator._get_emul_i(emul_i, True)
+
+    # If req_n_walkers is not None, check if it is an integer
+    if req_n_walkers is not None:
+        req_n_walkers = check_vals(req_n_walkers, 'req_n_walkers', 'int',
+                                   'pos')
 
     # Check if unit_space is a bool
     unit_space = check_vals(unit_space, 'unit_space', 'bool')
@@ -374,13 +397,17 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
         # Analyze init_walkers and save them as p0_walkers
         p0_walkers = pipe._evaluate_sam_set(emul_i, init_walkers, 'analyze')
 
-    # Calculate n_walkers
-    n_walkers = len(p0_walkers)
-
-    # Check if p0_walkers is not empty
-    if not n_walkers:
+    # Check if init_walkers is not empty and raise error if it is
+    if not p0_walkers.shape[0]:
         raise InputError("Input argument 'init_walkers' contains no plausible "
                          "samples!")
+
+    # If req_n_walkers is not None, use MH MCMC to find all required walkers
+    if req_n_walkers is not None:
+        n_walkers, p0_walkers = _do_mh_walkers(pipe, p0_walkers, req_n_walkers)
+    else:
+        p0_walkers = np.unique(p0_walkers, axis=0)
+        n_walkers = p0_walkers.shape[0]
 
     # Check if p0_walkers needs to be converted
     if unit_space:
@@ -395,6 +422,118 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
         return(n_walkers, p0_walkers, hybrid_lnpost)
     else:
         return(n_walkers, p0_walkers)
+
+
+# %% HIDDEN FUNCTION DEFINITIONS
+# This function uses MH sampling to find req_n_walkers initial positions
+def _do_mh_walkers(pipeline_obj, p0_walkers, req_n_walkers):
+    """
+    Generates `req_n_walkers` unique starting positions for MCMC walkers using
+    Metropolis-Hastings sampling and the provided `pipeline_obj` and
+    `p0_walkers`.
+
+    This function needs to be called by all MPI ranks.
+
+    Parameters
+    ----------
+    pipeline_obj : :obj:`~prism.Pipeline` object
+        The instance of the :class:`~prism.Pipeline` class that needs to be
+        used for determining the validity of a proposed sampling step.
+    p0_walkers : 2D :obj:`~numpy.ndarray` object
+        Sample set of starting positions for the MCMC chains.
+    req_n_walkers : int
+        The minimum required number of unique MCMC walker positions that must
+        be returned.
+
+    Returns
+    -------
+    n_walkers : int
+        Number of unique MCMC walker positions that are returned.
+    walkers : 2D :obj:`~numpy.ndarray` object
+        Array containing all unique MCMC walker positions.
+
+    Note
+    ----
+    Executing this function will temporarily disable all regular logging in the
+    provided :obj:`~prism.Pipeline` object. If logging was enabled before this
+    function was executed, it will be enabled again afterward.
+
+    """
+
+    # Make abbreviation for pipeline_obj
+    pipe = pipeline_obj
+
+    # Define function to check if proposed sam_set should be accepted
+    def advance_chain(sam_set):
+        # Make sure that sam_set is 2D
+        sam_set = np_array(sam_set, ndmin=2)
+
+        # Check if sam_set is within parameter space and reject if not
+        par_rng = pipe._modellink._par_rng
+        accept = ((par_rng[:, 0] <= sam_set)*(sam_set <= par_rng[:, 1])).all(1)
+
+        # Evaluate all non-rejected samples and accept if plausible
+        emul_i = pipe._emulator._emul_i
+        accept[accept] = pipe._make_call('_evaluate_sam_set', emul_i,
+                                         sam_set[accept], 'project')[0]
+
+        # Return which samples should be accepted or rejected
+        return(accept)
+
+    # Initialize array of final walkers
+    walkers = np.unique(p0_walkers, axis=0)
+    n_walkers = walkers.shape[0]
+
+    # Check if logging is currently turned on
+    was_logging = bool(pipe.do_logging)
+
+    # Make sure that logging is turned off
+    pipe.do_logging = False
+
+    # Use worker mode
+    with pipe.worker_mode:
+        if pipe._is_controller:
+            # Initialize progress bar
+            pbar = tqdm(desc="Finding walkers", total=req_n_walkers,
+                        initial=n_walkers, disable=not was_logging,
+                        bar_format=("{l_bar}{bar}| {n_fmt}/{total_fmt} "
+                                    "[Time: {elapsed}]"))
+
+            # Keep searching parameter space until req_n_walkers are found
+            while(n_walkers < req_n_walkers):
+                # Calculate the covariance matrix of all walkers
+                cov = np.cov(walkers.T)
+
+                # Create set of proposed walkers
+                new_walkers = np.apply_along_axis(multivariate_normal, 1,
+                                                  p0_walkers, cov)
+
+                # Check which proposed walkers should be accepted
+                accept = advance_chain(new_walkers)
+
+                # Replace current walkers with accepted walkers
+                p0_walkers[accept] = new_walkers[accept]
+
+                # Update final walkers array
+                walkers = np.unique(np.concatenate([walkers, p0_walkers],
+                                                   axis=0), axis=0)
+                n_walkers = walkers.shape[0]
+
+                # Update progress bar
+                pbar.update(min(req_n_walkers, n_walkers)-pbar.n)
+
+            # Close progress bar
+            pbar.close()
+
+    # Turn logging back on if it used to be on
+    pipe.do_logging = was_logging
+
+    # Broadcast walkers to all workers
+    walkers = pipe._comm.bcast(walkers, 0)
+    n_walkers = walkers.shape[0]
+
+    # Return n_walkers, walkers
+    return(n_walkers, walkers)
 
 
 # %% DEPRECATED FUNCTION DEFINITIONS
