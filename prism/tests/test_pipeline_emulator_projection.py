@@ -168,7 +168,8 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if pipeline data can be reloaded before analysis
     def test_reload(self, pipe):
-        pipe._load_data()
+        Pipeline(pipe._modellink, root_dir=pipe._root_dir,
+                 working_dir=pipe._working_dir)
 
     # Check if first iteration can be analyzed through using construct
     def test_construct_analyze(self, pipe):
@@ -200,7 +201,6 @@ class Test_Pipeline_Gaussian2D(object):
     # Try to access all Pipeline properties
     def test_access_pipe_props(self, pipe):
         check_instance(pipe, Pipeline)
-        pipe._comm.__dir__()
 
     # Try to access all Emulator properties
     def test_access_emul_props(self, pipe):

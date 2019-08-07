@@ -2605,8 +2605,14 @@ class Pipeline(Projection, object):
 
         # If iteration is already finished, analyze or show the details
         if c_from_start is None:
+            # Controller broadcasts to workers if analysis has been done yet
+            if self._is_controller:
+                n_eval_sam = self._comm.bcast(self._n_eval_sam[emul_i], 0)
+            else:
+                n_eval_sam = self._comm.bcast(None, 0)
+
             # If analyze was requested and has not been done yet, do analysis
-            if analyze and not self._n_eval_sam[emul_i]:
+            if analyze and not n_eval_sam:
                 self.analyze()
             # Else, show details
             else:

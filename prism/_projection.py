@@ -145,7 +145,7 @@ class Projection(object):
             (bottom/right) plot in the 2D projection figures. It takes all
             arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
-        los_kwargs_3D : dict. Default: {'cmap': 'frost'}
+        los_kwargs_3D : dict. Default: {'cmap': 'freeze'}
             Dict of keyword arguments to be used for making the line-of-sight
             (bottom/right) plot in the 3D projection figures. It takes all
             arguments that can be provided to the
@@ -961,7 +961,7 @@ class Projection(object):
         impl_kwargs_2D = {}
         impl_kwargs_3D = {'cmap': 'rainforest_r'}
         los_kwargs_2D = {}
-        los_kwargs_3D = {'cmap': 'frost'}
+        los_kwargs_3D = {'cmap': 'freeze'}
         line_kwargs_est = {'linestyle': '--',
                            'color': 'grey'}
         line_kwargs_cut = {'color': 'r'}
