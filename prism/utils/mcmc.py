@@ -481,8 +481,9 @@ def _do_mh_walkers(pipeline_obj, p0_walkers, req_n_walkers):
         return(accept)
 
     # Initialize array of final walkers
-    walkers = np.unique(p0_walkers, axis=0)
-    n_walkers = walkers.shape[0]
+    n_walkers = p0_walkers.shape[0]
+    walkers = np.empty([req_n_walkers+n_walkers-1, pipe._modellink._n_par])
+    walkers[:n_walkers] = p0_walkers
 
     # Check if logging is currently turned on
     was_logging = bool(pipe.do_logging)
@@ -502,7 +503,7 @@ def _do_mh_walkers(pipeline_obj, p0_walkers, req_n_walkers):
             # Keep searching parameter space until req_n_walkers are found
             while(n_walkers < req_n_walkers):
                 # Calculate the covariance matrix of all walkers
-                cov = np.cov(walkers.T)
+                cov = np.cov(walkers[:n_walkers].T)
 
                 # Create set of proposed walkers
                 new_walkers = np.apply_along_axis(multivariate_normal, 1,
@@ -510,14 +511,15 @@ def _do_mh_walkers(pipeline_obj, p0_walkers, req_n_walkers):
 
                 # Check which proposed walkers should be accepted
                 accept = advance_chain(new_walkers)
+                acc_walkers = new_walkers[accept]
+                n_accepted = sum(accept)
 
                 # Replace current walkers with accepted walkers
-                p0_walkers[accept] = new_walkers[accept]
+                p0_walkers[accept] = acc_walkers
 
                 # Update final walkers array
-                walkers = np.unique(np.concatenate([walkers, p0_walkers],
-                                                   axis=0), axis=0)
-                n_walkers = walkers.shape[0]
+                walkers[n_walkers:n_walkers+n_accepted] = acc_walkers
+                n_walkers += n_accepted
 
                 # Update progress bar
                 pbar.update(min(req_n_walkers, n_walkers)-pbar.n)
@@ -529,7 +531,7 @@ def _do_mh_walkers(pipeline_obj, p0_walkers, req_n_walkers):
     pipe.do_logging = was_logging
 
     # Broadcast walkers to all workers
-    walkers = pipe._comm.bcast(walkers, 0)
+    walkers = pipe._comm.bcast(walkers[:req_n_walkers], 0)
     n_walkers = walkers.shape[0]
 
     # Return n_walkers, walkers
