@@ -531,7 +531,7 @@ def _do_mh_walkers(pipeline_obj, p0_walkers, req_n_walkers):
     pipe.do_logging = was_logging
 
     # Broadcast walkers to all workers
-    walkers = pipe._comm.bcast(walkers[:req_n_walkers], 0)
+    walkers = pipe._comm.bcast(np.unique(walkers[:req_n_walkers], axis=0), 0)
     n_walkers = walkers.shape[0]
 
     # Return n_walkers, walkers

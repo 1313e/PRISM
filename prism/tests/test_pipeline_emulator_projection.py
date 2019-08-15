@@ -15,7 +15,7 @@ from mpi4pyd import MPI
 import numpy as np
 from py.path import local
 import pytest
-import pytest_mpl
+from pytest_mpl.plugin import switch_backend
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
@@ -155,7 +155,7 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if first iteration can be projected before analysis
     def test_project_pre_anal(self, pipe):
-        with pytest_mpl.plugin.switch_backend('Agg'):
+        with switch_backend('Agg'):
             pipe.project(proj_par=(0), figure=False)
             pipe.project(proj_par=(0), figure=True, proj_type='both',
                          show_cuts=True)
@@ -163,7 +163,7 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if first iteration can be projected again (unforced)
     def test_reproject_unforced(self, pipe):
-        with pytest_mpl.plugin.switch_backend('Agg'):
+        with switch_backend('Agg'):
             pipe.project()
 
     # Check if pipeline data can be reloaded before analysis
@@ -177,12 +177,12 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if first iteration can be reprojected (forced)
     def test_reproject_forced(self, pipe):
-        with pytest_mpl.plugin.switch_backend('Agg'):
+        with switch_backend('Agg'):
             pipe.project(force=True, smooth=True)
 
     # Check if figure data can be received
     def test_project_fig_data(self, pipe):
-        with pytest_mpl.plugin.switch_backend('Agg'):
+        with switch_backend('Agg'):
             pipe.project(smooth=True, figure=False)
 
     # Check if details overview of first iteration can be given
@@ -195,7 +195,7 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if entire second iteration can be created
     def test_run(self, pipe):
-        with pytest_mpl.plugin.switch_backend('Agg'):
+        with switch_backend('Agg'):
             pipe.run(2)
 
     # Try to access all Pipeline properties
@@ -287,7 +287,7 @@ class Test_Pipeline_Gaussian3D(object):
 
     # Check if first iteration can be projected
     def test_project(self, pipe):
-        with pytest_mpl.plugin.switch_backend('Agg'):
+        with switch_backend('Agg'):
             pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
                          fig_kwargs={'dpi': 10})
             pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
@@ -347,7 +347,7 @@ class Test_Pipeline_Gaussian3D_1_data(object):
 
     # Check if first iteration can be projected
     def test_project(self, pipe):
-        with pytest_mpl.plugin.switch_backend('Agg'):
+        with switch_backend('Agg'):
             pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
                          fig_kwargs={'dpi': 10})
             pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
