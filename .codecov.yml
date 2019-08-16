@@ -1,7 +1,5 @@
 codecov:
     token: 6a194e41-c88d-4b7e-af10-29d9f54f8d84
-    notify:
-        require_ci_to_pass: yes
 
 coverage:
     range: 90..100

@@ -43,4 +43,7 @@ install:
 build: false
 
 test_script:
-    - "pytest"
+    - "pytest --cov --cov-config=setup.cfg --cov-report=term-missing"
+
+on_success:
+    - "codecov"
