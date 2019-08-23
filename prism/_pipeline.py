@@ -283,7 +283,7 @@ class Pipeline(Projection, object):
             str_repr.append("emul_type=%s" % (emul_repr))
 
         # Return representation
-        return("Pipeline(%s)" % (", ".join(str_repr)))
+        return("%s(%s)" % (self.__class__.__name__, ", ".join(str_repr)))
 
     # %% CLASS PROPERTIES
     # MPI properties

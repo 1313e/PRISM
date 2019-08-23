@@ -16,8 +16,8 @@ import pytest
 from prism.__version__ import __version__, compat_version
 from prism._internal import (FeatureWarning, PRISM_Logger, RequestError,
                              RequestWarning, check_vals, check_compatibility,
-                             get_PRISM_File, get_info, getCLogger, getRLogger,
-                             np_array)
+                             get_PRISM_File, get_bibtex, get_info, getCLogger,
+                             getRLogger, np_array)
 
 # Save the path to this directory
 dirpath = path.dirname(__file__)
@@ -217,6 +217,12 @@ class Test_check_val(object):
     def test_args(self):
         with pytest.raises(ValueError):
             check_vals(1, 'int', 'invalid')
+
+
+# Pytest for the get_bibtex function
+def test_get_bibtex():
+    # Print the output of the get_bibtex() function
+    get_bibtex()
 
 
 # Pytest for the get_info function
