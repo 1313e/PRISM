@@ -1205,6 +1205,12 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             If dict, it has the identifiers in `data_idx` as its keys with
             either scalars or 1D array_likes as its values.
 
+        Note
+        ----
+        If this model is multi-called, then the parameter sets in the provided
+        `par_set` dict will be sorted in order of parameter name (e.g., sort on
+        first parameter first, then on second parameter, etc.).
+
         """
 
         # Raise NotImplementedError if only super() was called

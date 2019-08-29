@@ -23,7 +23,7 @@ from time import time
 
 # Package imports
 from e13tools import InputError, ShapeError
-from e13tools.math import nCr
+from e13tools.math import nCr, sort2D
 from e13tools.sampling import lhd
 from e13tools.utils import (convert_str_seq, delist, docstring_append,
                             docstring_copy, docstring_substitute,
@@ -57,6 +57,7 @@ __all__ = ['Pipeline']
 # TODO: Think of a way to allow no ModelLink instance to be provided.
 # This could be done with a DummyLink, but md_var is then uncallable.
 # OPTIMIZE: Use the Numba package to speed up certain calculations?
+# TODO: Figure out how to do log-values properly for parameters as well.
 class Pipeline(Projection, object):
     """
     Defines the :class:`~Pipeline` class of the *PRISM* package.
@@ -857,6 +858,8 @@ class Pipeline(Projection, object):
 
         Returns
         -------
+        sam_set : 2D :obj:`~numpy.ndarray` object of shape ``(n_sam, n_par)``
+            Array containing the sample set used to evaluate the model.
         mod_set : 2D :obj:`~numpy.ndarray` object of shape ``(n_sam, n_data)``
             Array containing the data values corresponding to the requested
             data points.
@@ -867,8 +870,9 @@ class Pipeline(Projection, object):
         logger = getCLogger('MODEL')
         logger.info("Evaluating model samples.")
 
-        # Make sure that sam_set is at least 2D and a NumPy array
+        # Make sure that sam_set is at least 2D, a NumPy array and sorted
         sam_set = np_array(sam_set, ndmin=2)
+        sam_set = sort2D(sam_set, order=list(range(self._modellink._n_par)))
 
         # Check who needs to call the model
         if self._is_controller or self._modellink._MPI_call:
@@ -894,7 +898,7 @@ class Pipeline(Projection, object):
 
         # Log that evaluation is completed and return mod_set
         logger.info("Finished evaluating model samples.")
-        return(mod_set)
+        return(sam_set, mod_set)
 
     # Function obtaining the model output for a given set of parameter values
     @docstring_append(call_model_doc_s)
@@ -1325,8 +1329,8 @@ class Pipeline(Projection, object):
                                                     0)
 
         # Obtain non-default model data values
-        data_val = self._evaluate_model(0, self._modellink._par_est,
-                                        self._modellink._data_idx)
+        _, data_val = self._evaluate_model(0, self._modellink._par_est,
+                                           self._modellink._data_idx)
 
         # Controller only
         if self._is_controller:
@@ -1618,7 +1622,8 @@ class Pipeline(Projection, object):
 
         # If there are any samples in sam_set, evaluate them in the model
         if n_sam:
-            mod_set = self._evaluate_model(emul_i, sam_set, data_idx_flat)
+            sam_set, mod_set =\
+                self._evaluate_model(emul_i, sam_set, data_idx_flat)
 
             # Transpose obtained mod_set on controller
             if self._is_controller:

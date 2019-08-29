@@ -89,7 +89,7 @@ class Projection(object):
 
         Keyword arguments
         -----------------
-        proj_type : {'2D', '3D', 'both'}. Default: '2D' (2D), 'both' (nD)
+        proj_type : {'2D', '3D', '2D+3D'}. Default: '2D' (2D), '2D+3D' (nD)
             String indicating which projection type to create for all supplied
             active parameters.
             If :attr:`~prism.modellink.ModelLink.n_par` == 2, this is always
@@ -967,7 +967,7 @@ class Projection(object):
         line_kwargs_cut = {'color': 'r'}
 
         # Create input argument dict with default projection parameters
-        kwargs_dict = {'proj_type': '2D' if(self.__n_par == 2) else 'both',
+        kwargs_dict = {'proj_type': '2D+3D' if(self.__n_par > 2) else '2D',
                        'figure': 1,
                        'align': 'col',
                        'show_cuts': 0,
@@ -1271,7 +1271,7 @@ class Projection(object):
             elif proj_type.lower() in ('3d', '2', 'two'):
                 self.__proj_2D = 0
                 self.__proj_3D = 1
-            elif proj_type.lower() in ('nd', 'both'):
+            elif proj_type.lower() in ('2d+3d', 'nd', 'both'):
                 self.__proj_2D = 1
                 self.__proj_3D = 1
             else:
@@ -1356,6 +1356,15 @@ class Projection(object):
             self.__los_kwargs_3D = los_kwargs_3D
             self.__line_kwargs_est = line_kwargs_est
             self.__line_kwargs_cut = line_kwargs_cut
+
+            # Save all input arguments in a combined dict (Projection GUI)
+            kwarg_names = ['emul_i', 'proj_2D', 'proj_3D', 'figure', 'align',
+                           'show_cuts', 'smooth', 'fig_kwargs',
+                           'impl_kwargs_2D', 'impl_kwargs_3D', 'los_kwargs_2D',
+                           'los_kwargs_3D', 'line_kwargs_est',
+                           'line_kwargs_cut']
+            self.__proj_kwargs = {n: getattr(self, '_Projection__%s' % (n))
+                                  for n in kwarg_names}
 
         # MPI Barrier
         self._comm.Barrier()
