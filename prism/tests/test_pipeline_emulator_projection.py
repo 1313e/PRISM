@@ -293,7 +293,7 @@ class Test_Pipeline_Gaussian3D(object):
             pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
                          figure=False)
             if pipe._is_controller:
-                os.remove(pipe._Projection__get_fig_path((0, 1))[1])
+                os.remove(pipe._Projection__get_fig_path((1, 0, 1))[1])
             pipe._comm.Barrier()
             pipe.project(1, (0, 1), align='col', fig_kwargs={'dpi': 10})
 
@@ -353,7 +353,7 @@ class Test_Pipeline_Gaussian3D_1_data(object):
             pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
                          figure=False)
             if pipe._is_controller:
-                os.remove(pipe._Projection__get_fig_path((0, 1))[1])
+                os.remove(pipe._Projection__get_fig_path((1, 0, 1))[1])
             pipe._comm.Barrier()
             pipe.project(1, (0, 1), align='col', fig_kwargs={'dpi': 10})
 
@@ -864,12 +864,13 @@ class Test_Internal_Exceptions(object):
 
     # Try to save data using the wrong keyword for projection
     def test_invalid_proj_save_data_keyword(self, pipe):
+        pipe._Projection__use_GUI = 0
         pipe._Projection__prepare_projections(None, None,
                                               los_kwargs_2D={'x': 1},
                                               los_kwargs_3D={'x': 1})
         if pipe._is_controller:
             with pytest.raises(ValueError):
-                pipe._Projection__save_data({'test': []})
+                pipe._Projection__save_data(1, {'test': []})
 
 
 # Pytest for trying to initialize a lone Projection class

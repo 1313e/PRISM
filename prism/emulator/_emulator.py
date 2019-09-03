@@ -701,8 +701,7 @@ class Emulator(object):
                         # Try to remove figures for which data is available
                         for hcube in hcube_names:
                             fig_path, fig_path_s =\
-                                self._pipeline._Projection__get_fig_path(hcube,
-                                                                         i)
+                                self._pipeline._Projection__get_fig_path(hcube)
                             if path.exists(fig_path):
                                 os.remove(fig_path)
                             if path.exists(fig_path_s):

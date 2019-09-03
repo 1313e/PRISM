@@ -225,7 +225,7 @@ draw_proj_fig_doc =\
 
 # Description of hcube
 hcube_doc =\
-        """hcube : 1D array_like of int of length {1, 2}
+        """hcube : 1D array_like of int of length {2, 3}
             Array containing the internal integer identifiers of the main model
             parameters that require a projection hypercube."""
 
@@ -283,13 +283,13 @@ set_par_doc =\
 save_data_doc =\
         """Parameters
         ----------
-        {0}{1}
+        {0}
         data_dict : dict
             Dict containing the data that needs to be saved to the HDF5-file.
 
         Dict variables
         --------------
-        keyword : {2}
+        keyword : {1}
             String specifying the type of data that needs to be saved.
         data : {{int, float, str, array_like}} or dict
             The actual data that needs to be saved at data keyword `keyword`.
@@ -299,9 +299,10 @@ save_data_doc =\
         ---------
         The specified data is saved to the HDF5-file."""
 save_data_doc_p = save_data_doc.format(
-    "", "", "{'impl_par', 'impl_sam', 'n_eval_sam'}")
+    "", "{'impl_par', 'impl_sam', 'n_eval_sam'}")
 save_data_doc_e = save_data_doc.format(
-    std_emul_i_doc+"\n\t", lemul_s_doc+"\n\t", "{'active_par', "
+    std_emul_i_doc+"\n\t"+lemul_s_doc+"\n\t", "{'active_par', "
     "'active_par_data', 'cov_mat', 'exp_dot_term', 'mod_real_set', "
     "'regression'}")
-save_data_doc_pr = save_data_doc.format("", "", "{'nD_proj_hcube'}")
+save_data_doc_pr = save_data_doc.format(std_emul_i_doc+"\n\t",
+                                        "{'nD_proj_hcube'}")

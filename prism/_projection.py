@@ -35,7 +35,7 @@ from tqdm import tqdm
 from prism._docstrings import (def_par_doc, draw_proj_fig_doc, get_emul_i_doc,
                                hcube_doc, proj_data_doc, proj_par_doc_d,
                                proj_par_doc_s, save_data_doc_pr, set_par_doc,
-                               user_emul_i_doc)
+                               std_emul_i_doc, user_emul_i_doc)
 from prism._internal import (RequestError, RequestWarning, check_vals,
                              getCLogger, np_array)
 
@@ -214,12 +214,17 @@ class Projection(object):
         # Save current time
         start_time1 = time()
 
+        # Save that currently the Projection GUI is not used
+        self.__use_GUI = 0
+
         # Prepare for making projections
         self.__prepare_projections(emul_i, proj_par, **kwargs)
 
         # Save current time again
         start_time2 = time()
 
+        # TODO: Allow for multiple iterations to be requested simultaneously?
+        # This functionality was already implemented for the Projection GUI
         # Loop over all requested projection hypercubes
         if self._is_controller and self._do_logging:
             hcubes_bar = tqdm(self.__hcubes, desc="Creating projections",
@@ -263,7 +268,7 @@ class Projection(object):
                     proj_res = self._res
 
                 # Draw projection figure
-                if(len(hcube) == 1):
+                if(len(hcube) == 2):
                     self.__draw_2D_proj_fig(hcube, impl_min, impl_los,
                                             proj_res)
                 else:
@@ -330,21 +335,22 @@ class Projection(object):
 
     # %% HIDDEN CLASS METHODS
     # This function draws the 2D projection figure
-    @docstring_append(draw_proj_fig_doc.format("2D", "1"))
+    @docstring_append(draw_proj_fig_doc.format("2D", "2"))
     def __draw_2D_proj_fig(self, hcube, impl_min, impl_los, proj_res):
-        # Obtain name of this projection hypercube
+        # Obtain emul_i and name of this projection hypercube
+        emul_i = hcube[0]
         hcube_name = self.__get_hcube_name(hcube)
 
         # Make abbreviation for implausibility cut-off values
-        impl_cut = self._impl_cut[self.__emul_i][0]
-        impl_cuts = self._impl_cut[self.__emul_i]
+        impl_cut = self._impl_cut[emul_i][0]
+        impl_cuts = self._impl_cut[emul_i]
 
         # Start logger
         logger = getCLogger('PROJECTION')
         logger.info("Calculating projection figure %r." % (hcube_name))
 
         # Get the parameter this hypercube is about
-        par = hcube[0]
+        par = hcube[1]
 
         # Make abbreviation for parameter name
         par_name = self._modellink._par_name[par]
@@ -417,8 +423,7 @@ class Projection(object):
                                               wspace=0, hspace=hspace)
 
             # Set super title
-            f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
-                       fontsize='xx-large')
+            f.suptitle(r"Projection %s" % (hcube_name), fontsize='xx-large')
 
             # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
@@ -472,11 +477,13 @@ class Projection(object):
             else:
                 ax1.set_xlabel(par_name, fontsize='x-large')
 
-            # Save the figure
-            plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
-
-            # Close the figure
-            plt.close(f)
+            # If called by the Projection GUI, return figure instance
+            if self.__use_GUI:
+                return(f)
+            # Else, save and close the figure
+            else:
+                f.savefig(self.__get_fig_path(hcube)[self.__smooth])
+                plt.close(f)
 
             # Log that this hypercube has been drawn
             logger.info("Finished calculating and drawing projection figure "
@@ -491,21 +498,23 @@ class Projection(object):
                         % (hcube_name))
 
     # This function draws the 3D projection figure
-    @docstring_append(draw_proj_fig_doc.format("3D", "2"))
+    @docstring_append(draw_proj_fig_doc.format("3D", "3"))
+    # OPTIMIZE: (Re)Drawing a 3D projection figure takes up to 15 seconds
     def __draw_3D_proj_fig(self, hcube, impl_min, impl_los, proj_res):
-        # Obtain name of this projection hypercube
+        # Obtain emul_i and name of this projection hypercube
+        emul_i = hcube[0]
         hcube_name = self.__get_hcube_name(hcube)
 
         # Make abbreviation for first implausibility cut-off value
-        impl_cut = self._impl_cut[self.__emul_i][0]
+        impl_cut = self._impl_cut[emul_i][0]
 
         # Start logger
         logger = getCLogger('PROJECTION')
         logger.info("Calculating projection figure %r." % (hcube_name))
 
         # Get the parameter on x-axis and y-axis this hcube is about
-        par1 = hcube[0]
-        par2 = hcube[1]
+        par1 = hcube[1]
+        par2 = hcube[2]
 
         # Make abbreviation for the parameter names
         par1_name = self._modellink._par_name[par1]
@@ -608,8 +617,7 @@ class Projection(object):
                                               wspace=0, hspace=hspace)
 
             # Set super title
-            f.suptitle(r"%s. Projection (%s)" % (self.__emul_i, hcube_name),
-                       fontsize='xx-large')
+            f.suptitle(r"Projection %s" % (hcube_name), fontsize='xx-large')
 
             # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
@@ -666,11 +674,13 @@ class Projection(object):
                 label_ax.autoscale(tight=True)
                 label_ax.set_ylabel(par2_name, fontsize='x-large', labelpad=0)
 
-            # Save the figure
-            plt.savefig(self.__get_fig_path(hcube)[self.__smooth])
-
-            # Close the figure
-            plt.close(f)
+            # If called by the Projection GUI, return figure instance
+            if self.__use_GUI:
+                return(f)
+            # Else, save and close the figure
+            else:
+                f.savefig(self.__get_fig_path(hcube)[self.__smooth])
+                plt.close(f)
 
             # Log that this hypercube has been drawn
             logger.info("Finished calculating and drawing projection figure"
@@ -710,7 +720,8 @@ class Projection(object):
         # Make logger
         logger = getCLogger('PROJECTION')
 
-        # Obtain hcube name
+        # Obtain emul_i and name of this projection hypercube
+        emul_i = hcube[0]
         hcube_name = self.__get_hcube_name(hcube)
 
         # Open hdf5-file
@@ -719,7 +730,7 @@ class Projection(object):
             logger.info("Obtaining projection data %r." % (hcube_name))
 
             # Obtain data
-            data_set = file['%i/proj_hcube/%s' % (self.__emul_i, hcube_name)]
+            data_set = file['%i/proj_hcube/%s' % (emul_i, hcube_name)]
             impl_min_hcube = data_set['impl_min'][()]
             impl_los_hcube = data_set['impl_los'][()]
             res_hcube = data_set.attrs['proj_res']
@@ -733,8 +744,8 @@ class Projection(object):
         return(impl_min_hcube, impl_los_hcube, res_hcube, depth_hcube)
 
     # This function determines the projection hypercubes to be analyzed
-    @docstring_substitute(proj_par=proj_par_doc_s)
-    def __get_req_hcubes(self, proj_par):
+    @docstring_substitute(emul_i=std_emul_i_doc, proj_par=proj_par_doc_s)
+    def __get_req_hcubes(self, emul_i, proj_par):
         """
         Determines which projection hypercubes have been requested by the user.
         Also checks if these projection hypercubes have been calculated before,
@@ -743,6 +754,7 @@ class Projection(object):
 
         Parameters
         ----------
+        %(emul_i)s
         %(proj_par)s
 
         Generates
@@ -764,7 +776,7 @@ class Projection(object):
             # Check the proj_par that were provided
             # If none were provided, make figs for all active model parameters
             if proj_par is None:
-                proj_par = self._emulator._active_par[self.__emul_i]
+                proj_par = self._emulator._active_par[emul_i]
 
             # Else, a sequence of str/int must be provided
             else:
@@ -773,7 +785,7 @@ class Projection(object):
 
                 # Check which values in proj_par are also in active_par
                 proj_par = np_array(
-                    [i for i in self._emulator._active_par[self.__emul_i] if
+                    [i for i in self._emulator._active_par[emul_i] if
                      i in proj_par])
 
                 # Make sure that there are still enough values left
@@ -796,6 +808,9 @@ class Projection(object):
                 if len(hcube_idx):
                     hcubes.extend(proj_par[np_array(hcube_idx)].tolist())
 
+            # Add the emulator iteration in front of all hcubes
+            hcubes = [(emul_i, *hcube) for hcube in hcubes]
+
             # Create empty list holding hcube_par that needs to be created
             create_hcubes = []
 
@@ -809,7 +824,7 @@ class Projection(object):
 
                     # Check if projection data already exists
                     try:
-                        file['%i/proj_hcube/%s' % (self.__emul_i, hcube_name)]
+                        file['%i/proj_hcube/%s' % (emul_i, hcube_name)]
 
                     # If it does not exist, add it to the creation list
                     except KeyError:
@@ -823,7 +838,7 @@ class Projection(object):
                         if self.__force:
                             # Remove data
                             del file['%i/proj_hcube/%s'
-                                     % (self.__emul_i, hcube_name)]
+                                     % (emul_i, hcube_name)]
                             logger.info("Projection data %r already exists. "
                                         "Deleting." % (hcube_name))
 
@@ -853,8 +868,8 @@ class Projection(object):
             create_hcubes = []
 
         # Broadcast hypercubes to workers
-        self.__hcubes = self._comm.bcast(hcubes, 0)
-        self.__create_hcubes = self._comm.bcast(create_hcubes, 0)
+        self.__hcubes.extend(self._comm.bcast(hcubes, 0))
+        self.__create_hcubes.extend(self._comm.bcast(create_hcubes, 0))
 
     # This function returns the name of a proj_hcube when given a hcube
     @docstring_substitute(hcube=hcube_doc)
@@ -874,31 +889,26 @@ class Projection(object):
 
         """
 
-        if(len(hcube) == 1):
-            return('%s' % (self._modellink._par_name[hcube[0]]))
+        if(len(hcube) == 2):
+            return('%i|%s' % (hcube[0], self._modellink._par_name[hcube[1]]))
         else:
-            return('%s-%s' % (self._modellink._par_name[hcube[0]],
-                              self._modellink._par_name[hcube[1]]))
+            return('%i|%s-%s' % (hcube[0],
+                                 self._modellink._par_name[hcube[1]],
+                                 self._modellink._par_name[hcube[2]]))
 
     # This function returns the full path of a figure when given a hcube
-    @docstring_substitute(hcube=hcube_doc, emul_i=user_emul_i_doc)
-    def __get_fig_path(self, hcube, emul_i=None):
+    def __get_fig_path(self, hcube):
         """
         Determines the absolute path of a projection figure corresponding to a
-        provided projection hypercube `hcube` in emulator iteration `emul_i`
-        and returns it.
+        provided projection hypercube `hcube` and returns it.
 
         Parameters
         ----------
-        hcube : 1D array_like of int of length {1, 2} or str
+        hcube : 1D array_like of int of length {2, 3} or str
             Array containing the internal integer identifiers of the main model
             parameters that require a projection hypercube.
             If str, the name of `hcube` instead
             (:meth:`~_Projection__get_hcube_name`).
-
-        Optional
-        --------
-        %(emul_i)s
 
         Returns
         -------
@@ -909,23 +919,25 @@ class Projection(object):
 
         """
 
-        # If emul_i is None, set it to default
-        if emul_i is None:
-            emul_i = self.__emul_i
+        # Determine emul_i and hcube_subname
+        if isinstance(hcube, str):
+            # If hcube is a string, it is written as emul_i|hcube_subname
+            emul_i, _, hcube_subname = hcube.partition('|')
+            emul_i = int(emul_i)
+        else:
+            # Else, emul_i is the first element
+            emul_i = hcube[0]
+
+            # hcube_subname is the part after the pipe in its normal name
+            hcube_subname = self.__get_hcube_name(hcube).partition('|')[2]
 
         # Determine the fig prefix
         fig_prefix = '%i_proj_' % (emul_i)
         fig_prefix = path.join(self._working_dir, fig_prefix)
 
-        # Obtain name of this projection hypercube
-        if isinstance(hcube, str):
-            hcube_name = hcube
-        else:
-            hcube_name = self.__get_hcube_name(hcube)
-
         # Determine fig_path and fig_path_s
-        fig_path = '%s(%s).png' % (fig_prefix, hcube_name)
-        fig_path_s = '%s(%s)_s.png' % (fig_prefix, hcube_name)
+        fig_path = '%s(%s).png' % (fig_prefix, hcube_subname)
+        fig_path_s = '%s(%s)_s.png' % (fig_prefix, hcube_subname)
 
         # Return both
         return(fig_path, fig_path_s)
@@ -967,7 +979,8 @@ class Projection(object):
         line_kwargs_cut = {'color': 'r'}
 
         # Create input argument dict with default projection parameters
-        kwargs_dict = {'proj_type': '2D+3D' if(self.__n_par > 2) else '2D',
+        n_par = self._modellink._n_par
+        kwargs_dict = {'proj_type': '2D+3D' if(n_par > 2) else '2D',
                        'figure': 1,
                        'align': 'col',
                        'show_cuts': 0,
@@ -1042,9 +1055,9 @@ class Projection(object):
         logger.info("Creating projection hypercube %r." % (hcube_name))
 
         # If hcube has 1 parameter, make 2D projection hypercube on controller
-        if(self._is_controller and len(hcube) == 1):
+        if(self._is_controller and len(hcube) == 2):
             # Identify projected parameter
-            par = hcube[0]
+            par = hcube[1]
 
             # Calculate the actual depth
             if(self.__n_par == 2):
@@ -1077,8 +1090,8 @@ class Projection(object):
         # If hcube has 2 parameters, make 3D projection hypercube on controller
         elif self._is_controller:
             # Identify projected parameters
-            par1 = hcube[0]
-            par2 = hcube[1]
+            par1 = hcube[1]
+            par2 = hcube[2]
 
             # Create empty projection hypercube array
             proj_hcube = np.zeros([pow(self._res, 2), self._depth,
@@ -1136,7 +1149,8 @@ class Projection(object):
 
         """
 
-        # Obtain name of this projection hypercube
+        # Obtain emul_i and name of this projection hypercube
+        emul_i = hcube[0]
         hcube_name = self.__get_hcube_name(hcube)
 
         # Log that a projection hypercube is being analyzed
@@ -1160,7 +1174,7 @@ class Projection(object):
         start_time = time()
 
         # Analyze all samples in proj_hcube
-        results = self._evaluate_sam_set(self.__emul_i, proj_hcube, 'project')
+        results = self._evaluate_sam_set(emul_i, proj_hcube, 'project')
 
         # Controller only
         if self._is_controller:
@@ -1191,7 +1205,7 @@ class Projection(object):
                         % (hcube_name))
 
             # Save projection data to hdf5
-            self.__save_data({
+            self.__save_data(emul_i, {
                 'nD_proj_hcube': {
                     'hcube_name': hcube_name,
                     'impl_min': impl_min_hcube,
@@ -1425,12 +1439,22 @@ class Projection(object):
             # Set projection parameters
             self.__set_parameters()
 
+        # Initialize empty lists for hcubes and create_hcubes
+        self.__hcubes = []
+        self.__create_hcubes = []
+
         # Obtain requested projection hypercubes
-        self.__get_req_hcubes(proj_par)
+        if self.__use_GUI:
+            # If the Projection GUI is used, request hcubes for all iterations
+            for i in range(1, self.__emul_i+1):
+                self.__get_req_hcubes(i, proj_par)
+        else:
+            # Else, request solely hcubes for this iteration
+            self.__get_req_hcubes(self.__emul_i, proj_par)
 
     # This function saves projection data to hdf5
     @docstring_substitute(save_data=save_data_doc_pr)
-    def __save_data(self, data_dict):
+    def __save_data(self, emul_i, data_dict):
         """
         Saves a given data dict ``{keyword: data}`` at the emulator iteration
         this class was initialized for, to the HDF5-file.
@@ -1445,13 +1469,13 @@ class Projection(object):
         # Open hdf5-file
         with self._File('r+', None) as file:
             # Obtain the group this data needs to be saved to
-            group = file['%i/proj_hcube' % (self.__emul_i)]
+            group = file['%i/proj_hcube' % (emul_i)]
 
             # Loop over entire provided data dict
             for keyword, data in data_dict.items():
                 # Log what data is being saved
                 logger.info("Saving %r data at iteration %i to HDF5."
-                            % (keyword, self.__emul_i))
+                            % (keyword, emul_i))
 
                 # Check what data keyword has been provided
                 # ND_PROJ_HCUBE
@@ -1462,8 +1486,8 @@ class Projection(object):
                     # Save the projection data to file
                     data_set.create_dataset('impl_min', data=data['impl_min'])
                     data_set.create_dataset('impl_los', data=data['impl_los'])
-                    data_set.attrs['impl_cut'] = self._impl_cut[self.__emul_i]
-                    data_set.attrs['cut_idx'] = self._cut_idx[self.__emul_i]
+                    data_set.attrs['impl_cut'] = self._impl_cut[emul_i]
+                    data_set.attrs['cut_idx'] = self._cut_idx[emul_i]
                     data_set.attrs['proj_res'] = self._res
                     data_set.attrs['proj_depth'] = data['proj_depth']
 
