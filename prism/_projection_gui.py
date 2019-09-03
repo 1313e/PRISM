@@ -17,8 +17,7 @@ import signal
 from textwrap import dedent
 
 # Package imports
-from matplotlib.backends.qt_compat import (
-    QtCore as QC, QtGui as QG, QtWidgets as QW, _getSaveFileName)
+from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 import matplotlib.pyplot as plt
@@ -64,7 +63,7 @@ class MainViewerWindow(QW.QMainWindow):
         self.set_proj_attr('use_GUI', 1)
 
         # Prepare projections to be made
-        self.pipe._Projection__prepare_projections(None, None)
+        self.get_proj_attr('prepare_projections')(None, None)
 
         # Save some statistics about pipeline and modellink
         self.n_par = self.pipe._modellink._n_par
@@ -235,7 +234,7 @@ class ProjectionViewer(QW.QMainWindow):
         file_filters = ';;'.join(file_filters)
 
         # Open the file saving system
-        filename, _ = _getSaveFileName(
+        filename, _ = QW.QFileDialog.getSaveFileName(
             parent=self.main,
             caption="Save view as...",
             directory=path.join(self.pipe._working_dir, "proj_area.png"),
@@ -478,7 +477,7 @@ class SettingsWindow(object):
         self.get_proj_attr = self.main.get_proj_attr
 
         # Save projection defaults here
-        self.defaults = sdict(self.pipe._Projection__proj_kwargs)
+        self.defaults = sdict(self.get_proj_attr('proj_kwargs'))
 
     # This function creates a settings window
     def __call__(self):

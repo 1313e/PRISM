@@ -5,6 +5,7 @@ emcee>=2.2.1
 pytest>=3.8.0
 pytest-cov
 pytest-pep8
+pytest-qt
 readme_renderer[md]
 setuptools>=38.6.0
 twine>=1.13.0
