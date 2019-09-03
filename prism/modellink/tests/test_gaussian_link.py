@@ -11,15 +11,16 @@ from sortedcontainers import SortedDict as sdict
 # PRISM imports
 from prism.modellink import GaussianLink, test_subclass as _test_subclass
 
-# Save the path to this directory
-dirpath = path.dirname(__file__)
+
+# %% GLOBALS
+DIR_PATH = path.dirname(__file__)           # Path to directory of this file
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
 # Pytest for GaussianLink class
 def test_GaussianLink():
     # Save paths to data file
-    model_data = path.join(dirpath, 'data/data_gaussian.txt')
+    model_data = path.join(DIR_PATH, 'data/data_gaussian.txt')
 
     # Initialize GaussianLink class
     modellink_obj = _test_subclass(GaussianLink, 3, model_data=model_data)

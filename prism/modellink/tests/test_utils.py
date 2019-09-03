@@ -15,12 +15,12 @@ from prism.modellink import ModelLink
 from prism.modellink.utils import test_subclass as _test_subclass
 
 
-# Save the path to this directory
-dirpath = path.dirname(__file__)
+# %% GLOBALS
+DIR_PATH = path.dirname(__file__)           # Path to directory of this file
 
 # Save paths to various files
-model_data_single = path.join(dirpath, 'data/data_gaussian_single.txt')
-model_parameters_3D = path.join(dirpath, 'data/parameters_gaussian_3D.txt')
+model_data_single = path.join(DIR_PATH, 'data/data_gaussian_single.txt')
+model_parameters_3D = path.join(DIR_PATH, 'data/parameters_gaussian_3D.txt')
 
 
 # %% CUSTOM CLASSES

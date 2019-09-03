@@ -21,8 +21,9 @@ from time import time
 from e13tools import InputError
 from e13tools.pyplot import draw_textline
 from e13tools.sampling import lhd
-from e13tools.utils import (convert_str_seq, docstring_append,
-                            docstring_substitute, raise_error, raise_warning)
+from e13tools.utils import (
+    convert_str_seq, docstring_append, docstring_substitute, raise_error,
+    raise_warning)
 from matplotlib import cm
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
@@ -32,12 +33,13 @@ from sortedcontainers import SortedDict as sdict
 from tqdm import tqdm
 
 # PRISM imports
-from prism._docstrings import (def_par_doc, draw_proj_fig_doc, get_emul_i_doc,
-                               hcube_doc, proj_data_doc, proj_par_doc_d,
-                               proj_par_doc_s, save_data_doc_pr, set_par_doc,
-                               std_emul_i_doc, user_emul_i_doc)
-from prism._internal import (RequestError, RequestWarning, check_vals,
-                             getCLogger, np_array)
+from prism._docstrings import (
+    def_par_doc, draw_proj_fig_doc, get_emul_i_doc, hcube_doc, proj_data_doc,
+    proj_par_doc_d, proj_par_doc_s, save_data_doc_pr, set_par_doc,
+    std_emul_i_doc, user_emul_i_doc)
+from prism._internal import (
+    RequestError, RequestWarning, check_vals, getCLogger, np_array)
+from prism._projection_gui import open_gui
 
 # All declaration
 __all__ = ['Projection']
@@ -301,6 +303,10 @@ class Projection(object):
 #    @docstring_substitute(emul_i=user_emul_i_doc)
     def project_master(self, emul_i=None, **kwargs):  # pragma: no cover
         raise NotImplementedError
+
+    # Function that starts up the Projection GUI
+    def open_gui(self):
+        open_gui(self)
 
     # %% CLASS PROPERTIES
     @property

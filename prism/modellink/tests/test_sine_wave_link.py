@@ -11,15 +11,16 @@ from sortedcontainers import SortedDict as sdict
 # PRISM imports
 from prism.modellink import SineWaveLink, test_subclass as _test_subclass
 
-# Save the path to this directory
-dirpath = path.dirname(__file__)
+
+# %% GLOBALS
+DIR_PATH = path.dirname(__file__)           # Path to directory of this file
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
 # Pytest for SineWaveLink class
 def test_SineWaveLink():
     # Save paths to data file
-    model_data = path.join(dirpath, 'data/data_sine_wave.txt')
+    model_data = path.join(DIR_PATH, 'data/data_sine_wave.txt')
 
     # Initialize SineWaveLink class
     modellink_obj = _test_subclass(SineWaveLink, model_data=model_data)

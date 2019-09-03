@@ -14,16 +14,15 @@ import pytest
 
 # PRISM imports
 from prism.__version__ import __version__, compat_version
-from prism._internal import (FeatureWarning, PRISM_Logger, RequestError,
-                             RequestWarning, check_vals, check_compatibility,
-                             get_PRISM_File, get_bibtex, get_info, getCLogger,
-                             getRLogger, np_array)
+from prism._internal import (
+    FeatureWarning, PRISM_Logger, RequestError, RequestWarning, check_vals,
+    check_compatibility, get_PRISM_File, get_bibtex, get_info, getCLogger,
+    getRLogger, np_array)
 
-# Save the path to this directory
-dirpath = path.dirname(__file__)
 
-# Save if this platform is Windows
-win32 = platform.startswith('win')
+# %% GLOBALS
+DIR_PATH = path.dirname(__file__)           # Path to directory of this file
+WIN32 = platform.startswith('win')          # Bool if this is Windows
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -194,7 +193,7 @@ class Test_check_val(object):
         array = np.array([False, True])
         array2 = check_vals(array, 'array', 'bool')
         assert (array2 == [0, 1]).all()
-        assert array2.dtype.name == 'int64' if not win32 else 'int32'
+        assert array2.dtype.name == 'int64' if not WIN32 else 'int32'
 
         # Check for NumPy array of strings
         array = np.array(['a', 'b'])

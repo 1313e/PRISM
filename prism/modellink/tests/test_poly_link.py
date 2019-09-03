@@ -11,15 +11,16 @@ from sortedcontainers import SortedDict as sdict
 # PRISM imports
 from prism.modellink import PolyLink, test_subclass as _test_subclass
 
-# Save the path to this directory
-dirpath = path.dirname(__file__)
+
+# %% GLOBALS
+DIR_PATH = path.dirname(__file__)           # Path to directory of this file
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
 # Pytest for PolyLink class
 def test_PolyLink():
     # Save paths to data file
-    model_data = path.join(dirpath, 'data/data_poly.txt')
+    model_data = path.join(DIR_PATH, 'data/data_poly.txt')
 
     # Initialize PolyLink class
     modellink_obj = _test_subclass(PolyLink, 3, model_data=model_data)

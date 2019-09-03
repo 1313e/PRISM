@@ -18,8 +18,8 @@ import warnings
 
 # Package imports
 from e13tools import InputError, ShapeError
-from e13tools.utils import (convert_str_seq, docstring_substitute,
-                            get_outer_frame, raise_error)
+from e13tools.utils import (
+    convert_str_seq, docstring_substitute, get_outer_frame, raise_error)
 import h5py
 import hickle
 import numpy as np
@@ -28,8 +28,8 @@ from sortedcontainers import SortedDict as sdict, SortedSet as sset
 # PRISM imports
 from prism import __version__
 from prism._docstrings import std_emul_i_doc
-from prism._internal import (FeatureWarning, RequestWarning, check_vals,
-                             getCLogger, np_array)
+from prism._internal import (
+    FeatureWarning, RequestWarning, check_vals, getCLogger, np_array)
 from prism.modellink.utils import convert_data, convert_parameters
 
 # All declaration

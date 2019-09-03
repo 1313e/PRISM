@@ -26,10 +26,6 @@ from prism.emulator import Emulator
 from prism.modellink import ModelLink
 from prism.modellink.tests.modellink import GaussianLink2D, GaussianLink3D
 
-
-# Save the path to this directory
-dirpath = path.dirname(__file__)
-
 # Set the random seed of NumPy
 np.random.seed(2)
 
@@ -40,11 +36,15 @@ local.get_temproot().chdir()
 pytestmark = pytest.mark.filterwarnings(
     "ignore::prism._internal.RequestWarning")
 
+
+# %% GLOBALS
+DIR_PATH = path.dirname(__file__)           # Path to directory of this file
+
 # Save paths to various files
-model_data_single = path.join(dirpath, 'data/data_gaussian_single.txt')
-prism_file_default = path.join(dirpath, 'data/prism_default.txt')
-model_parameters_2D = path.join(dirpath, 'data/parameters_gaussian_2D.txt')
-model_parameters_3D = path.join(dirpath, 'data/parameters_gaussian_3D.txt')
+model_data_single = path.join(DIR_PATH, 'data/data_gaussian_single.txt')
+prism_file_default = path.join(DIR_PATH, 'data/prism_default.txt')
+model_parameters_2D = path.join(DIR_PATH, 'data/parameters_gaussian_2D.txt')
+model_parameters_3D = path.join(DIR_PATH, 'data/parameters_gaussian_3D.txt')
 
 # Extract the default prism_dict
 prism_par_def = np.genfromtxt(prism_file_default, dtype=(str), delimiter=':',
