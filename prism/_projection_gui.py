@@ -27,6 +27,7 @@ from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism.__version__ import __version__
+from prism._docstrings import proj_depth_doc, proj_res_doc
 
 # All declaration
 __all__ = ['open_gui']
@@ -81,9 +82,30 @@ class MainViewerWindow(QW.QMainWindow):
         self.windows_menu = QW.QMenu('&Windows')
         self.toolbars_menu = QW.QMenu('&Toolbars')
 
-        # Create main projection viewing area
-        self.proj_viewer = ProjectionViewer(self)
-        self.proj_viewer.setFocus()
+        # Get default positions of all dock widgets
+        self.default_pos = self.get_default_dock_positions()
+
+        # OVERVIEW DOCK WIDGET
+        # Create the projection overview dock widget
+        self.overview_dock = OverviewDockWidget(self)
+        self.addDockWidget(self.default_pos['Overview'], self.overview_dock)
+
+        # Create an action for enabling/disabling the overview
+        proj_overview_act = self.overview_dock.toggleViewAction()
+        proj_overview_act.setShortcut(QC.Qt.ALT + QC.Qt.SHIFT + QC.Qt.Key_O)
+        proj_overview_act.setStatusTip("Enable/disable the 'Overview' window")
+        self.windows_menu.addAction(proj_overview_act)
+
+        # VIEWING AREA DOCK WIDGET
+        # Create the projection viewing area dock widget
+        self.area_dock = ViewingAreaDockWidget(self)
+        self.addDockWidget(self.default_pos['Viewing area'], self.area_dock)
+
+        # Create an action for enabling/disabling the viewing area
+        proj_area_act = self.area_dock.toggleViewAction()
+        proj_area_act.setShortcut(QC.Qt.ALT + QC.Qt.SHIFT + QC.Qt.Key_V)
+        proj_area_act.setStatusTip("Enable/disable the 'Viewing area' window")
+        self.windows_menu.addAction(proj_area_act)
 
         # Create menubar
         self.create_menubar()
@@ -105,7 +127,7 @@ class MainViewerWindow(QW.QMainWindow):
         save_act.setDetails(
             shortcut=QC.Qt.CTRL + QC.Qt.Key_S,
             statustip="Save current projection viewing area as an image")
-        save_act.triggered.connect(self.proj_viewer.save_view)
+        save_act.triggered.connect(self.area_dock.save_view)
         file_menu.addAction(save_act)
 
         # Add quit action to file menu
@@ -119,7 +141,7 @@ class MainViewerWindow(QW.QMainWindow):
         # TOOLS
         # Create tools menu, which includes all actions in the proj_toolbar
         tools_menu = self.menubar.addMenu('&Tools')
-        tools_menu.addActions(self.proj_viewer.proj_toolbar.actions())
+        tools_menu.addActions(self.area_dock.proj_toolbar.actions())
 
         # VIEW
         # Create view menu
@@ -131,9 +153,9 @@ class MainViewerWindow(QW.QMainWindow):
         # Add default layout action to view menu
         default_layout_act = QW_QAction('&Default layout', self)
         default_layout_act.setDetails(
-            statustip="Reset all windows and toolbars back to default layout")
-        default_layout_act.triggered.connect(
-            self.proj_viewer.set_default_dock_positions)
+            statustip=("Reset all windows and toolbars back to their default "
+                       "layout"))
+        default_layout_act.triggered.connect(self.set_default_dock_positions)
         view_menu.addAction(default_layout_act)
 
         # Add a separator
@@ -173,15 +195,17 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function creates a message box with the 'about' information
     def about(self):
-        QW.QMessageBox.about(self, "About %s" % (APP_NAME), dedent(r"""
-            <b>PRISM v%s | %s</b><br>
-            Copyright (C) 2019 Ellert van der Velden
-            """ % (__version__, APP_NAME)))
+        QW.QMessageBox.about(
+            self, "About %s" % (APP_NAME), dedent(r"""
+                <b>PRISM v%s | %s</b><br>
+                Copyright (C) 2019 Ellert van der Velden
+                """ % (__version__, APP_NAME)))
 
     # This function is called when the viewer is closed
     def closeEvent(self, *args, **kwargs):
-        # Call the closeEvent of ProjectionViewer
-        self.proj_viewer.closeEvent(*args, **kwargs)
+        # Call the closeEvent of the dock widgets
+        self.overview_dock.closeEvent(*args, **kwargs)
+        self.area_dock.closeEvent(*args, **kwargs)
 
         # Save that Projection GUI is no longer being used
         self.set_proj_attr('use_GUI', 0)
@@ -203,41 +227,12 @@ class MainViewerWindow(QW.QMainWindow):
     def get_proj_attr(self, name):
         return(getattr(self.pipe, "_Projection__%s" % (name)))
 
-
-# Define class for main projection viewing area
-# TODO: Allow Figure instance to be saved from the GUI as if made by project()
-# Look at matplotlib/backends/backend_qt5/SaveFigureQT() on how to do this
-class ProjectionViewer(QW.QMainWindow):
-    def __init__(self, main_window_obj, *args, **kwargs):
-        # Call super constructor
-        super().__init__(*args, **kwargs)
-
-        # Save provided MainWindow object
-        self.main = main_window_obj
-        self.pipe = self.main.pipe
-        self.set_proj_attr = self.main.set_proj_attr
-        self.get_proj_attr = self.main.get_proj_attr
-
-        # Make sure that the viewer is deleted when window is closed
-        self.setAttribute(QC.Qt.WA_DeleteOnClose)
-
-        # Disable the default context menu (right-click menu)
-        self.setContextMenuPolicy(QC.Qt.NoContextMenu)
-
-        # Obtain dict of default docking positions
-        self.default_pos = self.get_default_dock_positions()
-
-        # Create the projection viewing area
-        self.create_projection_area()
-        self.create_projection_overview()
-
     # This function returns the default positions of dock widgets and toolbars
     def get_default_dock_positions(self):
         # Make dict including the default docking positions
         default_pos = {
             'Viewing area': QC.Qt.RightDockWidgetArea,
-            'Overview': QC.Qt.LeftDockWidgetArea,
-            'Tools': QC.Qt.TopToolBarArea}
+            'Overview': QC.Qt.LeftDockWidgetArea}
 
         # Return it
         return(default_pos)
@@ -245,23 +240,60 @@ class ProjectionViewer(QW.QMainWindow):
     # This function sets dock widgets and toolbars to their default position
     def set_default_dock_positions(self):
         # Set the dock widgets and toolbars to their default positions
-        # VIEWING AREA
-        self.area_dock.setVisible(True)
-        self.area_dock.setFloating(False)
-        self.main.addDockWidget(self.default_pos['Viewing area'],
-                                self.area_dock)
-
-        # TOOLS TOOLBAR
-        self.proj_toolbar.setVisible(True)
-        self.addToolBar(self.default_pos['Tools'], self.proj_toolbar)
-
         # OVERVIEW
         self.overview_dock.setVisible(True)
         self.overview_dock.setFloating(False)
-        self.main.addDockWidget(self.default_pos['Overview'],
-                                self.overview_dock)
+        self.addDockWidget(self.default_pos['Overview'], self.overview_dock)
+
+        # VIEWING AREA
+        self.area_dock.setVisible(True)
+        self.area_dock.setFloating(False)
+        self.addDockWidget(self.default_pos['Viewing area'], self.area_dock)
+        self.area_dock.set_default_dock_positions()
+
+
+# Define class for the projection viewing area dock widget
+# TODO: Allow Figure instance to be saved from the GUI as if made by project()
+# Look at matplotlib/backends/backend_qt5/SaveFigureQT() on how to do this
+class ViewingAreaDockWidget(QW.QDockWidget):
+    def __init__(self, main_window_obj, *args, **kwargs):
+        # Save provided MainWindow object
+        self.main = main_window_obj
+        self.pipe = self.main.pipe
+        self.set_proj_attr = self.main.set_proj_attr
+        self.get_proj_attr = self.main.get_proj_attr
+
+        # Call super constructor
+        super().__init__("Viewing area", self.main, *args, **kwargs)
+
+        # Create the projection viewing area
+        self.init()
+
+    # This function creates the main projection viewing area
+    def init(self):
+        # Create an MdiArea for the viewing area
+        self.area_window = QW.QMainWindow()
+        self.proj_area = QW.QMdiArea(self)
+        self.area_window.setCentralWidget(self.proj_area)
+        self.proj_area.setFocus()
+        self.setWidget(self.area_window)
+
+        # Settings for proj_area
+        self.proj_area.setViewMode(0)                   # Use subwindow mode
+        self.proj_area.setStatusTip("Main projection viewing area")
+
+        # Settings for area_window
+        self.area_window.setAttribute(QC.Qt.WA_DeleteOnClose)
+        self.area_window.setContextMenuPolicy(QC.Qt.NoContextMenu)
+
+        # Obtain dict of default docking positions
+        self.default_pos = self.get_default_dock_positions()
+
+        # Add toolbar to the projection viewer
+        self.create_projection_toolbar()
 
     # This function saves the current state of the viewer to file
+    # TODO: See if the window frames can be removed from the saved image
     def save_view(self):
         # Get dict of all file extensions allowed
         exts = sdict({
@@ -314,48 +346,40 @@ class ProjectionViewer(QW.QMainWindow):
 
     # This function is called when the main window is closed
     def closeEvent(self, *args, **kwargs):
-        # Close all currently opened figures
-        for fig in self.proj_fig_registry.values():
-            plt.close(fig)
+        # Close the main window in this widget
+        self.area_window.closeEvent(*args, **kwargs)
 
         # Close the projection viewer
         super().closeEvent(*args, **kwargs)
 
-    # This function creates the main projection viewing area
-    def create_projection_area(self):
-        # Create an MdiArea for the viewer
-        self.area_dock = QW.QDockWidget("Viewing area", self.main)
-        self.proj_area = QW.QMdiArea(self)
-        self.proj_area.setViewMode(0)                   # Use subwindow mode
-        self.proj_area.setStatusTip("Main projection viewing area")
-        self.setCentralWidget(self.proj_area)
-        self.proj_area.setFocus()
-        self.area_dock.setWidget(self)
-        self.main.addDockWidget(self.default_pos['Viewing area'],
-                                self.area_dock)
+    # This function returns the default positions of dock widgets and toolbars
+    def get_default_dock_positions(self):
+        # Make dict including the default docking positions
+        default_pos = {
+            'Tools': QC.Qt.TopToolBarArea}
 
-        # Create an action for enabling/disabling the viewing area
-        proj_area_act = self.area_dock.toggleViewAction()
-        proj_area_act.setShortcut(QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_V)
-        proj_area_act.setStatusTip("Enable/disable the Viewing area window")
-        self.main.windows_menu.addAction(proj_area_act)
+        # Return it
+        return(default_pos)
 
-        # Create empty dict containing all projection figure instances
-        self.proj_fig_registry = {}
-
-        # Add toolbar to the projection viewer
-        self.create_projection_toolbar()
+    # This function sets dock widgets and toolbars to their default position
+    def set_default_dock_positions(self):
+        # Set the dock widgets and toolbars to their default positions
+        # TOOLS TOOLBAR
+        self.proj_toolbar.setVisible(True)
+        self.area_window.addToolBar(self.default_pos['Tools'],
+                                    self.proj_toolbar)
 
     # This function creates the toolbar of the projection viewing area
     def create_projection_toolbar(self):
         # Create toolbar for projection viewer
         self.proj_toolbar = QW.QToolBar("Tools", self)
-        self.addToolBar(self.default_pos['Tools'], self.proj_toolbar)
+        self.area_window.addToolBar(self.default_pos['Tools'],
+                                    self.proj_toolbar)
 
         # Create an action for enabling/disabling the toolbar
         proj_toolbar_act = self.proj_toolbar.toggleViewAction()
         proj_toolbar_act.setText("Tools toolbar")
-        proj_toolbar_act.setStatusTip("Enable/disable the Tools toolbar")
+        proj_toolbar_act.setStatusTip("Enable/disable the 'Tools' toolbar")
         self.main.toolbars_menu.addAction(proj_toolbar_act)
 
         # Add tools for manipulating projection figures
@@ -366,7 +390,7 @@ class ProjectionViewer(QW.QMainWindow):
         # Add action for resetting the view
         reset_act = QW_QAction("&Reset", self)
         reset_act.setDetails(
-            shortcut=QC.Qt.ALT + QC.Qt.SHIFT + QC.Qt.Key_R,
+            shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_R,
             statustip="Reset projection viewing area to its default state")
         self.proj_toolbar.addAction(reset_act)
 
@@ -376,7 +400,7 @@ class ProjectionViewer(QW.QMainWindow):
         # Add action for cascading all subwindows
         cascade_act = QW_QAction("&Cascade", self)
         cascade_act.setDetails(
-            shortcut=QC.Qt.ALT + QC.Qt.SHIFT + QC.Qt.Key_C,
+            shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_C,
             statustip="Cascade all subwindows")
         cascade_act.triggered.connect(self.proj_area.cascadeSubWindows)
         self.proj_toolbar.addAction(cascade_act)
@@ -384,7 +408,7 @@ class ProjectionViewer(QW.QMainWindow):
         # Add action for tiling all subwindows
         tile_act = QW_QAction("&Tile", self)
         tile_act.setDetails(
-                shortcut=QC.Qt.ALT + QC.Qt.SHIFT + QC.Qt.Key_T,
+                shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_T,
                 statustip="Tile all subwindows")
         tile_act.triggered.connect(self.proj_area.tileSubWindows)
         self.proj_toolbar.addAction(tile_act)
@@ -392,27 +416,47 @@ class ProjectionViewer(QW.QMainWindow):
         # Add action for closing all subwindows
         close_act = QW_QAction("Close all", self)
         close_act.setDetails(
-                shortcut=QC.Qt.ALT + QC.Qt.SHIFT + QC.Qt.Key_X,
+                shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_X,
                 statustip="Close all subwindows")
         close_act.triggered.connect(self.proj_area.closeAllSubWindows)
         self.proj_toolbar.addAction(close_act)
 
-    # This function creates the projection list overview
-    def create_projection_overview(self):
+
+# Create class for the projection overview dock widget
+class OverviewDockWidget(QW.QDockWidget):
+    # TODO: Allow for the lists to be sorted differently?
+    def __init__(self, main_window_obj, *args, **kwargs):
+        # Save provided MainWindow object
+        self.main = main_window_obj
+        self.pipe = self.main.pipe
+        self.set_proj_attr = self.main.set_proj_attr
+        self.get_proj_attr = self.main.get_proj_attr
+
+        # Call the super constructor
+        super().__init__("Overview", self.main, *args, **kwargs)
+
+        # Create the overview widget
+        self.init()
+
+    # This function is called when the main window is closed
+    def closeEvent(self, *args, **kwargs):
+        # Close all currently opened figures
+        for fig in self.proj_fig_registry.values():
+            plt.close(fig)
+
+        # Close the projection overview
+        super().closeEvent(*args, **kwargs)
+
+    # This function creates the projection overview
+    def init(self):
         # Create an overview
-        self.overview_dock = QW.QDockWidget("Overview", self.main)
         overview_widget = QW.QWidget()
         self.proj_overview = QW.QVBoxLayout()
         overview_widget.setLayout(self.proj_overview)
-        self.overview_dock.setWidget(overview_widget)
-        self.main.addDockWidget(self.default_pos['Overview'],
-                                self.overview_dock)
+        self.setWidget(overview_widget)
 
-        # Create an action for enabling/disabling the overview
-        proj_overview_act = self.overview_dock.toggleViewAction()
-        proj_overview_act.setShortcut(QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_O)
-        proj_overview_act.setStatusTip("Enable/disable the Overview window")
-        self.main.windows_menu.addAction(proj_overview_act)
+        # Create empty dict containing all projection figure instances
+        self.proj_fig_registry = {}
 
         # Make lists of all hcubes and their names
         self.hcubes = list(self.get_proj_attr('hcubes'))
@@ -427,54 +471,274 @@ class ProjectionViewer(QW.QMainWindow):
                         if name not in unavail_hcubes]
         drawn_hcubes = []
 
+        # DRAWN PROJECTIONS
         # Add list for drawn projections
         self.proj_overview.addWidget(QW.QLabel("Drawn:"))
         self.proj_list_d = QW.QListWidget()
         self.proj_list_d.addItems(drawn_hcubes)
         self.proj_list_d.setStatusTip("Lists all projections that have been "
                                       "drawn")
+
+        # Set a variety of properties
         self.proj_list_d.setAlternatingRowColors(True)
         self.proj_list_d.setSortingEnabled(True)
-        self.proj_list_d.itemDoubleClicked.connect(self.add_projection_figure)
+        self.proj_list_d.setSelectionMode(
+            QW.QAbstractItemView.ExtendedSelection)
+        self.proj_list_d.setContextMenuPolicy(QC.Qt.CustomContextMenu)
+
+        # Add signal handling
+        self.create_drawn_context_menu()
+        self.proj_list_d.customContextMenuRequested.connect(
+            self.show_drawn_context_menu)
+        self.proj_list_d.itemActivated.connect(
+            lambda: self.show_projection_figures(
+                self.proj_list_d.selectedItems()))
+
+        # Add list to overview
         self.proj_overview.addWidget(self.proj_list_d)
 
+        # AVAILABLE PROJECTIONS
         # Add list for available projections
         self.proj_overview.addWidget(QW.QLabel("Available:"))
         self.proj_list_a = QW.QListWidget()
         self.proj_list_a.addItems(avail_hcubes)
         self.proj_list_a.setStatusTip("Lists all projections that have been "
                                       "calculated but not drawn")
+
+        # Set a variety of properties
         self.proj_list_a.setAlternatingRowColors(True)
         self.proj_list_a.setSortingEnabled(True)
-        self.proj_list_a.itemDoubleClicked.connect(self.add_projection_figure)
+        self.proj_list_a.setSelectionMode(
+            QW.QAbstractItemView.ExtendedSelection)
+        self.proj_list_a.setContextMenuPolicy(QC.Qt.CustomContextMenu)
+
+        # Add signal handling
+        self.create_available_context_menu()
+        self.proj_list_a.customContextMenuRequested.connect(
+            self.show_available_context_menu)
+        self.proj_list_a.itemActivated.connect(
+            lambda: self.draw_projection_figures(
+                self.proj_list_a.selectedItems()))
+
+        # Add list to overview
         self.proj_overview.addWidget(self.proj_list_a)
 
+        # UNAVAILABLE PROJECTIONS
         # Add list for projections that can be created
         self.proj_overview.addWidget(QW.QLabel("Unavailable:"))
         self.proj_list_u = QW.QListWidget()
         self.proj_list_u.addItems(unavail_hcubes)
         self.proj_list_u.setStatusTip("Lists all projections that have not "
                                       "been calculated")
+
+        # Set a variety of properties
         self.proj_list_u.setAlternatingRowColors(True)
         self.proj_list_u.setSortingEnabled(True)
-        self.proj_list_u.itemDoubleClicked.connect(
-            self.create_projection_figure)
+        self.proj_list_u.setSelectionMode(
+            QW.QAbstractItemView.ExtendedSelection)
+        self.proj_list_u.setContextMenuPolicy(QC.Qt.CustomContextMenu)
+
+        # Add signal handling
+        self.create_unavailable_context_menu()
+        self.proj_list_u.customContextMenuRequested.connect(
+            self.show_unavailable_context_menu)
+        self.proj_list_u.itemActivated.connect(
+            lambda: self.create_projection_figures(
+                self.proj_list_u.selectedItems()))
+
+        # Add list to overview
         self.proj_overview.addWidget(self.proj_list_u)
 
-    # This function adds a projection figure to the viewing area
-    # OPTIMIZE: (Re)Drawing a 3D projection figure takes up to 15 seconds
-    def add_projection_figure(self, list_item):
-        # Retrieve text of list_item
-        hcube_name = list_item.text()
-        hcube = self.hcubes[self.names.index(hcube_name)]
+    # This function creates the context menu for drawn projections
+    def create_drawn_context_menu(self):
+        # Create context menu
+        menu = QW.QMenu('Drawn')
 
-        # Check if this figure is already stored in memory
-        if hcube_name in self.proj_fig_registry.keys():
+        # Make shortcut for obtaining selected items
+        list_items = self.proj_list_d.selectedItems
+
+        # Add show action to menu
+        # TODO: Make sure only a single subwindow with a figure can exist
+        show_act = QW_QAction('S&how', self)
+        show_act.setDetails(
+            statustip="Show selected projection figure(s)")
+        show_act.triggered.connect(
+            lambda: self.show_projection_figures(list_items()))
+        menu.addAction(show_act)
+
+        # Add save action to menu
+        save_act = QW_QAction('&Save', self)
+        save_act.setDetails(
+            statustip="Save selected projection figure(s) to file")
+        save_act.triggered.connect(
+            lambda: self.save_projection_figures(list_items()))
+        menu.addAction(save_act)
+
+        # Add redraw action to menu
+        redraw_act = QW_QAction('&Redraw', self)
+        redraw_act.setDetails(
+            statustip="Redraw selected projection figure(s)")
+        redraw_act.triggered.connect(
+            lambda: self.redraw_projection_figures(list_items()))
+        menu.addAction(redraw_act)
+
+        # Add close action to menu
+        # TODO: Make sure that closing a figure also closes its subwindow
+        close_act = QW_QAction('&Close', self)
+        close_act.setDetails(
+            statustip="Close selected projection figure(s)")
+        close_act.triggered.connect(
+            lambda: self.close_projection_figures(list_items()))
+        menu.addAction(close_act)
+
+        # Save made menu as an attribute
+        self.context_menu_d = menu
+
+    # This function shows the context menu for drawn projections
+    def show_drawn_context_menu(self):
+        # If there is currently at least one item selected, show context menu
+        if len(self.proj_list_d.selectedItems()):
+            self.context_menu_d.popup(QG.QCursor.pos())
+
+    # This function creates the context menu for available projections
+    def create_available_context_menu(self):
+        # Create context menu
+        menu = QW.QMenu('Available')
+
+        # Make shortcut for obtaining selected items
+        list_items = self.proj_list_a.selectedItems
+
+        # Add draw action to menu
+        draw_act = QW_QAction('&Draw', self)
+        draw_act.setDetails(
+            statustip="Draw selected projection figure(s)")
+        draw_act.triggered.connect(
+            lambda: self.draw_projection_figures(list_items()))
+        menu.addAction(draw_act)
+
+        # Add draw&save action to menu
+        draw_save_act = QW_QAction('Draw && &Save', self)
+        draw_save_act.setDetails(
+            statustip="Draw & save selected projection figure(s)")
+        draw_save_act.triggered.connect(
+            lambda: self.draw_save_projection_figures(list_items()))
+        menu.addAction(draw_save_act)
+
+        # Add recreate action to menu
+        recreate_act = QW_QAction('&Recreate', self)
+        recreate_act.setDetails(
+            statustip="Recreate selected projection figure(s)")
+        recreate_act.triggered.connect(
+            lambda: self.recreate_projection_figures(list_items()))
+        menu.addAction(recreate_act)
+
+        # Add delete action to menu
+        delete_act = QW_QAction('D&elete', self)
+        delete_act.setDetails(
+            statustip="Delete selected projection figure(s)")
+        delete_act.triggered.connect(
+            lambda: self.delete_projection_figures(list_items()))
+        menu.addAction(delete_act)
+
+        # Save made menu as an attribute
+        self.context_menu_a = menu
+
+    # This function shows the context menu for available projections
+    def show_available_context_menu(self):
+        # If there is currently at least one item selected, show context menu
+        if len(self.proj_list_a.selectedItems()):
+            self.context_menu_a.popup(QG.QCursor.pos())
+
+    # This function creates the context menu for unavailable projections
+    def create_unavailable_context_menu(self):
+        # Create context menu
+        menu = QW.QMenu('Unavailable')
+
+        # Make shortcut for obtaining selected items
+        list_items = self.proj_list_u.selectedItems
+
+        # Add create action to menu
+        create_act = QW_QAction('&Create', self)
+        create_act.setDetails(
+            statustip="Create selected projection figure(s)")
+        create_act.triggered.connect(
+            lambda: self.create_projection_figures(list_items()))
+        menu.addAction(create_act)
+
+        # Add create&draw action to menu
+        create_draw_act = QW_QAction('Create && &Draw', self)
+        create_draw_act.setDetails(
+            statustip="Create & draw selected projection figure(s)")
+        create_draw_act.triggered.connect(
+            lambda: self.create_draw_projection_figures(list_items()))
+        menu.addAction(create_draw_act)
+
+        # Add create, draw & save action to menu
+        create_draw_save_act = QW_QAction('Create, Draw && &Save', self)
+        create_draw_save_act.setDetails(
+            statustip="Create, draw & save selected projection figure(s)")
+        create_draw_save_act.triggered.connect(
+            lambda: self.create_draw_save_projection_figures(list_items()))
+        menu.addAction(create_draw_save_act)
+
+        # Save made menu as an attribute
+        self.context_menu_u = menu
+
+    # This function shows the context menu for unavailable projections
+    def show_unavailable_context_menu(self):
+        # If there is currently at least one item selected, show context menu
+        if len(self.proj_list_u.selectedItems()):
+            self.context_menu_u.popup(QG.QCursor.pos())
+
+    # This function shows a projection figure in the viewing area
+    def show_projection_figures(self, list_items):
+        # Loop over all items in list_items
+        for list_item in list_items:
+            # Retrieve text of list_item
+            hcube_name = list_item.text()
+
             # Obtain the corresponding figure
             fig = self.proj_fig_registry[hcube_name]
 
-        # If not, create it
-        else:
+            # Create a FigureCanvas instance
+            figure_canvas = FigureCanvas(fig)
+
+            # Create a new subwindow
+            subwindow = QW.QMdiSubWindow()
+            subwindow.setWindowTitle(hcube_name)
+            subwindow.setWidget(figure_canvas)
+
+            # Add new subwindow to viewing area
+            self.main.area_dock.proj_area.addSubWindow(subwindow)
+            subwindow.show()
+
+    # This function removes a projection figure permanently from the register
+    def close_projection_figures(self, list_items):
+        # Loop over all items in list_items
+        for list_item in list_items:
+            # Retrieve text of list_item
+            hcube_name = list_item.text()
+
+            # Pop the figure from the registry
+            fig = self.proj_fig_registry.pop(hcube_name)
+
+            # Close the figure
+            plt.close(fig)
+
+            # Move figure from drawn to available
+            item = self.proj_list_d.takeItem(
+                self.proj_list_d.row(list_item))
+            self.proj_list_a.addItem(item)
+
+    # This function draws a projection figure
+    # OPTIMIZE: (Re)Drawing a 3D projection figure takes up to 15 seconds
+    def draw_projection_figures(self, list_items):
+        # Loop over all items in list_items
+        for list_item in list_items:
+            # Retrieve text of list_item
+            hcube_name = list_item.text()
+            hcube = self.hcubes[self.names.index(hcube_name)]
+
             # Load in the data corresponding to the requested figure
             impl_min, impl_los, proj_res, _ =\
                 self.get_proj_attr('get_proj_data')(hcube)
@@ -491,54 +755,123 @@ class ProjectionViewer(QW.QMainWindow):
             self.proj_fig_registry[hcube_name] = fig
 
             # Move figure from available to drawn
-            item = self.proj_list_a.takeItem(self.proj_list_a.currentRow())
+            item = self.proj_list_a.takeItem(
+                self.proj_list_a.row(list_item))
             self.proj_list_d.addItem(item)
 
-        # Create a FigureCanvas instance
-        figure_canvas = FigureCanvas(fig)
+        # Show all drawn projection figures
+        self.show_projection_figures(list_items)
 
-        # Create a new subwindow
-        subwindow = QW.QMdiSubWindow()
-        subwindow.setWindowTitle(hcube_name)
-        subwindow.setWidget(figure_canvas)
+    # This function deletes a projection figure
+    # TODO: Avoid reimplementing the __get_req_hcubes() logic here
+    def delete_projection_figures(self, list_items, *, skip_warning=False):
+        # If skip_warning is False, ask the user if they really want this
+        if not skip_warning:
+            button_clicked = QW.QMessageBox.warning(
+                self, "WARNING: Delete projection(s)",
+                ("Are you sure you want to delete the selected projection "
+                 "figure(s)? (<i>Note: This action is irreversible!</i>)"),
+                QW.QMessageBox.Yes | QW.QMessageBox.No, QW.QMessageBox.No)
+        # Else, this answer is always yes
+        else:
+            button_clicked = QW.QMessageBox.Yes
 
-        # Add new subwindow to viewing area
-        self.proj_area.addSubWindow(subwindow)
-        subwindow.show()
+        # If the answer is yes, loop over all items in list_items
+        if(button_clicked == QW.QMessageBox.Yes):
+            for list_item in list_items:
+                # Retrieve text of list_item
+                hcube_name = list_item.text()
+                hcube = self.hcubes[self.names.index(hcube_name)]
 
-    # This function removes a projection figure permanently from the register
-    def remove_projection_figure(self, list_item):
-        # Retrieve text of list_item
-        hcube_name = list_item.text()
+                # Retrieve the emul_i of this hcube
+                emul_i = hcube[0]
 
-        # Check if this figure is already stored in memory
-        if hcube_name in self.proj_fig_registry.keys():
-            # Pop the figure from the registry
-            fig = self.proj_fig_registry.pop(hcube_name)
+                # Open hdf5-file
+                with self.pipe._File('r+', None) as file:
+                    # Remove the data belonging to this hcube
+                    del file['%i/proj_hcube/%s' % (emul_i, hcube_name)]
 
-            # Close the figure
-            plt.close(fig)
+                # Try to remove figures as well
+                fig_path, fig_path_s =\
+                    self.get_proj_attr('get_fig_path')(hcube)
+                if path.exists(fig_path):
+                    os.remove(fig_path)
+                if path.exists(fig_path_s):
+                    os.remove(fig_path_s)
 
-            # Move figure from drawn to available
-            item = self.proj_list_d.takeItem(self.proj_list_d.currentRow())
+                # Move figure from available to unavailable
+                item = self.proj_list_a.takeItem(
+                    self.proj_list_a.row(list_item))
+                self.proj_list_u.addItem(item)
+
+    # This function creates a projection figure
+    def create_projection_figures(self, list_items):
+        # Loop over all items in list_items
+        for list_item in list_items:
+            # Retrieve text of list_item
+            hcube_name = list_item.text()
+            hcube = self.hcubes[self.names.index(hcube_name)]
+
+            # Calculate projection data
+            _, _ = self.get_proj_attr('analyze_proj_hcube')(hcube)
+
+            # Move figure from unavailable to available
+            item = self.proj_list_u.takeItem(self.proj_list_u.row(list_item))
             self.proj_list_a.addItem(item)
 
-    # This function creates a projection figure and adds it to the viewing area
-    def create_projection_figure(self, list_item):
-        # Retrieve text of list_item
-        hcube_name = list_item.text()
-        hcube = self.hcubes[self.names.index(hcube_name)]
+    # This function saves a projection figure to file in the normal way
+    def save_projection_figures(self, list_items):
+        # Loop over all items in list_items
+        for list_item in list_items:
+            # Retrieve text of list_item
+            hcube_name = list_item.text()
+            hcube = self.hcubes[self.names.index(hcube_name)]
 
-        # Calculate projection data
-        _, _ = self.get_proj_attr('analyze_proj_hcube')(hcube)
+            # Obtain the corresponding figure
+            fig = self.proj_fig_registry[hcube_name]
 
-        # Move figure from unavailable to available
-        item = self.proj_list_u.takeItem(self.proj_list_u.currentRow())
-        self.proj_list_a.addItem(item)
-        self.proj_list_a.setCurrentItem(item)
+            # Save the figure to file
+            fig_path = self.get_proj_attr('get_fig_path')(hcube)
+            fig.savefig(fig_path[self.get_proj_attr('smooth')])
 
-        # Add the figure to the viewing area
-        self.add_projection_figure(item)
+    # This function redraws a projection figure
+    def redraw_projection_figures(self, list_items):
+        # Close and redraw all projection figures in list_items
+        self.close_projection_figures(list_items)
+        self.draw_projection_figures(list_items)
+
+    # This function draws and saves a projection figure
+    def draw_save_projection_figures(self, list_items):
+        # Draw and save all projection figures in list_items
+        self.draw_projection_figures(list_items)
+        self.save_projection_figures(list_items)
+
+    # This function recreates a projection figure
+    def recreate_projection_figures(self, list_items):
+        # Ask the user if they really want to recreate the figures
+        button_clicked = QW.QMessageBox.warning(
+            self, "WARNING: Recreate projection(s)",
+            ("Are you sure you want to recreate the selected projection "
+             "figure(s)? (<i>Note: This action is irreversible!</i>)"),
+            QW.QMessageBox.Yes | QW.QMessageBox.No, QW.QMessageBox.No)
+
+        # Delete and recreate all projection figures in list_items if yes
+        if(button_clicked == QW.QMessageBox.Yes):
+            self.delete_projection_figures(list_items, skip_warning=True)
+            self.create_projection_figures(list_items)
+
+    # This function creates and draws a projection figure
+    def create_draw_projection_figures(self, list_items):
+        # Create and draw all projection figures in list_items
+        self.create_projection_figures(list_items)
+        self.draw_projection_figures(list_items)
+
+    # This function creates, draws and saves a projection figure
+    def create_draw_save_projection_figures(self, list_items):
+        # Create, draw and save all projection figures in list_items
+        self.create_projection_figures(list_items)
+        self.draw_projection_figures(list_items)
+        self.save_projection_figures(list_items)
 
 
 # Define class for settings window
@@ -566,8 +899,8 @@ class SettingsWindow(object):
         self.settings_dict = sdict()
 
         # Define list with all options that should be available in what order
-        setting_items = ['proj_type', 'align', 'show_cuts', 'smooth',
-                         'buttons']
+        setting_items = ['proj_grid', 'proj_type', 'align', 'show_cuts',
+                         'smooth', 'buttons']
 
         # Include all options named in setting_items
         for item in setting_items:
@@ -580,6 +913,28 @@ class SettingsWindow(object):
 
         # Show it
         self.window.show()
+
+    # PROJ_PAR
+    def add_option_proj_grid(self):
+        # Make spinbox for setting proj_res
+        proj_res_box = QW.QSpinBox()
+        self.settings_dict['res'] = proj_res_box
+        proj_res_box.setRange(0, 9999999)
+        proj_res_box.setValue(self.get_proj_attr('res'))
+        proj_res_box.setToolTip(proj_res_doc)
+        proj_res_box.valueChanged.connect(
+            lambda: self.save_but.setEnabled(True))
+        self.settings_layout.addRow('proj_res:', proj_res_box)
+
+        # Make spinbox for setting proj_depth
+        proj_depth_box = QW.QSpinBox()
+        self.settings_dict['depth'] = proj_depth_box
+        proj_depth_box.setRange(0, 9999999)
+        proj_depth_box.setValue(self.get_proj_attr('depth'))
+        proj_depth_box.setToolTip(proj_depth_doc)
+        proj_depth_box.valueChanged.connect(
+            lambda: self.save_but.setEnabled(True))
+        self.settings_layout.addRow('proj_depth:', proj_depth_box)
 
     # EMUL_I
     def add_option_emul_i(self):
@@ -703,7 +1058,7 @@ class SettingsWindow(object):
         # Save all new defaults
         for key, val in self.settings_dict.items():
             # Values (QSpinBox)
-            if key in ['emul_i']:
+            if key in ['emul_i', 'res', 'depth']:
                 self.set_proj_attr(key, val.value())
             # Bools (QCheckBox/QRadioButton)
             elif key in ['proj_2D', 'proj_3D', 'figure', 'show_cuts',
@@ -722,7 +1077,7 @@ class SettingsWindow(object):
         # Reset all settings to defaults
         for key, val in self.settings_dict.items():
             # Values (QSpinBox)
-            if key in ['emul_i']:
+            if key in ['emul_i', 'res', 'depth']:
                 val.setValue(self.defaults[key])
             # Bools (QCheckBox/QRadioButton)
             elif key in ['proj_2D', 'proj_3D', 'figure', 'show_cuts',

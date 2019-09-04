@@ -253,6 +253,13 @@ proj_par_doc =\
 proj_par_doc_s = proj_par_doc.format("", "")
 proj_par_doc_d = proj_par_doc.format(ds, "None")
 
+# Descriptions of proj_depth and proj_res
+proj_depth_doc = ("Number of emulator evaluations that will be used to "
+                  "generate the samples in every grid point for the projection"
+                  " figures.")
+proj_res_doc = ("Number of emulator evaluations that will be used to generate "
+                "the grid for the projection figures.")
+
 
 # %% GENERAL DOCSTRINGS
 # Docstrings for the various get_default_parameters methods

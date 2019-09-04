@@ -35,8 +35,8 @@ from tqdm import tqdm
 # PRISM imports
 from prism._docstrings import (
     def_par_doc, draw_proj_fig_doc, get_emul_i_doc, hcube_doc, proj_data_doc,
-    proj_par_doc_d, proj_par_doc_s, save_data_doc_pr, set_par_doc,
-    std_emul_i_doc, user_emul_i_doc)
+    proj_depth_doc, proj_par_doc_d, proj_par_doc_s, proj_res_doc,
+    save_data_doc_pr, set_par_doc, std_emul_i_doc, user_emul_i_doc)
 from prism._internal import (
     RequestError, RequestWarning, check_vals, getCLogger, np_array)
 from prism._projection_gui import open_gui
@@ -267,7 +267,7 @@ class Projection(object):
                         self.__get_proj_data(hcube)
                 # Otherwise, the used resolution is the current resolution
                 else:
-                    proj_res = self._res
+                    proj_res = self.__res
 
                 # Draw projection figure
                 if(len(hcube) == 2):
@@ -310,34 +310,34 @@ class Projection(object):
 
     # %% CLASS PROPERTIES
     @property
+    @docstring_substitute(proj_res=proj_res_doc)
     def proj_res(self):
         """
-        int: Number of emulator evaluations that will be used to generate the
-        grid for the projection figures.
+        int: %(proj_res)s
 
         """
 
-        return(getattr(self, '_res', None))
+        return(getattr(self, '_Projection__res', None))
 
     @proj_res.setter
     def proj_res(self, proj_res):
-        self._res = check_vals(proj_res, 'proj_res', 'int', 'pos')
+        self.__res = check_vals(proj_res, 'proj_res', 'int', 'pos')
 
     @property
+    @docstring_substitute(proj_depth=proj_depth_doc)
     def proj_depth(self):
         """
-        int: Number of emulator evaluations that will be used to generate the
-        samples in every grid point for the projection figures.
+        int: %(proj_depth)s
         Note that when making 2D projections of nD models, the used depth will
         be this number multiplied by :attr:`~proj_res`.
 
         """
 
-        return(getattr(self, '_depth', None))
+        return(getattr(self, '_Projection__depth', None))
 
     @proj_depth.setter
     def proj_depth(self, proj_depth):
-        self._depth = check_vals(proj_depth, 'proj_depth', 'int', 'pos')
+        self.__depth = check_vals(proj_depth, 'proj_depth', 'int', 'pos')
 
     # %% HIDDEN CLASS METHODS
     # This function draws the 2D projection figure
@@ -1023,9 +1023,9 @@ class Projection(object):
                     "parameters.")
 
         # Number of samples used for implausibility evaluations
-        if not hasattr(self, '_res'):
+        if not hasattr(self, '_Projection__res'):
             self.proj_res = convert_str_seq(par_dict['proj_res'])[0]
-        if not hasattr(self, '_depth'):
+        if not hasattr(self, '_Projection__depth'):
             self.proj_depth = convert_str_seq(par_dict['proj_depth'])[0]
 
         # Finish logging
@@ -1068,20 +1068,20 @@ class Projection(object):
             # Calculate the actual depth
             if(self.__n_par == 2):
                 # If n_par == 2, use normal depth
-                depth = self._depth
+                depth = self.__depth
             else:
                 # If n_par > 2, multiply depth by res to have same n_sam as 3D
-                depth = self._depth*self._res
+                depth = self.__depth*self.__res
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([self._res, depth, self.__n_par])
+            proj_hcube = np.zeros([self.__res, depth, self.__n_par])
 
             # Create list that contains all the other parameters
             par_hid = list(chain(range(0, par), range(par+1, self.__n_par)))
 
             # Generate list with values for projected parameter
             proj_sam_set = np.linspace(*self._modellink._par_rng[par],
-                                       self._res)
+                                       self.__res)
 
             # Generate latin hypercube of the remaining parameters
             hidden_sam_set = lhd(depth, self.__n_par-1,
@@ -1089,7 +1089,7 @@ class Projection(object):
                                  self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
-            for i in range(self._res):
+            for i in range(self.__res):
                 proj_hcube[i, :, par] = proj_sam_set[i]
                 proj_hcube[i, :, par_hid] = hidden_sam_set.T
 
@@ -1100,7 +1100,7 @@ class Projection(object):
             par2 = hcube[2]
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([pow(self._res, 2), self._depth,
+            proj_hcube = np.zeros([pow(self.__res, 2), self.__depth,
                                    self.__n_par])
 
             # Generate list that contains all the other parameters
@@ -1109,21 +1109,21 @@ class Projection(object):
 
             # Generate list with values for projected parameters
             proj_sam_set1 = np.linspace(*self._modellink._par_rng[par1],
-                                        self._res)
+                                        self.__res)
             proj_sam_set2 = np.linspace(*self._modellink._par_rng[par2],
-                                        self._res)
+                                        self.__res)
 
             # Generate Latin Hypercube of the remaining parameters
-            hidden_sam_set = lhd(self._depth, self.__n_par-2,
+            hidden_sam_set = lhd(self.__depth, self.__n_par-2,
                                  self._modellink._par_rng[par_hid], 'fixed',
                                  self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
-            for i in range(self._res):
-                for j in range(self._res):
-                    proj_hcube[i*self._res+j, :, par1] = proj_sam_set1[i]
-                    proj_hcube[i*self._res+j, :, par2] = proj_sam_set2[j]
-                    proj_hcube[i*self._res+j, :, par_hid] = hidden_sam_set.T
+            for i in range(self.__res):
+                for j in range(self.__res):
+                    proj_hcube[i*self.__res+j, :, par1] = proj_sam_set1[i]
+                    proj_hcube[i*self.__res+j, :, par2] = proj_sam_set2[j]
+                    proj_hcube[i*self.__res+j, :, par_hid] = hidden_sam_set.T
 
         # Workers get dummy proj_hcube
         else:
@@ -1377,15 +1377,6 @@ class Projection(object):
             self.__line_kwargs_est = line_kwargs_est
             self.__line_kwargs_cut = line_kwargs_cut
 
-            # Save all input arguments in a combined dict (Projection GUI)
-            kwarg_names = ['emul_i', 'proj_2D', 'proj_3D', 'figure', 'align',
-                           'show_cuts', 'smooth', 'fig_kwargs',
-                           'impl_kwargs_2D', 'impl_kwargs_3D', 'los_kwargs_2D',
-                           'los_kwargs_3D', 'line_kwargs_est',
-                           'line_kwargs_cut']
-            self.__proj_kwargs = {n: getattr(self, '_Projection__%s' % (n))
-                                  for n in kwarg_names}
-
         # MPI Barrier
         self._comm.Barrier()
 
@@ -1445,6 +1436,15 @@ class Projection(object):
             # Set projection parameters
             self.__set_parameters()
 
+            # Save all parameters and arguments in a dict (Projection GUI)
+            kwarg_names = ['res', 'depth', 'emul_i', 'proj_2D', 'proj_3D',
+                           'figure', 'align', 'show_cuts', 'smooth',
+                           'fig_kwargs', 'impl_kwargs_2D', 'impl_kwargs_3D',
+                           'los_kwargs_2D', 'los_kwargs_3D', 'line_kwargs_est',
+                           'line_kwargs_cut']
+            self.__proj_kwargs = {n: getattr(self, '_Projection__%s' % (n))
+                                  for n in kwarg_names}
+
         # Initialize empty lists for hcubes and create_hcubes
         self.__hcubes = []
         self.__create_hcubes = []
@@ -1494,7 +1494,7 @@ class Projection(object):
                     data_set.create_dataset('impl_los', data=data['impl_los'])
                     data_set.attrs['impl_cut'] = self._impl_cut[emul_i]
                     data_set.attrs['cut_idx'] = self._cut_idx[emul_i]
-                    data_set.attrs['proj_res'] = self._res
+                    data_set.attrs['proj_res'] = self.__res
                     data_set.attrs['proj_depth'] = data['proj_depth']
 
                 # INVALID KEYWORD
