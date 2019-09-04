@@ -18,6 +18,7 @@ from textwrap import dedent
 
 # Package imports
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
+from matplotlib.backend_bases import _default_filetypes
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 import matplotlib.pyplot as plt
@@ -40,8 +41,6 @@ DIR_PATH = path.dirname(__file__)           # Path to directory of this file
 
 # %% CLASS DEFINITIONS GUI
 # Define class for main viewer window
-# TODO: This cannot run from IPython console on Windows
-# However, on some it apparently does work properly
 # TODO: This GUI must be able to work in MPI
 # TODO: Write documentation (docs and docstrings) for the GUI
 class MainViewerWindow(QW.QMainWindow):
@@ -123,7 +122,7 @@ class MainViewerWindow(QW.QMainWindow):
         file_menu = self.menubar.addMenu('&File')
 
         # Add save action to file menu
-        save_act = QW_QAction('&Save view', self)
+        save_act = QW_QAction('&Save view as...', self)
         save_act.setDetails(
             shortcut=QC.Qt.CTRL + QC.Qt.Key_S,
             statustip="Save current projection viewing area as an image")
@@ -210,6 +209,9 @@ class MainViewerWindow(QW.QMainWindow):
         # Save that Projection GUI is no longer being used
         self.set_proj_attr('use_GUI', 0)
 
+        # Set data parameters in Projection class back to defaults
+        self.settings.reset_settings()
+
         # Turn logging back on in pipeline if it used to be on
         self.pipe.do_logging = self.was_logging
 
@@ -253,8 +255,6 @@ class MainViewerWindow(QW.QMainWindow):
 
 
 # Define class for the projection viewing area dock widget
-# TODO: Allow Figure instance to be saved from the GUI as if made by project()
-# Look at matplotlib/backends/backend_qt5/SaveFigureQT() on how to do this
 class ViewingAreaDockWidget(QW.QDockWidget):
     def __init__(self, main_window_obj, *args, **kwargs):
         # Save provided MainWindow object
@@ -550,6 +550,7 @@ class OverviewDockWidget(QW.QDockWidget):
         self.proj_overview.addWidget(self.proj_list_u)
 
     # This function creates the context menu for drawn projections
+    # TODO: Add action for showing the details/properties of a single figure
     def create_drawn_context_menu(self):
         # Create context menu
         menu = QW.QMenu('Drawn')
@@ -573,6 +574,14 @@ class OverviewDockWidget(QW.QDockWidget):
         save_act.triggered.connect(
             lambda: self.save_projection_figures(list_items()))
         menu.addAction(save_act)
+
+        # Add save as action to menu
+        save_as_act = QW_QAction('Save &as...', self)
+        save_as_act.setDetails(
+            statustip="Save selected projection figure(s) to chosen file")
+        save_as_act.triggered.connect(
+            lambda: self.save_projection_figures(list_items(), choose=True))
+        menu.addAction(save_as_act)
 
         # Add redraw action to menu
         redraw_act = QW_QAction('&Redraw', self)
@@ -820,7 +829,7 @@ class OverviewDockWidget(QW.QDockWidget):
             self.proj_list_a.addItem(item)
 
     # This function saves a projection figure to file in the normal way
-    def save_projection_figures(self, list_items):
+    def save_projection_figures(self, list_items, *, choose=False):
         # Loop over all items in list_items
         for list_item in list_items:
             # Retrieve text of list_item
@@ -830,9 +839,65 @@ class OverviewDockWidget(QW.QDockWidget):
             # Obtain the corresponding figure
             fig = self.proj_fig_registry[hcube_name]
 
-            # Save the figure to file
-            fig_path = self.get_proj_attr('get_fig_path')(hcube)
-            fig.savefig(fig_path[self.get_proj_attr('smooth')])
+            # Obtain the default figure path
+            fig_paths = self.get_proj_attr('get_fig_path')(hcube)
+            fig_path = fig_paths[self.get_proj_attr('smooth')]
+
+            # If choose, save using non-default figure path
+            if choose:
+                # Get dict of all supported file extensions in MPL
+                exts = sdict()
+                for ext, name in _default_filetypes.items():
+                    exts.setdefault(name, []).append("*.%s" % (ext))
+                    exts[name].sort()
+
+                # Transform all elements into the proper strings
+                for name, ext_list in exts.items():
+                    exts[name] = ' '.join(ext_list)
+
+                # Set default extension
+                default_ext = '*.png'
+
+                # Initialize empty list of filters and default filter
+                file_filters = []
+                default_filter = None
+
+                # Obtain list with the different file filters
+                for name, ext in exts.items():
+                    # Create proper string layout for this filter
+                    file_filter = "%s (%s)" % (name, ext)
+                    file_filters.append(file_filter)
+
+                    # If this extension is the default one, save it as such
+                    if default_ext in file_filter:
+                        default_filter = file_filter
+
+                # Add 'All (Image) Files' filter to the list of filters
+                file_filters.append("All Image Files (%s)"
+                                    % (' '.join(exts.values())))
+                file_filters.append("All Files (*)")
+
+                # Combine list into a single string
+                file_filters = ';;'.join(file_filters)
+
+                # Open the file saving system
+                filename, _ = QW.QFileDialog.getSaveFileName(
+                    parent=self.main,
+                    caption="Save %s as..." % (hcube_name),
+                    directory=fig_path,
+                    filter=file_filters,
+                    initialFilter=default_filter)
+
+                # If filename was provided, save image
+                if(filename != ''):
+                    fig.savefig(filename)
+                # Else, break the loop
+                else:
+                    break
+
+            # Else, use default figure path
+            else:
+                fig.savefig(fig_path)
 
     # This function redraws a projection figure
     def redraw_projection_figures(self, list_items):
@@ -887,8 +952,11 @@ class SettingsWindow(object):
         # Save projection defaults here
         self.defaults = sdict(self.get_proj_attr('proj_kwargs'))
 
-    # This function creates a settings window
-    def __call__(self):
+        # Create the settings window
+        self.init()
+
+    # This function creates the settings window
+    def init(self):
         # Create settings window
         self.window = QW.QDialog(self.main)
 
@@ -911,6 +979,8 @@ class SettingsWindow(object):
         self.window.setWindowModality(QC.Qt.ApplicationModal)  # Modality
         self.window.setWindowTitle("Preferences")              # Title
 
+    # This function shows the settings window
+    def __call__(self):
         # Show it
         self.window.show()
 
@@ -924,7 +994,7 @@ class SettingsWindow(object):
         proj_res_box.setToolTip(proj_res_doc)
         proj_res_box.valueChanged.connect(
             lambda: self.save_but.setEnabled(True))
-        self.settings_layout.addRow('proj_res:', proj_res_box)
+        self.settings_layout.addRow('Resolution:', proj_res_box)
 
         # Make spinbox for setting proj_depth
         proj_depth_box = QW.QSpinBox()
@@ -934,7 +1004,7 @@ class SettingsWindow(object):
         proj_depth_box.setToolTip(proj_depth_doc)
         proj_depth_box.valueChanged.connect(
             lambda: self.save_but.setEnabled(True))
-        self.settings_layout.addRow('proj_depth:', proj_depth_box)
+        self.settings_layout.addRow('Depth:', proj_depth_box)
 
     # EMUL_I
     def add_option_emul_i(self):
@@ -944,7 +1014,7 @@ class SettingsWindow(object):
         emul_i_box.setRange(0, self.pipe._emulator._emul_i)
         emul_i_box.setValue(self.get_proj_attr('emul_i'))
         emul_i_box.valueChanged.connect(lambda: self.save_but.setEnabled(True))
-        self.settings_layout.addRow('emul_i:', emul_i_box)
+        self.settings_layout.addRow('Iteration:', emul_i_box)
 
     # PROJ_TYPE
     def add_option_proj_type(self):
@@ -970,16 +1040,7 @@ class SettingsWindow(object):
         proj_type_box.addWidget(proj_2D_box)
         proj_type_box.addWidget(proj_3D_box)
         proj_type_box.addStretch()
-        self.settings_layout.addRow('proj_type:', proj_type_box)
-
-    # FIGURE
-    def add_option_figure(self):
-        # Make check box for figure
-        figure_box = QW.QCheckBox()
-        self.settings_dict['figure'] = figure_box
-        figure_box.setChecked(self.get_proj_attr('figure'))
-        figure_box.stateChanged.connect(lambda: self.save_but.setEnabled(True))
-        self.settings_layout.addRow('figure:', figure_box)
+        self.settings_layout.addRow('Projection type:', proj_type_box)
 
     # ALIGN
     def add_option_align(self):
@@ -1001,7 +1062,7 @@ class SettingsWindow(object):
         align_box.addWidget(align_col_box)
         align_box.addWidget(align_row_box)
         align_box.addStretch()
-        self.settings_layout.addRow('align:', align_box)
+        self.settings_layout.addRow('Alignment:', align_box)
 
     # SHOW_CUTS
     def add_option_show_cuts(self):
@@ -1011,7 +1072,7 @@ class SettingsWindow(object):
         show_cuts_box.setChecked(self.get_proj_attr('show_cuts'))
         show_cuts_box.stateChanged.connect(
             lambda: self.save_but.setEnabled(True))
-        self.settings_layout.addRow('show_cuts:', show_cuts_box)
+        self.settings_layout.addRow('Show cuts?', show_cuts_box)
 
     # SMOOTH
     def add_option_smooth(self):
@@ -1020,7 +1081,7 @@ class SettingsWindow(object):
         self.settings_dict['smooth'] = smooth_box
         smooth_box.setChecked(self.get_proj_attr('smooth'))
         smooth_box.stateChanged.connect(lambda: self.save_but.setEnabled(True))
-        self.settings_layout.addRow('smooth:', smooth_box)
+        self.settings_layout.addRow('Smooth?', smooth_box)
 
     # KWARGS
     def add_option_kwargs(self):
@@ -1056,39 +1117,37 @@ class SettingsWindow(object):
     # This function saves the new default settings
     def save_settings(self):
         # Save all new defaults
-        for key, val in self.settings_dict.items():
+        for key, box in self.settings_dict.items():
             # Values (QSpinBox)
-            if key in ['emul_i', 'res', 'depth']:
-                self.set_proj_attr(key, val.value())
-            # Bools (QCheckBox/QRadioButton)
-            elif key in ['proj_2D', 'proj_3D', 'figure', 'show_cuts',
-                         'smooth']:
-                self.set_proj_attr(key, int(val.isChecked()))
-            # Align
+            if isinstance(box, QW.QSpinBox):
+                self.set_proj_attr(key, box.value())
+            # Align (special QRadioButton)
             elif key in ['align_col', 'align_row']:
-                if val.isChecked():
+                if box.isChecked():
                     self.set_proj_attr('align', key[6:])
+            # Bools (QCheckBox/QRadioButton)
+            elif isinstance(box, (QW.QCheckBox, QW.QRadioButton)):
+                self.set_proj_attr(key, int(box.isChecked()))
             # Items (QComboBox)
-            elif key in []:
-                self.set_proj_attr(key, val.currentText())
+            elif isinstance(box, QW.QComboBox):
+                self.set_proj_attr(key, box.currentText())
 
     # This function resets the default settings
     def reset_settings(self):
         # Reset all settings to defaults
-        for key, val in self.settings_dict.items():
+        for key, box in self.settings_dict.items():
             # Values (QSpinBox)
-            if key in ['emul_i', 'res', 'depth']:
-                val.setValue(self.defaults[key])
-            # Bools (QCheckBox/QRadioButton)
-            elif key in ['proj_2D', 'proj_3D', 'figure', 'show_cuts',
-                         'smooth']:
-                val.setChecked(self.defaults[key])
-            # Align
+            if isinstance(box, QW.QSpinBox):
+                box.setValue(self.defaults[key])
+            # Align (special QRadioButton)
             elif key in ['align_col', 'align_row']:
-                val.setChecked(self.defaults['align'] == key[6:])
+                box.setChecked(self.defaults['align'] == key[6:])
+            # Bools (QCheckBox/QRadioButton)
+            elif isinstance(box, (QW.QCheckBox, QW.QRadioButton)):
+                box.setChecked(self.defaults[key])
             # Items (QComboBox)
-            elif key in []:
-                val.setCurrentText(self.defaults[key])
+            elif isinstance(box, QW.QComboBox):
+                box.setCurrentText(self.defaults[key])
 
         # Save current settings
         self.save_settings()
