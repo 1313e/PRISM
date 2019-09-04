@@ -71,13 +71,19 @@ class MainViewerWindow(QW.QMainWindow):
         # Make sure that the viewer is deleted when window is closed
         self.setAttribute(QC.Qt.WA_DeleteOnClose)
 
+        # Disable the default context menu (right-click menu)
+        self.setContextMenuPolicy(QC.Qt.NoContextMenu)
+
         # Create statusbar
         self.create_statusbar()
+
+        # Prepare the windows and toolbars menus
+        self.windows_menu = QW.QMenu('&Windows')
+        self.toolbars_menu = QW.QMenu('&Toolbars')
 
         # Create main projection viewing area
         self.proj_viewer = ProjectionViewer(self)
         self.proj_viewer.setFocus()
-        self.setCentralWidget(self.proj_viewer)
 
         # Create menubar
         self.create_menubar()
@@ -110,10 +116,31 @@ class MainViewerWindow(QW.QMainWindow):
         quit_act.triggered.connect(self.qapp.closeAllWindows)
         file_menu.addAction(quit_act)
 
+        # TOOLS
+        # Create tools menu, which includes all actions in the proj_toolbar
+        tools_menu = self.menubar.addMenu('&Tools')
+        tools_menu.addActions(self.proj_viewer.proj_toolbar.actions())
+
         # VIEW
-        # Create view menu, which includes all actions in the proj_toolbar
+        # Create view menu
         view_menu = self.menubar.addMenu('&View')
-        view_menu.addActions(self.proj_viewer.proj_toolbar.actions())
+
+        # Add the windows submenu to view menu
+        view_menu.addMenu(self.windows_menu)
+
+        # Add default layout action to view menu
+        default_layout_act = QW_QAction('&Default layout', self)
+        default_layout_act.setDetails(
+            statustip="Reset all windows and toolbars back to default layout")
+        default_layout_act.triggered.connect(
+            self.proj_viewer.set_default_dock_positions)
+        view_menu.addAction(default_layout_act)
+
+        # Add a separator
+        view_menu.addSeparator()
+
+        # Add the toolbars submenu to view menu
+        view_menu.addMenu(self.toolbars_menu)
 
         # OPTIONS
         # Create options menu
@@ -194,9 +221,45 @@ class ProjectionViewer(QW.QMainWindow):
         # Make sure that the viewer is deleted when window is closed
         self.setAttribute(QC.Qt.WA_DeleteOnClose)
 
+        # Disable the default context menu (right-click menu)
+        self.setContextMenuPolicy(QC.Qt.NoContextMenu)
+
+        # Obtain dict of default docking positions
+        self.default_pos = self.get_default_dock_positions()
+
         # Create the projection viewing area
         self.create_projection_area()
         self.create_projection_overview()
+
+    # This function returns the default positions of dock widgets and toolbars
+    def get_default_dock_positions(self):
+        # Make dict including the default docking positions
+        default_pos = {
+            'Viewing area': QC.Qt.RightDockWidgetArea,
+            'Overview': QC.Qt.LeftDockWidgetArea,
+            'Tools': QC.Qt.TopToolBarArea}
+
+        # Return it
+        return(default_pos)
+
+    # This function sets dock widgets and toolbars to their default position
+    def set_default_dock_positions(self):
+        # Set the dock widgets and toolbars to their default positions
+        # VIEWING AREA
+        self.area_dock.setVisible(True)
+        self.area_dock.setFloating(False)
+        self.main.addDockWidget(self.default_pos['Viewing area'],
+                                self.area_dock)
+
+        # TOOLS TOOLBAR
+        self.proj_toolbar.setVisible(True)
+        self.addToolBar(self.default_pos['Tools'], self.proj_toolbar)
+
+        # OVERVIEW
+        self.overview_dock.setVisible(True)
+        self.overview_dock.setFloating(False)
+        self.main.addDockWidget(self.default_pos['Overview'],
+                                self.overview_dock)
 
     # This function saves the current state of the viewer to file
     def save_view(self):
@@ -260,11 +323,22 @@ class ProjectionViewer(QW.QMainWindow):
 
     # This function creates the main projection viewing area
     def create_projection_area(self):
-        # Create a MdiArea for the viewer
+        # Create an MdiArea for the viewer
+        self.area_dock = QW.QDockWidget("Viewing area", self.main)
         self.proj_area = QW.QMdiArea(self)
         self.proj_area.setViewMode(0)                   # Use subwindow mode
         self.proj_area.setStatusTip("Main projection viewing area")
         self.setCentralWidget(self.proj_area)
+        self.proj_area.setFocus()
+        self.area_dock.setWidget(self)
+        self.main.addDockWidget(self.default_pos['Viewing area'],
+                                self.area_dock)
+
+        # Create an action for enabling/disabling the viewing area
+        proj_area_act = self.area_dock.toggleViewAction()
+        proj_area_act.setShortcut(QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_V)
+        proj_area_act.setStatusTip("Enable/disable the Viewing area window")
+        self.main.windows_menu.addAction(proj_area_act)
 
         # Create empty dict containing all projection figure instances
         self.proj_fig_registry = {}
@@ -276,7 +350,13 @@ class ProjectionViewer(QW.QMainWindow):
     def create_projection_toolbar(self):
         # Create toolbar for projection viewer
         self.proj_toolbar = QW.QToolBar("Tools", self)
-        self.addToolBar(self.proj_toolbar)
+        self.addToolBar(self.default_pos['Tools'], self.proj_toolbar)
+
+        # Create an action for enabling/disabling the toolbar
+        proj_toolbar_act = self.proj_toolbar.toggleViewAction()
+        proj_toolbar_act.setText("Tools toolbar")
+        proj_toolbar_act.setStatusTip("Enable/disable the Tools toolbar")
+        self.main.toolbars_menu.addAction(proj_toolbar_act)
 
         # Add tools for manipulating projection figures
 
@@ -286,7 +366,7 @@ class ProjectionViewer(QW.QMainWindow):
         # Add action for resetting the view
         reset_act = QW_QAction("&Reset", self)
         reset_act.setDetails(
-            shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_R,
+            shortcut=QC.Qt.ALT + QC.Qt.SHIFT + QC.Qt.Key_R,
             statustip="Reset projection viewing area to its default state")
         self.proj_toolbar.addAction(reset_act)
 
@@ -296,7 +376,7 @@ class ProjectionViewer(QW.QMainWindow):
         # Add action for cascading all subwindows
         cascade_act = QW_QAction("&Cascade", self)
         cascade_act.setDetails(
-            shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_C,
+            shortcut=QC.Qt.ALT + QC.Qt.SHIFT + QC.Qt.Key_C,
             statustip="Cascade all subwindows")
         cascade_act.triggered.connect(self.proj_area.cascadeSubWindows)
         self.proj_toolbar.addAction(cascade_act)
@@ -304,7 +384,7 @@ class ProjectionViewer(QW.QMainWindow):
         # Add action for tiling all subwindows
         tile_act = QW_QAction("&Tile", self)
         tile_act.setDetails(
-                shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_T,
+                shortcut=QC.Qt.ALT + QC.Qt.SHIFT + QC.Qt.Key_T,
                 statustip="Tile all subwindows")
         tile_act.triggered.connect(self.proj_area.tileSubWindows)
         self.proj_toolbar.addAction(tile_act)
@@ -312,32 +392,27 @@ class ProjectionViewer(QW.QMainWindow):
         # Add action for closing all subwindows
         close_act = QW_QAction("Close all", self)
         close_act.setDetails(
-                shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_X,
+                shortcut=QC.Qt.ALT + QC.Qt.SHIFT + QC.Qt.Key_X,
                 statustip="Close all subwindows")
         close_act.triggered.connect(self.proj_area.closeAllSubWindows)
         self.proj_toolbar.addAction(close_act)
 
     # This function creates the projection list overview
-    # TODO: Should this be a QToolBar or a QDockWidget?
     def create_projection_overview(self):
-        # Create an overview (QToolBar)
-        self.proj_overview = QW.QToolBar("Projections", self.main)
-        self.proj_overview.setAllowedAreas(
-            QC.Qt.LeftToolBarArea | QC.Qt.RightToolBarArea)
-        self.proj_overview.setFloatable(False)
-        self.main.addToolBar(QC.Qt.LeftToolBarArea, self.proj_overview)
+        # Create an overview
+        self.overview_dock = QW.QDockWidget("Overview", self.main)
+        overview_widget = QW.QWidget()
+        self.proj_overview = QW.QVBoxLayout()
+        overview_widget.setLayout(self.proj_overview)
+        self.overview_dock.setWidget(overview_widget)
+        self.main.addDockWidget(self.default_pos['Overview'],
+                                self.overview_dock)
 
-#        # Create an overview (QDockWidget)
-#        self.proj_dock = QW.QDockWidget("Projections", self.main)
-#        self.proj_dock.setAllowedAreas(
-#            QC.Qt.LeftDockWidgetArea | QC.Qt.RightDockWidgetArea)
-#        self.proj_dock.setFeatures(
-#            QW.QDockWidget.DockWidgetMovable)
-#        self.main.addDockWidget(QC.Qt.LeftDockWidgetArea, self.proj_dock)
-#        proj_widget = QW.QWidget()
-#        self.proj_dock.setWidget(proj_widget)
-#        self.proj_overview = QW.QVBoxLayout()
-#        proj_widget.setLayout(self.proj_overview)
+        # Create an action for enabling/disabling the overview
+        proj_overview_act = self.overview_dock.toggleViewAction()
+        proj_overview_act.setShortcut(QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_O)
+        proj_overview_act.setStatusTip("Enable/disable the Overview window")
+        self.main.windows_menu.addAction(proj_overview_act)
 
         # Make lists of all hcubes and their names
         self.hcubes = list(self.get_proj_attr('hcubes'))
@@ -778,4 +853,4 @@ if __name__ == '__main__':
 
         pipe.construct(1)
 
-    pipe.open_gui()
+    open_gui(pipe)
