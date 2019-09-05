@@ -14,6 +14,7 @@ method.
 # Built-in imports
 from os import path
 import signal
+import sys
 from textwrap import dedent
 
 # Package imports
@@ -168,7 +169,7 @@ class MainViewerWindow(QW.QMainWindow):
         options_menu = self.menubar.addMenu('&Options')
 
         # Add settings action to options menu
-        self.settings = SettingsWindow(self)
+        self.settings = SettingsDialog(self)
         options_act = QW_QAction('&Preferences', self)
         options_act.setDetails(
             shortcut=QC.Qt.CTRL + QC.Qt.Key_P,
@@ -328,13 +329,21 @@ class ViewingAreaDockWidget(QW.QDockWidget):
         # Combine list into a single string
         file_filters = ';;'.join(file_filters)
 
+        # Create an OS-dependent options dict
+        options = {}
+
+        # Do not use Linux' native dialog as it is bad on some dists
+        if sys.platform.startswith('linux'):
+            options = {'options': QW.QFileDialog.DontUseNativeDialog}
+
         # Open the file saving system
         filename, _ = QW.QFileDialog.getSaveFileName(
             parent=self.main,
             caption="Save view as...",
             directory=path.join(self.pipe._working_dir, "proj_area.png"),
             filter=file_filters,
-            initialFilter=default_filter)
+            initialFilter=default_filter,
+            **options)
 
         # If filename was provided, save image
         if(filename != ''):
@@ -880,13 +889,22 @@ class OverviewDockWidget(QW.QDockWidget):
                 # Combine list into a single string
                 file_filters = ';;'.join(file_filters)
 
+                # Create an OS-dependent options dict
+                options = {}
+
+                # Do not use Linux' native dialog as it is bad on some dists
+                if sys.platform.startswith('linux'):
+                    options = {'options': QW.QFileDialog.DontUseNativeDialog}
+
                 # Open the file saving system
+                # Don't use native dialog as it is terrible on some Linux dists
                 filename, _ = QW.QFileDialog.getSaveFileName(
                     parent=self.main,
                     caption="Save %s as..." % (hcube_name),
                     directory=fig_path,
                     filter=file_filters,
-                    initialFilter=default_filter)
+                    initialFilter=default_filter,
+                    **options)
 
                 # If filename was provided, save image
                 if(filename != ''):
@@ -939,9 +957,9 @@ class OverviewDockWidget(QW.QDockWidget):
         self.save_projection_figures(list_items)
 
 
-# Define class for settings window
-class SettingsWindow(object):
-    def __init__(self, main_window_obj):
+# Define class for settings dialog
+class SettingsDialog(QW.QDialog):
+    def __init__(self, main_window_obj, *args, **kwargs):
         # Save provided MainWindow object
         self.main = main_window_obj
         self.pipe = self.main.pipe
@@ -949,19 +967,23 @@ class SettingsWindow(object):
         self.set_proj_attr = self.main.set_proj_attr
         self.get_proj_attr = self.main.get_proj_attr
 
-        # Save projection defaults here
-        self.defaults = sdict(self.get_proj_attr('proj_kwargs'))
+        # Call super constructor
+        super().__init__(self.main, *args, **kwargs)
 
         # Create the settings window
         self.init()
 
     # This function creates the settings window
     def init(self):
-        # Create settings window
-        self.window = QW.QDialog(self.main)
+        # Create a window layout
+        self.window_layout = QW.QVBoxLayout(self)
 
         # Create settings layout
-        self.settings_layout = QW.QFormLayout(self.window)
+        self.settings_layout = QW.QFormLayout()
+        self.window_layout.addLayout(self.settings_layout)
+
+        # Save projection defaults here
+        self.defaults = sdict(self.get_proj_attr('proj_kwargs'))
 
         # Initialize empty dict of setting boxes
         self.settings_dict = sdict()
@@ -975,14 +997,17 @@ class SettingsWindow(object):
             getattr(self, 'add_option_%s' % (item))()
 
         # Set a few properties of settings window
-        self.window.setGeometry(0, 0, 0, 0)                    # Resolution
-        self.window.setWindowModality(QC.Qt.ApplicationModal)  # Modality
-        self.window.setWindowTitle("Preferences")              # Title
+        self.setGeometry(0, 0, 0, 0)                        # Resolution
+        self.setModal(True)                                 # Modality
+        self.setWindowTitle("Preferences")                  # Title
 
     # This function shows the settings window
     def __call__(self):
+        # Move the settings window to the center of the main window
+        self.move(self.main.geometry().center()-self.rect().center())
+
         # Show it
-        self.window.show()
+        self.show()
 
     # PROJ_PAR
     def add_option_proj_grid(self):
@@ -1092,16 +1117,19 @@ class SettingsWindow(object):
     def add_option_buttons(self):
         # Create a buttons layout
         buttons_layout = QW.QHBoxLayout()
-        self.settings_layout.addRow(buttons_layout)
+        self.window_layout.addLayout(buttons_layout)
+        buttons_layout.addStretch()
 
         # Make a 'Reset' button
-        reset_but = QW.QPushButton("Reset")
+        reset_but = QW.QPushButton("&Reset")
+        reset_but.setToolTip("Reset to defaults")
         reset_but.clicked.connect(self.reset_settings)
         reset_but.clicked.connect(lambda: save_but.setEnabled(False))
         buttons_layout.addWidget(reset_but)
 
         # Make a 'Save' button
-        save_but = QW.QPushButton("Save")
+        save_but = QW.QPushButton("&Save")
+        save_but.setToolTip("Save settings")
         save_but.clicked.connect(self.save_settings)
         save_but.clicked.connect(lambda: save_but.setEnabled(False))
         save_but.setEnabled(False)
@@ -1109,9 +1137,10 @@ class SettingsWindow(object):
         buttons_layout.addWidget(save_but)
 
         # Make a 'Close' button
-        close_but = QW.QPushButton("Close")
+        close_but = QW.QPushButton("&Close")
+        close_but.setToolTip("Close without saving")
         close_but.setDefault(True)
-        close_but.clicked.connect(self.window.close)
+        close_but.clicked.connect(self.close)
         buttons_layout.addWidget(close_but)
 
     # This function saves the new default settings
@@ -1237,6 +1266,8 @@ def open_gui(pipeline_obj):
 
         # Set some application attributes
         qapp.setAttribute(QC.Qt.AA_DontShowIconsInMenus, False)
+        qapp.setAttribute(QC.Qt.AA_EnableHighDpiScaling, True)
+        qapp.setAttribute(QC.Qt.AA_UseHighDpiPixmaps, True)
 
         # Initialize main window and draw (show) it
         main_window = MainViewerWindow(qapp, pipeline_obj)
