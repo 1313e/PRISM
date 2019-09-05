@@ -18,12 +18,12 @@ import sys
 from textwrap import dedent
 
 # Package imports
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from matplotlib.backend_bases import _default_filetypes
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 import matplotlib.pyplot as plt
 import numpy as np
+from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from pytest_mpl.plugin import switch_backend
 from sortedcontainers import SortedDict as sdict
 
@@ -282,6 +282,7 @@ class ViewingAreaDockWidget(QW.QDockWidget):
         # Settings for proj_area
         self.proj_area.setViewMode(0)                   # Use subwindow mode
         self.proj_area.setStatusTip("Main projection viewing area")
+        self.proj_area.setOption(QW.QMdiArea.DontMaximizeSubWindowOnActivation)
 
         # Settings for area_window
         self.area_window.setAttribute(QC.Qt.WA_DeleteOnClose)
@@ -449,9 +450,10 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function is called when the main window is closed
     def closeEvent(self, *args, **kwargs):
-        # Close all currently opened figures
-        for fig in self.proj_fig_registry.values():
+        # Close all currently opened figures and subwindows
+        for fig, subwindow in self.proj_fig_registry.values():
             plt.close(fig)
+            subwindow.close()
 
         # Close the projection overview
         super().closeEvent(*args, **kwargs)
@@ -559,7 +561,6 @@ class OverviewDockWidget(QW.QDockWidget):
         self.proj_overview.addWidget(self.proj_list_u)
 
     # This function creates the context menu for drawn projections
-    # TODO: Add action for showing the details/properties of a single figure
     def create_drawn_context_menu(self):
         # Create context menu
         menu = QW.QMenu('Drawn')
@@ -568,7 +569,6 @@ class OverviewDockWidget(QW.QDockWidget):
         list_items = self.proj_list_d.selectedItems
 
         # Add show action to menu
-        # TODO: Make sure only a single subwindow with a figure can exist
         show_act = QW_QAction('S&how', self)
         show_act.setDetails(
             statustip="Show selected projection figure(s)")
@@ -601,7 +601,6 @@ class OverviewDockWidget(QW.QDockWidget):
         menu.addAction(redraw_act)
 
         # Add close action to menu
-        # TODO: Make sure that closing a figure also closes its subwindow
         close_act = QW_QAction('&Close', self)
         close_act.setDetails(
             statustip="Close selected projection figure(s)")
@@ -609,13 +608,28 @@ class OverviewDockWidget(QW.QDockWidget):
             lambda: self.close_projection_figures(list_items()))
         menu.addAction(close_act)
 
+        # Add details action to menu (single item only)
+        self.details_u_act = QW_QAction('De&tails', self)
+        self.details_u_act.setDetails(
+            statustip="Show details about selected projection figure")
+        self.details_u_act.triggered.connect(
+            lambda: self.details_projection_figure(list_items()[0]))
+        menu.addAction(self.details_u_act)
+
         # Save made menu as an attribute
         self.context_menu_d = menu
 
     # This function shows the context menu for drawn projections
     def show_drawn_context_menu(self):
+        # Calculate number of selected items
+        n_items = len(self.proj_list_d.selectedItems())
+
         # If there is currently at least one item selected, show context menu
-        if len(self.proj_list_d.selectedItems()):
+        if n_items:
+            # If there is exactly one item selected, enable details
+            self.details_u_act.setEnabled(n_items == 1)
+
+            # Show context menu
             self.context_menu_d.popup(QG.QCursor.pos())
 
     # This function creates the context menu for available projections
@@ -658,13 +672,28 @@ class OverviewDockWidget(QW.QDockWidget):
             lambda: self.delete_projection_figures(list_items()))
         menu.addAction(delete_act)
 
+        # Add details action to menu (single item only)
+        self.details_a_act = QW_QAction('De&tails', self)
+        self.details_a_act.setDetails(
+            statustip="Show details about selected projection figure")
+        self.details_a_act.triggered.connect(
+            lambda: self.details_projection_figure(list_items()[0]))
+        menu.addAction(self.details_a_act)
+
         # Save made menu as an attribute
         self.context_menu_a = menu
 
     # This function shows the context menu for available projections
     def show_available_context_menu(self):
+        # Calculate number of selected items
+        n_items = len(self.proj_list_a.selectedItems())
+
         # If there is currently at least one item selected, show context menu
-        if len(self.proj_list_a.selectedItems()):
+        if n_items:
+            # If there is exactly one item selected, enable details
+            self.details_a_act.setEnabled(n_items == 1)
+
+            # Show context menu
             self.context_menu_a.popup(QG.QCursor.pos())
 
     # This function creates the context menu for unavailable projections
@@ -715,19 +744,29 @@ class OverviewDockWidget(QW.QDockWidget):
             # Retrieve text of list_item
             hcube_name = list_item.text()
 
-            # Obtain the corresponding figure
-            fig = self.proj_fig_registry[hcube_name]
+            # Obtain the corresponding figure and subwindow
+            fig, subwindow = self.proj_fig_registry[hcube_name]
+
+            # If subwindow is None, create a new one
+            if subwindow is None:
+                # Create a new subwindow
+                subwindow = QW.QMdiSubWindow()
+                subwindow.setWindowTitle(hcube_name)
+
+                # Add subwindow to registry
+                self.proj_fig_registry[hcube_name][1] = subwindow
 
             # Create a FigureCanvas instance
-            figure_canvas = FigureCanvas(fig)
+            canvas = FigureCanvas(fig)
 
-            # Create a new subwindow
-            subwindow = QW.QMdiSubWindow()
-            subwindow.setWindowTitle(hcube_name)
-            subwindow.setWidget(figure_canvas)
+            # Add canvas to subwindow
+            subwindow.setWidget(canvas)
 
-            # Add new subwindow to viewing area
-            self.main.area_dock.proj_area.addSubWindow(subwindow)
+            # Add new subwindow to viewing area if not already shown
+            if subwindow not in self.main.area_dock.proj_area.subWindowList():
+                self.main.area_dock.proj_area.addSubWindow(subwindow)
+
+            # Show subwindow
             subwindow.show()
 
     # This function removes a projection figure permanently from the register
@@ -738,10 +777,11 @@ class OverviewDockWidget(QW.QDockWidget):
             hcube_name = list_item.text()
 
             # Pop the figure from the registry
-            fig = self.proj_fig_registry.pop(hcube_name)
+            fig, subwindow = self.proj_fig_registry.pop(hcube_name)
 
-            # Close the figure
+            # Close the figure, canvas and subwindow
             plt.close(fig)
+            subwindow.close()
 
             # Move figure from drawn to available
             item = self.proj_list_d.takeItem(
@@ -750,6 +790,7 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function draws a projection figure
     # OPTIMIZE: (Re)Drawing a 3D projection figure takes up to 15 seconds
+    # TODO: Add threaded progress dialog while drawing the figures
     def draw_projection_figures(self, list_items):
         # Loop over all items in list_items
         for list_item in list_items:
@@ -770,7 +811,7 @@ class OverviewDockWidget(QW.QDockWidget):
                     hcube, impl_min, impl_los, proj_res)
 
             # Register figure in the registry
-            self.proj_fig_registry[hcube_name] = fig
+            self.proj_fig_registry[hcube_name] = [fig, None]
 
             # Move figure from available to drawn
             item = self.proj_list_a.takeItem(
@@ -823,6 +864,7 @@ class OverviewDockWidget(QW.QDockWidget):
                 self.proj_list_u.addItem(item)
 
     # This function creates a projection figure
+    # TODO: Add threaded progress dialog while creating the figures
     def create_projection_figures(self, list_items):
         # Loop over all items in list_items
         for list_item in list_items:
@@ -956,6 +998,107 @@ class OverviewDockWidget(QW.QDockWidget):
         self.draw_projection_figures(list_items)
         self.save_projection_figures(list_items)
 
+    # This function shows a details overview of a projection figure
+    # TODO: Add section on how the figure was drawn for drawn projections?
+    def details_projection_figure(self, list_item):
+        # Retrieve text of list_item
+        hcube_name = list_item.text()
+        hcube = self.hcubes[self.names.index(hcube_name)]
+
+        # Is this a 3D projection?
+        is_3D = (len(hcube) == 3)
+
+        # Gather some details about this projection figure
+        emul_i = hcube[0]                           # Emulator iteration
+        pars = hcube[1:]                            # Plotted parameters
+        proj_type = '%iD' % (len(hcube))            # Projection type
+
+        # Open hdf5-file
+        with self.pipe._File('r', None) as file:
+            # Get the group that contains the data for this projection figure
+            group = file["%i/proj_hcube/%s" % (emul_i, hcube_name)]
+
+            # Gather more details about this projection figure
+            impl_cut = group.attrs['impl_cut']      # Implausibility cut-offs
+            cut_idx = group.attrs['cut_idx']        # Number of wildcards
+            res = group.attrs['proj_res']           # Projection resolution
+            depth = group.attrs['proj_depth']       # Projection depth
+
+        # Get the percentage of plausible space remaining
+        if self.pipe._n_eval_sam[emul_i]:
+            pl_space_rem = "{0:#.3%}".format(
+                (self.pipe._n_impl_sam[emul_i] /
+                 self.pipe._n_eval_sam[emul_i]))
+        else:
+            pl_space_rem = "N/A"
+        pl_space_rem = QW.QLabel(pl_space_rem)
+
+        # Obtain QLabel instances of all details
+        emul_i = QW.QLabel(str(emul_i))
+        pars = ', '.join([self.pipe._modellink._par_name[par] for par in pars])
+        pars = QW.QLabel(pars)
+        proj_type = QW.QLabel(proj_type)
+        impl_cut = QW.QLabel(str(impl_cut.tolist()))
+        cut_idx = QW.QLabel(str(cut_idx))
+
+        # Get the labels for the grid shape and size
+        if is_3D:
+            grid_shape = QW.QLabel("{0:,}x{0:,}x{1:,}".format(res, depth))
+            grid_size = QW.QLabel("{0:,}".format(res*res*depth))
+        else:
+            grid_shape = QW.QLabel("{0:,}x{1:,}".format(res, depth))
+            grid_size = QW.QLabel("{0:,}".format(res*depth))
+
+        # Convert res and depth as well
+        res = QW.QLabel("{0:,}".format(res))
+        depth = QW.QLabel("{0:,}".format(depth))
+
+        # Create a layout for the details
+        details_layout = QW.QVBoxLayout()
+
+        # GENERAL
+        # Create a group for the general details
+        general_group = QW.QGroupBox("General")
+        details_layout.addWidget(general_group)
+        general_layout = QW.QFormLayout()
+        general_group.setLayout(general_layout)
+
+        # Add general details
+        general_layout.addRow("Emulator iteration:", emul_i)
+        general_layout.addRow("Parameters:", pars)
+        general_layout.addRow("Projection type:", proj_type)
+        general_layout.addRow("% of parameter space remaining:",
+                              pl_space_rem)
+
+        # PROJECTION DATA
+        # Create a group for the projection data details
+        data_group = QW.QGroupBox("Projection data")
+        details_layout.addWidget(data_group)
+        data_layout = QW.QFormLayout()
+        data_group.setLayout(data_layout)
+
+        # Add projection data details
+        data_layout.addRow("Grid shape:", grid_shape)
+        data_layout.addRow("Grid size:", grid_size)
+        data_layout.addRow("# of implausibility wildcards:", cut_idx)
+        data_layout.addRow("Implausibility cut-offs:", impl_cut)
+
+        # Create a details message box for this projection figure
+        details_box = QW.QDialog(self.main)
+        details_box.setWindowModality(QC.Qt.NonModal)
+        details_box.setWindowFlags(
+            QC.Qt.WindowSystemMenuHint |
+            QC.Qt.Window |
+            QC.Qt.WindowCloseButtonHint |
+            QC.Qt.MSWindowsOwnDC |
+            QC.Qt.MSWindowsFixedSizeDialogHint)
+        details_layout.setSizeConstraint(QW.QLayout.SetFixedSize)
+        details_box.setWindowTitle("%s: %s details" % (APP_NAME, hcube_name))
+        details_box.setLayout(details_layout)
+
+        # Show the details message box
+        details_box.show()
+
 
 # Define class for settings dialog
 class SettingsDialog(QW.QDialog):
@@ -977,6 +1120,7 @@ class SettingsDialog(QW.QDialog):
     def init(self):
         # Create a window layout
         self.window_layout = QW.QVBoxLayout(self)
+        self.window_layout.setSizeConstraint(QW.QLayout.SetFixedSize)
 
         # Create settings layout
         self.settings_layout = QW.QFormLayout()
@@ -995,6 +1139,9 @@ class SettingsDialog(QW.QDialog):
         # Include all options named in setting_items
         for item in setting_items:
             getattr(self, 'add_option_%s' % (item))()
+
+        # Set current settings
+        self.current_settings()
 
         # Set a few properties of settings window
         self.setGeometry(0, 0, 0, 0)                        # Resolution
@@ -1015,7 +1162,6 @@ class SettingsDialog(QW.QDialog):
         proj_res_box = QW.QSpinBox()
         self.settings_dict['res'] = proj_res_box
         proj_res_box.setRange(0, 9999999)
-        proj_res_box.setValue(self.get_proj_attr('res'))
         proj_res_box.setToolTip(proj_res_doc)
         proj_res_box.valueChanged.connect(
             lambda: self.save_but.setEnabled(True))
@@ -1025,7 +1171,6 @@ class SettingsDialog(QW.QDialog):
         proj_depth_box = QW.QSpinBox()
         self.settings_dict['depth'] = proj_depth_box
         proj_depth_box.setRange(0, 9999999)
-        proj_depth_box.setValue(self.get_proj_attr('depth'))
         proj_depth_box.setToolTip(proj_depth_doc)
         proj_depth_box.valueChanged.connect(
             lambda: self.save_but.setEnabled(True))
@@ -1037,7 +1182,6 @@ class SettingsDialog(QW.QDialog):
         emul_i_box = QW.QSpinBox()
         self.settings_dict['emul_i'] = emul_i_box
         emul_i_box.setRange(0, self.pipe._emulator._emul_i)
-        emul_i_box.setValue(self.get_proj_attr('emul_i'))
         emul_i_box.valueChanged.connect(lambda: self.save_but.setEnabled(True))
         self.settings_layout.addRow('Iteration:', emul_i_box)
 
@@ -1047,7 +1191,6 @@ class SettingsDialog(QW.QDialog):
         # 2D projections
         proj_2D_box = QW.QCheckBox('2D')
         self.settings_dict['proj_2D'] = proj_2D_box
-        proj_2D_box.setChecked(self.get_proj_attr('proj_2D'))
         proj_2D_box.setEnabled(self.n_par > 2)
         proj_2D_box.stateChanged.connect(
             lambda: self.save_but.setEnabled(True))
@@ -1055,7 +1198,6 @@ class SettingsDialog(QW.QDialog):
         # 3D projections
         proj_3D_box = QW.QCheckBox('3D')
         self.settings_dict['proj_3D'] = proj_3D_box
-        proj_3D_box.setChecked(self.get_proj_attr('proj_3D'))
         proj_3D_box.setEnabled(self.n_par > 2)
         proj_3D_box.stateChanged.connect(
             lambda: self.save_but.setEnabled(True))
@@ -1073,13 +1215,11 @@ class SettingsDialog(QW.QDialog):
         # Column align
         align_col_box = QW.QRadioButton('Column')
         self.settings_dict['align_col'] = align_col_box
-        align_col_box.setChecked(self.get_proj_attr('align') == 'col')
         align_col_box.toggled.connect(lambda: self.save_but.setEnabled(True))
 
         # Row align
         align_row_box = QW.QRadioButton('Row')
         self.settings_dict['align_row'] = align_row_box
-        align_row_box.setChecked(self.get_proj_attr('align') == 'row')
         align_row_box.toggled.connect(lambda: self.save_but.setEnabled(True))
 
         # Create layout for align and add it to settings layout
@@ -1094,7 +1234,6 @@ class SettingsDialog(QW.QDialog):
         # Make check box for show_cuts
         show_cuts_box = QW.QCheckBox()
         self.settings_dict['show_cuts'] = show_cuts_box
-        show_cuts_box.setChecked(self.get_proj_attr('show_cuts'))
         show_cuts_box.stateChanged.connect(
             lambda: self.save_but.setEnabled(True))
         self.settings_layout.addRow('Show cuts?', show_cuts_box)
@@ -1104,7 +1243,6 @@ class SettingsDialog(QW.QDialog):
         # Make check box for smooth
         smooth_box = QW.QCheckBox()
         self.settings_dict['smooth'] = smooth_box
-        smooth_box.setChecked(self.get_proj_attr('smooth'))
         smooth_box.stateChanged.connect(lambda: self.save_but.setEnabled(True))
         self.settings_layout.addRow('Smooth?', smooth_box)
 
@@ -1141,6 +1279,7 @@ class SettingsDialog(QW.QDialog):
         close_but.setToolTip("Close without saving")
         close_but.setDefault(True)
         close_but.clicked.connect(self.close)
+        close_but.clicked.connect(self.current_settings)
         buttons_layout.addWidget(close_but)
 
     # This function saves the new default settings
@@ -1181,6 +1320,26 @@ class SettingsDialog(QW.QDialog):
         # Save current settings
         self.save_settings()
 
+    # This function sets the current default settings
+    def current_settings(self):
+        # Set all settings to their current values
+        for key, box in self.settings_dict.items():
+            # Values (QSpinBox)
+            if isinstance(box, QW.QSpinBox):
+                box.setValue(self.get_proj_attr(key))
+            # Align (special QRadioButton)
+            elif key in ['align_col', 'align_row']:
+                box.setChecked(self.get_proj_attr('align') == key[6:])
+            # Bools (QCheckBox/QRadioButton)
+            elif isinstance(box, (QW.QCheckBox, QW.QRadioButton)):
+                box.setChecked(self.get_proj_attr(key))
+            # Items (QComboBox)
+            elif isinstance(box, QW.QComboBox):
+                box.setCurrentText(self.get_proj_attr(key))
+
+        # Disable the save button
+        self.save_but.setEnabled(False)
+
     # This function creates an editable list of input boxes for the kwargs
     def create_kwargs_box_layout(self, name):
         # Create a kwargs layout
@@ -1215,6 +1374,7 @@ class QW_QAction(QW.QAction):
         # If tooltip is None, its base is set to the action's name
         if tooltip is None:
             base_tooltip = self.text().replace('&', '')
+            tooltip = base_tooltip
         # Else, provided tooltip is used as the base
         else:
             base_tooltip = tooltip

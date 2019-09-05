@@ -3024,10 +3024,10 @@ class Pipeline(Projection, object):
                     print("{0: <{1}}\t{2}/{3}".format(
                         "# of plausible/analyzed samples", width,
                         self._n_impl_sam[emul_i], self._n_eval_sam[emul_i]))
-                    print("{0: <{1}}\t{2:#.3g}%".format(
+                    print("{0: <{1}}\t{2:#.3%}".format(
                         "% of parameter space remaining", width,
                         (self._n_impl_sam[emul_i] /
-                         self._n_eval_sam[emul_i])*100))
+                         self._n_eval_sam[emul_i])))
                 print("{0: <{1}}\t{2}/{3}".format(
                     "# of active/total parameters", width,
                     n_active_par, n_par))
