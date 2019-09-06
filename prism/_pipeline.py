@@ -3009,19 +3009,19 @@ class Pipeline(Projection, object):
 
                 # Number details
                 if(self._emulator._emul_type == 'default'):
-                    print("{0: <{1}}\t{2} ({3})".format(
+                    print("{0: <{1}}\t{2:,} ({3})".format(
                         "# of model evaluation samples", width,
                         sum(self._emulator._n_sam[1:emul_i+1]),
                         self._emulator._n_sam[1:emul_i+1]))
                 else:
                     raise NotImplementedError
                 if not self._n_eval_sam[emul_i]:
-                    print("{0: <{1}}\t{2}/{3}".format(
+                    print("{0: <{1}}\t{2:}/{3:}".format(
                         "# of plausible/analyzed samples", width, "-", "-"))
                     print("{0: <{1}}\t{2}".format(
                         "% of parameter space remaining", width, "-"))
                 else:
-                    print("{0: <{1}}\t{2}/{3}".format(
+                    print("{0: <{1}}\t{2:,}/{3:,}".format(
                         "# of plausible/analyzed samples", width,
                         self._n_impl_sam[emul_i], self._n_eval_sam[emul_i]))
                     print("{0: <{1}}\t{2:#.3%}".format(
@@ -3079,13 +3079,14 @@ class Pipeline(Projection, object):
             print("-"*width)
 
             # Define string format if no par_ests are provided
-            str_format1 = "{6}{0: <{1}}: [{2: >{3}}, {4: >{5}}]"
+            str_format1 = "{6}{0: <{1}}: [{2: >{3},}, {4: >{5},}]"
 
             # Define string format if this par_est was provided
-            str_format2 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6: >{7}.5f})"
+            str_format2 = ("{8}{0: <{1}}: [{2: >{3},}, {4: >{5},}] "
+                           "({6: >{7},.5f})")
 
             # Define string format if this par_est was not provided
-            str_format3 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6:->{7}})"
+            str_format3 = "{8}{0: <{1}}: [{2: >{3},}, {4: >{5},}] ({6:->{7}})"
 
             # Print details about every model parameter in parameter space
             for i in range(n_par):

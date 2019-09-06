@@ -12,6 +12,8 @@ method.
 
 # %% IMPORTS
 # Built-in imports
+from contextlib import redirect_stdout
+from io import StringIO
 from os import path
 import signal
 import sys
@@ -158,6 +160,21 @@ class MainViewerWindow(QW.QMainWindow):
         quit_act.triggered.connect(self.qapp.closeAllWindows)
         file_menu.addAction(quit_act)
 
+        # DISPLAY
+        # TODO: This belongs in the preferences window
+        # Create display menu
+        display_menu = self.menubar.addMenu('&Display')
+
+        # Add auto_tile action to display menu
+        auto_tile_act = QW_QAction('&Auto Tile', self)
+        auto_tile_act.setDetails(
+            statustip=("Enable/disable auto-tiling the projection subwindows "
+                       "whenever a new subwindow is opened"))
+        auto_tile_act.setCheckable(True)
+        auto_tile_act.toggled.connect(lambda x: setattr(self, 'auto_tile', x))
+        auto_tile_act.setChecked(True)
+        display_menu.addAction(auto_tile_act)
+
         # TOOLS
         # Create tools menu, which includes all actions in the proj_toolbar
         tools_menu = self.menubar.addMenu('&Tools')
@@ -207,6 +224,14 @@ class MainViewerWindow(QW.QMainWindow):
             statustip="About %s" % (APP_NAME))
         about_act.triggered.connect(self.about)
         help_menu.addAction(about_act)
+
+        # Add details action to help menu
+        details_act = QW_QAction('&Details', self)
+        details_act.setDetails(
+            statustip="Show the details overview of the specified iteration")
+        details_act.triggered.connect(
+            lambda: self.show_pipeline_details_overview(1))
+        help_menu.addAction(details_act)
 
     # This function creates the statusbar in the viewer
     def create_statusbar(self):
@@ -274,8 +299,38 @@ class MainViewerWindow(QW.QMainWindow):
         self.addDockWidget(self.default_pos['Viewing area'], self.area_dock)
         self.area_dock.set_default_dock_positions()
 
+    # This function shows the details() overview of a given emulator iteration
+    # TODO: Improve the formatting
+    def show_pipeline_details_overview(self, emul_i):
+        # Initialize a StringIO stream to capture the output with
+        with StringIO() as string_stream:
+            # Use this stream to capture the overview of details()
+            with redirect_stdout(string_stream):
+                # Call and obtain the details at specified emulator iteration
+                self.pipe.details(emul_i)
+
+            # Save the entire string stream as a separate object
+            details = string_stream.getvalue()
+
+        # Create a details message box for this emulator iteration
+        details_box = QW.QMessageBox(self)
+        details_box.setWindowModality(QC.Qt.NonModal)
+        details_box.setWindowFlags(
+            QC.Qt.WindowSystemMenuHint |
+            QC.Qt.Window |
+            QC.Qt.WindowCloseButtonHint |
+            QC.Qt.MSWindowsOwnDC |
+            QC.Qt.MSWindowsFixedSizeDialogHint)
+        details_box.layout().setSizeConstraint(QW.QLayout.SetFixedSize)
+        details_box.setWindowTitle("%s: Pipeline details" % (APP_NAME))
+        details_box.setText(details)
+
+        # Show the details message box
+        details_box.show()
+
 
 # Define class for the projection viewing area dock widget
+# TODO: Allow for multiple viewing areas to co-exist?
 class ViewingAreaDockWidget(QW.QDockWidget):
     def __init__(self, main_window_obj, *args, **kwargs):
         # Save provided MainWindow object
@@ -300,9 +355,10 @@ class ViewingAreaDockWidget(QW.QDockWidget):
         self.setWidget(self.area_window)
 
         # Settings for proj_area
-        self.proj_area.setViewMode(0)                   # Use subwindow mode
-        self.proj_area.setStatusTip("Main projection viewing area")
+        self.proj_area.setViewMode(QW.QMdiArea.SubWindowView)
         self.proj_area.setOption(QW.QMdiArea.DontMaximizeSubWindowOnActivation)
+        self.proj_area.setActivationOrder(QW.QMdiArea.StackingOrder)
+        self.proj_area.setStatusTip("Main projection viewing area")
 
         # Settings for area_window
         self.area_window.setAttribute(QC.Qt.WA_DeleteOnClose)
@@ -774,21 +830,33 @@ class OverviewDockWidget(QW.QDockWidget):
                 subwindow = QW.QMdiSubWindow()
                 subwindow.setWindowTitle(hcube_name)
 
+                # Set a few properties of the subwindow
+                # TODO: Make subwindow frameless when not being hovered
+                subwindow.setOption(QW.QMdiSubWindow.RubberBandResize)
+#                subwindow.setWindowFlag(QC.Qt.FramelessWindowHint)
+
                 # Add subwindow to registry
                 self.proj_fig_registry[hcube_name][1] = subwindow
 
-            # Create a FigureCanvas instance
-            canvas = FigureCanvas(fig)
+            # If subwindow is currently not visible, create a canvas for it
+            if not subwindow.isVisible():
+                # Create a FigureCanvas instance
+                canvas = FigureCanvas(fig)
 
-            # Add canvas to subwindow
-            subwindow.setWidget(canvas)
+                # Add canvas to subwindow
+                subwindow.setWidget(canvas)
 
-            # Add new subwindow to viewing area if not already shown
+            # Add new subwindow to viewing area if not shown before
             if subwindow not in self.main.area_dock.proj_area.subWindowList():
                 self.main.area_dock.proj_area.addSubWindow(subwindow)
 
             # Show subwindow
-            subwindow.show()
+            subwindow.showNormal()
+            subwindow.setFocus()
+
+        # If auto_tile is set to True, tile all the windows
+        if self.main.auto_tile:
+            self.main.area_dock.proj_area.tileSubWindows()
 
     # This function removes a projection figure permanently from the register
     def close_projection_figures(self, list_items):
@@ -909,7 +977,7 @@ class OverviewDockWidget(QW.QDockWidget):
             hcube = self.hcubes[self.names.index(hcube_name)]
 
             # Obtain the corresponding figure
-            fig = self.proj_fig_registry[hcube_name]
+            fig, _ = self.proj_fig_registry[hcube_name]
 
             # Obtain the default figure path
             fig_paths = self.get_proj_attr('get_fig_path')(hcube)
@@ -1122,6 +1190,7 @@ class OverviewDockWidget(QW.QDockWidget):
 
 
 # Define class for settings dialog
+# TODO: Implement a much more sophisticated settings window
 class SettingsDialog(QW.QDialog):
     def __init__(self, main_window_obj, *args, **kwargs):
         # Save provided MainWindow object

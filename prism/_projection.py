@@ -461,7 +461,7 @@ class Projection(object):
             # Plot line-of-sight depth
             ax1.plot(x, y_los, **self.__los_kwargs_2D)
             ax1_rng = [*self._modellink._par_rng[par],
-                       0, min(1, np.max(y_los))]
+                       0, 1.05*min(1, np.max(y_los))]
             ax1.axis(ax1_rng)
 
             # Draw parameter estimate line
