@@ -121,7 +121,7 @@ def get_hybrid_lnpost_fn(lnpost_fn, pipeline_obj, *, emul_i=None,
                          " emulator!")
 
     # Get emulator iteration
-    emul_i = pipe._emulator._get_emul_i(emul_i, True)
+    emul_i = pipe._emulator._get_emul_i(emul_i)
 
     # Check if unit_space is a bool
     unit_space = check_vals(unit_space, 'unit_space', 'bool')
@@ -310,7 +310,7 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
                          " emulator!")
 
     # Get emulator iteration
-    emul_i = pipe._emulator._get_emul_i(emul_i, True)
+    emul_i = pipe._emulator._get_emul_i(emul_i)
 
     # If req_n_walkers is not None, check if it is an integer
     if req_n_walkers is not None:

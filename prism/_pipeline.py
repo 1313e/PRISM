@@ -2378,7 +2378,7 @@ class Pipeline(Projection, object):
         """
 
         # Get last emul_i
-        emul_i = self._emulator._get_emul_i(None, True)
+        emul_i = self._emulator._get_emul_i(None)
 
         # Begin logging
         logger = getCLogger('ANALYZE')
@@ -3188,7 +3188,7 @@ class Pipeline(Projection, object):
         """
 
         # Get emulator iteration
-        emul_i = self._emulator._get_emul_i(emul_i, True)
+        emul_i = self._emulator._get_emul_i(emul_i)
 
         # Do some logging
         logger = getCLogger('EVALUATE')

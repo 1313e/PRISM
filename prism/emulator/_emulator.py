@@ -502,7 +502,7 @@ class Emulator(object):
     # %% GENERAL CLASS METHODS
     # This function checks if provided emul_i can be requested
     @docstring_substitute(emul_i=get_emul_i_doc)
-    def _get_emul_i(self, emul_i, cur_iter):
+    def _get_emul_i(self, emul_i, cur_iter=True):
         """
         Checks if the provided emulator iteration `emul_i` can be requested or
         replaces it if *None* was provided.
@@ -511,6 +511,9 @@ class Emulator(object):
         Parameters
         ----------
         %(emul_i)s
+
+        Optional
+        --------
         cur_iter : bool
             Bool determining whether the current (*True*) or the next (*False*)
             emulator iteration is requested.

@@ -1271,7 +1271,7 @@ class Projection(object):
         kwargs = kwargs_dict
 
         # Get emul_i
-        self.__emul_i = self._emulator._get_emul_i(emul_i, True)
+        self.__emul_i = self._emulator._get_emul_i(emul_i)
 
         # Controller checking all other kwargs
         if self._is_controller:

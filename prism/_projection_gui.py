@@ -16,6 +16,7 @@ from os import path
 import signal
 import sys
 from textwrap import dedent
+import warnings
 
 # Package imports
 from matplotlib.backend_bases import _default_filetypes
@@ -30,6 +31,7 @@ from sortedcontainers import SortedDict as sdict
 # PRISM imports
 from prism.__version__ import __version__
 from prism._docstrings import proj_depth_doc, proj_res_doc
+from prism._internal import RequestError, RequestWarning
 
 # All declaration
 __all__ = ['open_gui']
@@ -63,8 +65,26 @@ class MainViewerWindow(QW.QMainWindow):
         # Tell the Projection class that the GUI is being used
         self.set_proj_attr('use_GUI', 1)
 
-        # Prepare projections to be made
-        self.get_proj_attr('prepare_projections')(None, None)
+        # Determine the last emulator iteration
+        emul_i = self.pipe._emulator._get_emul_i(None)
+
+        # Prepare projections to be made for all iterations
+        for i in range(1, emul_i+1):
+            # Try to prepare this iteration
+            try:
+                self.get_proj_attr('prepare_projections')(
+                    i, None, force=False, figure=True)
+
+            # If this iteration raises a RequestError, it cannot be prepared
+            except RequestError as error:
+                # If that happens, emit a warning about it
+                warnings.warn("%s Falling back to previous iteration."
+                              % (error), RequestWarning, stacklevel=2)
+
+                # Reprepare the previous iteration and break
+                self.get_proj_attr('prepare_projections')(
+                    i-1, None, force=False, figure=True)
+                break
 
         # Save some statistics about pipeline and modellink
         self.n_par = self.pipe._modellink._n_par
@@ -380,6 +400,7 @@ class ViewingAreaDockWidget(QW.QDockWidget):
                                     self.proj_toolbar)
 
     # This function creates the toolbar of the projection viewing area
+    # TODO: Allow for the formatting inside a figure to be modified
     def create_projection_toolbar(self):
         # Create toolbar for projection viewer
         self.proj_toolbar = QW.QToolBar("Tools", self)
@@ -1414,6 +1435,11 @@ def open_gui(pipeline_obj):
     # Wrap entire execution in switch_backend of MPL
     # TODO: Currently, this does not properly switch the backend back
     with switch_backend('Agg'):
+        # Set some application attributes
+        QW.QApplication.setAttribute(QC.Qt.AA_DontShowIconsInMenus, False)
+        QW.QApplication.setAttribute(QC.Qt.AA_EnableHighDpiScaling, True)
+        QW.QApplication.setAttribute(QC.Qt.AA_UseHighDpiPixmaps, True)
+
         # Initialize a new QApplication
         qapp = QW.QApplication([APP_NAME])
 
@@ -1423,11 +1449,6 @@ def open_gui(pipeline_obj):
 
         # Make sure that the application quits when the last window closes
         qapp.lastWindowClosed.connect(qapp.quit, QC.Qt.QueuedConnection)
-
-        # Set some application attributes
-        qapp.setAttribute(QC.Qt.AA_DontShowIconsInMenus, False)
-        qapp.setAttribute(QC.Qt.AA_EnableHighDpiScaling, True)
-        qapp.setAttribute(QC.Qt.AA_UseHighDpiPixmaps, True)
 
         # Initialize main window and draw (show) it
         main_window = MainViewerWindow(qapp, pipeline_obj)

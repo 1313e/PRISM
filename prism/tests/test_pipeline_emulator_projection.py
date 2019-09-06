@@ -778,7 +778,7 @@ class Test_Pipeline_Request_Exceptions(object):
     # Try to call an iteration that does not exist
     def test_invalid_iteration(self, pipe_default):
         with pytest.raises(RequestError):
-            pipe_default._emulator._get_emul_i(3, True)
+            pipe_default._emulator._get_emul_i(3)
 
     # Try to make projection figures with no parameters
     def test_no_par_project(self, pipe_default):
