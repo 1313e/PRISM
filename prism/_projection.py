@@ -267,7 +267,7 @@ class Projection(object):
                         self.__get_proj_data(hcube)
                 # Otherwise, the used resolution is the current resolution
                 else:
-                    proj_res = self.__res
+                    proj_res = self.__proj_res
 
                 # Draw projection figure
                 if(len(hcube) == 2):
@@ -317,11 +317,11 @@ class Projection(object):
 
         """
 
-        return(getattr(self, '_Projection__res', None))
+        return(getattr(self, '_Projection__proj_res', None))
 
     @proj_res.setter
     def proj_res(self, proj_res):
-        self.__res = check_vals(proj_res, 'proj_res', 'int', 'pos')
+        self.__proj_res = check_vals(proj_res, 'proj_res', 'int', 'pos')
 
     @property
     @docstring_substitute(proj_depth=proj_depth_doc)
@@ -333,11 +333,11 @@ class Projection(object):
 
         """
 
-        return(getattr(self, '_Projection__depth', None))
+        return(getattr(self, '_Projection__proj_depth', None))
 
     @proj_depth.setter
     def proj_depth(self, proj_depth):
-        self.__depth = check_vals(proj_depth, 'proj_depth', 'int', 'pos')
+        self.__proj_depth = check_vals(proj_depth, 'proj_depth', 'int', 'pos')
 
     # %% HIDDEN CLASS METHODS
     # This function draws the 2D projection figure
@@ -1023,9 +1023,9 @@ class Projection(object):
                     "parameters.")
 
         # Number of samples used for implausibility evaluations
-        if not hasattr(self, '_Projection__res'):
+        if not hasattr(self, '_Projection__proj_res'):
             self.proj_res = convert_str_seq(par_dict['proj_res'])[0]
-        if not hasattr(self, '_Projection__depth'):
+        if not hasattr(self, '_Projection__proj_depth'):
             self.proj_depth = convert_str_seq(par_dict['proj_depth'])[0]
 
         # Finish logging
@@ -1068,20 +1068,20 @@ class Projection(object):
             # Calculate the actual depth
             if(self.__n_par == 2):
                 # If n_par == 2, use normal depth
-                depth = self.__depth
+                depth = self.__proj_depth
             else:
                 # If n_par > 2, multiply depth by res to have same n_sam as 3D
-                depth = self.__depth*self.__res
+                depth = self.__proj_depth*self.__proj_res
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([self.__res, depth, self.__n_par])
+            proj_hcube = np.zeros([self.__proj_res, depth, self.__n_par])
 
             # Create list that contains all the other parameters
             par_hid = list(chain(range(0, par), range(par+1, self.__n_par)))
 
             # Generate list with values for projected parameter
             proj_sam_set = np.linspace(*self._modellink._par_rng[par],
-                                       self.__res)
+                                       self.__proj_res)
 
             # Generate latin hypercube of the remaining parameters
             hidden_sam_set = lhd(depth, self.__n_par-1,
@@ -1089,7 +1089,7 @@ class Projection(object):
                                  self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
-            for i in range(self.__res):
+            for i in range(self.__proj_res):
                 proj_hcube[i, :, par] = proj_sam_set[i]
                 proj_hcube[i, :, par_hid] = hidden_sam_set.T
 
@@ -1100,7 +1100,7 @@ class Projection(object):
             par2 = hcube[2]
 
             # Create empty projection hypercube array
-            proj_hcube = np.zeros([pow(self.__res, 2), self.__depth,
+            proj_hcube = np.zeros([pow(self.__proj_res, 2), self.__proj_depth,
                                    self.__n_par])
 
             # Generate list that contains all the other parameters
@@ -1109,21 +1109,22 @@ class Projection(object):
 
             # Generate list with values for projected parameters
             proj_sam_set1 = np.linspace(*self._modellink._par_rng[par1],
-                                        self.__res)
+                                        self.__proj_res)
             proj_sam_set2 = np.linspace(*self._modellink._par_rng[par2],
-                                        self.__res)
+                                        self.__proj_res)
 
             # Generate Latin Hypercube of the remaining parameters
-            hidden_sam_set = lhd(self.__depth, self.__n_par-2,
+            hidden_sam_set = lhd(self.__proj_depth, self.__n_par-2,
                                  self._modellink._par_rng[par_hid], 'fixed',
                                  self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
-            for i in range(self.__res):
-                for j in range(self.__res):
-                    proj_hcube[i*self.__res+j, :, par1] = proj_sam_set1[i]
-                    proj_hcube[i*self.__res+j, :, par2] = proj_sam_set2[j]
-                    proj_hcube[i*self.__res+j, :, par_hid] = hidden_sam_set.T
+            for i in range(self.__proj_res):
+                for j in range(self.__proj_res):
+                    proj_hcube[i*self.__proj_res+j, :, par1] = proj_sam_set1[i]
+                    proj_hcube[i*self.__proj_res+j, :, par2] = proj_sam_set2[j]
+                    proj_hcube[i*self.__proj_res+j, :, par_hid] =\
+                        hidden_sam_set.T
 
         # Workers get dummy proj_hcube
         else:
@@ -1437,8 +1438,8 @@ class Projection(object):
             self.__set_parameters()
 
             # Save all parameters and arguments in a dict (Projection GUI)
-            kwarg_names = ['res', 'depth', 'emul_i', 'proj_2D', 'proj_3D',
-                           'figure', 'align', 'show_cuts', 'smooth',
+            kwarg_names = ['proj_res', 'proj_depth', 'emul_i', 'proj_2D',
+                           'proj_3D', 'figure', 'align', 'show_cuts', 'smooth',
                            'fig_kwargs', 'impl_kwargs_2D', 'impl_kwargs_3D',
                            'los_kwargs_2D', 'los_kwargs_3D', 'line_kwargs_est',
                            'line_kwargs_cut']
@@ -1494,7 +1495,7 @@ class Projection(object):
                     data_set.create_dataset('impl_los', data=data['impl_los'])
                     data_set.attrs['impl_cut'] = self._impl_cut[emul_i]
                     data_set.attrs['cut_idx'] = self._cut_idx[emul_i]
-                    data_set.attrs['proj_res'] = self.__res
+                    data_set.attrs['proj_res'] = self.__proj_res
                     data_set.attrs['proj_depth'] = data['proj_depth']
 
                 # INVALID KEYWORD
