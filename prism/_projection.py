@@ -992,13 +992,13 @@ class Projection(object):
                        'show_cuts': 0,
                        'smooth': 0,
                        'force': 0,
-                       'fig_kwargs': fig_kwargs,
-                       'impl_kwargs_2D': impl_kwargs_2D,
-                       'impl_kwargs_3D': impl_kwargs_3D,
-                       'los_kwargs_2D': los_kwargs_2D,
-                       'los_kwargs_3D': los_kwargs_3D,
-                       'line_kwargs_est': line_kwargs_est,
-                       'line_kwargs_cut': line_kwargs_cut,
+                       'fig_kwargs': sdict(fig_kwargs),
+                       'impl_kwargs_2D': sdict(impl_kwargs_2D),
+                       'impl_kwargs_3D': sdict(impl_kwargs_3D),
+                       'los_kwargs_2D': sdict(los_kwargs_2D),
+                       'los_kwargs_3D': sdict(los_kwargs_3D),
+                       'line_kwargs_est': sdict(line_kwargs_est),
+                       'line_kwargs_cut': sdict(line_kwargs_cut),
                        'figsize_c': figsize_c,
                        'figsize_r': figsize_r}
 
@@ -1249,9 +1249,9 @@ class Projection(object):
         kwargs_dict = self.__get_default_input_arguments()
 
         # Make list with forbidden figure and plot kwargs
-        pop_fig_kwargs = ['num', 'ncols', 'nrows', 'sharex', 'sharey',
-                          'constrained_layout']
-        pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax']
+        self.__pop_fig_kwargs = ['num', 'ncols', 'nrows', 'sharex', 'sharey',
+                                 'constrained_layout']
+        self.__pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax']
 
         # Update kwargs_dict with given kwargs
         for key, value in kwargs.items():
@@ -1328,7 +1328,7 @@ class Projection(object):
             # Check if any forbidden kwargs are given and remove them
             fig_keys = list(fig_kwargs.keys())
             for key in fig_keys:
-                if key in pop_fig_kwargs:
+                if key in self.__pop_fig_kwargs:
                     fig_kwargs.pop(key)
 
             # IMPL_KWARGS
@@ -1339,15 +1339,20 @@ class Projection(object):
                 err_msg = ("Input argument 'impl_kwargs_3D/cmap' is invalid! "
                            "(%s)" % (error))
                 raise_error(err_msg, InputError, logger)
+            else:
+                # Save colormap by its name if its registered (Projection GUI)
+                name = impl_kwargs_3D['cmap'].name
+                if name in cm.cmap_d:
+                    impl_kwargs_3D['cmap'] = name
 
             # Check if any forbidden kwargs are given and remove them
             impl_keys = list(impl_kwargs_2D.keys())
             for key in impl_keys:
-                if key in pop_plt_kwargs or (key == 'cmap'):
+                if key in self.__pop_plt_kwargs or (key == 'cmap'):
                     impl_kwargs_2D.pop(key)
             impl_keys = list(impl_kwargs_3D.keys())
             for key in impl_keys:
-                if key in pop_plt_kwargs:
+                if key in self.__pop_plt_kwargs:
                     impl_kwargs_3D.pop(key)
 
             # LOS_KWARGS
@@ -1358,15 +1363,20 @@ class Projection(object):
                 err_msg = ("Input argument 'los_kwargs_3D/cmap' is invalid! "
                            "(%s)" % (error))
                 raise_error(err_msg, InputError, logger)
+            else:
+                # Save colormap by its name if its registered (Projection GUI)
+                name = los_kwargs_3D['cmap'].name
+                if name in cm.cmap_d:
+                    los_kwargs_3D['cmap'] = name
 
             # Check if any forbidden kwargs are given and remove them
             los_keys = list(los_kwargs_2D.keys())
             for key in los_keys:
-                if key in pop_plt_kwargs or (key == 'cmap'):
+                if key in self.__pop_plt_kwargs or (key == 'cmap'):
                     los_kwargs_2D.pop(key)
             los_keys = list(los_kwargs_3D.keys())
             for key in los_keys:
-                if key in pop_plt_kwargs:
+                if key in self.__pop_plt_kwargs:
                     los_kwargs_3D.pop(key)
 
             # Save kwargs dicts to memory

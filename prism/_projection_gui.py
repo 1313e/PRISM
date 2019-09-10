@@ -12,6 +12,7 @@ method.
 
 # %% IMPORTS
 # Built-in imports
+from ast import literal_eval
 from collections import namedtuple
 from contextlib import redirect_stdout
 from functools import partial
@@ -26,6 +27,9 @@ import warnings
 from matplotlib.backend_bases import _default_filetypes
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
+from matplotlib import cm
+from matplotlib.colors import BASE_COLORS, CSS4_COLORS
+from matplotlib.lines import lineMarkers, lineStyles
 import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
@@ -1176,7 +1180,6 @@ class OverviewDockWidget(QW.QDockWidget):
 
 
 # Define class for options dialog
-# TODO: Implement a much more sophisticated options window
 class OptionsDialog(QW.QDialog):
     def __init__(self, main_window_obj, *args, **kwargs):
         # Save provided MainWindow object
@@ -1224,7 +1227,6 @@ class OptionsDialog(QW.QDialog):
         self.reset_options()
 
         # Set a few properties of options window
-        self.setGeometry(0, 0, 0, 0)                        # Resolution
         self.setModal(True)                                 # Modality
         self.setWindowTitle("Preferences")                  # Title
 
@@ -1233,11 +1235,19 @@ class OptionsDialog(QW.QDialog):
 
     # This function shows the options window
     def __call__(self):
+        # Show it
+        self.show()
+
         # Move the options window to the center of the main window
         self.move(self.main.geometry().center()-self.rect().center())
 
-        # Show it
-        self.show()
+    # This function overrides the closeEvent method
+    def closeEvent(self, *args, **kwargs):
+        # Close the window
+        super().closeEvent(*args, **kwargs)
+
+        # Set all option boxes back to their current values
+        self.set_options()
 
     # This function returns the value of a specific option
     def get_option(self, name):
@@ -1279,7 +1289,7 @@ class OptionsDialog(QW.QDialog):
         self.proj_defaults = sdict(self.get_proj_attr('proj_kwargs'))
         self.proj_keys = list(self.proj_defaults.keys())
         self.create_tab("General", *args,
-                        'proj_grid', 'proj_kwargs', 'proj_kwargs_dicts')
+                        'proj_grid', 'proj_kwargs')
 
     # INTERFACE TAB
     def add_tab_appearance(self, *args):
@@ -1293,12 +1303,7 @@ class OptionsDialog(QW.QDialog):
     # PROJ_KWARGS GROUP
     def add_group_proj_kwargs(self, *args):
         self.create_group("Projection keywords", *args,
-                          'align', 'show_cuts', 'smooth')
-
-    # PROJ_KWARGS_DICTS GROUP
-    def add_group_proj_kwargs_dicts(self, *args):
-        self.create_group("Projection keyword dicts", *args,
-                          'impl_kwargs_2D')
+                          'align', 'show_cuts', 'smooth', 'kwargs_dicts')
 
     # INTERFACE GROUP
     def add_group_interface(self, *args):
@@ -1309,6 +1314,7 @@ class OptionsDialog(QW.QDialog):
         self.create_group("Fonts", *args, 'text_fonts')
 
     # TEXT_FONTS OPTION
+    # TODO: Further implement this
     def add_option_text_fonts(self, group_layout):
         # PLAIN TEXT
         # Create a font families combobox
@@ -1352,8 +1358,7 @@ class OptionsDialog(QW.QDialog):
         auto_tile_box.setToolTip("Set this to automatically tile all "
                                  "projection subwindows whenever a new one is "
                                  "added")
-        auto_tile_box.stateChanged.connect(
-            lambda: self.save_but.setEnabled(True))
+        auto_tile_box.stateChanged.connect(self.enable_save_button)
         self.options_entries['auto_tile'] =\
             self.options_entry(auto_tile_box, True)
         group_layout.addRow(auto_tile_box)
@@ -1364,8 +1369,7 @@ class OptionsDialog(QW.QDialog):
         proj_res_box = QW.QSpinBox()
         proj_res_box.setRange(0, 9999999)
         proj_res_box.setToolTip(proj_res_doc)
-        proj_res_box.valueChanged.connect(
-            lambda: self.save_but.setEnabled(True))
+        proj_res_box.valueChanged.connect(self.enable_save_button)
         self.options_entries['proj_res'] =\
             self.options_entry(proj_res_box, self.proj_defaults['proj_res'])
         group_layout.addRow('Resolution:', proj_res_box)
@@ -1376,8 +1380,7 @@ class OptionsDialog(QW.QDialog):
         proj_depth_box = QW.QSpinBox()
         proj_depth_box.setRange(0, 9999999)
         proj_depth_box.setToolTip(proj_depth_doc)
-        proj_depth_box.valueChanged.connect(
-            lambda: self.save_but.setEnabled(True))
+        proj_depth_box.valueChanged.connect(self.enable_save_button)
         self.options_entries['proj_depth'] =\
             self.options_entry(proj_depth_box,
                                self.proj_defaults['proj_depth'])
@@ -1388,7 +1391,7 @@ class OptionsDialog(QW.QDialog):
         # Make spinbox for option emul_i
         emul_i_box = QW.QSpinBox()
         emul_i_box.setRange(0, self.pipe._emulator._emul_i)
-        emul_i_box.valueChanged.connect(lambda: self.save_but.setEnabled(True))
+        emul_i_box.valueChanged.connect(self.enable_save_button)
         self.options_entries['emul_i'] =\
             self.options_entry(emul_i_box, self.proj_defaults['emul_i'])
         group_layout.addRow('Iteration:', emul_i_box)
@@ -1399,16 +1402,14 @@ class OptionsDialog(QW.QDialog):
         # 2D projections
         proj_2D_box = QW.QCheckBox('2D')
         proj_2D_box.setEnabled(self.n_par > 2)
-        proj_2D_box.stateChanged.connect(
-            lambda: self.save_but.setEnabled(True))
+        proj_2D_box.stateChanged.connect(self.enable_save_button)
         self.options_entries['proj_2D'] =\
             self.options_entry(proj_2D_box, self.proj_defaults['proj_2D'])
 
         # 3D projections
         proj_3D_box = QW.QCheckBox('3D')
         proj_3D_box.setEnabled(self.n_par > 2)
-        proj_3D_box.stateChanged.connect(
-            lambda: self.save_but.setEnabled(True))
+        proj_3D_box.stateChanged.connect(self.enable_save_button)
         self.options_entries['proj_3D'] =\
             self.options_entry(proj_3D_box, self.proj_defaults['proj_3D'])
 
@@ -1424,14 +1425,14 @@ class OptionsDialog(QW.QDialog):
         # Make drop-down menu for align
         # Column align
         align_col_box = QW.QRadioButton('Column')
-        align_col_box.toggled.connect(lambda: self.save_but.setEnabled(True))
+        align_col_box.toggled.connect(self.enable_save_button)
         self.options_entries['align_col'] =\
             self.options_entry(align_col_box,
                                self.proj_defaults['align'] == 'col')
 
         # Row align
         align_row_box = QW.QRadioButton('Row')
-        align_row_box.toggled.connect(lambda: self.save_but.setEnabled(True))
+        align_row_box.toggled.connect(self.enable_save_button)
         self.options_entries['align_row'] =\
             self.options_entry(align_row_box,
                                self.proj_defaults['align'] == 'row')
@@ -1447,8 +1448,7 @@ class OptionsDialog(QW.QDialog):
     def add_option_show_cuts(self, group_layout):
         # Make check box for show_cuts
         show_cuts_box = QW.QCheckBox()
-        show_cuts_box.stateChanged.connect(
-            lambda: self.save_but.setEnabled(True))
+        show_cuts_box.stateChanged.connect(self.enable_save_button)
         self.options_entries['show_cuts'] =\
             self.options_entry(show_cuts_box, self.proj_defaults['show_cuts'])
         group_layout.addRow('Show cuts?', show_cuts_box)
@@ -1457,15 +1457,59 @@ class OptionsDialog(QW.QDialog):
     def add_option_smooth(self, group_layout):
         # Make check box for smooth
         smooth_box = QW.QCheckBox()
-        smooth_box.stateChanged.connect(lambda: self.save_but.setEnabled(True))
+        smooth_box.stateChanged.connect(self.enable_save_button)
         self.options_entries['smooth'] =\
             self.options_entry(smooth_box, self.proj_defaults['smooth'])
         group_layout.addRow('Smooth?', smooth_box)
 
-    # IMPL_KWARGS_2D OPTION
-    def add_option_impl_kwargs_2D(self, group_layout):
-        impl_kwargs_2D_box = KwargsDictBoxLayout(self, 'impl_kwargs_2D')
-        group_layout.addRow('impl_kwargs_2D:', impl_kwargs_2D_box)
+    # KWARGS_DICTS OPTION
+    def add_option_kwargs_dicts(self, group_layout):
+        # Create a kwargs_dicts_box
+        kwargs_dicts_box = KwargsDictBoxLayout(self)
+        group_layout.addRow('Projection keyword dicts:', kwargs_dicts_box)
+
+        # Add all kwargs_dicts to it
+        # FIG_KWARGS
+        kwargs_dicts_box.add_dict(
+            "Figure", 'fig_kwargs',
+            std_entries=['dpi', 'figsize'],
+            banned_entries=[*self.get_proj_attr('pop_fig_kwargs')])
+
+        # IMPL_KWARGS_2D
+        kwargs_dicts_box.add_dict(
+            "2D implausibility", 'impl_kwargs_2D',
+            std_entries=['linestyle', 'marker', 'color'],
+            banned_entries=[*self.get_proj_attr('pop_plt_kwargs'), 'cmap'])
+
+        # IMPL_KWARGS_3D
+        kwargs_dicts_box.add_dict(
+            "3D implausibility", 'impl_kwargs_3D',
+            std_entries=['cmap'],
+            banned_entries=[*self.get_proj_attr('pop_plt_kwargs')])
+
+        # LOS_KWARGS_2D
+        kwargs_dicts_box.add_dict(
+            "2D line-of-sight", 'los_kwargs_2D',
+            std_entries=['linestyle', 'marker', 'color'],
+            banned_entries=[*self.get_proj_attr('pop_plt_kwargs'), 'cmap'])
+
+        # LOS_KWARGS_3D
+        kwargs_dicts_box.add_dict(
+            "3D line-of-sight", 'los_kwargs_3D',
+            std_entries=['cmap'],
+            banned_entries=[*self.get_proj_attr('pop_plt_kwargs')])
+
+        # LINE_KWARGS_EST
+        kwargs_dicts_box.add_dict(
+            "Estimate lines", 'line_kwargs_est',
+            std_entries=['linestyle', 'color'],
+            banned_entries=[])
+
+        # LINE_KWARGS_CUT
+        kwargs_dicts_box.add_dict(
+            "Cut-off lines", 'line_kwargs_cut',
+            std_entries=['linestyle', 'color'],
+            banned_entries=[])
 
     # BUTTONS GROUP
     def add_group_buttons(self, window_layout):
@@ -1493,25 +1537,14 @@ class OptionsDialog(QW.QDialog):
         close_but.setToolTip("Close without saving")
         close_but.setDefault(True)
         close_but.clicked.connect(self.close)
-        close_but.clicked.connect(self.current_options)
         buttons_layout.addWidget(close_but)
 
     # This function saves the new options values
     def save_options(self):
         # Save all new values
         for key, entry in self.options_entries.items():
-            # Values (QSpinBox)
-            if isinstance(entry.box, QW.QSpinBox):
-                self.options_entries[key] =\
-                    entry._replace(value=entry.box.value())
-            # Bools (QCheckBox/QRadioButton)
-            elif isinstance(entry.box, (QW.QCheckBox, QW.QRadioButton)):
-                self.options_entries[key] =\
-                    entry._replace(value=entry.box.isChecked())
-            # Items (QComboBox)
-            elif isinstance(entry.box, QW.QComboBox):
-                self.options_entries[key] =\
-                    entry._replace(value=entry.box.currentText())
+            self.options_entries[key] =\
+                entry._replace(value=get_box_value(entry.box))
 
             # If key is a projection parameter, save it in the Pipeline as well
             if key in self.proj_keys:
@@ -1526,41 +1559,33 @@ class OptionsDialog(QW.QDialog):
                     self.set_proj_attr(key, entry.value)
 
         # Disable the save button
+        self.disable_save_button()
+
+    # This function enables the save button
+    def enable_save_button(self):
+        self.save_but.setEnabled(True)
+
+    # This function disables the save button
+    def disable_save_button(self):
         self.save_but.setEnabled(False)
 
     # This function resets the default options
     def reset_options(self):
         # Reset all options to defaults
         for entry in self.options_entries.values():
-            # Values (QSpinBox)
-            if isinstance(entry.box, QW.QSpinBox):
-                entry.box.setValue(entry.default)
-            # Bools (QCheckBox/QRadioButton)
-            elif isinstance(entry.box, (QW.QCheckBox, QW.QRadioButton)):
-                entry.box.setChecked(entry.default)
-            # Items (QComboBox)
-            elif isinstance(entry.box, QW.QComboBox):
-                entry.box.setCurrentText(entry.default)
+            set_box_value(entry.box, entry.default)
 
         # Save current options
         self.save_options()
 
     # This function sets the current options
-    def current_options(self):
+    def set_options(self):
         # Set all options to their current saved values
         for entry in self.options_entries.values():
-            # Values (QSpinBox)
-            if isinstance(entry.box, QW.QSpinBox):
-                entry.box.setValue(entry.value)
-            # Bools (QCheckBox/QRadioButton)
-            elif isinstance(entry.box, (QW.QCheckBox, QW.QRadioButton)):
-                entry.box.setChecked(entry.value)
-            # Items (QComboBox)
-            elif isinstance(entry.box, QW.QComboBox):
-                entry.box.setCurrentText(entry.value)
+            set_box_value(entry.box, entry.value)
 
         # Disable the save button
-        self.save_but.setEnabled(False)
+        self.disable_save_button()
 
 
 # %% SUPPORT CLASSES
@@ -1614,10 +1639,9 @@ class QW_QAction(QW.QAction):
 # Make a subclass that allows for kwargs dicts to be saved and edited
 class KwargsDictBoxLayout(QW.QHBoxLayout):
     # This function creates an editable list of input boxes for the kwargs
-    def __init__(self, options_dialog_obj, name, *args, **kwargs):
+    def __init__(self, options_dialog_obj, *args, **kwargs):
         # Save provided options_dialog_obj
         self.options = options_dialog_obj
-        self.name = name
 
         # Call super constructor
         super().__init__(*args, **kwargs)
@@ -1627,26 +1651,26 @@ class KwargsDictBoxLayout(QW.QHBoxLayout):
 
     # This function creates the kwargs dict window
     def init(self):
-        # Add a label containing (part of) the current dict value
-        self.label = QW.QLabel('')
-        self.addWidget(self.label)
-
         # Initialize the window for the kwargs dict
-        dict_dialog = KwargsDictDialog(self.options, self.name)
+        self.dict_dialog = KwargsDictDialog(self.options)
 
         # Add a view button
-        view_button = QW.QPushButton('View')
-        view_button.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
-        view_button.clicked.connect(dict_dialog)
-        self.addWidget(view_button)
+        view_but = QW.QPushButton('View')
+        view_but.setToolTip("View/Edit the projection keyword dicts")
+        view_but.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
+        view_but.clicked.connect(self.dict_dialog)
+        self.addWidget(view_but)
+
+    # This function calls the create_tab()-method of dict_dialog
+    def add_dict(self, *args, **kwargs):
+        self.dict_dialog.create_tab(*args, **kwargs)
 
 
 # Make a subclass that shows the kwargs dict entries window
 class KwargsDictDialog(QW.QDialog):
-    def __init__(self, options_dialog_obj, name, *args, **kwargs):
+    def __init__(self, options_dialog_obj, *args, **kwargs):
         # Save provided options_dialog_obj
         self.options = options_dialog_obj
-        self.name = name
 
         # Call super constructor
         super().__init__(self.options, *args, **kwargs)
@@ -1654,40 +1678,149 @@ class KwargsDictDialog(QW.QDialog):
         # Create the kwargs dict window
         self.init()
 
-    # This function creates the kwargs box window
+    # This function creates the kwargs dict window
     def init(self):
         # Create a layout for this window
         window_layout = QW.QVBoxLayout(self)
         window_layout.setSizeConstraint(QW.QLayout.SetFixedSize)
-        self.window_layout = window_layout
 
-        # Create a grid for this layout
-        self.kwargs_grid = QW.QGridLayout()
-        window_layout.addLayout(self.kwargs_grid)
+        # Create a tab widget
+        # TODO: Use a combobox with stackedwidget instead?
+        self.window_tabs = QW.QTabWidget()
+        self.window_tabs.setUsesScrollButtons(False)
+        window_layout.addWidget(self.window_tabs)
         window_layout.addStretch()
 
-        # Add an 'add' button at the bottom of this layout
-        add_button = QW.QPushButton('Add')
-        add_button.clicked.connect(self.add_editable_entry)
-        window_layout.addWidget(add_button)
-
-        # Create list of default entry types
-        self.std_entries = sset(['cmap'])
+        # Add a close button
+        buttons_layout = QW.QHBoxLayout()
+        window_layout.addLayout(buttons_layout)
+        close_but = QW.QPushButton("Close")
+        close_but.clicked.connect(self.close)
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(close_but)
 
         # Set some properties for this window
-        self.setGeometry(0, 0, 0, 0)                        # Resolution
         self.setModal(True)                                 # Modality
-        self.setWindowTitle("Viewing %s..." % (self.name))  # Title
+        self.setWindowTitle("Viewing keyword dicts")        # Title
 
     # This function shows an editable window with the entries in the dict
     def __call__(self):
-        # Move the options window to the center of the main window
-        self.move(self.options.geometry().center()-self.rect().center())
-
         # Show it
         self.show()
 
-    # This function adds an editable entry to a given box
+        # Move the kwargs_dicts window to the center of the main window
+        self.move(self.options.geometry().center()-self.rect().center())
+
+    # This function creates a new tab
+    def create_tab(self, name, option_key, *args, **kwargs):
+        # Create a tab
+        kwargs_tab = KwargsDictDialogTab(self, name, *args, **kwargs)
+
+        # Add this new tab to the options_entries
+        self.options.options_entries[option_key] =\
+            self.options.options_entry(kwargs_tab,
+                                       self.options.proj_defaults[option_key])
+
+        # Add it to the window tabs
+        self.window_tabs.addTab(kwargs_tab, name)
+
+
+# Make a class for describing a kwargs dict tab
+class KwargsDictDialogTab(QW.QWidget):
+    def __init__(self, kwargs_dict_dialog_obj, name, std_entries,
+                 banned_entries, *args, **kwargs):
+        # Save provided kwargs_dict_dialog_obj
+        self.tab_dialog = kwargs_dict_dialog_obj
+        self.options = self.tab_dialog.options
+        self.name = name
+        self.std_entries = sset(std_entries)
+        self.banned_entries = sset(banned_entries)
+
+        # Call super constructor
+        super().__init__(self.tab_dialog, *args, **kwargs)
+
+        # Create the kwargs dict window
+        self.init()
+
+    # This function creates the kwargs dict tab
+    def init(self):
+        # Create tab layout
+        tab_layout = QW.QVBoxLayout(self)
+
+        # Create a grid for this layout
+        self.kwargs_grid = QW.QGridLayout()
+        self.kwargs_grid.setColumnStretch(0, 1)
+        self.kwargs_grid.setColumnStretch(1, 1)
+        tab_layout.addLayout(self.kwargs_grid)
+
+        # Make sure that '' is not in std_entries or banned_entries
+        self.std_entries.discard('')
+        self.banned_entries.discard('')
+
+        # Create list of available entry types
+        self.avail_entries = sset([attr[9:] for attr in dir(self)
+                                   if attr.startswith('add_type_')])
+
+        # Convert std_entries to solely contain valid available entry types
+        self.std_entries.intersection_update(self.avail_entries)
+        self.std_entries.difference_update(self.banned_entries)
+
+        # Add an 'add' button at the bottom of this layout
+        add_but = QW.QPushButton('+')
+        add_but.setToolTip("Add a new entry")
+        add_but.clicked.connect(self.add_editable_entry)
+        add_but.clicked.connect(self.options.enable_save_button)
+        tab_layout.addWidget(add_but)
+        tab_layout.addStretch()
+
+    # This function gets the dict value of a tab
+    def get_box_value(self):
+        # Create an empty dict to hold the values in
+        tab_dict = sdict()
+
+        # Loop over all items in grid and save them to tab_dict
+        for row in range(self.kwargs_grid.count()//3):
+            # Obtain the entry_type
+            entry_type = get_box_value(
+                self.kwargs_grid.itemAtPosition(row, 0).widget())
+
+            # If the entry_type is empty, skip this row
+            if(entry_type == '' or entry_type in self.banned_entries):
+                continue
+
+            # Obtain the value of the corresponding field box
+            field_value = get_box_value(
+                self.kwargs_grid.itemAtPosition(row, 1).widget())
+
+            # Add this to the dict
+            tab_dict[entry_type] = field_value
+
+        # Return tab_dict
+        return(tab_dict)
+
+    # This function sets the dict value of a tab
+    # OPTIMIZE: Reuse grid items that were already in the grid?
+    def set_box_value(self, tab_dict):
+        # Remove all items in the grid
+        for _ in range(self.kwargs_grid.count()):
+            item = self.kwargs_grid.takeAt(0)
+            item.widget().close()
+            del item
+
+        # Add all items in tab_dict to kwargs_tab
+        for row, (entry_type, field_value) in enumerate(tab_dict.items()):
+            # Add a new entry to this tab
+            self.add_editable_entry()
+
+            # Set this entry to the proper type
+            set_box_value(self.kwargs_grid.itemAtPosition(row, 0).widget(),
+                          entry_type)
+
+            # Set the value of the corresponding field
+            set_box_value(self.kwargs_grid.itemAtPosition(row, 1).widget(),
+                          field_value)
+
+    # This function adds an editable entry
     def add_editable_entry(self):
         # Create a combobox with different standard kwargs
         kwargs_box = QW.QComboBox()
@@ -1697,36 +1830,81 @@ class KwargsDictDialog(QW.QDialog):
                               "or type it manually")
         kwargs_box.setEditable(True)
         kwargs_box.setInsertPolicy(QW.QComboBox.NoInsert)
+        kwargs_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
         kwargs_box.currentTextChanged.connect(
             lambda x: self.entry_type_selected(x, kwargs_box))
+        kwargs_box.currentTextChanged.connect(self.options.enable_save_button)
 
-        # Determine the number of entries currently in window_layout
-        n_rows = self.kwargs_grid.rowCount()
+        # Create a delete button
+        delete_but = QW.QPushButton('X')
+        delete_but.setToolTip("Delete this entry")
+        delete_but.setMaximumSize(16, 16)
+        delete_but.clicked.connect(
+            lambda: self.remove_editable_entry(kwargs_box))
+        delete_but.clicked.connect(self.options.enable_save_button)
+
+        # Determine the number of entries currently in kwargs_grid
+        n_rows = self.kwargs_grid.count()//3
 
         # Make a new editable entry
         self.kwargs_grid.addWidget(kwargs_box, n_rows, 0)
         self.kwargs_grid.addWidget(QW.QWidget(), n_rows, 1)
+        self.kwargs_grid.addWidget(delete_but, n_rows, 2)
 
-    # This function is called when an item in the combobox is selected
-    def entry_type_selected(self, entry_type, kwargs_box):
-        # Check what entry_type is given and act accordingly
-        if(entry_type == ''):
-            # If the default ('') is selected, use an empty widget
-            type_box = QW.QWidget()
-        elif entry_type in self.std_entries:
-            # If one of the standard types is selected, add its box
-            type_box = getattr(self, 'add_type_%s' % (entry_type))()
-        else:
-            # If an unknown type is given, add a default box
-            type_box = self.add_type_default()
-
+    # This function deletes an editable entry
+    def remove_editable_entry(self, kwargs_box):
         # Determine at what index the provided kwargs_box currently is
         index = self.kwargs_grid.indexOf(kwargs_box)
 
-        # Replace current type_box with new type_box
-        old_box = self.kwargs_grid.replaceWidget(
-            self.kwargs_grid.itemAt(index+1).widget(), type_box)
-        old_box.widget().close()
+        # As every row contains 3 items, remove item 3 times at this index
+        for _ in range(3):
+            # Take the current layoutitem at this index
+            item = self.kwargs_grid.takeAt(index)
+
+            # Close the widget in this item and delete the item
+            item.widget().close()
+            del item
+
+    # This function is called when an item in the combobox is selected
+    # TODO: Make sure that two fields cannot have the same name
+    def entry_type_selected(self, entry_type, kwargs_box):
+        # Determine at what index the provided kwargs_box currently is
+        index = self.kwargs_grid.indexOf(kwargs_box)
+
+        # Retrieve what the current field_box is
+        cur_box = self.kwargs_grid.itemAt(index+1).widget()
+
+        # Check what entry_type is given and act accordingly
+        warn_msg = None
+        if(entry_type == ''):
+            # If '' is selected, use an empty widget
+            field_box = QW.QWidget()
+        elif entry_type in self.banned_entries:
+            # Use empty widget
+            field_box = QW.QWidget()
+
+            # If one of the banned types is selected, show a warning message
+            warn_msg = "%r is not a valid entry type!" % (entry_type)
+        elif entry_type in self.std_entries:
+            # If one of the standard types is selected, add its box
+            field_box = getattr(self, 'add_type_%s' % (entry_type))()
+        else:
+            # If an unknown type is given, add default box if not used already
+            if isinstance(cur_box, QW.QLineEdit):
+                return
+            else:
+                field_box = self.add_unknown_type()
+
+        # Replace current field_box with new field_box
+        cur_item = self.kwargs_grid.replaceWidget(cur_box, field_box)
+        cur_item.widget().close()
+        del cur_item
+
+        # If a warning message was defined, show it
+        if warn_msg is not None:
+            # Obtain the topleft corner in global coords and display warning
+            top_left = kwargs_box.mapToGlobal(kwargs_box.geometry().topLeft())
+            QW.QToolTip.showText(top_left, warn_msg, kwargs_box)
 
     # This function adds a cmap box
     def add_type_cmap(self):
@@ -1739,18 +1917,188 @@ class KwargsDictDialog(QW.QDialog):
         cmaps_box = QW.QComboBox()
         cmaps_box.addItems(std_cmaps)
         cmaps_box.insertSeparator(cmaps_box.count())
-        cmaps_box.addItems(sset(plt.colormaps()))
-        cmaps_box.setToolTip("Select the colormap to be used for the "
-                             "corresponding plot type")
-#        cmaps_box.setEditable(True)
-#        cmaps_box.setInsertPolicy(QW.QComboBox.NoInsert)
+        cmaps_box.addItems(sset(cm.cmap_d))
+        cmaps_box.setToolTip("Colormap to be used for the corresponding plot "
+                             "type")
+        cmaps_box.currentTextChanged.connect(self.options.enable_save_button)
         return(cmaps_box)
 
+    # This function adds a dpi box
+    def add_type_dpi(self):
+        # Make spinbox for dpi
+        dpi_box = QW.QSpinBox()
+        dpi_box.setRange(1, 9999999)
+        dpi_box.setSingleStep(10)
+        dpi_box.setToolTip("DPI to use for the projection figure")
+        dpi_box.valueChanged.connect(self.options.enable_save_button)
+        return(dpi_box)
+
+    # This function adds a figsize box
+    def add_type_figsize(self):
+        # Make a special figsize double spinbox
+        figsize_box = FigSizeBox(self.options)
+        return(figsize_box)
+
+    # This function adds a linestyle box
+    def add_type_linestyle(self):
+        # Obtain list with all supported linestyles
+        linestyles_lst = [(key, value[6:]) for key, value in lineStyles.items()
+                          if value != '_draw_nothing']
+        linestyles_lst.sort(key=lambda x: x[0])
+
+        # Make combobox for linestyles
+        linestyle_box = QW.QComboBox()
+        for i, (linestyle, tooltip) in enumerate(linestyles_lst):
+            linestyle_box.addItem(linestyle)
+            linestyle_box.setItemData(i, tooltip, QC.Qt.ToolTipRole)
+        linestyle_box.setToolTip("Linestyle to be used for the corresponding "
+                                 "plot type")
+        linestyle_box.currentTextChanged.connect(
+            self.options.enable_save_button)
+        return(linestyle_box)
+
+    # This function adds a marker box
+    def add_type_marker(self):
+        # Obtain list with all supported markers
+        markers_lst = [(key, value) for key, value in lineMarkers.items()
+                       if(value != 'nothing' and isinstance(key, str))]
+        markers_lst.sort(key=lambda x: x[0])
+
+        # Make combobox for markers
+        marker_box = QW.QComboBox()
+        for i, (marker, tooltip) in enumerate(markers_lst):
+            marker_box.addItem(marker)
+            marker_box.setItemData(i, tooltip, QC.Qt.ToolTipRole)
+        marker_box.setToolTip("Marker to be used for the corresponding plot "
+                              "type")
+        marker_box.currentTextChanged.connect(
+            self.options.enable_save_button)
+        return(marker_box)
+
+    # This function adds a color box
+    def add_type_color(self):
+        # Make combobox for colors
+        color_box = QW.QComboBox()
+        color_box.addItems(sset(BASE_COLORS))
+        color_box.insertSeparator(color_box.count())
+        color_box.addItems(sset(CSS4_COLORS))
+        color_box.setToolTip("Select or type the color to be used for the "
+                             "corresponding plot type")
+        color_box.setEditable(True)
+        color_box.setInsertPolicy(QW.QComboBox.NoInsert)
+        color_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
+        color_box.currentTextChanged.connect(self.options.enable_save_button)
+        return(color_box)
+
     # This function adds a default box
-    def add_type_default(self):
+    def add_unknown_type(self):
         # Create a line-edit widget
         default_line = QW.QLineEdit()
+        default_line.textEdited.connect(self.options.enable_save_button)
         return(default_line)
+
+
+# Make class with a special box for setting the figsize
+class FigSizeBox(QW.QWidget):
+    def __init__(self, options_dialog_obj, *args, **kwargs):
+        # Save provided options_dialog_obj
+        self.options = options_dialog_obj
+
+        # Call super constructor
+        super().__init__(*args, **kwargs)
+
+        # Create the figsize box
+        self.init()
+
+    # This function creates the figsize box
+    def init(self):
+        # Create the box_layout
+        box_layout = QW.QHBoxLayout(self)
+        box_layout.setContentsMargins(0, 0, 0, 0)
+        self.setToolTip("Figure size dimensions to use for the projection "
+                        "figure")
+
+        # Create two double spinboxes for the width and height
+        # WIDTH
+        width_box = QW.QDoubleSpinBox()
+        width_box.setRange(1, 9999999)
+        width_box.setSingleStep(0.1)
+        width_box.setToolTip("Width of projection figure")
+        width_box.valueChanged.connect(self.options.enable_save_button)
+        self.width_box = width_box
+
+        # HEIGHT
+        height_box = QW.QDoubleSpinBox()
+        height_box.setRange(1, 9999999)
+        height_box.setSingleStep(0.1)
+        height_box.setToolTip("Height of projection figure")
+        height_box.valueChanged.connect(self.options.enable_save_button)
+        self.height_box = height_box
+
+        # Also create a textlabel with 'X'
+        x_label = QW.QLabel('X')
+        x_label.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
+
+        # Add everything to the box_layout
+        box_layout.addWidget(width_box)
+        box_layout.addWidget(x_label)
+        box_layout.addWidget(height_box)
+
+    # This function retrieves a value of this special box
+    def get_box_value(self):
+        return((get_box_value(self.width_box), get_box_value(self.height_box)))
+
+    # This function sets the value of this special box
+    def set_box_value(self, value):
+        set_box_value(self.width_box, value[0])
+        set_box_value(self.height_box, value[1])
+
+
+# %% SUPPORT FUNCTIONS
+# This function gets the value of a provided widget_box
+def get_box_value(widget_box):
+    # Values (QAbstractSpinBox)
+    if isinstance(widget_box, QW.QAbstractSpinBox):
+        return(widget_box.value())
+    # Bools (QAbstractButton)
+    elif isinstance(widget_box, QW.QAbstractButton):
+        return(widget_box.isChecked())
+    # Items (QComboBox)
+    elif isinstance(widget_box, QW.QComboBox):
+        return(widget_box.currentText())
+    # Strings (QLineEdit)
+    elif isinstance(widget_box, QW.QLineEdit):
+        return(widget_box.text())
+    # Custom boxes (KwargsDictDialogTab, FigSizeBox)
+    elif isinstance(widget_box, (KwargsDictDialogTab, FigSizeBox)):
+        return(widget_box.get_box_value())
+
+    # If none, raise error (such that I know to implement it)
+    else:
+        raise NotImplementedError
+
+
+# This function sets the value of a provided widget_box
+def set_box_value(widget_box, value):
+    # Values (QAbstractSpinBox)
+    if isinstance(widget_box, QW.QAbstractSpinBox):
+        widget_box.setValue(value)
+    # Bools (QAbstractButton)
+    elif isinstance(widget_box, QW.QAbstractButton):
+        widget_box.setChecked(value)
+    # Items (QComboBox)
+    elif isinstance(widget_box, QW.QComboBox):
+        widget_box.setCurrentText(value)
+    # Strings (QLineEdit)
+    elif isinstance(widget_box, QW.QLineEdit):
+        widget_box.setText(str(value))
+    # Custom boxes (KwargsDictDialogTab, FigSizeBox)
+    elif isinstance(widget_box, (KwargsDictDialogTab, FigSizeBox)):
+        widget_box.set_box_value(value)
+
+    # If none, raise error (such that I know to implement it)
+    else:
+        raise NotImplementedError
 
 
 # %% FUNCTION DEFINITIONS GUI
