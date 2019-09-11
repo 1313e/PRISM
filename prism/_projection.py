@@ -155,12 +155,12 @@ class Projection(object):
         line_kwargs_est : dict. Default: {'linestyle': '--', 'color': 'grey'}
             Dict of keyword arguments to be used for drawing the parameter
             estimate lines in both plots. It takes all arguments that can be
-            provided to the :func:`~matplotlib.pyplot.draw` function.
+            provided to the :func:`~matplotlib.pyplot.plot` function.
         line_kwargs_cut : dict. Default: {'color': 'r'}
             Dict of keyword arguments to be used for drawing the implausibility
             cut-off line(s) in the top/left plot in the 2D projection figures.
             It takes all arguments that can be provided to the
-            :func:`~matplotlib.pyplot.draw` function.
+            :func:`~matplotlib.pyplot.plot` function.
 
         Returns (if `figure` is *False*)
         --------------------------------
@@ -1251,7 +1251,8 @@ class Projection(object):
         # Make list with forbidden figure and plot kwargs
         self.__pop_fig_kwargs = ['num', 'ncols', 'nrows', 'sharex', 'sharey',
                                  'constrained_layout']
-        self.__pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax']
+        self.__pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax',
+                                 'norm', 'fmt', 'mincnt']
 
         # Update kwargs_dict with given kwargs
         for key, value in kwargs.items():

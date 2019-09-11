@@ -553,13 +553,13 @@ class OverviewDockWidget(QW.QDockWidget):
         # Add list for drawn projections
         self.proj_overview.addWidget(QW.QLabel("Drawn:"))
         self.proj_list_d = QW.QListWidget()
+        self.proj_list_d.setSortingEnabled(True)
         self.proj_list_d.addItems(drawn_hcubes)
         self.proj_list_d.setStatusTip("Lists all projections that have been "
                                       "drawn")
 
         # Set a variety of properties
         self.proj_list_d.setAlternatingRowColors(True)
-        self.proj_list_d.setSortingEnabled(True)
         self.proj_list_d.setSelectionMode(
             QW.QAbstractItemView.ExtendedSelection)
         self.proj_list_d.setContextMenuPolicy(QC.Qt.CustomContextMenu)
@@ -579,13 +579,13 @@ class OverviewDockWidget(QW.QDockWidget):
         # Add list for available projections
         self.proj_overview.addWidget(QW.QLabel("Available:"))
         self.proj_list_a = QW.QListWidget()
+        self.proj_list_a.setSortingEnabled(True)
         self.proj_list_a.addItems(avail_hcubes)
         self.proj_list_a.setStatusTip("Lists all projections that have been "
                                       "calculated but not drawn")
 
         # Set a variety of properties
         self.proj_list_a.setAlternatingRowColors(True)
-        self.proj_list_a.setSortingEnabled(True)
         self.proj_list_a.setSelectionMode(
             QW.QAbstractItemView.ExtendedSelection)
         self.proj_list_a.setContextMenuPolicy(QC.Qt.CustomContextMenu)
@@ -605,13 +605,13 @@ class OverviewDockWidget(QW.QDockWidget):
         # Add list for projections that can be created
         self.proj_overview.addWidget(QW.QLabel("Unavailable:"))
         self.proj_list_u = QW.QListWidget()
+        self.proj_list_u.setSortingEnabled(True)
         self.proj_list_u.addItems(unavail_hcubes)
         self.proj_list_u.setStatusTip("Lists all projections that have not "
                                       "been calculated")
 
         # Set a variety of properties
         self.proj_list_u.setAlternatingRowColors(True)
-        self.proj_list_u.setSortingEnabled(True)
         self.proj_list_u.setSelectionMode(
             QW.QAbstractItemView.ExtendedSelection)
         self.proj_list_u.setContextMenuPolicy(QC.Qt.CustomContextMenu)
@@ -868,11 +868,21 @@ class OverviewDockWidget(QW.QDockWidget):
             self.proj_list_a.addItem(item)
 
     # This function draws a projection figure
-    # OPTIMIZE: (Re)Drawing a 3D projection figure takes up to 15 seconds
+    # OPTIMIZE: Reshaping a 3D projection figure takes up to 15 seconds
     # TODO: Add threaded progress dialog while drawing the figures
     def draw_projection_figures(self, list_items):
+        # Create a progress dialog
+        progress_dialog = QW.QProgressDialog("Drawing projection figures",
+                                             "Abort", 0, len(list_items),
+                                             self.main)
+        progress_dialog.setWindowModality(QC.Qt.ApplicationModal)
+        progress_dialog.forceShow()
+
         # Loop over all items in list_items
-        for list_item in list_items:
+        for i, list_item in enumerate(list_items):
+            # Update the progress dialog
+            progress_dialog.setValue(i)
+
             # Retrieve text of list_item
             hcube_name = list_item.text()
             hcube = self.hcubes[self.names.index(hcube_name)]
@@ -896,6 +906,9 @@ class OverviewDockWidget(QW.QDockWidget):
             item = self.proj_list_a.takeItem(
                 self.proj_list_a.row(list_item))
             self.proj_list_d.addItem(item)
+
+        # Set progress dialog to final value
+        progress_dialog.setValue(len(list_items))
 
         # Show all drawn projection figures
         self.show_projection_figures(list_items)
@@ -945,8 +958,18 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function creates a projection figure
     # TODO: Add threaded progress dialog while creating the figures
     def create_projection_figures(self, list_items):
+        # Create a progress dialog
+        progress_dialog = QW.QProgressDialog("Creating projection figures",
+                                             "Abort", 0, len(list_items),
+                                             self.main)
+        progress_dialog.setWindowModality(QC.Qt.ApplicationModal)
+        progress_dialog.forceShow()
+
         # Loop over all items in list_items
-        for list_item in list_items:
+        for i, list_item in enumerate(list_items):
+            # Update the progress dialog
+            progress_dialog.setValue(i)
+
             # Retrieve text of list_item
             hcube_name = list_item.text()
             hcube = self.hcubes[self.names.index(hcube_name)]
@@ -957,6 +980,9 @@ class OverviewDockWidget(QW.QDockWidget):
             # Move figure from unavailable to available
             item = self.proj_list_u.takeItem(self.proj_list_u.row(list_item))
             self.proj_list_a.addItem(item)
+
+        # Set progress dialog to final value
+        progress_dialog.setValue(len(list_items))
 
     # This function saves a projection figure to file in the normal way
     def save_projection_figures(self, list_items, *, choose=False):
@@ -1473,71 +1499,69 @@ class OptionsDialog(QW.QDialog):
         kwargs_dicts_box.add_dict(
             "Figure", 'fig_kwargs',
             std_entries=['dpi', 'figsize'],
-            banned_entries=[*self.get_proj_attr('pop_fig_kwargs')])
+            banned_entries=self.get_proj_attr('pop_fig_kwargs'))
 
         # IMPL_KWARGS_2D
         kwargs_dicts_box.add_dict(
             "2D implausibility", 'impl_kwargs_2D',
-            std_entries=['linestyle', 'marker', 'color'],
+            std_entries=['linestyle', 'linewidth', 'marker', 'markersize',
+                         'color', 'alpha'],
             banned_entries=[*self.get_proj_attr('pop_plt_kwargs'), 'cmap'])
 
         # IMPL_KWARGS_3D
         kwargs_dicts_box.add_dict(
             "3D implausibility", 'impl_kwargs_3D',
-            std_entries=['cmap'],
-            banned_entries=[*self.get_proj_attr('pop_plt_kwargs')])
+            std_entries=['cmap', 'alpha', 'xscale', 'yscale'],
+            banned_entries=self.get_proj_attr('pop_plt_kwargs'))
 
         # LOS_KWARGS_2D
         kwargs_dicts_box.add_dict(
             "2D line-of-sight", 'los_kwargs_2D',
-            std_entries=['linestyle', 'marker', 'color'],
+            std_entries=['linestyle', 'linewidth', 'marker', 'markersize',
+                         'color', 'alpha'],
             banned_entries=[*self.get_proj_attr('pop_plt_kwargs'), 'cmap'])
 
         # LOS_KWARGS_3D
         kwargs_dicts_box.add_dict(
             "3D line-of-sight", 'los_kwargs_3D',
-            std_entries=['cmap'],
-            banned_entries=[*self.get_proj_attr('pop_plt_kwargs')])
+            std_entries=['cmap', 'alpha', 'xscale', 'yscale'],
+            banned_entries=self.get_proj_attr('pop_plt_kwargs'))
 
         # LINE_KWARGS_EST
         kwargs_dicts_box.add_dict(
             "Estimate lines", 'line_kwargs_est',
-            std_entries=['linestyle', 'color'],
+            std_entries=['linestyle', 'color', 'alpha'],
             banned_entries=[])
 
         # LINE_KWARGS_CUT
         kwargs_dicts_box.add_dict(
             "Cut-off lines", 'line_kwargs_cut',
-            std_entries=['linestyle', 'color'],
+            std_entries=['linestyle', 'color', 'alpha'],
             banned_entries=[])
 
     # BUTTONS GROUP
     def add_group_buttons(self, window_layout):
-        # Create a buttons layout
-        buttons_layout = QW.QHBoxLayout()
-        window_layout.addLayout(buttons_layout)
-        buttons_layout.addStretch()
+        # Create a button_box
+        button_box = QW.QDialogButtonBox()
+        window_layout.addWidget(button_box)
 
         # Make a 'Reset' button
-        reset_but = QW.QPushButton("&Reset")
+        reset_but = button_box.addButton(QW.QDialogButtonBox.Reset)
         reset_but.setToolTip("Reset to defaults")
         reset_but.clicked.connect(self.reset_options)
-        buttons_layout.addWidget(reset_but)
 
-        # Make a 'Save' button
-        save_but = QW.QPushButton("&Save")
-        save_but.setToolTip("Save options")
+        # Make an 'Apply' button
+        save_but = button_box.addButton(QW.QDialogButtonBox.Apply)
+        save_but.setToolTip("Apply changes")
         save_but.clicked.connect(self.save_options)
         save_but.setEnabled(False)
         self.save_but = save_but
-        buttons_layout.addWidget(save_but)
 
         # Make a 'Close' button
-        close_but = QW.QPushButton("&Close")
+        close_but = button_box.addButton(QW.QDialogButtonBox.Close)
         close_but.setToolTip("Close without saving")
-        close_but.setDefault(True)
         close_but.clicked.connect(self.close)
-        buttons_layout.addWidget(close_but)
+        close_but.setDefault(True)
 
     # This function saves the new options values
     def save_options(self):
@@ -1560,8 +1584,6 @@ class OptionsDialog(QW.QDialog):
 
         # Disable the save button
         self.disable_save_button()
-        for key, value in self.options_entries.items():
-            print(key, value)
 
     # This function enables the save button
     def enable_save_button(self):
@@ -1694,12 +1716,10 @@ class KwargsDictDialog(QW.QDialog):
         window_layout.addStretch()
 
         # Add a close button
-        buttons_layout = QW.QHBoxLayout()
-        window_layout.addLayout(buttons_layout)
-        close_but = QW.QPushButton("Close")
+        button_box = QW.QDialogButtonBox()
+        window_layout.addWidget(button_box)
+        close_but = button_box.addButton(QW.QDialogButtonBox.Close)
         close_but.clicked.connect(self.close)
-        buttons_layout.addStretch()
-        buttons_layout.addWidget(close_but)
 
         # Set some properties for this window
         self.setModal(True)                                         # Modality
@@ -1751,8 +1771,8 @@ class KwargsDictDialogTab(QW.QWidget):
 
         # Create a grid for this layout
         self.kwargs_grid = QW.QGridLayout()
-        self.kwargs_grid.setColumnStretch(0, 1)
         self.kwargs_grid.setColumnStretch(1, 1)
+        self.kwargs_grid.setColumnStretch(2, 1)
         tab_layout.addLayout(self.kwargs_grid)
 
         # Make sure that '' is not in std_entries or banned_entries
@@ -1768,10 +1788,19 @@ class KwargsDictDialogTab(QW.QWidget):
         self.std_entries.difference_update(self.banned_entries)
 
         # Add an 'add' button at the bottom of this layout
-        add_but = QW.QPushButton('+')
+        add_but = QW.QToolButton()
         add_but.setToolTip("Add a new entry")
         add_but.clicked.connect(self.add_editable_entry)
         add_but.clicked.connect(self.options.enable_save_button)
+
+        # If this theme has an 'add' icon, use it
+        if QG.QIcon.hasThemeIcon('add'):
+            add_but.setIcon(QG.QIcon.fromTheme('add'))
+        # Else, use a simple plus
+        else:
+            add_but.setText('+')
+
+        # Add button to layout
         tab_layout.addWidget(add_but)
         tab_layout.addStretch()
 
@@ -1784,7 +1813,7 @@ class KwargsDictDialogTab(QW.QWidget):
         for row in range(self.kwargs_grid.count()//3):
             # Obtain the entry_type
             entry_type = get_box_value(
-                self.kwargs_grid.itemAtPosition(row, 0).widget())
+                self.kwargs_grid.itemAtPosition(row, 1).widget())
 
             # If the entry_type is empty, skip this row
             if(entry_type == '' or entry_type in self.banned_entries):
@@ -1792,7 +1821,7 @@ class KwargsDictDialogTab(QW.QWidget):
 
             # Obtain the value of the corresponding field box
             field_value = get_box_value(
-                self.kwargs_grid.itemAtPosition(row, 1).widget())
+                self.kwargs_grid.itemAtPosition(row, 2).widget())
 
             # Add this to the dict
             tab_dict[entry_type] = field_value
@@ -1815,11 +1844,11 @@ class KwargsDictDialogTab(QW.QWidget):
             self.add_editable_entry()
 
             # Set this entry to the proper type
-            set_box_value(self.kwargs_grid.itemAtPosition(row, 0).widget(),
+            set_box_value(self.kwargs_grid.itemAtPosition(row, 1).widget(),
                           entry_type)
 
             # Set the value of the corresponding field
-            set_box_value(self.kwargs_grid.itemAtPosition(row, 1).widget(),
+            set_box_value(self.kwargs_grid.itemAtPosition(row, 2).widget(),
                           field_value)
 
     # This function adds an editable entry
@@ -1828,8 +1857,8 @@ class KwargsDictDialogTab(QW.QWidget):
         kwargs_box = QW.QComboBox()
         kwargs_box.addItem('')
         kwargs_box.addItems(self.std_entries)
-        kwargs_box.setToolTip("Select the standard keyword field to be added "
-                              "or type it manually")
+        kwargs_box.setToolTip("Select a standard type for this entry or add "
+                              "it manually")
         kwargs_box.setEditable(True)
         kwargs_box.setInsertPolicy(QW.QComboBox.NoInsert)
         kwargs_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
@@ -1838,30 +1867,36 @@ class KwargsDictDialogTab(QW.QWidget):
         kwargs_box.currentTextChanged.connect(self.options.enable_save_button)
 
         # Create a delete button
-        delete_but = QW.QPushButton('X')
+        delete_but = QW.QToolButton()
         delete_but.setToolTip("Delete this entry")
-        delete_but.setMaximumSize(16, 16)
         delete_but.clicked.connect(
             lambda: self.remove_editable_entry(kwargs_box))
         delete_but.clicked.connect(self.options.enable_save_button)
+
+        # If this theme has a 'remove' icon, use it
+        if QG.QIcon.hasThemeIcon('remove'):
+            delete_but.setIcon(QG.QIcon.fromTheme('remove'))
+        # Else, use a simple cross
+        else:
+            delete_but.setText('X')
 
         # Determine the number of entries currently in kwargs_grid
         n_rows = self.kwargs_grid.count()//3
 
         # Make a new editable entry
-        self.kwargs_grid.addWidget(kwargs_box, n_rows, 0)
-        self.kwargs_grid.addWidget(QW.QWidget(), n_rows, 1)
-        self.kwargs_grid.addWidget(delete_but, n_rows, 2)
+        self.kwargs_grid.addWidget(delete_but, n_rows, 0)
+        self.kwargs_grid.addWidget(kwargs_box, n_rows, 1)
+        self.kwargs_grid.addWidget(QW.QWidget(), n_rows, 2)
 
     # This function deletes an editable entry
     def remove_editable_entry(self, kwargs_box):
         # Determine at what index the provided kwargs_box currently is
         index = self.kwargs_grid.indexOf(kwargs_box)
 
-        # As every row contains 3 items, remove item 3 times at this index
+        # As every row contains 3 items, remove item 3 times at this index-1
         for _ in range(3):
-            # Take the current layoutitem at this index
-            item = self.kwargs_grid.takeAt(index)
+            # Take the current layoutitem at this index-1
+            item = self.kwargs_grid.takeAt(index-1)
 
             # Close the widget in this item and delete the item
             item.widget().close()
@@ -1882,7 +1917,8 @@ class KwargsDictDialogTab(QW.QWidget):
             field_box = QW.QWidget()
         elif entry_type in self.banned_entries:
             # If one of the banned types is selected, show a warning message
-            warn_msg = "%r is not a valid entry type!" % (entry_type)
+            warn_msg = (r"<b><i>%s</i></b> is a reserved or banned entry type!"
+                        % (entry_type))
             field_box = QW.QLabel(warn_msg)
         elif entry_type in self.std_entries:
             # If one of the standard types is selected, add its box
@@ -1916,6 +1952,33 @@ class KwargsDictDialogTab(QW.QWidget):
         cmaps_box.currentTextChanged.connect(self.options.enable_save_button)
         return(cmaps_box)
 
+    # This function adds an alpha box
+    def add_type_alpha(self):
+        # Make double spinbox for alpha
+        alpha_box = QW.QDoubleSpinBox()
+        alpha_box.setRange(0, 1)
+        alpha_box.setSingleStep(0.01)
+        alpha_box.setToolTip("Alpha value to use for the plotted data")
+        alpha_box.valueChanged.connext(self.options.enable_save_button)
+        return(alpha_box)
+
+    # This function adds a scale box
+    def add_type_scale(self, axis):
+        # Make a combobox for scale
+        scale_box = QW.QComboBox()
+        scale_box.addItems(['linear', 'log'])
+        scale_box.setToolTip("Scale type to use on the %s-axis" % (axis))
+        scale_box.currentTextChanged.connect(self.options.enable_save_button)
+        return(scale_box)
+
+    # This function adds a xscale box
+    def add_type_xscale(self):
+        return(self.add_type_scale('x'))
+
+    # This function adds a yscale box
+    def add_type_yscale(self):
+        return(self.add_type_scale('y'))
+
     # This function adds a dpi box
     def add_type_dpi(self):
         # Make spinbox for dpi
@@ -1948,6 +2011,16 @@ class KwargsDictDialogTab(QW.QWidget):
             self.options.enable_save_button)
         return(linestyle_box)
 
+    # This function adds a linewidth box
+    def add_type_linewidth(self):
+        # Make a double spinbox for linewidth
+        linewidth_box = QW.QDoubleSpinBox()
+        linewidth_box.setRange(0, 9999999)
+        linewidth_box.setSingleStep(1)
+        linewidth_box.setToolTip("Width of the plotted line")
+        linewidth_box.valueChanged.connect(self.options.enable_save_button)
+        return(linewidth_box)
+
     # This function adds a marker box
     def add_type_marker(self):
         # Obtain list with all supported markers
@@ -1962,9 +2035,18 @@ class KwargsDictDialogTab(QW.QWidget):
             marker_box.setItemData(i, tooltip, QC.Qt.ToolTipRole)
         marker_box.setToolTip("Marker to be used for the corresponding plot "
                               "type")
-        marker_box.currentTextChanged.connect(
-            self.options.enable_save_button)
+        marker_box.currentTextChanged.connect(self.options.enable_save_button)
         return(marker_box)
+
+    # This function adds a markersize box
+    def add_type_markersize(self):
+        # Make a double spinbox for markersize
+        markersize_box = QW.QDoubleSpinBox()
+        markersize_box.setRange(0, 9999999)
+        markersize_box.setSingleStep(1)
+        markersize_box.setToolTip("Size of the plotted markers")
+        markersize_box.valueChanged.connect(self.options.enable_save_button)
+        return(markersize_box)
 
     # This function adds a color box
     def add_type_color(self):
@@ -2051,7 +2133,7 @@ class DefaultBox(QW.QWidget):
         # Call super constructor
         super().__init__(*args, **kwargs)
 
-        # Create the defaultline box
+        # Create the default box
         self.init()
 
     # This function creates a double box with type and lineedit
@@ -2064,6 +2146,7 @@ class DefaultBox(QW.QWidget):
 
         # Make a look-up dict for types
         self.type_dict = {
+            bool: 'bool',
             float: 'float',
             int: 'int',
             str: 'str'}
@@ -2097,6 +2180,14 @@ class DefaultBox(QW.QWidget):
 
         # Save new value_box
         self.value_box = value_box
+
+    # This function creates the value box for bools
+    def add_type_bool(self):
+        # Create a checkbox for bools
+        bool_box = QW.QCheckBox()
+        bool_box.setToolTip("Boolean value for this entry type")
+        bool_box.stateChanged.connect(self.options.enable_save_button)
+        return(bool_box)
 
     # This function creates the value box for integers
     def add_type_int(self):
@@ -2155,7 +2246,7 @@ def get_box_value(widget_box):
 
     # If none, raise error (such that I know to implement it)
     else:
-        raise NotImplementedError
+        raise NotImplementedError(widget_box.__class__)
 
 
 # This function sets the value of a provided widget_box
@@ -2168,7 +2259,11 @@ def set_box_value(widget_box, value):
         widget_box.setChecked(value)
     # Items (QComboBox)
     elif isinstance(widget_box, QW.QComboBox):
-        widget_box.setCurrentText(value)
+        index = widget_box.findText(value)
+        if(index != -1):
+            widget_box.setCurrentIndex(index)
+        else:
+            widget_box.setCurrentText(value)
     # Strings (QLineEdit)
     elif isinstance(widget_box, QW.QLineEdit):
         widget_box.setText(value)
@@ -2178,7 +2273,7 @@ def set_box_value(widget_box, value):
 
     # If none, raise error (such that I know to implement it)
     else:
-        raise NotImplementedError
+        raise NotImplementedError(widget_box.__class__)
 
 
 # %% FUNCTION DEFINITIONS GUI
