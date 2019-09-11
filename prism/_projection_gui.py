@@ -1530,13 +1530,13 @@ class OptionsDialog(QW.QDialog):
         # LINE_KWARGS_EST
         kwargs_dicts_box.add_dict(
             "Estimate lines", 'line_kwargs_est',
-            std_entries=['linestyle', 'color', 'alpha'],
+            std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
             banned_entries=[])
 
         # LINE_KWARGS_CUT
         kwargs_dicts_box.add_dict(
             "Cut-off lines", 'line_kwargs_cut',
-            std_entries=['linestyle', 'color', 'alpha'],
+            std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
             banned_entries=[])
 
     # BUTTONS GROUP
@@ -1959,7 +1959,7 @@ class KwargsDictDialogTab(QW.QWidget):
         alpha_box.setRange(0, 1)
         alpha_box.setSingleStep(0.01)
         alpha_box.setToolTip("Alpha value to use for the plotted data")
-        alpha_box.valueChanged.connext(self.options.enable_save_button)
+        alpha_box.valueChanged.connect(self.options.enable_save_button)
         return(alpha_box)
 
     # This function adds a scale box
@@ -1985,7 +1985,8 @@ class KwargsDictDialogTab(QW.QWidget):
         dpi_box = QW.QSpinBox()
         dpi_box.setRange(1, 9999999)
         dpi_box.setSingleStep(10)
-        dpi_box.setToolTip("DPI to use for the projection figure")
+        dpi_box.setToolTip("DPI (dots per inch) to use for the projection "
+                           "figure")
         dpi_box.valueChanged.connect(self.options.enable_save_button)
         return(dpi_box)
 
@@ -2093,7 +2094,7 @@ class FigSizeBox(QW.QWidget):
         width_box = QW.QDoubleSpinBox()
         width_box.setRange(1, 9999999)
         width_box.setSingleStep(0.1)
-        width_box.setToolTip("Width of projection figure")
+        width_box.setToolTip("Width (in inches) of projection figure")
         width_box.valueChanged.connect(self.options.enable_save_button)
         self.width_box = width_box
 
@@ -2101,7 +2102,7 @@ class FigSizeBox(QW.QWidget):
         height_box = QW.QDoubleSpinBox()
         height_box.setRange(1, 9999999)
         height_box.setSingleStep(0.1)
-        height_box.setToolTip("Height of projection figure")
+        height_box.setToolTip("Height (in inches) of projection figure")
         height_box.valueChanged.connect(self.options.enable_save_button)
         self.height_box = height_box
 
