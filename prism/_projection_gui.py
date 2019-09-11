@@ -1560,6 +1560,8 @@ class OptionsDialog(QW.QDialog):
 
         # Disable the save button
         self.disable_save_button()
+        for key, value in self.options_entries.items():
+            print(key, value)
 
     # This function enables the save button
     def enable_save_button(self):
@@ -1700,8 +1702,8 @@ class KwargsDictDialog(QW.QDialog):
         buttons_layout.addWidget(close_but)
 
         # Set some properties for this window
-        self.setModal(True)                                 # Modality
-        self.setWindowTitle("Viewing keyword dicts")        # Title
+        self.setModal(True)                                         # Modality
+        self.setWindowTitle("Viewing projection keyword dicts")     # Title
 
     # This function shows an editable window with the entries in the dict
     def __call__(self):
@@ -1875,22 +1877,19 @@ class KwargsDictDialogTab(QW.QWidget):
         cur_box = self.kwargs_grid.itemAt(index+1).widget()
 
         # Check what entry_type is given and act accordingly
-        warn_msg = None
         if(entry_type == ''):
             # If '' is selected, use an empty widget
             field_box = QW.QWidget()
         elif entry_type in self.banned_entries:
-            # Use empty widget
-            field_box = QW.QWidget()
-
             # If one of the banned types is selected, show a warning message
             warn_msg = "%r is not a valid entry type!" % (entry_type)
+            field_box = QW.QLabel(warn_msg)
         elif entry_type in self.std_entries:
             # If one of the standard types is selected, add its box
             field_box = getattr(self, 'add_type_%s' % (entry_type))()
         else:
             # If an unknown type is given, add default box if not used already
-            if isinstance(cur_box, QW.QLineEdit):
+            if isinstance(cur_box, DefaultBox):
                 return
             else:
                 field_box = self.add_unknown_type()
@@ -1899,12 +1898,6 @@ class KwargsDictDialogTab(QW.QWidget):
         cur_item = self.kwargs_grid.replaceWidget(cur_box, field_box)
         cur_item.widget().close()
         del cur_item
-
-        # If a warning message was defined, show it
-        if warn_msg is not None:
-            # Obtain the topleft corner in global coords and display warning
-            top_left = kwargs_box.mapToGlobal(kwargs_box.geometry().topLeft())
-            QW.QToolTip.showText(top_left, warn_msg, kwargs_box)
 
     # This function adds a cmap box
     def add_type_cmap(self):
@@ -1935,9 +1928,7 @@ class KwargsDictDialogTab(QW.QWidget):
 
     # This function adds a figsize box
     def add_type_figsize(self):
-        # Make a special figsize double spinbox
-        figsize_box = FigSizeBox(self.options)
-        return(figsize_box)
+        return(FigSizeBox(self.options))
 
     # This function adds a linestyle box
     def add_type_linestyle(self):
@@ -1992,10 +1983,7 @@ class KwargsDictDialogTab(QW.QWidget):
 
     # This function adds a default box
     def add_unknown_type(self):
-        # Create a line-edit widget
-        default_line = QW.QLineEdit()
-        default_line.textEdited.connect(self.options.enable_save_button)
-        return(default_line)
+        return(DefaultBox(self.options))
 
 
 # Make class with a special box for setting the figsize
@@ -2054,6 +2042,98 @@ class FigSizeBox(QW.QWidget):
         set_box_value(self.height_box, value[1])
 
 
+# Make class for the default lineedit box that allows for type to be selected
+class DefaultBox(QW.QWidget):
+    def __init__(self, options_dialog_obj, *args, **kwargs):
+        # Save provided options_dialog_obj
+        self.options = options_dialog_obj
+
+        # Call super constructor
+        super().__init__(*args, **kwargs)
+
+        # Create the defaultline box
+        self.init()
+
+    # This function creates a double box with type and lineedit
+    def init(self):
+        # Create the box_layout
+        box_layout = QW.QHBoxLayout(self)
+        box_layout.setContentsMargins(0, 0, 0, 0)
+        self.box_layout = box_layout
+        self.setToolTip("Enter the type and value for this unknown entry type")
+
+        # Make a look-up dict for types
+        self.type_dict = {
+            float: 'float',
+            int: 'int',
+            str: 'str'}
+
+        # Create a combobox for the type
+        type_box = QW.QComboBox()
+        type_box.addItems(self.type_dict.values())
+        type_box.setToolTip("Type of the entered value")
+        type_box.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
+        type_box.currentTextChanged.connect(self.create_field_box)
+        type_box.currentTextChanged.connect(self.options.enable_save_button)
+        self.type_box = type_box
+
+        # Make value box corresponding to the current type
+        value_box = getattr(self, "add_type_%s" % (type_box.currentText()))()
+        self.value_box = value_box
+
+        # Add everything to the box_layout
+        box_layout.addWidget(type_box)
+        box_layout.addWidget(value_box)
+
+    # This function creates a field_box depending on the type that was selected
+    def create_field_box(self, value_type):
+        # Obtain a widget box for the specified value_type
+        value_box = getattr(self, "add_type_%s" % (value_type))()
+
+        # Set this value_box in the layout
+        cur_item = self.box_layout.replaceWidget(self.value_box, value_box)
+        cur_item.widget().close()
+        del cur_item
+
+        # Save new value_box
+        self.value_box = value_box
+
+    # This function creates the value box for integers
+    def add_type_int(self):
+        # Create a spinbox for integers
+        int_box = QW.QSpinBox()
+        int_box.setRange(-9999999, 9999999)
+        int_box.setToolTip("Integer value for this entry type")
+        int_box.valueChanged.connect(self.options.enable_save_button)
+        return(int_box)
+
+    # This function creates the value box for floats
+    def add_type_float(self):
+        # Create a spinbox for floats
+        float_box = QW.QDoubleSpinBox()
+        float_box.setRange(-9999999, 9999999)
+        float_box.setToolTip("Float value for this entry type")
+        float_box.valueChanged.connect(self.options.enable_save_button)
+        return(float_box)
+
+    # This function creates the value box for strings
+    def add_type_str(self):
+        # Create a lineedit for strings
+        str_box = QW.QLineEdit()
+        str_box.setToolTip("String value for this entry type")
+        str_box.textEdited.connect(self.options.enable_save_button)
+        return(str_box)
+
+    # This function retrieves a value of this special box
+    def get_box_value(self):
+        return(get_box_value(self.value_box))
+
+    # This function sets the value of this special box
+    def set_box_value(self, value):
+        set_box_value(self.type_box, self.type_dict[type(value)])
+        set_box_value(self.value_box, value)
+
+
 # %% SUPPORT FUNCTIONS
 # This function gets the value of a provided widget_box
 def get_box_value(widget_box):
@@ -2069,8 +2149,8 @@ def get_box_value(widget_box):
     # Strings (QLineEdit)
     elif isinstance(widget_box, QW.QLineEdit):
         return(widget_box.text())
-    # Custom boxes (KwargsDictDialogTab, FigSizeBox)
-    elif isinstance(widget_box, (KwargsDictDialogTab, FigSizeBox)):
+    # Custom boxes (KwargsDictDialogTab, FigSizeBox, DefaultBox)
+    elif isinstance(widget_box, (KwargsDictDialogTab, FigSizeBox, DefaultBox)):
         return(widget_box.get_box_value())
 
     # If none, raise error (such that I know to implement it)
@@ -2091,9 +2171,9 @@ def set_box_value(widget_box, value):
         widget_box.setCurrentText(value)
     # Strings (QLineEdit)
     elif isinstance(widget_box, QW.QLineEdit):
-        widget_box.setText(str(value))
-    # Custom boxes (KwargsDictDialogTab, FigSizeBox)
-    elif isinstance(widget_box, (KwargsDictDialogTab, FigSizeBox)):
+        widget_box.setText(value)
+    # Custom boxes (KwargsDictDialogTab, FigSizeBox, DefaultBox)
+    elif isinstance(widget_box, (KwargsDictDialogTab, FigSizeBox, DefaultBox)):
         widget_box.set_box_value(value)
 
     # If none, raise error (such that I know to implement it)
