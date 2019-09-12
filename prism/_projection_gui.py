@@ -54,18 +54,24 @@ DIR_PATH = path.dirname(__file__)           # Path to directory of this file
 # Define class for main viewer window
 # TODO: This GUI must be able to work in MPI
 # TODO: Write documentation (docs and docstrings) for the GUI
+# TODO: Figure out why closing the GUI does not fully clear memory of it
 class MainViewerWindow(QW.QMainWindow):
     # Initialize ViewerWindow class
     def __init__(self, qapplication_obj, pipeline_obj, *args, **kwargs):
-        # Call super constructor
-        super().__init__(*args, **kwargs)
-
         # Save qapplication_obj as qapp
         self.qapp = qapplication_obj
 
         # Save pipeline_obj as pipe
         self.pipe = pipeline_obj
 
+        # Call super constructor
+        super().__init__(*args, **kwargs)
+
+        # Set up the main window
+        self.init()
+
+    # This function sets up the main window
+    def init(self):
         # Turn logging off in the pipeline
         self.was_logging = bool(self.pipe.do_logging)
         self.pipe.do_logging = False
@@ -804,7 +810,7 @@ class OverviewDockWidget(QW.QDockWidget):
         if len(self.proj_list_u.selectedItems()):
             self.context_menu_u.popup(QG.QCursor.pos())
 
-    # This function shows a projection figure in the viewing area
+    # This function shows a list of projection figures in the viewing area
     def show_projection_figures(self, list_items):
         # Loop over all items in list_items
         for list_item in list_items:
@@ -848,7 +854,7 @@ class OverviewDockWidget(QW.QDockWidget):
         if self.main.get_option('auto_tile'):
             self.main.area_dock.proj_area.tileSubWindows()
 
-    # This function removes a projection figure permanently from the register
+    # This function removes a list of projection figures permanently
     def close_projection_figures(self, list_items):
         # Loop over all items in list_items
         for list_item in list_items:
@@ -867,53 +873,51 @@ class OverviewDockWidget(QW.QDockWidget):
                 self.proj_list_d.row(list_item))
             self.proj_list_a.addItem(item)
 
-    # This function draws a projection figure
+    # This function draws a list of projection figures
     # OPTIMIZE: Reshaping a 3D projection figure takes up to 15 seconds
-    # TODO: Add threaded progress dialog while drawing the figures
     def draw_projection_figures(self, list_items):
-        # Create a progress dialog
-        progress_dialog = QW.QProgressDialog("Drawing projection figures",
-                                             "Abort", 0, len(list_items),
-                                             self.main)
-        progress_dialog.setWindowModality(QC.Qt.ApplicationModal)
-        progress_dialog.forceShow()
+        # Create a threaded progress dialog for creating projections
+        progress_dialog = ThreadedProgressDialog(
+            self.main, "Drawing projection figures...", "Abort",
+            self._draw_projection_figure, list_items)
 
-        # Loop over all items in list_items
-        for i, list_item in enumerate(list_items):
-            # Update the progress dialog
-            progress_dialog.setValue(i)
+        # Execute the function provided to the progress dialog
+        result = progress_dialog()
 
-            # Retrieve text of list_item
-            hcube_name = list_item.text()
-            hcube = self.hcubes[self.names.index(hcube_name)]
+        # Show all drawn projection figures if the dialog was not cancelled
+        if result:
+            self.show_projection_figures(list_items)
 
-            # Load in the data corresponding to the requested figure
-            impl_min, impl_los, proj_res, _ =\
-                self.get_proj_attr('get_proj_data')(hcube)
+        # Return result
+        return(result)
 
-            # Call the proper function for drawing the projection figure
-            if(len(hcube) == 2):
-                fig = self.get_proj_attr('draw_2D_proj_fig')(
-                    hcube, impl_min, impl_los, proj_res)
-            else:
-                fig = self.get_proj_attr('draw_3D_proj_fig')(
-                    hcube, impl_min, impl_los, proj_res)
+    # This function draws a projection figure
+    def _draw_projection_figure(self, list_item):
+        # Retrieve text of list_item
+        hcube_name = list_item.text()
+        hcube = self.hcubes[self.names.index(hcube_name)]
 
-            # Register figure in the registry
-            self.proj_fig_registry[hcube_name] = [fig, None]
+        # Load in the data corresponding to the requested figure
+        impl_min, impl_los, proj_res, _ =\
+            self.get_proj_attr('get_proj_data')(hcube)
 
-            # Move figure from available to drawn
-            item = self.proj_list_a.takeItem(
-                self.proj_list_a.row(list_item))
-            self.proj_list_d.addItem(item)
+        # Call the proper function for drawing the projection figure
+        if(len(hcube) == 2):
+            fig = self.get_proj_attr('draw_2D_proj_fig')(
+                hcube, impl_min, impl_los, proj_res)
+        else:
+            fig = self.get_proj_attr('draw_3D_proj_fig')(
+                hcube, impl_min, impl_los, proj_res)
 
-        # Set progress dialog to final value
-        progress_dialog.setValue(len(list_items))
+        # Register figure in the registry
+        self.proj_fig_registry[hcube_name] = [fig, None]
 
-        # Show all drawn projection figures
-        self.show_projection_figures(list_items)
+        # Move figure from available to drawn
+        item = self.proj_list_a.takeItem(
+            self.proj_list_a.row(list_item))
+        self.proj_list_d.addItem(item)
 
-    # This function deletes a projection figure
+    # This function deletes a list of projection figures
     # TODO: Avoid reimplementing the __get_req_hcubes() logic here
     def delete_projection_figures(self, list_items, *, skip_warning=False):
         # If skip_warning is False, ask the user if they really want this
@@ -955,36 +959,33 @@ class OverviewDockWidget(QW.QDockWidget):
                     self.proj_list_a.row(list_item))
                 self.proj_list_u.addItem(item)
 
-    # This function creates a projection figure
-    # TODO: Add threaded progress dialog while creating the figures
+    # This function creates a list of projection figures
     def create_projection_figures(self, list_items):
-        # Create a progress dialog
-        progress_dialog = QW.QProgressDialog("Creating projection figures",
-                                             "Abort", 0, len(list_items),
-                                             self.main)
-        progress_dialog.setWindowModality(QC.Qt.ApplicationModal)
-        progress_dialog.forceShow()
+        # Create a threaded progress dialog for creating projections
+        progress_dialog = ThreadedProgressDialog(
+            self.main, "Creating projection figures...", "Abort",
+            self._create_projection_figure, list_items)
 
-        # Loop over all items in list_items
-        for i, list_item in enumerate(list_items):
-            # Update the progress dialog
-            progress_dialog.setValue(i)
+        # Execute the function provided to the progress dialog
+        result = progress_dialog()
 
-            # Retrieve text of list_item
-            hcube_name = list_item.text()
-            hcube = self.hcubes[self.names.index(hcube_name)]
+        # Return result
+        return(result)
 
-            # Calculate projection data
-            _, _ = self.get_proj_attr('analyze_proj_hcube')(hcube)
+    # This function creates a projection figure
+    def _create_projection_figure(self, list_item):
+        # Retrieve text of list_item
+        hcube_name = list_item.text()
+        hcube = self.hcubes[self.names.index(hcube_name)]
 
-            # Move figure from unavailable to available
-            item = self.proj_list_u.takeItem(self.proj_list_u.row(list_item))
-            self.proj_list_a.addItem(item)
+        # Calculate projection data
+        _, _ = self.get_proj_attr('analyze_proj_hcube')(hcube)
 
-        # Set progress dialog to final value
-        progress_dialog.setValue(len(list_items))
+        # Move figure from unavailable to available
+        item = self.proj_list_u.takeItem(self.proj_list_u.row(list_item))
+        self.proj_list_a.addItem(item)
 
-    # This function saves a projection figure to file in the normal way
+    # This function saves a list of projection figures to file
     def save_projection_figures(self, list_items, *, choose=False):
         # Loop over all items in list_items
         for list_item in list_items:
@@ -1064,19 +1065,19 @@ class OverviewDockWidget(QW.QDockWidget):
             else:
                 fig.savefig(fig_path)
 
-    # This function redraws a projection figure
+    # This function redraws a list of projection figures
     def redraw_projection_figures(self, list_items):
         # Close and redraw all projection figures in list_items
         self.close_projection_figures(list_items)
         self.draw_projection_figures(list_items)
 
-    # This function draws and saves a projection figure
+    # This function draws and saves a list of projection figures
     def draw_save_projection_figures(self, list_items):
         # Draw and save all projection figures in list_items
-        self.draw_projection_figures(list_items)
-        self.save_projection_figures(list_items)
+        if self.draw_projection_figures(list_items):
+            self.save_projection_figures(list_items)
 
-    # This function recreates a projection figure
+    # This function recreates a list of projection figures
     def recreate_projection_figures(self, list_items):
         # Ask the user if they really want to recreate the figures
         button_clicked = QW.QMessageBox.warning(
@@ -1090,18 +1091,18 @@ class OverviewDockWidget(QW.QDockWidget):
             self.delete_projection_figures(list_items, skip_warning=True)
             self.create_projection_figures(list_items)
 
-    # This function creates and draws a projection figure
+    # This function creates and draws a list of projection figures
     def create_draw_projection_figures(self, list_items):
         # Create and draw all projection figures in list_items
-        self.create_projection_figures(list_items)
-        self.draw_projection_figures(list_items)
+        if self.create_projection_figures(list_items):
+            self.draw_projection_figures(list_items)
 
-    # This function creates, draws and saves a projection figure
+    # This function creates, draws and saves a list of projection figures
     def create_draw_save_projection_figures(self, list_items):
         # Create, draw and save all projection figures in list_items
-        self.create_projection_figures(list_items)
-        self.draw_projection_figures(list_items)
-        self.save_projection_figures(list_items)
+        if self.create_projection_figures(list_items):
+            if self.draw_projection_figures(list_items):
+                self.save_projection_figures(list_items)
 
     # This function shows a details overview of a projection figure
     # TODO: Add section on how the figure was drawn for drawn projections?
@@ -1660,6 +1661,93 @@ class QW_QAction(QW.QAction):
                              "'setDetails()' instead!")
 
 
+# Class that provides a special QThreaded progress dialog
+class ThreadedProgressDialog(QW.QProgressDialog):
+    def __init__(self, main_window_obj, label, cancel, func, *iterables):
+        # Save provided MainWindow obj
+        self.main = main_window_obj
+
+        # Call the super constructor
+        super().__init__(self.main)
+
+        # Create the progress dialog
+        self.init(label, cancel, func, *iterables)
+
+    # Create the threaded progress dialog
+    def init(self, label, cancel, func, *iterables):
+        # Set the label and cancel button
+        self.setLabelText(label)
+        self.setCancelButtonText(cancel)
+
+        # Determine the minimum length of iterables
+        min_len = min([len(iterable) for iterable in iterables])
+
+        # Set the range of this progress dialog
+        self.setRange(0, min_len)
+
+        # Make this progress dialog application modal
+        self.setWindowModality(QC.Qt.ApplicationModal)
+
+        # Setup the run_map that will be used
+        self.run_map = map(func, *iterables)
+
+    # This function simply calls open()
+    def __call__(self):
+        return(self.open())
+
+    # This function executes the entire run_map until finished or aborted
+    def open(self):
+        # Initialize the worker thread
+        self.worker_thread = WorkerThread(self.run_map, self)
+
+        # Connect the proper signals with each other
+        self.worker_thread.n_finished.connect(self.setValue)
+        super().open(self.worker_thread.terminate)
+
+        # Start the worker thread
+        self.worker_thread.start()
+
+        # While the worker thread is running, keep processing user input events
+        while self.worker_thread.isRunning():
+            self.main.qapp.processEvents()
+            self.worker_thread.wait(1)
+
+        # Return whether the dialog ended normally
+        return(not self.wasCanceled())
+
+
+# Basic worker thread that loops over a provided map iterator
+class WorkerThread(QC.QThread):
+    # Define a signal that sends out the number of finished iterations
+    n_finished = QC.Signal('int')
+
+    def __init__(self, run_map, *args, **kwargs):
+        # Save provided map iterator
+        self.run_map = run_map
+
+        # Call the super constructor
+        super().__init__(*args, **kwargs)
+
+    # This function gets called when WorkerThread.start() is called
+    def run(self):
+        # Emit that currently the number of finished iteration is 0
+        self.n_finished.emit(0)
+
+        # Loop over the map iterator and send a signal after each iteration
+        for i, _ in enumerate(self.run_map):
+            self.n_finished.emit(i+1)
+
+    # This function is called when the thread must be terminated
+    def terminate(self):
+        # First try to quit it the normal way
+        self.quit()
+
+        # If this does not work, wait for 2 seconds and terminate it
+        self.wait(2)
+        super().terminate()
+
+
+# %% KWARGS_DICTS
 # Make a subclass that allows for kwargs dicts to be saved and edited
 class KwargsDictBoxLayout(QW.QHBoxLayout):
     # This function creates an editable list of input boxes for the kwargs
@@ -1852,6 +1940,8 @@ class KwargsDictDialogTab(QW.QWidget):
                           field_value)
 
     # This function adds an editable entry
+    # TODO: Set a limit on the maximum number of entries
+    # TODO: If limit is exceeded, use something like tabs to split them up
     def add_editable_entry(self):
         # Create a combobox with different standard kwargs
         kwargs_box = QW.QComboBox()
@@ -2314,15 +2404,19 @@ if __name__ == '__main__':
     import os
     os.chdir("../../PRISM_Root")
     from prism._pipeline import Pipeline
-    from prism.modellink import GaussianLink
+    from prism.modellink import PolyLink
 
     try:
         pipe
     except NameError:
-        modellink_obj = GaussianLink(model_data='data/data_gaussian.txt')
+        data_dict = {
+            -1: [2.5, 0.1],     # f(-1) = 2.5 +- 0.1
+            0: [3, 0.1],        # f(0) = 3 +- 0.1
+            2: [10, 0.1]}       # f(2) = 10 +- 0.1
+        modellink_obj = PolyLink(model_data=data_dict)
         pipe = Pipeline(modellink_obj, root_dir='tests',
                         working_dir='projection_gui',
-                        prism_par='data/prism_gaussian.txt')
+                        prism_par={'use_mock': True})
 
         pipe.construct(1)
 
