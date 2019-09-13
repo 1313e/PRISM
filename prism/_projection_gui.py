@@ -539,6 +539,10 @@ class OverviewDockWidget(QW.QDockWidget):
         overview_widget.setLayout(self.proj_overview)
         self.setWidget(overview_widget)
 
+        # Set the contents margins at the bottom to zero
+        contents_margins = self.proj_overview.getContentsMargins()
+        self.proj_overview.setContentsMargins(*contents_margins[:3], 0)
+
         # Create empty dict containing all projection figure instances
         self.proj_fig_registry = {}
 
@@ -1941,7 +1945,7 @@ class KwargsDictDialogTab(QW.QWidget):
 
     # This function adds an editable entry
     # TODO: Set a limit on the maximum number of entries
-    # TODO: If limit is exceeded, use something like tabs to split them up
+    # TODO: If limit is exceeded, use a scrollbar
     def add_editable_entry(self):
         # Create a combobox with different standard kwargs
         kwargs_box = QW.QComboBox()

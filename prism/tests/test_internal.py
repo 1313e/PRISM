@@ -205,11 +205,11 @@ class Test_check_val(object):
             check_vals([], 'list', 'float')
 
         # Check if providing a dict or sequenced list raises an error
-        with pytest.raises(InputError):
+        with pytest.raises(TypeError):
             check_vals({}, 'dict', 'float')
-        with pytest.raises(InputError):
+        with pytest.raises(TypeError):
             check_vals([1, [2]], 'seq_list', 'float')
-        with pytest.raises(InputError):
+        with pytest.raises(TypeError):
             check_vals([[1, 2], [3, 4, 5]], 'seq_list', 'float')
 
     # Check if providing incorrect arguments raises an error
