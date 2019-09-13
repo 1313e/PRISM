@@ -8,7 +8,7 @@ from sys import platform
 import warnings
 
 # Package imports
-from e13tools.core import InputError
+from e13tools.core import InputError, compare_versions
 import numpy as np
 import pytest
 
@@ -21,8 +21,9 @@ from prism._internal import (
 
 
 # %% GLOBALS
-DIR_PATH = path.dirname(__file__)           # Path to directory of this file
-WIN32 = platform.startswith('win')          # Bool if this is Windows
+DIR_PATH = path.dirname(__file__)                     # Path to file directory
+WIN32 = platform.startswith('win')                    # Bool if this is Windows
+NP1_16 = compare_versions(np.__version__, '1.16.0')   # NumPy 1.16.0+?
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -205,11 +206,11 @@ class Test_check_val(object):
             check_vals([], 'list', 'float')
 
         # Check if providing a dict or sequenced list raises an error
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError if NP1_16 else InputError):
             check_vals({}, 'dict', 'float')
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError if NP1_16 else InputError):
             check_vals([1, [2]], 'seq_list', 'float')
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError if NP1_16 else InputError):
             check_vals([[1, 2], [3, 4, 5]], 'seq_list', 'float')
 
     # Check if providing incorrect arguments raises an error
