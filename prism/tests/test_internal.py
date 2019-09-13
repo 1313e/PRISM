@@ -210,7 +210,7 @@ class Test_check_val(object):
             check_vals({}, 'dict', 'float')
         with pytest.raises(TypeError if NP1_16 else InputError):
             check_vals([1, [2]], 'seq_list', 'float')
-        with pytest.raises(TypeError if NP1_16 else InputError):
+        with pytest.raises(TypeError):
             check_vals([[1, 2], [3, 4, 5]], 'seq_list', 'float')
 
     # Check if providing incorrect arguments raises an error
