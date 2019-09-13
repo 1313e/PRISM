@@ -246,7 +246,7 @@ def check_vals(values, name, *args):
         arr_type = 'list'
     elif isinstance(values, np.ndarray):
         arr_type = 'ndarray'
-    elif np.isscalar(values):
+    elif(np.ndim(values) == 0):
         arr_type = 'scalar'
     else:
         err_msg = "Input argument %r is not array_like!" % (name)
@@ -260,12 +260,12 @@ def check_vals(values, name, *args):
                    "(%s)" % (name, error))
         raise_error(err_msg, InputError, logger)
     else:
-        # Since NumPy v1.16.0, sequenced lists can be converted to NumPy arrays
+        # Since NumPy v1.16.0, anything can be converted to NumPy arrays
         # So, check if the dtype is not np.object_
         if issubclass(values.dtype.type, np.object_):
-            err_msg = ("Input argument %r cannot be a sequenced container!"
-                       % (name))
-            raise_error(err_msg, InputError, logger)
+            err_msg = ("Input argument %r cannot be converted to a NumPy "
+                       "dtype!" % (name))
+            raise_error(err_msg, TypeError, logger)
 
     # Check if values is not empty and raise error if so
     if not values.size:

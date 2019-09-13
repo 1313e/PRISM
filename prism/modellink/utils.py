@@ -233,7 +233,7 @@ def convert_parameters(model_parameters):
         # If no float was provided, check if it was None
         except TypeError as error:
             # If it is None, save it as such
-            if(values[2].lower() == 'none'):
+            if(str(values[2]).lower() == 'none'):
                 est = None
             # If it is not None, reraise the previous error
             else:
