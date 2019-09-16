@@ -1196,6 +1196,7 @@ class OverviewDockWidget(QW.QDockWidget):
         # Create a details message box for this projection figure
         details_box = QW.QDialog(self.main)
         details_box.setWindowModality(QC.Qt.NonModal)
+        details_box.setAttribute(QC.Qt.WA_DeleteOnClose)
         details_box.setWindowFlags(
             QC.Qt.WindowSystemMenuHint |
             QC.Qt.Window |
@@ -1285,24 +1286,24 @@ class OptionsDialog(QW.QDialog):
         return(self.options_entries[name].value)
 
     # This function creates a new tab
-    def create_tab(self, name, tab_widget, *groups_list):
+    def create_tab(self, name, page_widget, *groups_list):
         # Create a tab
         options_tab = QW.QWidget()
-        tab_layout = QW.QVBoxLayout()
-        options_tab.setLayout(tab_layout)
+        page_layout = QW.QVBoxLayout()
+        options_tab.setLayout(page_layout)
 
         # Include all groups named in groups_list
         for group in groups_list:
-            getattr(self, 'add_group_%s' % (group))(tab_layout)
+            getattr(self, 'add_group_%s' % (group))(page_layout)
 
         # Add a stretch
-        tab_layout.addStretch()
+        page_layout.addStretch()
 
-        # Add tab to tab_widget
-        tab_widget.addTab(options_tab, name)
+        # Add tab to page_widget
+        page_widget.addTab(options_tab, name)
 
     # This function creates a new group
-    def create_group(self, name, tab_layout, *options_list):
+    def create_group(self, name, page_layout, *options_list):
         # Create a group
         options_group = QW.QGroupBox(name)
         group_layout = QW.QFormLayout()
@@ -1313,7 +1314,7 @@ class OptionsDialog(QW.QDialog):
             getattr(self, 'add_option_%s' % (option))(group_layout)
 
         # Add group to tab
-        tab_layout.addWidget(options_group)
+        page_layout.addWidget(options_group)
 
     # GENERAL TAB
     def add_tab_general(self, *args):
@@ -1691,6 +1692,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
 
         # Make this progress dialog application modal
         self.setWindowModality(QC.Qt.ApplicationModal)
+        self.setAttribute(QC.Qt.WA_DeleteOnClose)
 
         # Setup the run_map that will be used
         self.run_map = map(func, *iterables)
@@ -1777,9 +1779,9 @@ class KwargsDictBoxLayout(QW.QHBoxLayout):
         view_but.clicked.connect(self.dict_dialog)
         self.addWidget(view_but)
 
-    # This function calls the create_tab()-method of dict_dialog
+    # This function calls the create_page()-method of dict_dialog
     def add_dict(self, *args, **kwargs):
-        self.dict_dialog.create_tab(*args, **kwargs)
+        self.dict_dialog.add_page(*args, **kwargs)
 
 
 # Make a subclass that shows the kwargs dict entries window
@@ -1796,16 +1798,28 @@ class KwargsDictDialog(QW.QDialog):
 
     # This function creates the kwargs dict window
     def init(self):
-        # Create a layout for this window
+        # Create a window layout
         window_layout = QW.QVBoxLayout(self)
         window_layout.setSizeConstraint(QW.QLayout.SetFixedSize)
 
-        # Create a tab widget
-        # TODO: Use a combobox with stackedwidget instead?
-        self.window_tabs = QW.QTabWidget()
-        self.window_tabs.setUsesScrollButtons(False)
-        window_layout.addWidget(self.window_tabs)
-        window_layout.addStretch()
+        # Create a splitter layout for this window
+        splitter_widget = QW.QSplitter()
+        window_layout.addWidget(splitter_widget)
+
+        # Create a contents widget
+        self.contents_widget = QW.QListWidget()
+        self.contents_widget.setMovement(QW.QListView.Static)
+        self.contents_widget.setSpacing(1)
+        splitter_widget.addWidget(self.contents_widget)
+
+        # Create pages widget
+        self.pages_widget = QW.QStackedWidget()
+        splitter_widget.addWidget(self.pages_widget)
+
+        # Set signal handling
+#        self.pages_widget.currentChanged.connect(self.change_page)
+        self.contents_widget.currentRowChanged.connect(
+            self.pages_widget.setCurrentIndex)
 
         # Add a close button
         button_box = QW.QDialogButtonBox()
@@ -1814,7 +1828,7 @@ class KwargsDictDialog(QW.QDialog):
         close_but.clicked.connect(self.close)
 
         # Set some properties for this window
-        self.setModal(True)                                         # Modality
+        self.setWindowModality(QC.Qt.ApplicationModal)              # Modality
         self.setWindowTitle("Viewing projection keyword dicts")     # Title
 
     # This function shows an editable window with the entries in the dict
@@ -1825,33 +1839,46 @@ class KwargsDictDialog(QW.QDialog):
         # Move the kwargs_dicts window to the center of the main window
         self.move(self.options.geometry().center()-self.rect().center())
 
-    # This function creates a new tab
-    def create_tab(self, name, option_key, *args, **kwargs):
+    # This function creates a new page
+    def add_page(self, name, option_key, *args, **kwargs):
         # Create a tab
-        kwargs_tab = KwargsDictDialogTab(self, name, *args, **kwargs)
+        kwargs_page = KwargsDictDialogPage(self, name, *args, **kwargs)
 
         # Add this new tab to the options_entries
         self.options.options_entries[option_key] =\
-            self.options.options_entry(kwargs_tab,
+            self.options.options_entry(kwargs_page,
                                        self.options.proj_defaults[option_key])
 
-        # Add it to the window tabs
-        self.window_tabs.addTab(kwargs_tab, name)
+        # Create a scrollarea for the page
+        scrollarea = QW.QScrollArea(self)
+        scrollarea.setWidgetResizable(True)
+        scrollarea.setWidget(kwargs_page)
+
+        # Add it to the contents and pages widgets
+        self.contents_widget.addItem(name)
+        self.pages_widget.addWidget(scrollarea)
+
+#    # This function changes pages
+#    def change_page(self, index):
+#        # Obtain the page belonging to this index
+#        page = self.pages_widget.widget(index).widget()
+#
+#
 
 
-# Make a class for describing a kwargs dict tab
-class KwargsDictDialogTab(QW.QWidget):
+# Make a class for describing a kwargs dict page
+class KwargsDictDialogPage(QW.QWidget):
     def __init__(self, kwargs_dict_dialog_obj, name, std_entries,
                  banned_entries, *args, **kwargs):
         # Save provided kwargs_dict_dialog_obj
-        self.tab_dialog = kwargs_dict_dialog_obj
-        self.options = self.tab_dialog.options
+        self.pages_dialog = kwargs_dict_dialog_obj
+        self.options = self.pages_dialog.options
         self.name = name
         self.std_entries = sset(std_entries)
         self.banned_entries = sset(banned_entries)
 
         # Call super constructor
-        super().__init__(self.tab_dialog, *args, **kwargs)
+        super().__init__(self.pages_dialog, *args, **kwargs)
 
         # Create the kwargs dict window
         self.init()
@@ -1859,13 +1886,13 @@ class KwargsDictDialogTab(QW.QWidget):
     # This function creates the kwargs dict tab
     def init(self):
         # Create tab layout
-        tab_layout = QW.QVBoxLayout(self)
+        page_layout = QW.QVBoxLayout(self)
 
         # Create a grid for this layout
         self.kwargs_grid = QW.QGridLayout()
         self.kwargs_grid.setColumnStretch(1, 1)
         self.kwargs_grid.setColumnStretch(2, 1)
-        tab_layout.addLayout(self.kwargs_grid)
+        page_layout.addLayout(self.kwargs_grid)
 
         # Make sure that '' is not in std_entries or banned_entries
         self.std_entries.discard('')
@@ -1893,15 +1920,15 @@ class KwargsDictDialogTab(QW.QWidget):
             add_but.setText('+')
 
         # Add button to layout
-        tab_layout.addWidget(add_but)
-        tab_layout.addStretch()
+        page_layout.addWidget(add_but)
+        page_layout.addStretch()
 
     # This function gets the dict value of a tab
     def get_box_value(self):
         # Create an empty dict to hold the values in
-        tab_dict = sdict()
+        page_dict = sdict()
 
-        # Loop over all items in grid and save them to tab_dict
+        # Loop over all items in grid and save them to page_dict
         for row in range(self.kwargs_grid.count()//3):
             # Obtain the entry_type
             entry_type = get_box_value(
@@ -1916,22 +1943,22 @@ class KwargsDictDialogTab(QW.QWidget):
                 self.kwargs_grid.itemAtPosition(row, 2).widget())
 
             # Add this to the dict
-            tab_dict[entry_type] = field_value
+            page_dict[entry_type] = field_value
 
-        # Return tab_dict
-        return(tab_dict)
+        # Return page_dict
+        return(page_dict)
 
     # This function sets the dict value of a tab
     # OPTIMIZE: Reuse grid items that were already in the grid?
-    def set_box_value(self, tab_dict):
+    def set_box_value(self, page_dict):
         # Remove all items in the grid
         for _ in range(self.kwargs_grid.count()):
             item = self.kwargs_grid.takeAt(0)
             item.widget().close()
             del item
 
-        # Add all items in tab_dict to kwargs_tab
-        for row, (entry_type, field_value) in enumerate(tab_dict.items()):
+        # Add all items in page_dict to kwargs_tab
+        for row, (entry_type, field_value) in enumerate(page_dict.items()):
             # Add a new entry to this tab
             self.add_editable_entry()
 
@@ -1944,8 +1971,6 @@ class KwargsDictDialogTab(QW.QWidget):
                           field_value)
 
     # This function adds an editable entry
-    # TODO: Set a limit on the maximum number of entries
-    # TODO: If limit is exceeded, use a scrollbar
     def add_editable_entry(self):
         # Create a combobox with different standard kwargs
         kwargs_box = QW.QComboBox()
@@ -1953,6 +1978,7 @@ class KwargsDictDialogTab(QW.QWidget):
         kwargs_box.addItems(self.std_entries)
         kwargs_box.setToolTip("Select a standard type for this entry or add "
                               "it manually")
+        kwargs_box.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
         kwargs_box.setEditable(True)
         kwargs_box.setInsertPolicy(QW.QComboBox.NoInsert)
         kwargs_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
@@ -2335,8 +2361,9 @@ def get_box_value(widget_box):
     # Strings (QLineEdit)
     elif isinstance(widget_box, QW.QLineEdit):
         return(widget_box.text())
-    # Custom boxes (KwargsDictDialogTab, FigSizeBox, DefaultBox)
-    elif isinstance(widget_box, (KwargsDictDialogTab, FigSizeBox, DefaultBox)):
+    # Custom boxes (KwargsDictDialogPage, FigSizeBox, DefaultBox)
+    elif isinstance(widget_box, (KwargsDictDialogPage, FigSizeBox,
+                                 DefaultBox)):
         return(widget_box.get_box_value())
 
     # If none, raise error (such that I know to implement it)
@@ -2362,8 +2389,9 @@ def set_box_value(widget_box, value):
     # Strings (QLineEdit)
     elif isinstance(widget_box, QW.QLineEdit):
         widget_box.setText(value)
-    # Custom boxes (KwargsDictDialogTab, FigSizeBox, DefaultBox)
-    elif isinstance(widget_box, (KwargsDictDialogTab, FigSizeBox, DefaultBox)):
+    # Custom boxes (KwargsDictDialogPage, FigSizeBox, DefaultBox)
+    elif isinstance(widget_box, (KwargsDictDialogPage, FigSizeBox,
+                                 DefaultBox)):
         widget_box.set_box_value(value)
 
     # If none, raise error (such that I know to implement it)
@@ -2423,5 +2451,7 @@ if __name__ == '__main__':
                         prism_par={'use_mock': True})
 
         pipe.construct(1)
+        pipe.proj_res = 15
+        pipe.proj_depth = 75
 
     open_gui(pipe)
