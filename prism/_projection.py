@@ -1231,8 +1231,8 @@ class Projection(object):
         Parameters
         ----------
         %(emul_i)s
-        kwargs : dict
-            Dict of keyword arguments that were provided to :meth:`~project`.
+        kwargs : keyword arguments
+            Keyword arguments that were provided to :meth:`~project`.
 
         Generates
         ---------
@@ -1249,6 +1249,7 @@ class Projection(object):
         kwargs_dict = self.__get_default_input_arguments()
 
         # Make list with forbidden figure and plot kwargs
+        # Save them as attributes for Projection GUI
         self.__pop_fig_kwargs = ['num', 'ncols', 'nrows', 'sharex', 'sharey',
                                  'constrained_layout']
         self.__pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax',
@@ -1405,8 +1406,8 @@ class Projection(object):
         ----------
         %(emul_i)s
         %(proj_par)s
-        kwargs : dict
-            Dict of keyword arguments that were provided to :meth:`~project`.
+        kwargs : keyword arguments
+            Keyword arguments that were provided to :meth:`~project`.
 
         """
 

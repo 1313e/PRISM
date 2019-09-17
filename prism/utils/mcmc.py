@@ -151,9 +151,9 @@ def get_hybrid_lnpost_fn(lnpost_fn, pipeline_obj, *, emul_i=None,
             Sample to calculate the posterior probability for. This sample is
             first analyzed in `pipeline_obj` and only given to `lnpost_fn` if
             it is plausible. If `par_dict` is *True*, this is a dict.
-        args : tuple
+        args : positional arguments
             Positional arguments that need to be passed to `lnpost_fn`.
-        kwargs : dict
+        kwargs : keyword arguments
             Keyword arguments that need to be passed to `lnpost_fn`.
 
         Returns

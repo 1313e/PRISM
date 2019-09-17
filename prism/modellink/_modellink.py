@@ -873,9 +873,9 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        args : tuple
+        args : positional arguments
             All positional arguments that must be stored in the backup file.
-        kwargs : dict
+        kwargs : keyword arguments
             All keyword arguments that must be stored in the backup file.
 
         Notes

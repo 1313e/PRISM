@@ -775,20 +775,10 @@ class Pipeline(Projection, object):
         # Set worker_mode to 1
         self._worker_mode = 1
 
-        # All workers start listening for calls
+        # All workers start listening for calls and process calls received
         if self._is_worker:
             while self._worker_mode:
-                exec_fn, args, kwargs = self._comm.bcast([], 0)
-                if exec_fn is None:
-                    self._worker_mode = 0
-                elif isinstance(exec_fn, str):
-                    attrs = exec_fn.split('.')
-                    obj = self
-                    for attr in attrs:
-                        obj = getattr(obj, attr)
-                    obj(*args, **kwargs)
-                else:
-                    exec_fn(*args, **kwargs)
+                self.__process_call(*self._comm.bcast([], 0))
 
     # Function that sends a code string to all workers and executes it
     def _make_call(self, exec_fn, *args, **kwargs):
@@ -809,10 +799,17 @@ class Pipeline(Projection, object):
             or a callable object that the workers should execute if not.
             If *None*, the workers stop listening for calls instead (disables
             worker mode).
-        args : tuple
+        args : positional arguments
             Positional arguments that need to be provided to `exec_fn`.
-        kwargs : dict
+        kwargs : keyword arguments
             Keyword arguments that need to be provided to `exec_fn`.
+
+        Returns
+        -------
+        out : object
+            The object returned by executing `exec_fn`. Note that only ranks
+            that directly call this function return, as the workers cannot do
+            so.
 
         """
 
@@ -821,6 +818,35 @@ class Pipeline(Projection, object):
             self._comm.bcast([exec_fn, args, kwargs], 0)
 
         # Execute exec_fn as well
+        return(self.__process_call(exec_fn, args, kwargs))
+
+    # This function processes a call made by _make_call
+    def __process_call(self, exec_fn, args, kwargs):
+        """
+        Processes a call that was made with the :meth:`~_make_call` method.
+
+        This function should solely be called through :meth:`~_make_call` and
+        never directly.
+
+        Parameters
+        ----------
+        exec_fn : str, callable or None
+            If string, a callable attribute of this :obj:`~Pipeline` instance
+            or a callable object that should be executed if not.
+            If *None*, worker mode will be disabled instead.
+        args : tuple
+            Positional arguments that need to be provided to `exec_fn`.
+        kwargs : dict
+            Keyword arguments that need to be provided to `exec_fn`.
+
+        Returns
+        -------
+        out : object
+            The object returned by executing `exec_fn`.
+
+        """
+
+        # Process the call and execute the requested operation
         if exec_fn is None:
             self._worker_mode = 0
         elif isinstance(exec_fn, str):
@@ -1300,9 +1326,8 @@ class Pipeline(Projection, object):
 
         Generates
         ---------
-        Overwrites the corresponding
-        :class:`~prism.modellink.ModelLink` class properties with the
-        generated values.
+        Overwrites the corresponding :class:`~prism.modellink.ModelLink` class
+        properties with the generated values.
 
         """
 
@@ -1390,8 +1415,8 @@ class Pipeline(Projection, object):
         Loads in all the important pipeline data into memory for the controller
         rank.
         If it is detected that the last emulator iteration has not been
-        analyzed yet, the implausibility analysis parameters are read in from
-        the *PRISM* parameters file and temporarily stored in memory.
+        analyzed yet, the implausibility analysis parameters are taken from the
+        *PRISM* parameters dict and temporarily stored in memory.
 
         Generates
         ---------
@@ -2539,7 +2564,7 @@ class Pipeline(Projection, object):
         entire emulator.
 
         If no implausibility analysis is requested, then the implausibility
-        parameters are read in from the *PRISM* parameters file and temporarily
+        parameters are taken from the *PRISM* parameters dict and temporarily
         stored in memory in order to enable the usage of the :meth:`~evaluate`
         and :meth:`~project` methods.
 

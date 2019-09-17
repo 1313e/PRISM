@@ -265,10 +265,10 @@ def test_subclass(subclass, *args, **kwargs):
     ----------
     subclass : :class:`~prism.modellink.ModelLink` subclass
         The :class:`~prism.modellink.ModelLink` subclass that requires testing.
-    args : tuple
+    args : positional arguments
         Positional arguments that need to be provided to the constructor of the
         `subclass`.
-    kwargs : dict
+    kwargs : keyword arguments
         Keyword arguments that need to be provided to the constructor of the
         `subclass`.
 
