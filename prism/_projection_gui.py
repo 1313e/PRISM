@@ -46,8 +46,8 @@ __all__ = ['open_gui']
 
 
 # %% GLOBALS
-APP_NAME = "PRISM Projection Viewer"        # Name of application
-DIR_PATH = path.dirname(__file__)           # Path to directory of this file
+APP_NAME = "PRISM Projection Viewer"                # Name of application
+DIR_PATH = path.abspath(path.dirname(__file__))     # Path to file directory
 
 
 # %% CLASS DEFINITIONS GUI
@@ -74,30 +74,30 @@ class MainViewerWindow(QW.QMainWindow):
     def init(self):
         # Turn logging off in the pipeline
         self.was_logging = bool(self.pipe.do_logging)
-        self.pipe.do_logging = False
+        self.pipe._make_call('__setattr__', 'do_logging', False)
 
         # Tell the Projection class that the GUI is being used
-        self.set_proj_attr('use_GUI', 1)
+        self.all_set_proj_attr('use_GUI', 1)
 
         # Determine the last emulator iteration
-        emul_i = self.pipe._emulator._get_emul_i(None)
+        emul_i = self.pipe._make_call('_emulator._get_emul_i', None)
 
         # Prepare projections to be made for all iterations
         for i in range(1, emul_i+1):
             # Try to prepare this iteration
             try:
-                self.get_proj_attr('prepare_projections')(
-                    i, None, force=False, figure=True)
+                self.all_call_proj_attr('prepare_projections',
+                                        i, None, force=False, figure=True)
 
             # If this iteration raises a RequestError, it cannot be prepared
             except RequestError as error:
                 # If that happens, emit a warning about it
-                warnings.warn("%s Falling back to previous iteration."
+                warnings.warn("%s. Falling back to previous iteration."
                               % (error), RequestWarning, stacklevel=2)
 
                 # Reprepare the previous iteration and break
-                self.get_proj_attr('prepare_projections')(
-                    i-1, None, force=False, figure=True)
+                self.all_call_proj_attr('prepare_projections',
+                                        i-1, None, force=False, figure=True)
                 break
 
         # Save some statistics about pipeline and modellink
@@ -122,7 +122,6 @@ class MainViewerWindow(QW.QMainWindow):
         # OVERVIEW DOCK WIDGET
         # Create the projection overview dock widget
         self.overview_dock = OverviewDockWidget(self)
-        self.addDockWidget(self.default_pos['Overview'], self.overview_dock)
 
         # Create an action for enabling/disabling the overview
         proj_overview_act = self.overview_dock.toggleViewAction()
@@ -133,7 +132,6 @@ class MainViewerWindow(QW.QMainWindow):
         # VIEWING AREA DOCK WIDGET
         # Create the projection viewing area dock widget
         self.area_dock = ViewingAreaDockWidget(self)
-        self.addDockWidget(self.default_pos['Viewing area'], self.area_dock)
 
         # Create an action for enabling/disabling the viewing area
         proj_area_act = self.area_dock.toggleViewAction()
@@ -146,6 +144,9 @@ class MainViewerWindow(QW.QMainWindow):
 
         # Set resolution of window
         self.resize(800, 600)
+
+        # Set all dock widgets to their default positions
+        self.set_default_dock_positions()
 
     # This function creates the menubar in the viewer
     def create_menubar(self):
@@ -249,13 +250,13 @@ class MainViewerWindow(QW.QMainWindow):
         self.area_dock.closeEvent(*args, **kwargs)
 
         # Save that Projection GUI is no longer being used
-        self.set_proj_attr('use_GUI', 0)
+        self.all_set_proj_attr('use_GUI', 0)
 
         # Set data parameters in Projection class back to defaults
         self.options.reset_options()
 
         # Turn logging back on in pipeline if it used to be on
-        self.pipe.do_logging = self.was_logging
+        self.pipe._make_call('__setattr__', 'do_logging', self.was_logging)
 
         # Close the main window
         super().closeEvent(*args, **kwargs)
@@ -265,11 +266,24 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function allows for projection attributes to be set more easily
     def set_proj_attr(self, name, value):
-        setattr(self.pipe, "_Projection__%s" % (name), value)
+        setattr(self.pipe, '_Projection__%s' % (name), value)
+
+    # This function is an MPI-version of set_proj_attr
+    def all_set_proj_attr(self, name, value):
+        self.pipe._make_call('__setattr__', '_Projection__%s' % (name), value)
 
     # This function allows for projection attributes to be read more easily
     def get_proj_attr(self, name):
-        return(getattr(self.pipe, "_Projection__%s" % (name)))
+        return(getattr(self.pipe, '_Projection__%s' % (name)))
+
+    # This function allows for projection attributes to be called more easily
+    def call_proj_attr(self, name, *args, **kwargs):
+        return(getattr(self.pipe, '_Projection__%s' % (name))(*args, **kwargs))
+
+    # This function is an MPI-version of call_proj_attr
+    def all_call_proj_attr(self, name, *args, **kwargs):
+        return(self.pipe._make_call('_Projection__%s' % (name),
+                                    *args, **kwargs))
 
     # This function returns the default positions of dock widgets and toolbars
     def get_default_dock_positions(self):
@@ -303,7 +317,7 @@ class MainViewerWindow(QW.QMainWindow):
             # Use this stream to capture the overview of details()
             with redirect_stdout(string_stream):
                 # Call and obtain the details at specified emulator iteration
-                self.pipe.details(emul_i)
+                self.pipe._make_call('details', emul_i)
 
             # Save the entire string stream as a separate object
             details = string_stream.getvalue()
@@ -333,7 +347,10 @@ class ViewingAreaDockWidget(QW.QDockWidget):
         self.main = main_window_obj
         self.pipe = self.main.pipe
         self.set_proj_attr = self.main.set_proj_attr
+        self.all_set_proj_attr = self.main.all_set_proj_attr
         self.get_proj_attr = self.main.get_proj_attr
+        self.call_proj_attr = self.main.call_proj_attr
+        self.all_call_proj_attr = self.main.all_call_proj_attr
 
         # Call super constructor
         super().__init__("Viewing area", self.main, *args, **kwargs)
@@ -456,8 +473,6 @@ class ViewingAreaDockWidget(QW.QDockWidget):
     def create_projection_toolbar(self):
         # Create toolbar for projection viewer
         self.proj_toolbar = QW.QToolBar("Tools", self)
-        self.area_window.addToolBar(self.default_pos['Tools'],
-                                    self.proj_toolbar)
 
         # Create an action for enabling/disabling the toolbar
         proj_toolbar_act = self.proj_toolbar.toggleViewAction()
@@ -513,7 +528,10 @@ class OverviewDockWidget(QW.QDockWidget):
         self.main = main_window_obj
         self.pipe = self.main.pipe
         self.set_proj_attr = self.main.set_proj_attr
+        self.all_set_proj_attr = self.main.all_set_proj_attr
         self.get_proj_attr = self.main.get_proj_attr
+        self.call_proj_attr = self.main.call_proj_attr
+        self.all_call_proj_attr = self.main.all_call_proj_attr
 
         # Call the super constructor
         super().__init__("Overview", self.main, *args, **kwargs)
@@ -548,12 +566,12 @@ class OverviewDockWidget(QW.QDockWidget):
 
         # Make lists of all hcubes and their names
         self.hcubes = list(self.get_proj_attr('hcubes'))
-        self.names = [self.get_proj_attr('get_hcube_name')(hcube)
+        self.names = [self.call_proj_attr('get_hcube_name', hcube)
                       for hcube in self.hcubes]
 
         # Divide all hcubes up into three different lists
         # Drawn; available; unavailable
-        unavail_hcubes = [self.get_proj_attr('get_hcube_name')(hcube)
+        unavail_hcubes = [self.call_proj_attr('get_hcube_name', hcube)
                           for hcube in self.get_proj_attr('create_hcubes')]
         avail_hcubes = [name for name in self.names
                         if name not in unavail_hcubes]
@@ -827,13 +845,13 @@ class OverviewDockWidget(QW.QDockWidget):
             # If subwindow is None, create a new one
             if subwindow is None:
                 # Create a new subwindow
-                subwindow = QW.QMdiSubWindow()
+                subwindow = QW.QMdiSubWindow(self.main.area_dock.proj_area)
+#                subwindow = HoverQMdiSubWindow(self.main.area_dock.proj_area)
                 subwindow.setWindowTitle(hcube_name)
 
                 # Set a few properties of the subwindow
                 # TODO: Make subwindow frameless when not being hovered
                 subwindow.setOption(QW.QMdiSubWindow.RubberBandResize)
-#                subwindow.setWindowFlag(QC.Qt.FramelessWindowHint)
 
                 # Add subwindow to registry
                 self.proj_fig_registry[hcube_name][1] = subwindow
@@ -903,15 +921,15 @@ class OverviewDockWidget(QW.QDockWidget):
 
         # Load in the data corresponding to the requested figure
         impl_min, impl_los, proj_res, _ =\
-            self.get_proj_attr('get_proj_data')(hcube)
+            self.call_proj_attr('get_proj_data', hcube)
 
         # Call the proper function for drawing the projection figure
         if(len(hcube) == 2):
-            fig = self.get_proj_attr('draw_2D_proj_fig')(
-                hcube, impl_min, impl_los, proj_res)
+            fig = self.call_proj_attr('draw_2D_proj_fig',
+                                      hcube, impl_min, impl_los, proj_res)
         else:
-            fig = self.get_proj_attr('draw_3D_proj_fig')(
-                hcube, impl_min, impl_los, proj_res)
+            fig = self.call_proj_attr('draw_3D_proj_fig',
+                                      hcube, impl_min, impl_los, proj_res)
 
         # Register figure in the registry
         self.proj_fig_registry[hcube_name] = [fig, None]
@@ -952,7 +970,7 @@ class OverviewDockWidget(QW.QDockWidget):
 
                 # Try to remove figures as well
                 fig_path, fig_path_s =\
-                    self.get_proj_attr('get_fig_path')(hcube)
+                    self.call_proj_attr('get_fig_path', hcube)
                 if path.exists(fig_path):
                     os.remove(fig_path)
                 if path.exists(fig_path_s):
@@ -983,7 +1001,7 @@ class OverviewDockWidget(QW.QDockWidget):
         hcube = self.hcubes[self.names.index(hcube_name)]
 
         # Calculate projection data
-        _, _ = self.get_proj_attr('analyze_proj_hcube')(hcube)
+        _, _ = self.all_call_proj_attr('analyze_proj_hcube', hcube)
 
         # Move figure from unavailable to available
         item = self.proj_list_u.takeItem(self.proj_list_u.row(list_item))
@@ -1001,7 +1019,7 @@ class OverviewDockWidget(QW.QDockWidget):
             fig, _ = self.proj_fig_registry[hcube_name]
 
             # Obtain the default figure path
-            fig_paths = self.get_proj_attr('get_fig_path')(hcube)
+            fig_paths = self.call_proj_attr('get_fig_path', hcube)
             fig_path = fig_paths[self.get_proj_attr('smooth')]
 
             # If choose, save using non-default figure path
@@ -1219,7 +1237,10 @@ class OptionsDialog(QW.QDialog):
         self.pipe = self.main.pipe
         self.n_par = self.main.n_par
         self.set_proj_attr = self.main.set_proj_attr
+        self.all_set_proj_attr = self.main.all_set_proj_attr
         self.get_proj_attr = self.main.get_proj_attr
+        self.call_proj_attr = self.main.call_proj_attr
+        self.all_call_proj_attr = self.main.all_call_proj_attr
 
         # Call super constructor
         super().__init__(self.main, *args, **kwargs)
@@ -1667,6 +1688,7 @@ class QW_QAction(QW.QAction):
 
 
 # Class that provides a special QThreaded progress dialog
+# FIXME: This dialog does not interrupt properly on Ubuntu in some cases
 class ThreadedProgressDialog(QW.QProgressDialog):
     def __init__(self, main_window_obj, label, cancel, func, *iterables):
         # Save provided MainWindow obj
@@ -2346,6 +2368,53 @@ class DefaultBox(QW.QWidget):
         set_box_value(self.value_box, value)
 
 
+# Special QMdiSubWindow class that supports hovering
+class HoverQMdiSubWindow(QW.QMdiSubWindow):
+    def __init__(self, *args, **kwargs):
+        # Call super constructor
+        super().__init__(*args, **kwargs)
+
+        # Initialize subwindow
+        self.init()
+
+    # Initialize special subwindow
+    def init(self):
+        # Set window options
+        self.setOption(self.RubberBandResize)
+        self.setAttribute(QC.Qt.WA_Hover, True)
+        self.setWindowFlags(QC.Qt.SubWindow)
+
+    # Override the handling of several events
+    def event(self, event):
+        # If the subwindow is being hovered or being hidden, make it framed
+        if event.type() in (QC.QEvent.HoverEnter, QC.QEvent.Hide):
+            self.make_framed()
+            return(True)
+        # If the subwindow is no longer hovered or shown, make it frameless
+        elif (event.type() in (QC.QEvent.HoverLeave, QC.QEvent.Show) and not
+              (self.isMinimized() or self.isMaximized())):
+            self.make_frameless()
+            return(True)
+        # For all other events, process as normal
+        else:
+            return(super().event(event))
+
+    # This function makes the subwindow frameless
+    def make_frameless(self):
+        self.setWindowFlag(QC.Qt.FramelessWindowHint, True)
+
+        # Clear focus on subwindow when becoming frameless
+        self.clearFocus()
+
+    # This function makes the subwindow framed
+    def make_framed(self):
+        self.setWindowFlag(QC.Qt.FramelessWindowHint, False)
+
+        # If the subwindow is currently not minimized, set focus
+        if not self.isMinimized():
+            self.setFocus()
+
+
 # %% SUPPORT FUNCTIONS
 # This function gets the value of a provided widget_box
 def get_box_value(widget_box):
@@ -2401,33 +2470,40 @@ def set_box_value(widget_box, value):
 
 # %% FUNCTION DEFINITIONS GUI
 def open_gui(pipeline_obj):
-    # Wrap entire execution in switch_backend of MPL
-    # TODO: Currently, this does not properly switch the backend back
-    with switch_backend('Agg'):
-        # Set some application attributes
-        QW.QApplication.setAttribute(QC.Qt.AA_DontShowIconsInMenus, False)
-        QW.QApplication.setAttribute(QC.Qt.AA_EnableHighDpiScaling, True)
-        QW.QApplication.setAttribute(QC.Qt.AA_UseHighDpiPixmaps, True)
+    # Activate worker mode
+    with pipeline_obj.worker_mode:
+        if pipeline_obj._is_controller:
+            # Wrap entire execution in switch_backend of MPL
+            # TODO: Currently, this does not properly switch the backend back
+            with switch_backend('Agg'):
+                # Set some application attributes
+                QW.QApplication.setAttribute(QC.Qt.AA_DontShowIconsInMenus,
+                                             False)
+                QW.QApplication.setAttribute(QC.Qt.AA_EnableHighDpiScaling,
+                                             True)
+                QW.QApplication.setAttribute(QC.Qt.AA_UseHighDpiPixmaps, True)
 
-        # Initialize a new QApplication
-        qapp = QW.QApplication([APP_NAME])
+                # Initialize a new QApplication
+                qapp = QW.QApplication([APP_NAME])
 
-        # Set application icon
-        qapp.setWindowIcon(QG.QIcon(path.join(DIR_PATH, 'data/app_icon.ico')))
-        qapp.setApplicationName(APP_NAME)
+                # Set application icon
+                qapp.setWindowIcon(QG.QIcon(
+                    path.join(DIR_PATH, 'data/app_icon.ico')))
+                qapp.setApplicationName(APP_NAME)
 
-        # Make sure that the application quits when the last window closes
-        qapp.lastWindowClosed.connect(qapp.quit, QC.Qt.QueuedConnection)
+                # Make sure that the application quits when last window closes
+                qapp.lastWindowClosed.connect(
+                    qapp.quit, QC.Qt.QueuedConnection)
 
-        # Initialize main window and draw (show) it
-        main_window = MainViewerWindow(qapp, pipeline_obj)
-        main_window.show()
+                # Initialize main window and draw (show) it
+                main_window = MainViewerWindow(qapp, pipeline_obj)
+                main_window.show()
 
-        # Replace the KeyboardInterrupt error by the system's default handler
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
+                # Replace KeyboardInterrupt error by system's default handler
+                signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-        # Start application
-        qapp.exec_()
+                # Start application
+                qapp.exec_()
 
 
 # %% Main program
