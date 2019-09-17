@@ -109,12 +109,16 @@ class MainViewerWindow(QW.QMainWindow):
         # Disable the default context menu (right-click menu)
         self.setContextMenuPolicy(QC.Qt.NoContextMenu)
 
+        # Set window icon and title
+        self.setWindowTitle(APP_NAME)
+        self.setWindowIcon(QG.QIcon(path.join(DIR_PATH, 'data/app_icon.ico')))
+
         # Create statusbar
         self.create_statusbar()
 
         # Prepare the windows and toolbars menus
-        self.windows_menu = QW.QMenu('&Windows')
-        self.toolbars_menu = QW.QMenu('&Toolbars')
+        self.windows_menu = QW.QMenu('&Windows', self)
+        self.toolbars_menu = QW.QMenu('&Toolbars', self)
 
         # Get default positions of all dock widgets
         self.default_pos = self.get_default_dock_positions()
@@ -170,7 +174,7 @@ class MainViewerWindow(QW.QMainWindow):
         quit_act.setDetails(
             shortcut=QC.Qt.CTRL + QC.Qt.Key_Q,
             statustip="Quit viewer")
-        quit_act.triggered.connect(self.qapp.closeAllWindows)
+        quit_act.triggered.connect(self.close)
         file_menu.addAction(quit_act)
 
         # TOOLS
@@ -246,8 +250,8 @@ class MainViewerWindow(QW.QMainWindow):
     # This function is called when the viewer is closed
     def closeEvent(self, *args, **kwargs):
         # Call the closeEvent of the dock widgets
-        self.overview_dock.closeEvent(*args, **kwargs)
-        self.area_dock.closeEvent(*args, **kwargs)
+        self.overview_dock.close()
+        self.area_dock.close()
 
         # Save that Projection GUI is no longer being used
         self.all_set_proj_attr('use_GUI', 0)
@@ -260,9 +264,6 @@ class MainViewerWindow(QW.QMainWindow):
 
         # Close the main window
         super().closeEvent(*args, **kwargs)
-
-        # Quit the application
-        self.qapp.quit()
 
     # This function allows for projection attributes to be set more easily
     def set_proj_attr(self, name, value):
@@ -446,7 +447,7 @@ class ViewingAreaDockWidget(QW.QDockWidget):
     # This function is called when the main window is closed
     def closeEvent(self, *args, **kwargs):
         # Close the main window in this widget
-        self.area_window.closeEvent(*args, **kwargs)
+        self.area_window.close()
 
         # Close the projection viewer
         super().closeEvent(*args, **kwargs)
@@ -658,7 +659,7 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function creates the context menu for drawn projections
     def create_drawn_context_menu(self):
         # Create context menu
-        menu = QW.QMenu('Drawn')
+        menu = QW.QMenu('Drawn', self)
 
         # Make shortcut for obtaining selected items
         list_items = self.proj_list_d.selectedItems
@@ -730,7 +731,7 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function creates the context menu for available projections
     def create_available_context_menu(self):
         # Create context menu
-        menu = QW.QMenu('Available')
+        menu = QW.QMenu('Available', self)
 
         # Make shortcut for obtaining selected items
         list_items = self.proj_list_a.selectedItems
@@ -794,7 +795,7 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function creates the context menu for unavailable projections
     def create_unavailable_context_menu(self):
         # Create context menu
-        menu = QW.QMenu('Unavailable')
+        menu = QW.QMenu('Unavailable', self)
 
         # Make shortcut for obtaining selected items
         list_items = self.proj_list_u.selectedItems
@@ -1252,7 +1253,6 @@ class OptionsDialog(QW.QDialog):
     def init(self):
         # Create a window layout
         window_layout = QW.QVBoxLayout(self)
-        window_layout.setSizeConstraint(QW.QLayout.SetFixedSize)
 
         # Create a tab widget
         window_tabs = QW.QTabWidget()
@@ -1280,7 +1280,7 @@ class OptionsDialog(QW.QDialog):
         self.reset_options()
 
         # Set a few properties of options window
-        self.setModal(True)                                 # Modality
+        self.setWindowModality(QC.Qt.WindowModal)           # Modality
         self.setWindowTitle("Preferences")                  # Title
 
         # Add a new method to self.main
@@ -1296,6 +1296,9 @@ class OptionsDialog(QW.QDialog):
 
     # This function overrides the closeEvent method
     def closeEvent(self, *args, **kwargs):
+        # Make sure the kwargs dict dialog is closed
+        self.dict_dialog.close()
+
         # Close the window
         super().closeEvent(*args, **kwargs)
 
@@ -1341,6 +1344,8 @@ class OptionsDialog(QW.QDialog):
     def add_tab_general(self, *args):
         self.proj_defaults = sdict(self.get_proj_attr('proj_kwargs'))
         self.proj_keys = list(self.proj_defaults.keys())
+        self.proj_keys.remove('align')
+        self.proj_keys.extend(['align_col', 'align_row'])
         self.create_tab("General", *args,
                         'proj_grid', 'proj_kwargs')
 
@@ -1392,6 +1397,8 @@ class OptionsDialog(QW.QDialog):
 
         # Create a grid for the families and size boxes
         font_grid = QW.QGridLayout()
+        font_grid.setColumnStretch(1, 1)
+        font_grid.setColumnStretch(3, 1)
         group_layout.addRow(font_grid)
 
         # Add everything to this grid
@@ -1478,6 +1485,8 @@ class OptionsDialog(QW.QDialog):
         # Make drop-down menu for align
         # Column align
         align_col_box = QW.QRadioButton('Column')
+        align_col_box.setToolTip("Align the projection subplots in a single "
+                                 "column")
         align_col_box.toggled.connect(self.enable_save_button)
         self.options_entries['align_col'] =\
             self.options_entry(align_col_box,
@@ -1485,6 +1494,8 @@ class OptionsDialog(QW.QDialog):
 
         # Row align
         align_row_box = QW.QRadioButton('Row')
+        align_row_box.setToolTip("Align the projection subplots in a single "
+                                 "row")
         align_row_box.toggled.connect(self.enable_save_button)
         self.options_entries['align_row'] =\
             self.options_entry(align_row_box,
@@ -1501,6 +1512,8 @@ class OptionsDialog(QW.QDialog):
     def add_option_show_cuts(self, group_layout):
         # Make check box for show_cuts
         show_cuts_box = QW.QCheckBox()
+        show_cuts_box.setToolTip("Enable/disable showing all implausibility "
+                                 "cut-off lines in 2D projections")
         show_cuts_box.stateChanged.connect(self.enable_save_button)
         self.options_entries['show_cuts'] =\
             self.options_entry(show_cuts_box, self.proj_defaults['show_cuts'])
@@ -1510,6 +1523,10 @@ class OptionsDialog(QW.QDialog):
     def add_option_smooth(self, group_layout):
         # Make check box for smooth
         smooth_box = QW.QCheckBox()
+        smooth_box.setToolTip("Enable/disable smoothing the projections. When "
+                              "smoothed, the minimum implausibility is forced "
+                              "to be above the first cut-off for implausible "
+                              "regions")
         smooth_box.stateChanged.connect(self.enable_save_button)
         self.options_entries['smooth'] =\
             self.options_entry(smooth_box, self.proj_defaults['smooth'])
@@ -1714,6 +1731,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
 
         # Make this progress dialog application modal
         self.setWindowModality(QC.Qt.ApplicationModal)
+        self.setWindowTitle(APP_NAME)
         self.setAttribute(QC.Qt.WA_DeleteOnClose)
 
         # Setup the run_map that will be used
@@ -1796,7 +1814,7 @@ class KwargsDictBoxLayout(QW.QHBoxLayout):
 
         # Add a view button
         view_but = QW.QPushButton('View')
-        view_but.setToolTip("View/Edit the projection keyword dicts")
+        view_but.setToolTip("View/edit the projection keyword dicts")
         view_but.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
         view_but.clicked.connect(self.dict_dialog)
         self.addWidget(view_but)
@@ -1811,6 +1829,7 @@ class KwargsDictDialog(QW.QDialog):
     def __init__(self, options_dialog_obj, *args, **kwargs):
         # Save provided options_dialog_obj
         self.options = options_dialog_obj
+        self.options.dict_dialog = self
 
         # Call super constructor
         super().__init__(self.options, *args, **kwargs)
@@ -1822,10 +1841,10 @@ class KwargsDictDialog(QW.QDialog):
     def init(self):
         # Create a window layout
         window_layout = QW.QVBoxLayout(self)
-        window_layout.setSizeConstraint(QW.QLayout.SetFixedSize)
 
-        # Create a splitter layout for this window
+        # Create a splitter widget for this window
         splitter_widget = QW.QSplitter()
+        splitter_widget.setChildrenCollapsible(False)
         window_layout.addWidget(splitter_widget)
 
         # Create a contents widget
@@ -1839,7 +1858,6 @@ class KwargsDictDialog(QW.QDialog):
         splitter_widget.addWidget(self.pages_widget)
 
         # Set signal handling
-#        self.pages_widget.currentChanged.connect(self.change_page)
         self.contents_widget.currentRowChanged.connect(
             self.pages_widget.setCurrentIndex)
 
@@ -1850,7 +1868,6 @@ class KwargsDictDialog(QW.QDialog):
         close_but.clicked.connect(self.close)
 
         # Set some properties for this window
-        self.setWindowModality(QC.Qt.ApplicationModal)              # Modality
         self.setWindowTitle("Viewing projection keyword dicts")     # Title
 
     # This function shows an editable window with the entries in the dict
@@ -1878,14 +1895,9 @@ class KwargsDictDialog(QW.QDialog):
 
         # Add it to the contents and pages widgets
         self.contents_widget.addItem(name)
+        self.contents_widget.setFixedWidth(
+            1.1*self.contents_widget.sizeHintForColumn(0))
         self.pages_widget.addWidget(scrollarea)
-
-#    # This function changes pages
-#    def change_page(self, index):
-#        # Obtain the page belonging to this index
-#        page = self.pages_widget.widget(index).widget()
-#
-#
 
 
 # Make a class for describing a kwargs dict page
@@ -1913,7 +1925,7 @@ class KwargsDictDialogPage(QW.QWidget):
         # Create a grid for this layout
         self.kwargs_grid = QW.QGridLayout()
         self.kwargs_grid.setColumnStretch(1, 1)
-        self.kwargs_grid.setColumnStretch(2, 1)
+        self.kwargs_grid.setColumnStretch(2, 2)
         page_layout.addLayout(self.kwargs_grid)
 
         # Make sure that '' is not in std_entries or banned_entries
@@ -2000,7 +2012,6 @@ class KwargsDictDialogPage(QW.QWidget):
         kwargs_box.addItems(self.std_entries)
         kwargs_box.setToolTip("Select a standard type for this entry or add "
                               "it manually")
-        kwargs_box.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
         kwargs_box.setEditable(True)
         kwargs_box.setInsertPolicy(QW.QComboBox.NoInsert)
         kwargs_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
@@ -2483,13 +2494,13 @@ def open_gui(pipeline_obj):
                                              True)
                 QW.QApplication.setAttribute(QC.Qt.AA_UseHighDpiPixmaps, True)
 
-                # Initialize a new QApplication
-                qapp = QW.QApplication([APP_NAME])
+                # Obtain application instance
+                qapp = QW.QApplication.instance()
 
-                # Set application icon
-                qapp.setWindowIcon(QG.QIcon(
-                    path.join(DIR_PATH, 'data/app_icon.ico')))
-                qapp.setApplicationName(APP_NAME)
+                # If qapp is None, create a new one
+                if qapp is None:
+                    qapp = QW.QApplication([APP_NAME])
+                    qapp.setApplicationName(APP_NAME)
 
                 # Make sure that the application quits when last window closes
                 qapp.lastWindowClosed.connect(
@@ -2498,6 +2509,7 @@ def open_gui(pipeline_obj):
                 # Initialize main window and draw (show) it
                 main_window = MainViewerWindow(qapp, pipeline_obj)
                 main_window.show()
+                main_window.setVisible(True)
 
                 # Replace KeyboardInterrupt error by system's default handler
                 signal.signal(signal.SIGINT, signal.SIG_DFL)
