@@ -36,8 +36,9 @@ from tqdm import tqdm
 from prism._docstrings import (
     def_par_doc, draw_proj_fig_doc, get_emul_i_doc, hcube_doc, proj_data_doc,
     proj_depth_doc, proj_par_doc_d, proj_par_doc_s, proj_res_doc,
-    save_data_doc_pr, set_par_doc, std_emul_i_doc, user_emul_i_doc)
-from prism._gui import open_gui
+    save_data_doc_pr, set_par_doc, start_gui_doc, std_emul_i_doc,
+    user_emul_i_doc)
+from prism._gui import start_gui
 from prism._internal import (
     RequestError, RequestWarning, check_vals, getCLogger, np_array)
 
@@ -305,8 +306,9 @@ class Projection(object):
         raise NotImplementedError
 
     # Function that starts up the Projection GUI
-    def open_gui(self):
-        open_gui(self)
+    @docstring_append(start_gui_doc)
+    def start_gui(self):
+        start_gui(self)
 
     # %% CLASS PROPERTIES
     @property

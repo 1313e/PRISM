@@ -407,6 +407,8 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function draws a list of projection figures
     # OPTIMIZE: Reshaping a 3D projection figure takes up to 15 seconds
+    # TODO: Figure out if there is a way to make a figure static, and only
+    # resize when explicitly told to do so
     def draw_projection_figures(self, list_items):
         # Create a threaded progress dialog for creating projections
         progress_dialog = ThreadedProgressDialog(

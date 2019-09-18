@@ -5,8 +5,8 @@ GUI Custom Option Boxes
 =======================
 Provides a collection of :class:`~PyQt5.QtWidgets.QWidget` subclasses to be
 used as custom option entry boxes in the
-:class:`~prism.gui.widgets.preferences.OptionsDialog` class or
-:class:`~prism.gui.widgets.preferences.KwargsDictDialogPage` class.
+:class:`~prism._gui.widgets.preferences.OptionsDialog` class or
+:class:`~prism._gui.widgets.preferences.KwargsDictDialogPage` class.
 
 """
 

@@ -1,6 +1,6 @@
 # TODO: Remove this once finished
 import os
-from prism._pipeline import Pipeline
+from prism import Pipeline, start_gui
 from prism.modellink import PolyLink
 
 os.chdir("../../../PRISM_Root")
@@ -18,4 +18,4 @@ pipe.construct(1)
 pipe.proj_res = 15
 pipe.proj_depth = 75
 
-pipe.open_gui()
+main = start_gui(pipe)

@@ -13,19 +13,40 @@ Contains all core definitions required to make the Projection GUI work.
 import signal
 
 # Package imports
+from e13tools.utils import docstring_append, raise_error
 from PyQt5 import QtCore as QC, QtWidgets as QW
 from pytest_mpl.plugin import switch_backend
 
 # PRISM imports
+from prism._docstrings import start_gui_doc, start_gui_doc_pars
 from prism._gui import APP_NAME
 from prism._gui.widgets import MainViewerWindow
+from prism._internal import getCLogger
 
 # All declaration
-__all__ = ['open_gui']
+__all__ = ['start_gui']
 
 
 # %% FUNCTIONS DEFINITIONS
-def open_gui(pipeline_obj):
+# This function starts up the Projection GUI
+# TODO: Write a logging system for the GUI
+# TODO: Add exception handling to the GUI
+@docstring_append(start_gui_doc_pars, '\n\t\n\t')
+@docstring_append(start_gui_doc)
+def start_gui(pipeline_obj):
+    # Create a logger
+    logger = getCLogger('GUI')
+    logger.info("Starting the projection GUI.")
+
+    # Import Pipeline class here to avoid an ImportError
+    from prism import Pipeline
+
+    # Check if provided pipeline_obj is an instance of the Pipeline class
+    if not isinstance(pipeline_obj, Pipeline):
+        err_msg = ("Input argument 'pipeline_obj' must be an instance of the "
+                   "Pipeline class!")
+        raise_error(err_msg, TypeError, logger)
+
     # Activate worker mode
     with pipeline_obj.worker_mode:
         if pipeline_obj._is_controller:

@@ -52,10 +52,6 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function sets up the main window
     def init(self):
-        # Turn logging off in the pipeline
-        self.was_logging = bool(self.pipe.do_logging)
-        self.pipe._make_call('__setattr__', 'do_logging', False)
-
         # Tell the Projection class that the GUI is being used
         self.all_set_proj_attr('use_GUI', 1)
 
@@ -238,9 +234,6 @@ class MainViewerWindow(QW.QMainWindow):
 
         # Set data parameters in Projection class back to defaults
         self.options.reset_options()
-
-        # Turn logging back on in pipeline if it used to be on
-        self.pipe._make_call('__setattr__', 'do_logging', self.was_logging)
 
         # Close the main window
         super().closeEvent(*args, **kwargs)

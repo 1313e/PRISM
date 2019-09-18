@@ -6,7 +6,7 @@ GUI Widgets
 Contains the various different :class:`~PyQt5.QtWidgets.QWidget` subclasses
 created for the Projection GUI.
 The widgets required for the preferences menu can be found in
-:mod:`~prism.gui.widgets.preferences`.
+:mod:`~prism._gui.widgets.preferences`.
 
 """
 

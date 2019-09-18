@@ -6,7 +6,7 @@ GUI Options
 Provides the main :class:`~PyQt5.QtWidgets.QDialog` subclass that creates the
 preferences menu and keeps track of all internally saved options.
 The window used for the kwargs dicts is defined in
-:mod:`~prism.gui.widgets.preferences.kwargs_dicts`.
+:mod:`~prism._gui.widgets.preferences.kwargs_dicts`.
 
 """
 
