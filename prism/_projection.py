@@ -37,9 +37,9 @@ from prism._docstrings import (
     def_par_doc, draw_proj_fig_doc, get_emul_i_doc, hcube_doc, proj_data_doc,
     proj_depth_doc, proj_par_doc_d, proj_par_doc_s, proj_res_doc,
     save_data_doc_pr, set_par_doc, std_emul_i_doc, user_emul_i_doc)
+from prism._gui import open_gui
 from prism._internal import (
     RequestError, RequestWarning, check_vals, getCLogger, np_array)
-from prism._projection_gui import open_gui
 
 # All declaration
 __all__ = ['Projection']

@@ -246,7 +246,7 @@ def check_vals(values, name, *args):
         arr_type = 'list'
     elif isinstance(values, np.ndarray):
         arr_type = 'ndarray'
-    elif(np.ndim(values) == 0):
+    elif np.isscalar(values) or values is None:
         arr_type = 'scalar'
     else:
         err_msg = "Input argument %r is not array_like!" % (name)

@@ -206,7 +206,7 @@ class Test_check_val(object):
             check_vals([], 'list', 'float')
 
         # Check if providing a dict or sequenced list raises an error
-        with pytest.raises(TypeError):
+        with pytest.raises(InputError):
             check_vals({}, 'dict', 'float')
         with pytest.raises(TypeError if NP1_16 else InputError):
             check_vals([1, [2]], 'seq_list', 'float')

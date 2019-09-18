@@ -30,15 +30,14 @@ from mpi4pyd import MPI as _MPI
 
 # PRISM imports
 from .__version__ import __version__
-from . import emulator
-from . import modellink
-from . import utils
+from . import emulator, modellink, utils
+from ._gui import open_gui
 from ._internal import get_bibtex, get_info
 from ._pipeline import Pipeline
 
 # All declaration
 __all__ = ['emulator', 'modellink', 'utils', 'Pipeline', 'aux_char_set',
-           'get_bibtex', 'get_info']
+           'get_bibtex', 'get_info', 'open_gui']
 
 # Author declaration
 __author__ = "Ellert van der Velden (@1313e)"

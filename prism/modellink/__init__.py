@@ -10,11 +10,9 @@ and various default/example :class:`~ModelLink` subclasses.
 
 
 # %% IMPORTS
-# Import ModelLink abstract base class
-from ._modellink import ModelLink
-
-# Import ModelLink subclasses
+# Import ModelLink abstract base class and subclasses
 from ._gaussian_link import GaussianLink
+from ._modellink import ModelLink
 from ._poly_link import PolyLink
 from ._sine_wave_link import SineWaveLink
 
