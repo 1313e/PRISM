@@ -38,7 +38,7 @@ pytestmark = pytest.mark.filterwarnings(
 
 
 # %% GLOBALS
-DIR_PATH = path.dirname(__file__)           # Path to directory of this file
+DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
 
 # Save paths to various files
 model_data_single = path.join(DIR_PATH, 'data/data_gaussian_single.txt')

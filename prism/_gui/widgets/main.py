@@ -11,8 +11,10 @@ Provides the definition of the main window of the Projection GUI.
 # %% IMPORTS
 # Built-in imports
 from contextlib import redirect_stdout
+from functools import partial
 from io import StringIO
 from os import path
+import sys
 from textwrap import dedent
 import warnings
 
@@ -23,7 +25,7 @@ from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from prism.__version__ import __version__
 from prism._internal import RequestError, RequestWarning
 from prism._gui import APP_NAME, DIR_PATH
-from prism._gui.widgets.helpers import QW_QAction
+from prism._gui.widgets.helpers import QW_QAction, show_exception_details
 from prism._gui.widgets.overview import OverviewDockWidget
 from prism._gui.widgets.preferences import OptionsDialog
 from prism._gui.widgets.viewing_area import ViewingAreaDockWidget
@@ -127,6 +129,14 @@ class MainViewerWindow(QW.QMainWindow):
 
         # Set all dock widgets to their default positions
         self.set_default_dock_positions()
+
+        # Set the exception handler to an internal message window
+        gui_excepthook = partial(show_exception_details, self)
+        sys.excepthook = gui_excepthook
+
+        # Turn off all regular logging in Pipeline
+        self.was_logging = bool(self.pipe.do_logging)
+        self.pipe._make_call('__setattr__', 'do_logging', False)
 
     # This function creates the menubar in the viewer
     def create_menubar(self):
@@ -234,6 +244,12 @@ class MainViewerWindow(QW.QMainWindow):
 
         # Set data parameters in Projection class back to defaults
         self.options.reset_options()
+
+        # Set logging in Pipeline back to what it was before
+        self.pipe._make_call('__setattr__', 'do_logging', self.was_logging)
+
+        # Set the excepthook back to its default value
+        sys.excepthook = sys.__excepthook__
 
         # Close the main window
         super().closeEvent(*args, **kwargs)

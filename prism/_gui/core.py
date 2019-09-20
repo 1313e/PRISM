@@ -29,8 +29,6 @@ __all__ = ['start_gui']
 
 # %% FUNCTIONS DEFINITIONS
 # This function starts up the Projection GUI
-# TODO: Write a logging system for the GUI
-# TODO: Add exception handling to the GUI
 @docstring_append(start_gui_doc_pars, '\n\t\n\t')
 @docstring_append(start_gui_doc)
 def start_gui(pipeline_obj):

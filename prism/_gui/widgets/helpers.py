@@ -10,6 +10,11 @@ that allow for certain layouts to be standardized.
 
 
 # %% IMPORTS
+# Built-in imports
+import sys
+import traceback
+from traceback import format_exception_only, format_tb
+
 # Package imports
 from PyQt5 import QtCore as QC, QtWidgets as QW
 
@@ -17,7 +22,8 @@ from PyQt5 import QtCore as QC, QtWidgets as QW
 from prism._gui import APP_NAME
 
 # All declaration
-__all__ = ['QW_QAction', 'ThreadedProgressDialog', 'WorkerThread']
+__all__ = ['QW_QAction', 'ThreadedProgressDialog', 'WorkerThread',
+           'show_exception_details']
 
 
 # %% CLASS DEFINITIONS
@@ -155,3 +161,30 @@ class WorkerThread(QC.QThread):
         # If this does not work, wait for 2 seconds and terminate it
         self.wait(2)
         super().terminate()
+
+
+# %% FUNCTION DEFINITIONS
+# This function creates a message box with exception information
+def show_exception_details(parent, etype, value, tb):
+    # Format the exception
+    exc_list = format_exception_only(etype, value)
+    exc_str = ''.join(exc_list)
+
+    # Format the traceback
+    tb_list = format_tb(tb)
+    tb_str = ''.join(tb_list)
+
+    # Create an exception message box
+    exception_box = QW.QMessageBox(parent)
+    exception_box.setIcon(QW.QMessageBox.Critical)
+    exception_box.setWindowTitle("ERROR")
+
+    # Set the text of the exception
+    exception_box.setText(exc_str)
+
+    # Set the traceback text as detailed text
+    exception_box.setDetailedText(tb_str)
+    print(exception_box.buttons()[0].text())
+
+    # Show the exception message box
+    exception_box.show()
