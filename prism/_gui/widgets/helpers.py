@@ -22,11 +22,148 @@ from PyQt5 import QtCore as QC, QtWidgets as QW
 from prism._gui import APP_NAME
 
 # All declaration
-__all__ = ['QW_QAction', 'ThreadedProgressDialog', 'WorkerThread',
-           'show_exception_details']
+__all__ = ['ExceptionDialog', 'QW_QAction', 'ThreadedProgressDialog',
+           'WorkerThread', 'show_exception_details']
 
 
 # %% CLASS DEFINITIONS
+# Make special class for showing exception details
+class ExceptionDialog(QW.QDialog):
+    def __init__(self, parent, etype, value, tb):
+        # Save the provided values
+        self.etype = etype
+        self.value = value
+        self.tb = tb
+
+        # Call the super constructor
+        super().__init__(parent)
+
+        # Initialize the exception dialog
+        self.init()
+
+    # This function creates the exception dialog
+    def init(self):
+        # Create a window layout
+        grid_layout = QW.QGridLayout(self)
+
+        # Set properties of message box
+        self.setWindowModality(QC.Qt.ApplicationModal)
+        self.setAttribute(QC.Qt.WA_DeleteOnClose)
+        self.setWindowTitle("ERROR")
+        self.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
+        self.setWindowFlags(
+            QC.Qt.MSWindowsFixedSizeDialogHint |
+            QC.Qt.MSWindowsOwnDC |
+            QC.Qt.Dialog |
+            QC.Qt.WindowTitleHint |
+            QC.Qt.WindowSystemMenuHint |
+            QC.Qt.WindowCloseButtonHint)
+
+        # Set the icon of the exception on the left
+        icon_label = QW.QLabel()
+        pixmap = QW.QMessageBox.standardIcon(QW.QMessageBox.Critical)
+        icon_label.setPixmap(pixmap)
+        grid_layout.addWidget(icon_label, 0, 0, 2, 1, QC.Qt.AlignTop)
+
+        # Add a spacer item
+        spacer_item = QW.QSpacerItem(7, 1, QW.QSizePolicy.Fixed,
+                                     QW.QSizePolicy.Fixed)
+        grid_layout.addItem(spacer_item, 0, 1, 2, 1)
+
+        # Set the text of the exception
+        exc_str = self.format_exception()
+        exc_label = QW.QLabel(exc_str)
+        grid_layout.addWidget(exc_label, 0, 2, 1, 1)
+
+        # Create a button box for the buttons
+        button_box = QW.QDialogButtonBox()
+        grid_layout.addWidget(button_box, 2, 0, 1, 3)
+
+        # Create traceback box
+        self.tb_box = self.create_traceback_box()
+        grid_layout.addWidget(self.tb_box, 3, 0, 1, 3)
+
+        # Create traceback button
+        self.tb_but =\
+            button_box.addButton(self.tb_labels[self.tb_box.isHidden()],
+                                 button_box.ActionRole)
+        self.tb_but.clicked.connect(self.toggle_traceback_box)
+
+        # Create an 'ok' button
+        ok_but = button_box.addButton(button_box.Ok)
+        ok_but.clicked.connect(self.close)
+        ok_but.setDefault(True)
+
+        # Update the size
+        self.update_size()
+
+    # This function formats the exception string
+    def format_exception(self):
+        # Format the exception
+        exc_list = format_exception_only(self.etype, self.value)
+        exc_str = ''.join(exc_list)
+
+        # Return it
+        return(exc_str)
+
+    # This function formats the traceback string
+    def format_traceback(self):
+        # Format the traceback
+        tb_list = format_tb(self.tb)
+        tb_str = ''.join(tb_list)
+
+        # Return it
+        return(tb_str)
+
+    # This function creates the traceback box
+    def create_traceback_box(self):
+        # Create a traceback box
+        traceback_box = QW.QWidget(self)
+        traceback_box.setHidden(True)
+
+        # Create layout
+        layout = QW.QVBoxLayout()
+        layout.setContentsMargins(QC.QMargins())
+        traceback_box.setLayout(layout)
+
+        # Add a horizontal line to the layout
+        frame = QW.QFrame(traceback_box)
+        frame.setFrameShape(frame.HLine)
+        frame.setFrameShadow(frame.Sunken)
+        layout.addWidget(frame)
+
+        # Format the traceback
+        tb_str = self.format_traceback()
+
+        # Add a textedit to the layout
+        tb_text_box = QW.QTextEdit(traceback_box)
+        tb_text_box.setFixedHeight(100)
+        tb_text_box.setFocusPolicy(QC.Qt.NoFocus)
+        tb_text_box.setReadOnly(True)
+        tb_text_box.setText(tb_str)
+        layout.addWidget(tb_text_box)
+
+        # Create a 'show traceback' button
+        self.tb_labels = ['Hide Traceback...', 'Show Traceback...']
+
+        # Return traceback box
+        return(traceback_box)
+
+    # This function shows or hides the traceback box
+    def toggle_traceback_box(self):
+        # Toggle the visibility of the traceback box
+        self.tb_box.setHidden(not self.tb_box.isHidden())
+        self.tb_but.setText(self.tb_labels[self.tb_box.isHidden()])
+
+        # Update the size of the message box
+        self.update_size()
+
+    # This function updates the size of the dialog
+    def update_size(self):
+        # Determine the minimum size required for making the dialog
+        self.setFixedSize(self.layout().minimumSize())
+
+
 # Make subclass of QW.QAction that automatically sets details based on status
 class QW_QAction(QW.QAction):
     # Make new method that automatically sets Shortcut, ToolTip and StatusTip
@@ -166,25 +303,8 @@ class WorkerThread(QC.QThread):
 # %% FUNCTION DEFINITIONS
 # This function creates a message box with exception information
 def show_exception_details(parent, etype, value, tb):
-    # Format the exception
-    exc_list = format_exception_only(etype, value)
-    exc_str = ''.join(exc_list)
-
-    # Format the traceback
-    tb_list = format_tb(tb)
-    tb_str = ''.join(tb_list)
-
-    # Create an exception message box
-    exception_box = QW.QMessageBox(parent)
-    exception_box.setIcon(QW.QMessageBox.Critical)
-    exception_box.setWindowTitle("ERROR")
-
-    # Set the text of the exception
-    exception_box.setText(exc_str)
-
-    # Set the traceback text as detailed text
-    exception_box.setDetailedText(tb_str)
-    print(exception_box.buttons()[0].text())
+    # Create exception message box
+    exception_box = ExceptionDialog(parent, etype, value, tb)
 
     # Show the exception message box
     exception_box.show()

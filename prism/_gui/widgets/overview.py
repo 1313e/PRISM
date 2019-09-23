@@ -427,6 +427,7 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function draws a projection figure
     def _draw_projection_figure(self, list_item):
+
         # Retrieve text of list_item
         hcube_name = list_item.text()
         hcube = self.hcubes[self.names.index(hcube_name)]

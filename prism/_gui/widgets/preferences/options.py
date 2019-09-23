@@ -378,19 +378,19 @@ class OptionsDialog(QW.QDialog):
         window_layout.addWidget(button_box)
 
         # Make a 'Reset' button
-        reset_but = button_box.addButton(QW.QDialogButtonBox.Reset)
+        reset_but = button_box.addButton(button_box.Reset)
         reset_but.setToolTip("Reset to defaults")
         reset_but.clicked.connect(self.reset_options)
 
         # Make an 'Apply' button
-        save_but = button_box.addButton(QW.QDialogButtonBox.Apply)
+        save_but = button_box.addButton(button_box.Apply)
         save_but.setToolTip("Apply changes")
         save_but.clicked.connect(self.save_options)
         save_but.setEnabled(False)
         self.save_but = save_but
 
         # Make a 'Close' button
-        close_but = button_box.addButton(QW.QDialogButtonBox.Close)
+        close_but = button_box.addButton(button_box.Close)
         close_but.setToolTip("Close without saving")
         close_but.clicked.connect(self.close)
         close_but.setDefault(True)

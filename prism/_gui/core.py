@@ -73,7 +73,8 @@ def start_gui(pipeline_obj):
                 # Initialize main window and draw (show) it
                 main_window = MainViewerWindow(qapp, pipeline_obj)
                 main_window.show()
-                main_window.setVisible(True)
+                main_window.raise_()
+                main_window.activateWindow()
 
                 # Replace KeyboardInterrupt error by system's default handler
                 signal.signal(signal.SIGINT, signal.SIG_DFL)
