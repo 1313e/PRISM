@@ -11,16 +11,19 @@ GUI preferences.
 
 
 # %% IMPORTS
+# Built-in imports
+from itertools import chain
+
 # Package imports
 from matplotlib import cm
-from matplotlib.colors import BASE_COLORS, CSS4_COLORS
 from matplotlib.lines import lineMarkers, lineStyles
+import numpy as np
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
 from prism._gui.widgets.preferences.custom_boxes import (
-    DefaultBox, FigSizeBox)
+    ColorBox, DefaultBox, FigSizeBox)
 from prism._gui.widgets.preferences.helpers import (
     get_box_value, options_entry, set_box_value)
 
@@ -327,13 +330,35 @@ class KwargsDictDialogPage(QW.QWidget):
         # Obtain a list with default colormaps that should be at the top
         std_cmaps = sset(['cividis', 'freeze', 'inferno', 'magma', 'plasma',
                           'rainforest', 'viridis'])
-        std_cmaps.update([cmap+'_r' for cmap in std_cmaps])
+        std_cmaps_r = sset([cmap+'_r' for cmap in std_cmaps])
+
+        # Obtain a list with all colormaps and their reverses
+        all_cmaps = sset([cmap for cmap in cm.cmap_d
+                          if not cmap.endswith('_r')])
+        all_cmaps_r = sset([cmap for cmap in cm.cmap_d if cmap.endswith('_r')])
+
+        # Gather all sets together
+        cmaps = (std_cmaps, std_cmaps_r, all_cmaps, all_cmaps_r)
+
+        # Determine the cumulative lengths of all four sets
+        cum_len = np.cumsum(list(map(len, cmaps)))
+
+        # Set the size for the colormap previews
+        cmap_size = (100, 15)
 
         # Create a combobox for cmaps
         cmaps_box = QW.QComboBox()
-        cmaps_box.addItems(std_cmaps)
-        cmaps_box.insertSeparator(cmaps_box.count())
-        cmaps_box.addItems(sset(cm.cmap_d))
+        for i, cmap in enumerate(chain(*cmaps)):
+            cmap_icon = create_cmap_icon(cmap, cmap_size)
+            cmaps_box.addItem(cmap_icon, cmap)
+
+        # Add some separators
+        for i in reversed(cum_len[:-1]):
+            cmaps_box.insertSeparator(i)
+        cmaps_box.insertSeparator(cum_len[1]+1)
+
+        # Set remaining properties
+        cmaps_box.setIconSize(QC.QSize(*cmap_size))
         cmaps_box.setToolTip("Colormap to be used for the corresponding plot "
                              "type")
         cmaps_box.currentTextChanged.connect(self.options.enable_save_button)
@@ -436,21 +461,47 @@ class KwargsDictDialogPage(QW.QWidget):
         markersize_box.valueChanged.connect(self.options.enable_save_button)
         return(markersize_box)
 
-    # This function adds a color box
     def add_type_color(self):
-        # Make combobox for colors
-        color_box = QW.QComboBox()
-        color_box.addItems(sset(BASE_COLORS))
-        color_box.insertSeparator(color_box.count())
-        color_box.addItems(sset(CSS4_COLORS))
-        color_box.setToolTip("Select or type the color to be used for the "
-                             "corresponding plot type")
-        color_box.setEditable(True)
-        color_box.setInsertPolicy(QW.QComboBox.NoInsert)
-        color_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
-        color_box.currentTextChanged.connect(self.options.enable_save_button)
-        return(color_box)
+        return(ColorBox(self.options))
 
     # This function adds a default box
     def add_unknown_type(self):
         return(DefaultBox(self.options))
+
+
+# %% FUNCTION DEFINITIONS
+# This function creates an icon of a colormap
+def create_cmap_icon(cmap, size=(100, 15)):
+    # Obtain the cmap
+    cmap = cm.get_cmap(cmap)
+
+    # Obtain the RGBA values of the colormap
+    x = np.linspace(0, 1, 256)
+    rgba = cmap(x)
+
+    # Convert to Qt RGBA values
+    rgba = [QG.QColor(
+        int(r*255),
+        int(g*255),
+        int(b*255),
+        int(a*255)).rgba() for r, g, b, a in rgba]
+
+    # Create an image object
+    image = QG.QImage(256, 1, QG.QImage.Format_Indexed8)
+
+    # Set the value of every pixel in this image
+    image.setColorTable(rgba)
+    for i in range(256):
+        image.setPixel(i, 0, i)
+
+    # Scale the image to its proper size
+    image = image.scaled(*size)
+
+    # Convert the image to a pixmap
+    pixmap = QG.QPixmap.fromImage(image)
+
+    # Convert the pixmap to an icon
+    icon = QG.QIcon(pixmap)
+
+    # Return the icon
+    return(icon)

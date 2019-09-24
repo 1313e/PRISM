@@ -12,17 +12,144 @@ used as custom option entry boxes in the
 
 
 # %% IMPORTS
+# Built-in imports
+from itertools import chain
+
 # Package imports
-from PyQt5 import QtWidgets as QW
+from matplotlib.colors import BASE_COLORS, CSS4_COLORS, to_rgba
+import numpy as np
+from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
 from prism._gui.widgets.preferences.helpers import get_box_value, set_box_value
 
 # All declaration
-__all__ = ['DefaultBox', 'FigSizeBox']
+__all__ = ['ColorBox', 'DefaultBox', 'FigSizeBox']
 
 
 # %% CLASS DEFINITIONS
+# Make class with a special box for setting the color of a plotted line
+class ColorBox(QW.QWidget):
+    def __init__(self, options_dialog_obj, *args, **kwargs):
+        # Save provided options_dialog_obj
+        self.options = options_dialog_obj
+
+        # Call super constructor
+        super().__init__(*args, **kwargs)
+
+        # Create the color box
+        self.init()
+
+    # This function creates the color box
+    def init(self):
+        # Create the box layout
+        box_layout = QW.QHBoxLayout(self)
+        box_layout.setContentsMargins(0, 0, 0, 0)
+        self.setToolTip("Color to be used for the corresponding plot type")
+
+        # Create a color label
+        color_label = self.create_color_label()
+        self.color_label = color_label
+        box_layout.addWidget(color_label)
+
+        # Create a color combobox
+        color_combobox = self.create_color_combobox()
+        box_layout.addWidget(color_combobox)
+        self.color_combobox = color_combobox
+
+        # Set the starting color of the color box
+        self.set_color('#000000')
+
+    # This function creates the color label
+    def create_color_label(self):
+        # Create the color label
+        color_label = ColorLabel()
+
+        # Set some properties
+        color_label.setToolTip("Click to open the custom color picker")
+        color_label.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
+        color_label.mousePressed.connect(self.show_colorpicker)
+
+        # Return it
+        return(color_label)
+
+    # This function creates the color combobox
+    def create_color_combobox(self):
+        # Make tuple of all colors
+        colors = (BASE_COLORS, CSS4_COLORS)
+
+        # Determine the cumulative lengths of all four sets
+        cum_len = np.cumsum(list(map(len, colors)))
+
+        # Make combobox for colors
+        color_box = QW.QComboBox()
+        for i, color in enumerate(chain(*colors)):
+            color_icon = QG.QIcon(create_color_pixmap(color, (30, 10)))
+            color_box.addItem(color_icon, color)
+
+        # Add some separators
+        for i in reversed(cum_len[:-1]):
+            color_box.insertSeparator(i)
+
+        # Set remaining properties
+        color_box.setToolTip("Select or type (in HEX) the color")
+        color_box.setEditable(True)
+        color_box.setInsertPolicy(QW.QComboBox.NoInsert)
+        color_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
+        color_box.currentTextChanged.connect(self.options.enable_save_button)
+        color_box.currentTextChanged.connect(self.set_color)
+        return(color_box)
+
+    # This function shows the custom color picker dialog
+    def show_colorpicker(self):
+        # Obtain current qcolor
+        qcolor = convert_to_qcolor(self.get_box_value())
+
+        # Show color dialog
+        color = QW.QColorDialog.getColor(
+            qcolor, parent=self,
+            options=QW.QColorDialog.DontUseNativeDialog)
+
+        # If the returned color is valid, save it
+        if color.isValid():
+            self.set_color(convert_to_mpl_color(color))
+
+    # This function sets a given color as the current color
+    def set_color(self, color):
+        # Try to create a pixmap of the color
+        try:
+            pixmap = create_color_pixmap(
+                color, (70, self.color_combobox.height()))
+        # If this fails, check if it was maybe an hexcode without a hash
+        except ValueError:
+            if not color.startswith('#'):
+                color = "#%s" % (color)
+                self.set_color(color)
+        # If that succeeds, save the color
+        else:
+            # Set the label and combobox to the proper values
+            self.color_label.setPixmap(pixmap)
+            set_box_value(self.color_combobox, color)
+
+    # This function retrieves a value of this special box
+    def get_box_value(self):
+        return(get_box_value(self.color_combobox))
+
+    # This function sets the value of this special box
+    def set_box_value(self, value):
+        self.set_color(value)
+
+
+# Create custom label class specifically for showing colors
+class ColorLabel(QW.QLabel):
+    mousePressed = QC.Signal()
+
+    # Override the mousePressEvent to emit a signal whenever it is pressed
+    def mousePressEvent(self, event):
+        self.mousePressed.emit()
+        event.accept()
+
+
 # Make class for the default lineedit box that allows for type to be selected
 class DefaultBox(QW.QWidget):
     def __init__(self, options_dialog_obj, *args, **kwargs):
@@ -178,3 +305,44 @@ class FigSizeBox(QW.QWidget):
     def set_box_value(self, value):
         set_box_value(self.width_box, value[0])
         set_box_value(self.height_box, value[1])
+
+
+# %% FUNCTION DEFINITIONS
+# This function converts an MPL color to a QColor
+def convert_to_qcolor(color):
+    # Obtain the RGBA values of an MPL color
+    r, g, b, a = to_rgba(color)
+
+    # Convert to Qt RGBA values
+    color = QG.QColor(
+        int(r*255),
+        int(g*255),
+        int(b*255),
+        int(a*255))
+
+    # Return color
+    return(color)
+
+
+# This function converts a QColor to an MPL color
+def convert_to_mpl_color(qcolor):
+    hexid = qcolor.name()
+    return str(hexid)
+
+
+# This function creates a pixmap of an MPL color
+def create_color_pixmap(color, size):
+    # Obtain the RGBA values of an MPL color
+    color = convert_to_qcolor(color)
+
+    # Create an image object
+    image = QG.QImage(*size, QG.QImage.Format_RGB32)
+
+    # Fill the entire image with the same color
+    image.fill(color)
+
+    # COnvert the image to a pixmap
+    pixmap = QG.QPixmap.fromImage(image)
+
+    # Return the pixmap
+    return(pixmap)

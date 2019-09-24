@@ -15,7 +15,6 @@ from os import path
 import sys
 
 # Package imports
-from matplotlib.backend_bases import _default_filetypes
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 import matplotlib.pyplot as plt
@@ -427,7 +426,6 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function draws a projection figure
     def _draw_projection_figure(self, list_item):
-
         # Retrieve text of list_item
         hcube_name = list_item.text()
         hcube = self.hcubes[self.names.index(hcube_name)]
@@ -537,15 +535,13 @@ class OverviewDockWidget(QW.QDockWidget):
 
             # If choose, save using non-default figure path
             if choose:
-                # Get dict of all supported file extensions in MPL
-                exts = sdict()
-                for ext, name in _default_filetypes.items():
-                    exts.setdefault(name, []).append("*.%s" % (ext))
-                    exts[name].sort()
+                # Get the supported filetypes
+                filetypes = FigureCanvas.get_supported_filetypes_grouped()
 
-                # Transform all elements into the proper strings
-                for name, ext_list in exts.items():
-                    exts[name] = ' '.join(ext_list)
+                # Get dict of all supported file extensions in MPL
+                ext_dict = sdict()
+                for name, exts in filetypes.items():
+                    ext_dict[name] = ' '.join(['*.%s' % (ext) for ext in exts])
 
                 # Set default extension
                 default_ext = '*.png'
@@ -555,7 +551,7 @@ class OverviewDockWidget(QW.QDockWidget):
                 default_filter = None
 
                 # Obtain list with the different file filters
-                for name, ext in exts.items():
+                for name, ext in ext_dict.items():
                     # Create proper string layout for this filter
                     file_filter = "%s (%s)" % (name, ext)
                     file_filters.append(file_filter)
@@ -566,7 +562,7 @@ class OverviewDockWidget(QW.QDockWidget):
 
                 # Add 'All (Image) Files' filter to the list of filters
                 file_filters.append("All Image Files (%s)"
-                                    % (' '.join(exts.values())))
+                                    % (' '.join(ext_dict.values())))
                 file_filters.append("All Files (*)")
 
                 # Combine list into a single string

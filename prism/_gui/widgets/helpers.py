@@ -12,7 +12,7 @@ that allow for certain layouts to be standardized.
 # %% IMPORTS
 # Built-in imports
 import sys
-import traceback
+import threading
 from traceback import format_exception_only, format_tb
 
 # Package imports
@@ -23,7 +23,7 @@ from prism._gui import APP_NAME
 
 # All declaration
 __all__ = ['ExceptionDialog', 'QW_QAction', 'ThreadedProgressDialog',
-           'WorkerThread', 'show_exception_details']
+           'TracedThread', 'show_exception_details']
 
 
 # %% CLASS DEFINITIONS
@@ -211,8 +211,7 @@ class QW_QAction(QW.QAction):
                              "'setDetails()' instead!")
 
 
-# Class that provides a special QThreaded progress dialog
-# FIXME: This dialog does not interrupt properly on Ubuntu in some cases
+# Class that provides a special threaded progress dialog
 class ThreadedProgressDialog(QW.QProgressDialog):
     def __init__(self, main_window_obj, label, cancel, func, *iterables):
         # Save provided MainWindow obj
@@ -250,27 +249,35 @@ class ThreadedProgressDialog(QW.QProgressDialog):
 
     # This function executes the entire run_map until finished or aborted
     def open(self):
-        # Initialize the worker thread
-        self.worker_thread = WorkerThread(self.run_map, self)
+        # Initialize the traced thread
+        thread = TracedThread(self.run_map, self)
 
         # Connect the proper signals with each other
-        self.worker_thread.n_finished.connect(self.setValue)
-        super().open(self.worker_thread.terminate)
+        thread.n_finished.connect(self.setValue)
+        super().open(thread.kill)
 
-        # Start the worker thread
-        self.worker_thread.start()
+        # Start the thread
+        thread.start()
+        print('hoi')
 
-        # While the worker thread is running, keep processing user input events
-        while self.worker_thread.isRunning():
+        # While the thread is running, keep processing user input events
+        while thread.isAlive():
             self.main.qapp.processEvents()
-            self.worker_thread.wait(1)
+            thread.join(0.1)
+            print('hooi')
+
+        print('hoooi')
+        # Join the thread to make sure that it is terminated everywhere (MPI)
+        thread.join()
+        print('hooooi')
 
         # Return whether the dialog ended normally
         return(not self.wasCanceled())
 
 
-# Basic worker thread that loops over a provided map iterator
-class WorkerThread(QC.QThread):
+# https://www.geeksforgeeks.org/python-different-ways-to-kill-a-thread/
+# Special system traced thread that loops over a provided map iterator
+class TracedThread(QC.QObject, threading.Thread):
     # Define a signal that sends out the number of finished iterations
     n_finished = QC.pyqtSignal('int')
 
@@ -278,11 +285,18 @@ class WorkerThread(QC.QThread):
         # Save provided map iterator
         self.run_map = run_map
 
-        # Call the super constructor
-        super().__init__(*args, **kwargs)
+        # Set killed to False
+        self.killed = False
 
-    # This function gets called when WorkerThread.start() is called
+        # Call the super constructors
+        super().__init__(*args, **kwargs)
+        threading.Thread.__init__(self, None)
+
+    # This function gets called when TracedThread.start() is called
     def run(self):
+        # Set the system tracer
+        sys.settrace(self.global_trace)
+
         # Emit that currently the number of finished iteration is 0
         self.n_finished.emit(0)
 
@@ -290,14 +304,21 @@ class WorkerThread(QC.QThread):
         for i, _ in enumerate(self.run_map):
             self.n_finished.emit(i+1)
 
-    # This function is called when the thread must be terminated
-    def terminate(self):
-        # First try to quit it the normal way
-        self.quit()
+    # Make a custom system tracer
+    def global_trace(self, frame, event, arg):
+        # Implement default global system tracer behavior
+        if(event == 'call'):
+            return(self.local_trace)
 
-        # If this does not work, wait for 2 seconds and terminate it
-        self.wait(2)
-        super().terminate()
+    # This function implements the local part of the system tracer
+    def local_trace(self, frame, event, arg):
+        # If this thread must be killed, raise an error at the next line
+        if self.killed and (event == 'line'):
+            raise SystemExit
+
+    # Kill this thread
+    def kill(self):
+        self.killed = True
 
 
 # %% FUNCTION DEFINITIONS
