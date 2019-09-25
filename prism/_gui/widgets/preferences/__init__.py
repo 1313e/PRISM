@@ -11,9 +11,10 @@ for making the 'preferences' menu in the Projection GUI.
 
 # %% IMPORTS
 # Import base modules
-from . import custom_boxes, helpers, kwargs_dicts, options
-from .custom_boxes import *
+from . import helpers
 from .helpers import *
+from . import custom_boxes, kwargs_dicts, options
+from .custom_boxes import *
 from .kwargs_dicts import *
 from .options import *
 

@@ -49,7 +49,6 @@ def start_gui(pipeline_obj):
     with pipeline_obj.worker_mode:
         if pipeline_obj._is_controller:
             # Wrap entire execution in switch_backend of MPL
-            # TODO: Currently, this does not properly switch the backend back
             with switch_backend('Agg'):
                 # Set some application attributes
                 QW.QApplication.setAttribute(QC.Qt.AA_DontShowIconsInMenus,
@@ -82,5 +81,5 @@ def start_gui(pipeline_obj):
                 # Start application
                 qapp.exec_()
 
-    # Return the main window instance
-    return(main_window)
+            # Return the main window instance
+            return(main_window)

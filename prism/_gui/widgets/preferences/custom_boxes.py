@@ -16,11 +16,13 @@ used as custom option entry boxes in the
 from itertools import chain
 
 # Package imports
+from matplotlib import rcParamsDefault as rcParams
 from matplotlib.colors import BASE_COLORS, CSS4_COLORS, to_rgba
 import numpy as np
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
+from prism._gui.widgets import QW_QComboBox, QW_QLabel
 from prism._gui.widgets.preferences.helpers import get_box_value, set_box_value
 
 # All declaration
@@ -47,6 +49,9 @@ class ColorBox(QW.QWidget):
         box_layout.setContentsMargins(0, 0, 0, 0)
         self.setToolTip("Color to be used for the corresponding plot type")
 
+        # Declare the default color
+        self.default_color = rcParams['lines.color']
+
         # Create a color label
         color_label = self.create_color_label()
         self.color_label = color_label
@@ -58,12 +63,12 @@ class ColorBox(QW.QWidget):
         self.color_combobox = color_combobox
 
         # Set the starting color of the color box
-        self.set_color('#000000')
+        self.set_box_value(self.default_color)
 
     # This function creates the color label
     def create_color_label(self):
         # Create the color label
-        color_label = ColorLabel()
+        color_label = QW_QLabel()
 
         # Set some properties
         color_label.setToolTip("Click to open the custom color picker")
@@ -75,17 +80,28 @@ class ColorBox(QW.QWidget):
 
     # This function creates the color combobox
     def create_color_combobox(self):
+        # Obtain the CN colors
+        n_cyclic = len(rcParams['axes.prop_cycle'])
+        CN_COLORS = [("C%i" % (i), "This is MPL cyclic color #%i" % (i))
+                     for i in range(n_cyclic)]
+
         # Make tuple of all colors
-        colors = (BASE_COLORS, CSS4_COLORS)
+        colors = (CN_COLORS, BASE_COLORS, CSS4_COLORS)
 
         # Determine the cumulative lengths of all four sets
         cum_len = np.cumsum(list(map(len, colors)))
 
         # Make combobox for colors
-        color_box = QW.QComboBox()
+        color_box = QW_QComboBox()
+
+        # Fill combobox with all colors
         for i, color in enumerate(chain(*colors)):
-            color_icon = QG.QIcon(create_color_pixmap(color, (30, 10)))
-            color_box.addItem(color_icon, color)
+            # If color is a tuple, it consists of (color, tooltip)
+            if isinstance(color, tuple):
+                color_box.addItem(color[0])
+                color_box.setItemData(i, color[1], QC.Qt.ToolTipRole)
+            else:
+                color_box.addItem(color)
 
         # Add some separators
         for i in reversed(cum_len[:-1]):
@@ -96,6 +112,8 @@ class ColorBox(QW.QWidget):
         color_box.setEditable(True)
         color_box.setInsertPolicy(QW.QComboBox.NoInsert)
         color_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
+        color_box.highlighted[str].connect(self.set_color_label)
+        color_box.popup_hidden[str].connect(self.set_color_label)
         color_box.currentTextChanged.connect(self.options.enable_save_button)
         color_box.currentTextChanged.connect(self.set_color)
         return(color_box)
@@ -116,38 +134,60 @@ class ColorBox(QW.QWidget):
 
     # This function sets a given color as the current color
     def set_color(self, color):
-        # Try to create a pixmap of the color
+        # If color can be converted to a hex integer, do so and add hash to it
         try:
-            pixmap = create_color_pixmap(
-                color, (70, self.color_combobox.height()))
-        # If this fails, check if it was maybe an hexcode without a hash
+            int(color, 16)
         except ValueError:
-            if not color.startswith('#'):
-                color = "#%s" % (color)
-                self.set_color(color)
-        # If that succeeds, save the color
+            pass
         else:
-            # Set the label and combobox to the proper values
-            self.color_label.setPixmap(pixmap)
+            color = "#%s" % (color)
+
+        # Set the color label
+        default_flag = self.set_color_label(color)
+
+        # If default was not used, set the combobox to the proper value as well
+        if not default_flag:
             set_box_value(self.color_combobox, color)
+
+    # This function sets the color of the colorlabel
+    def set_color_label(self, color):
+        # Try to create the pixmap of the colorlabel
+        try:
+            pixmap = create_color_pixmap(color,
+                                         (70, self.color_combobox.height()-4))
+            default_flag = False
+        # If that cannot be done, create the default instead
+        except ValueError:
+            pixmap = create_color_pixmap(self.default_color,
+                                         (70, self.color_combobox.height()-4))
+            default_flag = True
+
+        # Set the colorlabel
+        self.color_label.setPixmap(pixmap)
+
+        # Return if default was used or not
+        return(default_flag)
 
     # This function retrieves a value of this special box
     def get_box_value(self):
-        return(get_box_value(self.color_combobox))
+        # Obtain the value
+        color = get_box_value(self.color_combobox)
+
+        # Try to convert this to QColor
+        try:
+            convert_to_qcolor(color)
+        # If this fails, return the default color
+        except ValueError:
+            return(self.default_color)
+        # Else, return the retrieved color
+        else:
+            return(color)
 
     # This function sets the value of this special box
     def set_box_value(self, value):
         self.set_color(value)
-
-
-# Create custom label class specifically for showing colors
-class ColorLabel(QW.QLabel):
-    mousePressed = QC.Signal()
-
-    # Override the mousePressEvent to emit a signal whenever it is pressed
-    def mousePressEvent(self, event):
-        self.mousePressed.emit()
-        event.accept()
+        self.default_color = value
+        self.color_combobox.lineEdit().setPlaceholderText(value)
 
 
 # Make class for the default lineedit box that allows for type to be selected
@@ -297,6 +337,9 @@ class FigSizeBox(QW.QWidget):
         box_layout.addWidget(x_label)
         box_layout.addWidget(height_box)
 
+        # Set default value
+        set_box_value(self, rcParams['figure.figsize'])
+
     # This function retrieves a value of this special box
     def get_box_value(self):
         return((get_box_value(self.width_box), get_box_value(self.height_box)))
@@ -310,6 +353,15 @@ class FigSizeBox(QW.QWidget):
 # %% FUNCTION DEFINITIONS
 # This function converts an MPL color to a QColor
 def convert_to_qcolor(color):
+    # If the color can be converted to a float, raise a ValueError
+    # This is because MPL accepts float strings as valid colors
+    try:
+        float(color)
+    except ValueError:
+        pass
+    else:
+        raise ValueError
+
     # Obtain the RGBA values of an MPL color
     r, g, b, a = to_rgba(color)
 

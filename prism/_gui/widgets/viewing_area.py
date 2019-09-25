@@ -53,13 +53,13 @@ class ViewingAreaDockWidget(QW.QDockWidget):
         self.proj_area.setFocus()
         self.setWidget(self.area_window)
 
-        # options for proj_area
+        # Options for proj_area
         self.proj_area.setViewMode(QW.QMdiArea.SubWindowView)
         self.proj_area.setOption(QW.QMdiArea.DontMaximizeSubWindowOnActivation)
         self.proj_area.setActivationOrder(QW.QMdiArea.StackingOrder)
         self.proj_area.setStatusTip("Main projection viewing area")
 
-        # options for area_window
+        # Options for area_window
         self.area_window.setAttribute(QC.Qt.WA_DeleteOnClose)
         self.area_window.setContextMenuPolicy(QC.Qt.NoContextMenu)
 
@@ -155,7 +155,6 @@ class ViewingAreaDockWidget(QW.QDockWidget):
                                     self.proj_toolbar)
 
     # This function creates the toolbar of the projection viewing area
-    # TODO: Allow for the formatting inside a figure to be modified
     def create_projection_toolbar(self):
         # Create toolbar for projection viewer
         self.proj_toolbar = QW.QToolBar("Tools", self)

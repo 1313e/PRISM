@@ -38,6 +38,9 @@ __all__ = ['MainViewerWindow']
 # Define class for main viewer window
 # TODO: Write documentation (docs and docstrings) for the GUI
 class MainViewerWindow(QW.QMainWindow):
+    # Define a signal that is emitted whenever an exception is raised
+    exception = QC.pyqtSignal()
+
     # Initialize ViewerWindow class
     def __init__(self, qapplication_obj, pipeline_obj, *args, **kwargs):
         # Save qapplication_obj as qapp

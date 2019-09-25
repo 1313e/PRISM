@@ -22,8 +22,8 @@ from PyQt5 import QtCore as QC, QtWidgets as QW
 from prism._gui import APP_NAME
 
 # All declaration
-__all__ = ['ExceptionDialog', 'QW_QAction', 'ThreadedProgressDialog',
-           'TracedThread', 'show_exception_details']
+__all__ = ['ExceptionDialog', 'QW_QAction', 'QW_QComboBox', 'QW_QLabel',
+           'ThreadedProgressDialog', 'TracedThread', 'show_exception_details']
 
 
 # %% CLASS DEFINITIONS
@@ -45,6 +45,7 @@ class ExceptionDialog(QW.QDialog):
     def init(self):
         # Create a window layout
         grid_layout = QW.QGridLayout(self)
+        grid_layout.setColumnStretch(2, 1)
 
         # Set properties of message box
         self.setWindowModality(QC.Qt.ApplicationModal)
@@ -77,11 +78,11 @@ class ExceptionDialog(QW.QDialog):
 
         # Create a button box for the buttons
         button_box = QW.QDialogButtonBox()
-        grid_layout.addWidget(button_box, 2, 0, 1, 3)
+        grid_layout.addWidget(button_box, 2, 0, 1, grid_layout.columnCount())
 
         # Create traceback box
         self.tb_box = self.create_traceback_box()
-        grid_layout.addWidget(self.tb_box, 3, 0, 1, 3)
+        grid_layout.addWidget(self.tb_box, 3, 0, 1, grid_layout.columnCount())
 
         # Create traceback button
         self.tb_but =\
@@ -211,7 +212,36 @@ class QW_QAction(QW.QAction):
                              "'setDetails()' instead!")
 
 
+# Create custom label class with more signals
+class QW_QLabel(QW.QLabel):
+    mousePressed = QC.pyqtSignal()
+
+    # Override the mousePressEvent to emit a signal whenever it is triggered
+    def mousePressEvent(self, event):
+        self.mousePressed.emit()
+        event.accept()
+
+
+# Create custom combobox class with more signals
+class QW_QComboBox(QW.QComboBox):
+    popup_shown = QC.pyqtSignal([int], [str])
+    popup_hidden = QC.pyqtSignal([int], [str])
+
+    # Override the showPopup to emit a signal whenever it is triggered
+    def showPopup(self, *args, **kwargs):
+        self.popup_shown[int].emit(self.currentIndex())
+        self.popup_shown[str].emit(self.currentText())
+        return(super().showPopup(*args, **kwargs))
+
+    # Override the hidePopup to emit a signal whenever it is triggered.
+    def hidePopup(self, *args, **kwargs):
+        self.popup_hidden[int].emit(self.currentIndex())
+        self.popup_hidden[str].emit(self.currentText())
+        return(super().hidePopup(*args, **kwargs))
+
+
 # Class that provides a special threaded progress dialog
+# TODO: This currently does not work properly in MPI
 class ThreadedProgressDialog(QW.QProgressDialog):
     def __init__(self, main_window_obj, label, cancel, func, *iterables):
         # Save provided MainWindow obj
@@ -281,6 +311,9 @@ class TracedThread(QC.QObject, threading.Thread):
     # Define a signal that sends out the number of finished iterations
     n_finished = QC.pyqtSignal('int')
 
+    # Define a signal that is emitted whenever an exception occurs
+    exception = QC.pyqtSignal()
+
     def __init__(self, run_map, *args, **kwargs):
         # Save provided map iterator
         self.run_map = run_map
@@ -316,6 +349,9 @@ class TracedThread(QC.QObject, threading.Thread):
         if self.killed and (event == 'line'):
             raise SystemExit
 
+        # Return self
+        return(self.local_trace)
+
     # Kill this thread
     def kill(self):
         self.killed = True
@@ -324,6 +360,9 @@ class TracedThread(QC.QObject, threading.Thread):
 # %% FUNCTION DEFINITIONS
 # This function creates a message box with exception information
 def show_exception_details(parent, etype, value, tb):
+    # Emit the exception signal
+    parent.exception.emit()
+
     # Create exception message box
     exception_box = ExceptionDialog(parent, etype, value, tb)
 

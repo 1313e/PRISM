@@ -13,8 +13,9 @@ The widgets required for the preferences menu can be found in
 
 # %% IMPORTS
 # Import base modules
-from . import helpers, main, overview, viewing_area
+from . import helpers
 from .helpers import *
+from . import main, overview, viewing_area
 from .main import *
 from .overview import *
 from .viewing_area import *

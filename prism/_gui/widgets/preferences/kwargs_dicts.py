@@ -16,6 +16,7 @@ from itertools import chain
 
 # Package imports
 from matplotlib import cm
+from matplotlib import rcParamsDefault as rcParams
 from matplotlib.lines import lineMarkers, lineStyles
 import numpy as np
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
@@ -159,6 +160,7 @@ class KwargsDictDialogPage(QW.QWidget):
         # Create tab layout
         page_layout = QW.QVBoxLayout(self)
 
+        # TODO: Add header?
         # Create a grid for this layout
         self.kwargs_grid = QW.QGridLayout()
         self.kwargs_grid.setColumnStretch(1, 1)
@@ -346,10 +348,17 @@ class KwargsDictDialogPage(QW.QWidget):
         # Set the size for the colormap previews
         cmap_size = (100, 15)
 
+        # If the colormap icons have not been created yet, do that now
+        if not hasattr(self, 'cmap_icons'):
+            cmap_icons = sdict()
+            for cmap in chain(all_cmaps, all_cmaps_r):
+                cmap_icons[cmap] = create_cmap_icon(cmap, cmap_size)
+            self.cmap_icons = cmap_icons
+
         # Create a combobox for cmaps
         cmaps_box = QW.QComboBox()
-        for i, cmap in enumerate(chain(*cmaps)):
-            cmap_icon = create_cmap_icon(cmap, cmap_size)
+        for cmap in chain(*cmaps):
+            cmap_icon = self.cmap_icons[cmap]
             cmaps_box.addItem(cmap_icon, cmap)
 
         # Add some separators
@@ -358,6 +367,7 @@ class KwargsDictDialogPage(QW.QWidget):
         cmaps_box.insertSeparator(cum_len[1]+1)
 
         # Set remaining properties
+        set_box_value(cmaps_box, rcParams['image.cmap'])
         cmaps_box.setIconSize(QC.QSize(*cmap_size))
         cmaps_box.setToolTip("Colormap to be used for the corresponding plot "
                              "type")
@@ -370,6 +380,7 @@ class KwargsDictDialogPage(QW.QWidget):
         alpha_box = QW.QDoubleSpinBox()
         alpha_box.setRange(0, 1)
         alpha_box.setSingleStep(0.01)
+        set_box_value(alpha_box, 1)
         alpha_box.setToolTip("Alpha value to use for the plotted data")
         alpha_box.valueChanged.connect(self.options.enable_save_button)
         return(alpha_box)
@@ -397,6 +408,7 @@ class KwargsDictDialogPage(QW.QWidget):
         dpi_box = QW.QSpinBox()
         dpi_box.setRange(1, 9999999)
         dpi_box.setSingleStep(10)
+        set_box_value(dpi_box, rcParams['figure.dpi'])
         dpi_box.setToolTip("DPI (dots per inch) to use for the projection "
                            "figure")
         dpi_box.valueChanged.connect(self.options.enable_save_button)
@@ -418,6 +430,7 @@ class KwargsDictDialogPage(QW.QWidget):
         for i, (linestyle, tooltip) in enumerate(linestyles_lst):
             linestyle_box.addItem(linestyle)
             linestyle_box.setItemData(i, tooltip, QC.Qt.ToolTipRole)
+        set_box_value(linestyle_box, rcParams['lines.linestyle'])
         linestyle_box.setToolTip("Linestyle to be used for the corresponding "
                                  "plot type")
         linestyle_box.currentTextChanged.connect(
@@ -430,6 +443,7 @@ class KwargsDictDialogPage(QW.QWidget):
         linewidth_box = QW.QDoubleSpinBox()
         linewidth_box.setRange(0, 9999999)
         linewidth_box.setSingleStep(1)
+        set_box_value(linewidth_box, rcParams['lines.linewidth'])
         linewidth_box.setToolTip("Width of the plotted line")
         linewidth_box.valueChanged.connect(self.options.enable_save_button)
         return(linewidth_box)
@@ -439,6 +453,7 @@ class KwargsDictDialogPage(QW.QWidget):
         # Obtain list with all supported markers
         markers_lst = [(key, value) for key, value in lineMarkers.items()
                        if(value != 'nothing' and isinstance(key, str))]
+        markers_lst.append(('', 'nothing'))
         markers_lst.sort(key=lambda x: x[0])
 
         # Make combobox for markers
@@ -446,6 +461,7 @@ class KwargsDictDialogPage(QW.QWidget):
         for i, (marker, tooltip) in enumerate(markers_lst):
             marker_box.addItem(marker)
             marker_box.setItemData(i, tooltip, QC.Qt.ToolTipRole)
+        set_box_value(marker_box, rcParams['lines.marker'])
         marker_box.setToolTip("Marker to be used for the corresponding plot "
                               "type")
         marker_box.currentTextChanged.connect(self.options.enable_save_button)
@@ -458,6 +474,7 @@ class KwargsDictDialogPage(QW.QWidget):
         markersize_box.setRange(0, 9999999)
         markersize_box.setSingleStep(1)
         markersize_box.setToolTip("Size of the plotted markers")
+        set_box_value(markersize_box, rcParams['lines.markersize'])
         markersize_box.valueChanged.connect(self.options.enable_save_button)
         return(markersize_box)
 
