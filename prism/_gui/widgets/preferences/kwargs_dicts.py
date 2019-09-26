@@ -23,6 +23,7 @@ from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
+from prism._gui.widgets import QW_QDoubleSpinBox, QW_QSpinBox
 from prism._gui.widgets.preferences.custom_boxes import (
     ColorBox, DefaultBox, FigSizeBox)
 from prism._gui.widgets.preferences.helpers import (
@@ -103,7 +104,7 @@ class KwargsDictDialog(QW.QDialog):
         # Add a close button
         button_box = QW.QDialogButtonBox()
         window_layout.addWidget(button_box)
-        close_but = button_box.addButton(QW.QDialogButtonBox.Close)
+        close_but = button_box.addButton(button_box.Close)
         close_but.clicked.connect(self.close)
 
         # Set some properties for this window
@@ -377,9 +378,8 @@ class KwargsDictDialogPage(QW.QWidget):
     # This function adds an alpha box
     def add_type_alpha(self):
         # Make double spinbox for alpha
-        alpha_box = QW.QDoubleSpinBox()
+        alpha_box = QW_QDoubleSpinBox()
         alpha_box.setRange(0, 1)
-        alpha_box.setSingleStep(0.01)
         set_box_value(alpha_box, 1)
         alpha_box.setToolTip("Alpha value to use for the plotted data")
         alpha_box.valueChanged.connect(self.options.enable_save_button)
@@ -405,9 +405,8 @@ class KwargsDictDialogPage(QW.QWidget):
     # This function adds a dpi box
     def add_type_dpi(self):
         # Make spinbox for dpi
-        dpi_box = QW.QSpinBox()
+        dpi_box = QW_QSpinBox()
         dpi_box.setRange(1, 9999999)
-        dpi_box.setSingleStep(10)
         set_box_value(dpi_box, rcParams['figure.dpi'])
         dpi_box.setToolTip("DPI (dots per inch) to use for the projection "
                            "figure")
@@ -440,9 +439,9 @@ class KwargsDictDialogPage(QW.QWidget):
     # This function adds a linewidth box
     def add_type_linewidth(self):
         # Make a double spinbox for linewidth
-        linewidth_box = QW.QDoubleSpinBox()
+        linewidth_box = QW_QDoubleSpinBox()
         linewidth_box.setRange(0, 9999999)
-        linewidth_box.setSingleStep(1)
+        linewidth_box.setSuffix(" pts")
         set_box_value(linewidth_box, rcParams['lines.linewidth'])
         linewidth_box.setToolTip("Width of the plotted line")
         linewidth_box.valueChanged.connect(self.options.enable_save_button)
@@ -470,9 +469,9 @@ class KwargsDictDialogPage(QW.QWidget):
     # This function adds a markersize box
     def add_type_markersize(self):
         # Make a double spinbox for markersize
-        markersize_box = QW.QDoubleSpinBox()
+        markersize_box = QW_QDoubleSpinBox()
         markersize_box.setRange(0, 9999999)
-        markersize_box.setSingleStep(1)
+        markersize_box.setSuffix(" pts")
         markersize_box.setToolTip("Size of the plotted markers")
         set_box_value(markersize_box, rcParams['lines.markersize'])
         markersize_box.valueChanged.connect(self.options.enable_save_button)

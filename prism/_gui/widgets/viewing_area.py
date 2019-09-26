@@ -171,8 +171,8 @@ class ViewingAreaDockWidget(QW.QDockWidget):
         self.proj_toolbar.addSeparator()
 
         # Add action for reoption the view
-        reset_act = QW_QAction("&Reset", self)
-        reset_act.setDetails(
+        reset_act = QW_QAction(
+            self, "&Reset",
             shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_R,
             statustip="Reset projection viewing area to its default state")
         self.proj_toolbar.addAction(reset_act)
@@ -181,25 +181,25 @@ class ViewingAreaDockWidget(QW.QDockWidget):
         self.proj_toolbar.addSeparator()
 
         # Add action for cascading all subwindows
-        cascade_act = QW_QAction("&Cascade", self)
-        cascade_act.setDetails(
+        cascade_act = QW_QAction(
+            self, "&Cascade",
             shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_C,
-            statustip="Cascade all subwindows")
-        cascade_act.triggered.connect(self.proj_area.cascadeSubWindows)
+            statustip="Cascade all subwindows",
+            triggered=self.proj_area.cascadeSubWindows)
         self.proj_toolbar.addAction(cascade_act)
 
         # Add action for tiling all subwindows
-        tile_act = QW_QAction("&Tile", self)
-        tile_act.setDetails(
-                shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_T,
-                statustip="Tile all subwindows")
-        tile_act.triggered.connect(self.proj_area.tileSubWindows)
+        tile_act = QW_QAction(
+            self, "&Tile",
+            shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_T,
+            statustip="Tile all subwindows",
+            triggered=self.proj_area.tileSubWindows)
         self.proj_toolbar.addAction(tile_act)
 
         # Add action for closing all subwindows
-        close_act = QW_QAction("Close all", self)
-        close_act.setDetails(
-                shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_X,
-                statustip="Close all subwindows")
-        close_act.triggered.connect(self.proj_area.closeAllSubWindows)
+        close_act = QW_QAction(
+            self, "Close all",
+            shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_X,
+            statustip="Close all subwindows",
+            triggered=self.proj_area.closeAllSubWindows)
         self.proj_toolbar.addAction(close_act)

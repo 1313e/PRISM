@@ -23,7 +23,8 @@ from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism._gui import APP_NAME
-from prism._gui.widgets.helpers import QW_QAction, ThreadedProgressDialog
+from prism._gui.widgets.helpers import (
+    QW_QAction, QW_QMenu, ThreadedProgressDialog)
 
 # All declaration
 __all__ = ['OverviewDockWidget']
@@ -168,57 +169,52 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function creates the context menu for drawn projections
     def create_drawn_context_menu(self):
         # Create context menu
-        menu = QW.QMenu('Drawn', self)
+        menu = QW_QMenu(self, 'Drawn')
 
         # Make shortcut for obtaining selected items
-        list_items = self.proj_list_d.selectedItems
+        items = self.proj_list_d.selectedItems
 
         # Add show action to menu
-        show_act = QW_QAction('S&how', self)
-        show_act.setDetails(
-            statustip="Show selected projection figure(s)")
-        show_act.triggered.connect(
-            lambda: self.show_projection_figures(list_items()))
+        show_act = QW_QAction(
+            self, 'S&how',
+            statustip="Show selected projection figure(s)",
+            triggered=lambda: self.show_projection_figures(items()))
         menu.addAction(show_act)
 
         # Add save action to menu
-        save_act = QW_QAction('&Save', self)
-        save_act.setDetails(
-            statustip="Save selected projection figure(s) to file")
-        save_act.triggered.connect(
-            lambda: self.save_projection_figures(list_items()))
+        save_act = QW_QAction(
+            self, '&Save',
+            statustip="Save selected projection figure(s) to file",
+            triggered=lambda: self.save_projection_figures(items()))
         menu.addAction(save_act)
 
         # Add save as action to menu
-        save_as_act = QW_QAction('Save &as...', self)
-        save_as_act.setDetails(
-            statustip="Save selected projection figure(s) to chosen file")
-        save_as_act.triggered.connect(
-            lambda: self.save_projection_figures(list_items(), choose=True))
+        save_as_act = QW_QAction(
+            self, 'Save &as...',
+            statustip="Save selected projection figure(s) to chosen file",
+            triggered=lambda: self.save_projection_figures(items(),
+                                                           choose=True))
         menu.addAction(save_as_act)
 
         # Add redraw action to menu
-        redraw_act = QW_QAction('&Redraw', self)
-        redraw_act.setDetails(
-            statustip="Redraw selected projection figure(s)")
-        redraw_act.triggered.connect(
-            lambda: self.redraw_projection_figures(list_items()))
+        redraw_act = QW_QAction(
+            self, '&Redraw',
+            statustip="Redraw selected projection figure(s)",
+            triggered=lambda: self.redraw_projection_figures(items()))
         menu.addAction(redraw_act)
 
         # Add close action to menu
-        close_act = QW_QAction('&Close', self)
-        close_act.setDetails(
-            statustip="Close selected projection figure(s)")
-        close_act.triggered.connect(
-            lambda: self.close_projection_figures(list_items()))
+        close_act = QW_QAction(
+            self, '&Close',
+            statustip="Close selected projection figure(s)",
+            triggered=lambda: self.close_projection_figures(items()))
         menu.addAction(close_act)
 
         # Add details action to menu (single item only)
-        self.details_u_act = QW_QAction('De&tails', self)
-        self.details_u_act.setDetails(
-            statustip="Show details about selected projection figure")
-        self.details_u_act.triggered.connect(
-            lambda: self.details_projection_figure(list_items()[0]))
+        self.details_u_act = QW_QAction(
+            self, 'De&tails',
+            statustip="Show details about selected projection figure",
+            triggered=lambda: self.details_projection_figure(items()[0]))
         menu.addAction(self.details_u_act)
 
         # Save made menu as an attribute
@@ -240,49 +236,44 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function creates the context menu for available projections
     def create_available_context_menu(self):
         # Create context menu
-        menu = QW.QMenu('Available', self)
+        menu = QW_QMenu(self, 'Available')
 
         # Make shortcut for obtaining selected items
-        list_items = self.proj_list_a.selectedItems
+        items = self.proj_list_a.selectedItems
 
         # Add draw action to menu
-        draw_act = QW_QAction('&Draw', self)
-        draw_act.setDetails(
-            statustip="Draw selected projection figure(s)")
-        draw_act.triggered.connect(
-            lambda: self.draw_projection_figures(list_items()))
+        draw_act = QW_QAction(
+            self, '&Draw',
+            statustip="Draw selected projection figure(s)",
+            triggered=lambda: self.draw_projection_figures(items()))
         menu.addAction(draw_act)
 
         # Add draw&save action to menu
-        draw_save_act = QW_QAction('Draw && &Save', self)
-        draw_save_act.setDetails(
-            statustip="Draw & save selected projection figure(s)")
-        draw_save_act.triggered.connect(
-            lambda: self.draw_save_projection_figures(list_items()))
+        draw_save_act = QW_QAction(
+            self, 'Draw && &Save',
+            statustip="Draw & save selected projection figure(s)",
+            triggered=lambda: self.draw_save_projection_figures(items()))
         menu.addAction(draw_save_act)
 
         # Add recreate action to menu
-        recreate_act = QW_QAction('&Recreate', self)
-        recreate_act.setDetails(
-            statustip="Recreate selected projection figure(s)")
-        recreate_act.triggered.connect(
-            lambda: self.recreate_projection_figures(list_items()))
+        recreate_act = QW_QAction(
+            self, '&Recreate',
+            statustip="Recreate selected projection figure(s)",
+            triggered=lambda: self.recreate_projection_figures(items()))
         menu.addAction(recreate_act)
 
         # Add delete action to menu
-        delete_act = QW_QAction('D&elete', self)
-        delete_act.setDetails(
-            statustip="Delete selected projection figure(s)")
-        delete_act.triggered.connect(
-            lambda: self.delete_projection_figures(list_items()))
+        delete_act = QW_QAction(
+            self, 'D&elete',
+            statustip="Delete selected projection figure(s)",
+            triggered=lambda: self.delete_projection_figures(items()))
         menu.addAction(delete_act)
 
         # Add details action to menu (single item only)
-        self.details_a_act = QW_QAction('De&tails', self)
-        self.details_a_act.setDetails(
-            statustip="Show details about selected projection figure")
-        self.details_a_act.triggered.connect(
-            lambda: self.details_projection_figure(list_items()[0]))
+        self.details_a_act = QW_QAction(
+            self, 'De&tails',
+            statustip="Show details about selected projection figure",
+            triggered=lambda: self.details_projection_figure(items()[0]))
         menu.addAction(self.details_a_act)
 
         # Save made menu as an attribute
@@ -304,33 +295,31 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function creates the context menu for unavailable projections
     def create_unavailable_context_menu(self):
         # Create context menu
-        menu = QW.QMenu('Unavailable', self)
+        menu = QW_QMenu(self, 'Unavailable')
 
         # Make shortcut for obtaining selected items
-        list_items = self.proj_list_u.selectedItems
+        items = self.proj_list_u.selectedItems
 
         # Add create action to menu
-        create_act = QW_QAction('&Create', self)
-        create_act.setDetails(
-            statustip="Create selected projection figure(s)")
-        create_act.triggered.connect(
-            lambda: self.create_projection_figures(list_items()))
+        create_act = QW_QAction(
+            self, '&Create',
+            statustip="Create selected projection figure(s)",
+            triggered=lambda: self.create_projection_figures(items()))
         menu.addAction(create_act)
 
         # Add create&draw action to menu
-        create_draw_act = QW_QAction('Create && &Draw', self)
-        create_draw_act.setDetails(
-            statustip="Create & draw selected projection figure(s)")
-        create_draw_act.triggered.connect(
-            lambda: self.create_draw_projection_figures(list_items()))
+        create_draw_act = QW_QAction(
+            self, 'Create && &Draw',
+            statustip="Create & draw selected projection figure(s)",
+            triggered=lambda: self.create_draw_projection_figures(items()))
         menu.addAction(create_draw_act)
 
         # Add create, draw & save action to menu
-        create_draw_save_act = QW_QAction('Create, Draw && &Save', self)
-        create_draw_save_act.setDetails(
-            statustip="Create, draw & save selected projection figure(s)")
-        create_draw_save_act.triggered.connect(
-            lambda: self.create_draw_save_projection_figures(list_items()))
+        create_draw_save_act = QW_QAction(
+            self, 'Create, Draw && &Save',
+            statustip="Create, draw & save selected projection figure(s)",
+            triggered=(
+                lambda: self.create_draw_save_projection_figures(items())))
         menu.addAction(create_draw_save_act)
 
         # Save made menu as an attribute
@@ -418,7 +407,7 @@ class OverviewDockWidget(QW.QDockWidget):
         result = progress_dialog()
 
         # Show all drawn projection figures if the dialog was not cancelled
-        if result:
+        if result and self.main.get_option('auto_show'):
             self.show_projection_figures(list_items)
 
         # Return result

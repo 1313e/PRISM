@@ -22,7 +22,8 @@ import numpy as np
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
-from prism._gui.widgets import QW_QComboBox, QW_QLabel
+from prism._gui.widgets import (
+    QW_QComboBox, QW_QDoubleSpinBox, QW_QLabel, QW_QSpinBox)
 from prism._gui.widgets.preferences.helpers import get_box_value, set_box_value
 
 # All declaration
@@ -256,13 +257,13 @@ class DefaultBox(QW.QWidget):
         # Create a checkbox for bools
         bool_box = QW.QCheckBox()
         bool_box.setToolTip("Boolean value for this entry type")
-        bool_box.stateChanged.connect(self.options.enable_save_button)
+        bool_box.toggled.connect(self.options.enable_save_button)
         return(bool_box)
 
     # This function creates the value box for integers
     def add_type_int(self):
         # Create a spinbox for integers
-        int_box = QW.QSpinBox()
+        int_box = QW_QSpinBox()
         int_box.setRange(-9999999, 9999999)
         int_box.setToolTip("Integer value for this entry type")
         int_box.valueChanged.connect(self.options.enable_save_button)
@@ -271,8 +272,9 @@ class DefaultBox(QW.QWidget):
     # This function creates the value box for floats
     def add_type_float(self):
         # Create a spinbox for floats
-        float_box = QW.QDoubleSpinBox()
+        float_box = QW_QDoubleSpinBox()
         float_box.setRange(-9999999, 9999999)
+        float_box.setDecimals(6)
         float_box.setToolTip("Float value for this entry type")
         float_box.valueChanged.connect(self.options.enable_save_button)
         return(float_box)
@@ -317,17 +319,18 @@ class FigSizeBox(QW.QWidget):
 
         # Create two double spinboxes for the width and height
         # WIDTH
-        width_box = QW.QDoubleSpinBox()
+        width_box = QW_QDoubleSpinBox()
         width_box.setRange(1, 9999999)
-        width_box.setSingleStep(0.1)
+        width_box.setSuffix("'")
+        width_box.setStepType(width_box.AdaptiveDecimalStepType)
         width_box.setToolTip("Width (in inches) of projection figure")
         width_box.valueChanged.connect(self.options.enable_save_button)
         self.width_box = width_box
 
         # HEIGHT
-        height_box = QW.QDoubleSpinBox()
+        height_box = QW_QDoubleSpinBox()
         height_box.setRange(1, 9999999)
-        height_box.setSingleStep(0.1)
+        height_box.setSuffix("'")
         height_box.setToolTip("Height (in inches) of projection figure")
         height_box.valueChanged.connect(self.options.enable_save_button)
         self.height_box = height_box

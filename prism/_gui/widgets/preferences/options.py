@@ -18,6 +18,7 @@ from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism._docstrings import proj_depth_doc, proj_res_doc
+from prism._gui.widgets import QW_QDoubleSpinBox, QW_QSpinBox
 from prism._gui.widgets.preferences.helpers import (
     get_box_value, options_entry, set_box_value)
 from prism._gui.widgets.preferences.kwargs_dicts import KwargsDictBoxLayout
@@ -157,7 +158,7 @@ class OptionsDialog(QW.QDialog):
 
     # INTERFACE GROUP
     def add_group_interface(self, *args):
-        self.create_group("Interface", *args, 'auto_tile')
+        self.create_group("Interface", *args, 'auto_tile', 'auto_show', 'dpi')
 
     # FONTS GROUP
     def add_group_fonts(self, *args):
@@ -168,24 +169,28 @@ class OptionsDialog(QW.QDialog):
     def add_option_text_fonts(self, group_layout):
         # PLAIN TEXT
         # Create a font families combobox
-        plain_families_box = QW.QFontComboBox()
-        plain_families_box.setFontFilters(QW.QFontComboBox.MonospacedFonts)
-        plain_families_box.setEditable(True)
-        plain_families_box.setInsertPolicy(QW.QComboBox.NoInsert)
+        plain_box = QW.QFontComboBox()
+        plain_box.setFontFilters(QW.QFontComboBox.MonospacedFonts)
+        plain_box.setEditable(True)
+        plain_box.setInsertPolicy(QW.QComboBox.NoInsert)
+        plain_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
 
         # Create a font size spinbox
-        plain_size_box = QW.QSpinBox()
-        plain_size_box.setRange(7, 9999999)
+        plain_size = QW_QSpinBox()
+        plain_size.setRange(7, 9999999)
+        plain_size.setSuffix(" pts")
 
         # RICH TEXT
         # Create a font families combobox
-        rich_families_box = QW.QFontComboBox()
-        rich_families_box.setEditable(True)
-        rich_families_box.setInsertPolicy(QW.QComboBox.NoInsert)
+        rich_box = QW.QFontComboBox()
+        rich_box.setEditable(True)
+        rich_box.setInsertPolicy(QW.QComboBox.NoInsert)
+        rich_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
 
         # Create a font size spinbox
-        rich_size_box = QW.QSpinBox()
-        rich_size_box.setRange(7, 9999999)
+        rich_size = QW_QSpinBox()
+        rich_size.setRange(7, 9999999)
+        rich_size.setSuffix(" pts")
 
         # Create a grid for the families and size boxes
         font_grid = QW.QGridLayout()
@@ -195,13 +200,38 @@ class OptionsDialog(QW.QDialog):
 
         # Add everything to this grid
         font_grid.addWidget(QW.QLabel("Plain text:"), 0, 0)
-        font_grid.addWidget(plain_families_box, 0, 1)
+        font_grid.addWidget(plain_box, 0, 1)
         font_grid.addWidget(QW.QLabel("Size:"), 0, 2)
-        font_grid.addWidget(plain_size_box, 0, 3)
+        font_grid.addWidget(plain_size, 0, 3)
         font_grid.addWidget(QW.QLabel("Rich text:"), 1, 0)
-        font_grid.addWidget(rich_families_box, 1, 1)
+        font_grid.addWidget(rich_box, 1, 1)
         font_grid.addWidget(QW.QLabel("Size:"), 1, 2)
-        font_grid.addWidget(rich_size_box, 1, 3)
+        font_grid.addWidget(rich_size, 1, 3)
+
+        font_grid.addWidget(QW.QLabel("NOTE: Does not work yet"), 2, 0, 1, 4)
+
+    # DPI OPTION
+    def add_option_dpi(self, group_layout):
+        # Make a checkbox for setting a custom DPI scaling
+        dpi_check = QW.QCheckBox("Custom DPI scaling:")
+        dpi_check.setToolTip("Set this to enable custom DPI scaling of the "
+                             "GUI")
+        dpi_check.toggled.connect(self.enable_save_button)
+        self.options_entries['dpi_flag'] = options_entry(dpi_check, False)
+
+        # Make a spinbox for setting the DPI scaling
+        dpi_box = QW_QDoubleSpinBox()
+        dpi_box.setRange(0, 100)
+        dpi_box.setSuffix("x")
+        dpi_box.setSpecialValueText("Auto")
+        dpi_box.setToolTip("Custom DPI scaling factor to use. "
+                           "'1.0' is no scaling. "
+                           "'Auto' is automatic scaling.")
+        dpi_box.valueChanged.connect(self.enable_save_button)
+        dpi_check.toggled.connect(dpi_box.setEnabled)
+        dpi_box.setEnabled(False)
+        self.options_entries['dpi_scaling'] = options_entry(dpi_box, 1.0)
+        group_layout.addRow(dpi_check, dpi_box)
 
     # AUTO_TILE OPTION
     def add_option_auto_tile(self, group_layout):
@@ -210,14 +240,24 @@ class OptionsDialog(QW.QDialog):
         auto_tile_box.setToolTip("Set this to automatically tile all "
                                  "projection subwindows whenever a new one is "
                                  "added")
-        auto_tile_box.stateChanged.connect(self.enable_save_button)
+        auto_tile_box.toggled.connect(self.enable_save_button)
         self.options_entries['auto_tile'] = options_entry(auto_tile_box, True)
         group_layout.addRow(auto_tile_box)
+
+    # AUTO_SHOW OPTIONS
+    def add_option_auto_show(self, group_layout):
+        # Make check box for auto showing projection figures/subwindows
+        auto_show_box = QW.QCheckBox("Auto-show subwindows")
+        auto_show_box.setToolTip("Set this to automatically show a projection "
+                                 "subwindow after it has been drawn")
+        auto_show_box.toggled.connect(self.enable_save_button)
+        self.options_entries['auto_show'] = options_entry(auto_show_box, True)
+        group_layout.addRow(auto_show_box)
 
     # PROJ_RES OPTION
     def add_option_proj_res(self, group_layout):
         # Make spinbox for option proj_res
-        proj_res_box = QW.QSpinBox()
+        proj_res_box = QW_QSpinBox()
         proj_res_box.setRange(0, 9999999)
         proj_res_box.setToolTip(proj_res_doc)
         proj_res_box.valueChanged.connect(self.enable_save_button)
@@ -228,7 +268,7 @@ class OptionsDialog(QW.QDialog):
     # PROJ_DEPTH OPTION
     def add_option_proj_depth(self, group_layout):
         # Make spinbox for option proj_depth
-        proj_depth_box = QW.QSpinBox()
+        proj_depth_box = QW_QSpinBox()
         proj_depth_box.setRange(0, 9999999)
         proj_depth_box.setToolTip(proj_depth_doc)
         proj_depth_box.valueChanged.connect(self.enable_save_button)
@@ -239,7 +279,7 @@ class OptionsDialog(QW.QDialog):
     # EMUL_I OPTION
     def add_option_emul_i(self, group_layout):
         # Make spinbox for option emul_i
-        emul_i_box = QW.QSpinBox()
+        emul_i_box = QW_QSpinBox()
         emul_i_box.setRange(0, self.pipe._emulator._emul_i)
         emul_i_box.valueChanged.connect(self.enable_save_button)
         self.options_entries['emul_i'] =\
@@ -252,14 +292,14 @@ class OptionsDialog(QW.QDialog):
         # 2D projections
         proj_2D_box = QW.QCheckBox('2D')
         proj_2D_box.setEnabled(self.n_par > 2)
-        proj_2D_box.stateChanged.connect(self.enable_save_button)
+        proj_2D_box.toggled.connect(self.enable_save_button)
         self.options_entries['proj_2D'] =\
             options_entry(proj_2D_box, self.proj_defaults['proj_2D'])
 
         # 3D projections
         proj_3D_box = QW.QCheckBox('3D')
         proj_3D_box.setEnabled(self.n_par > 2)
-        proj_3D_box.stateChanged.connect(self.enable_save_button)
+        proj_3D_box.toggled.connect(self.enable_save_button)
         self.options_entries['proj_3D'] =\
             options_entry(proj_3D_box, self.proj_defaults['proj_3D'])
 
@@ -272,7 +312,6 @@ class OptionsDialog(QW.QDialog):
 
     # ALIGN OPTION
     def add_option_align(self, group_layout):
-        # Make drop-down menu for align
         # Column align
         align_col_box = QW.QRadioButton('Column')
         align_col_box.setToolTip("Align the projection subplots in a single "
@@ -302,7 +341,7 @@ class OptionsDialog(QW.QDialog):
         show_cuts_box = QW.QCheckBox()
         show_cuts_box.setToolTip("Enable/disable showing all implausibility "
                                  "cut-off lines in 2D projections")
-        show_cuts_box.stateChanged.connect(self.enable_save_button)
+        show_cuts_box.toggled.connect(self.enable_save_button)
         self.options_entries['show_cuts'] =\
             options_entry(show_cuts_box, self.proj_defaults['show_cuts'])
         group_layout.addRow('Show cuts?', show_cuts_box)
@@ -315,7 +354,7 @@ class OptionsDialog(QW.QDialog):
                               "smoothed, the minimum implausibility is forced "
                               "to be above the first cut-off for implausible "
                               "regions")
-        smooth_box.stateChanged.connect(self.enable_save_button)
+        smooth_box.toggled.connect(self.enable_save_button)
         self.options_entries['smooth'] =\
             options_entry(smooth_box, self.proj_defaults['smooth'])
         group_layout.addRow('Smooth?', smooth_box)

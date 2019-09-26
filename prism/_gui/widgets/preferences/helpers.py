@@ -76,5 +76,6 @@ def set_box_value(widget_box, value):
 
 # %% OTHER DEFINITIONS
 # Create a named_tuple to be used for options entries
+# TODO: Create a list-version of this
 options_entry = namedtuple('options_entry', ['box', 'default', 'value'])
 options_entry = partial(options_entry, value=None)

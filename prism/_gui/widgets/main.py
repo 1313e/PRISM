@@ -10,6 +10,7 @@ Provides the definition of the main window of the Projection GUI.
 
 # %% IMPORTS
 # Built-in imports
+from collections import OrderedDict as odict
 from contextlib import redirect_stdout
 from functools import partial
 from io import StringIO
@@ -25,7 +26,8 @@ from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from prism.__version__ import __version__
 from prism._internal import RequestError, RequestWarning
 from prism._gui import APP_NAME, DIR_PATH
-from prism._gui.widgets.helpers import QW_QAction, show_exception_details
+from prism._gui.widgets.helpers import (
+    QW_QAction, QW_QMenu, show_exception_details)
 from prism._gui.widgets.overview import OverviewDockWidget
 from prism._gui.widgets.preferences import OptionsDialog
 from prism._gui.widgets.viewing_area import ViewingAreaDockWidget
@@ -98,8 +100,8 @@ class MainViewerWindow(QW.QMainWindow):
         self.create_statusbar()
 
         # Prepare the windows and toolbars menus
-        self.windows_menu = QW.QMenu('&Windows', self)
-        self.toolbars_menu = QW.QMenu('&Toolbars', self)
+        self.windows_menu = QW_QMenu(self, '&Windows')
+        self.toolbars_menu = QW_QMenu(self, '&Toolbars')
 
         # Get default positions of all dock widgets
         self.default_pos = self.get_default_dock_positions()
@@ -151,19 +153,19 @@ class MainViewerWindow(QW.QMainWindow):
         file_menu = self.menubar.addMenu('&File')
 
         # Add save action to file menu
-        save_act = QW_QAction('&Save view as...', self)
-        save_act.setDetails(
+        save_act = QW_QAction(
+            self, '&Save view as...',
             shortcut=QC.Qt.CTRL + QC.Qt.Key_S,
-            statustip="Save current projection viewing area as an image")
-        save_act.triggered.connect(self.area_dock.save_view)
+            statustip="Save current projection viewing area as an image",
+            triggered=self.area_dock.save_view)
         file_menu.addAction(save_act)
 
         # Add quit action to file menu
-        quit_act = QW_QAction('&Quit', self)
-        quit_act.setDetails(
+        quit_act = QW_QAction(
+            self, '&Quit',
             shortcut=QC.Qt.CTRL + QC.Qt.Key_Q,
-            statustip="Quit viewer")
-        quit_act.triggered.connect(self.close)
+            statustip="Quit viewer",
+            triggered=self.close)
         file_menu.addAction(quit_act)
 
         # TOOLS
@@ -179,11 +181,11 @@ class MainViewerWindow(QW.QMainWindow):
         view_menu.addMenu(self.windows_menu)
 
         # Add default layout action to view menu
-        default_layout_act = QW_QAction('&Default layout', self)
-        default_layout_act.setDetails(
+        default_layout_act = QW_QAction(
+            self, '&Default layout',
             statustip=("Reset all windows and toolbars back to their default "
-                       "layout"))
-        default_layout_act.triggered.connect(self.set_default_dock_positions)
+                       "layout"),
+            triggered=self.set_default_dock_positions)
         view_menu.addAction(default_layout_act)
 
         # Add a separator
@@ -198,29 +200,28 @@ class MainViewerWindow(QW.QMainWindow):
 
         # Add options action to help menu
         self.options = OptionsDialog(self)
-        options_act = QW_QAction('&Preferences', self)
-        options_act.setDetails(
+        options_act = QW_QAction(
+            self, '&Preferences',
             shortcut=QC.Qt.CTRL + QC.Qt.Key_P,
-            statustip="Adjust viewer preferences")
-        options_act.triggered.connect(self.options)
+            statustip="Adjust viewer preferences",
+            triggered=self.options)
         help_menu.addAction(options_act)
 
         # Add a separator
         help_menu.addSeparator()
 
         # Add about action to help menu
-        about_act = QW_QAction('&About', self)
-        about_act.setDetails(
-            statustip="About %s" % (APP_NAME))
-        about_act.triggered.connect(self.about)
+        about_act = QW_QAction(
+            self, '&About',
+            statustip="About %s" % (APP_NAME),
+            triggered=self.about)
         help_menu.addAction(about_act)
 
         # Add details action to help menu
-        details_act = QW_QAction('&Details', self)
-        details_act.setDetails(
-            statustip="Show the details overview of the specified iteration")
-        details_act.triggered.connect(
-            lambda: self.show_pipeline_details_overview(1))
+        details_act = QW_QAction(
+            self, '&Details',
+            statustip="Show the details overview of a specified iteration",
+            triggered=self.show_pipeline_details_overview)
         help_menu.addAction(details_act)
 
     # This function creates the statusbar in the viewer
@@ -303,30 +304,161 @@ class MainViewerWindow(QW.QMainWindow):
         self.area_dock.set_default_dock_positions()
 
     # This function shows the details() overview of a given emulator iteration
-    # TODO: Improve the formatting
-    def show_pipeline_details_overview(self, emul_i):
-        # Initialize a StringIO stream to capture the output with
-        with StringIO() as string_stream:
-            # Use this stream to capture the overview of details()
-            with redirect_stdout(string_stream):
-                # Call and obtain the details at specified emulator iteration
-                self.pipe._make_call('details', emul_i)
-
-            # Save the entire string stream as a separate object
-            details = string_stream.getvalue()
-
-        # Create a details message box for this emulator iteration
-        details_box = QW.QMessageBox(self)
+    def show_pipeline_details_overview(self):
+        # Make a details dialog
+        details_box = QW.QDialog(self)
         details_box.setWindowModality(QC.Qt.NonModal)
+        details_box.setAttribute(QC.Qt.WA_DeleteOnClose)
         details_box.setWindowFlags(
             QC.Qt.WindowSystemMenuHint |
             QC.Qt.Window |
             QC.Qt.WindowCloseButtonHint |
             QC.Qt.MSWindowsOwnDC |
             QC.Qt.MSWindowsFixedSizeDialogHint)
-        details_box.layout().setSizeConstraint(QW.QLayout.SetFixedSize)
         details_box.setWindowTitle("%s: Pipeline details" % (APP_NAME))
-        details_box.setText(details)
+
+        # Create a grid layout for this dialog
+        grid = QW.QGridLayout(details_box)
+        grid.setColumnStretch(2, 1)
+
+        # Obtain the latest emul_i
+        emul_i = self.pipe._emulator._emul_i
+
+        # Create a combobox for selecting the desired emulator iteration
+        emul_i_box = QW.QComboBox()
+        grid.addWidget(QW.QLabel("Emulator iteration:"), 0, 0)
+        grid.addWidget(emul_i_box, 0, 1)
+
+        # Create a details pages widget
+        pages_widget = QW.QStackedWidget()
+        grid.addWidget(pages_widget, grid.rowCount(), 0, 1, grid.columnCount())
+
+        # Set signal handling for swapping between details pages
+        emul_i_box.currentIndexChanged.connect(pages_widget.setCurrentIndex)
+
+        # Loop over all emulator iterations and add their pages
+        for i in range(1, emul_i+1):
+            # Initialize a StringIO stream to capture the output with
+            with StringIO() as string_stream:
+                # Use this stream to capture the overview of details()
+                with redirect_stdout(string_stream):
+                    # Obtain the details at specified emulator iteration
+                    self.pipe._make_call('details', emul_i)
+
+                # Save the entire string stream as a separate object
+                details = string_stream.getvalue()
+
+            # Strip gathered details of all whitespaces
+            details = details.strip()
+
+            # Cut everything off before "GENERAL"
+            index = details.find("GENERAL")
+            details = details[index:]
+
+            # Now split details up line-by-line
+            details = details.splitlines()
+
+            # Remove all empty lines in details
+            while True:
+                try:
+                    details.remove('')
+                except ValueError:
+                    break
+
+            # Search for lines that are in all caps, which are group titles
+            group_idx = [j for j, line in enumerate(details)
+                         if line.isupper() and line[0].isalpha()]
+            group_idx.append(-1)
+
+            # Create an empty ordered dict with groups
+            groups = odict()
+
+            # Split details at these indices
+            for j, k in zip(group_idx[:-1], group_idx[1:]):
+                # Extract the part of the list for this group
+                group = details[j:k]
+
+                # Extract the name and entry for this group
+                name = group[0].capitalize()
+                entry = group[1:]
+
+                # If first or last lines contain dashes, remove
+                if(entry[-1].count('-') == len(entry[-1])):
+                    entry.pop(-1)
+                if(entry[0].count('-') == len(entry[0])):
+                    entry.pop(0)
+
+                # Loop over all remaining lines in entry and split at \t
+                entry = [line.split('\t') for line in entry]
+
+                # Add this group entry to the dict
+                groups[name] = entry
+
+            # Make a details layout
+            details_layout = QW.QVBoxLayout()
+            details_layout.setSizeConstraint(QW.QLayout.SetFixedSize)
+
+            # Make QGroupBoxes for all groups
+            for name, entry in groups.items():
+                # Make a QGroupBox for this group
+                group = QW.QGroupBox(name)
+                details_layout.addWidget(group)
+                group_layout = QW.QFormLayout()
+                group.setLayout(group_layout)
+
+                # Loop over all lines in this group's entry
+                for line in entry:
+                    # If line is a list with one element, it spans both columns
+                    if(len(line) == 1):
+                        # Extract this one element
+                        line = line[0]
+
+                        # If line is solely dashes, add a separator
+                        if(line.count('-') == len(line)):
+                            sep_line = QW.QFrame()
+                            sep_line.setFrameShape(sep_line.HLine)
+                            sep_line.setFrameShadow(sep_line.Sunken)
+                            group_layout.addRow(sep_line)
+                        # If not, add line as a QLabel
+                        else:
+                            group_layout.addRow(QW.QLabel(line))
+                    # Else, it contains two elements
+                    else:
+                        group_layout.addRow(*map(QW.QLabel, line))
+
+            # Add a stretch to the layout
+            details_layout.addStretch()
+
+            # Add this details_layout to a new widget
+            details_page = QW.QWidget(details_box)
+            details_page.setLayout(details_layout)
+            details_page.setFixedWidth(details_layout.sizeHint().width())
+
+            # Add the page to a scrollarea
+            scrollarea = QW.QScrollArea(details_box)
+            scrollarea.setWidgetResizable(True)
+            scrollarea.setHorizontalScrollBarPolicy(QC.Qt.ScrollBarAlwaysOff)
+            scrollarea.horizontalScrollBar().setEnabled(False)
+            scrollarea.setWidget(details_page)
+
+            # Set size constraints on the scrollarea
+            scrollarea.setFixedWidth(
+                details_page.width() +
+                scrollarea.verticalScrollBar().sizeHint().width())
+            scrollarea.setMaximumHeight(details_page.height() + 2)
+
+            # Add it to the pages_widget and emul_i_box
+            pages_widget.addWidget(scrollarea)
+            emul_i_box.addItem(str(i))
+
+        # Set size constraints on the details box
+        details_box.setFixedWidth(1.1*pages_widget.sizeHint().width())
+        details_box.setMaximumHeight(scrollarea.maximumHeight() +
+                                     emul_i_box.sizeHint().height() +
+                                     grid.spacing()*(grid.rowCount()+2) + 4)
+
+        # Set the emul_i_box to the latest emul_i
+        emul_i_box.setCurrentIndex(emul_i-1)
 
         # Show the details message box
         details_box.show()
