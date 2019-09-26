@@ -189,7 +189,7 @@ class OptionsDialog(QW.QDialog):
 
         # Create a grid for the families and size boxes
         font_grid = QW.QGridLayout()
-        font_grid.setColumnStretch(1, 1)
+        font_grid.setColumnStretch(1, 2)
         font_grid.setColumnStretch(3, 1)
         group_layout.addRow(font_grid)
 

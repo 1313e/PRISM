@@ -71,6 +71,8 @@ class ColorBox(QW.QWidget):
         color_label = QW_QLabel()
 
         # Set some properties
+        color_label.setFrameShape(QW.QFrame.StyledPanel)
+        color_label.setScaledContents(True)
         color_label.setToolTip("Click to open the custom color picker")
         color_label.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
         color_label.mousePressed.connect(self.show_colorpicker)
@@ -140,7 +142,9 @@ class ColorBox(QW.QWidget):
         except ValueError:
             pass
         else:
-            color = "#%s" % (color)
+            # Make sure that color has a length of 6
+            if(len(color) == 6):
+                color = "#%s" % (color)
 
         # Set the color label
         default_flag = self.set_color_label(color)
@@ -154,12 +158,12 @@ class ColorBox(QW.QWidget):
         # Try to create the pixmap of the colorlabel
         try:
             pixmap = create_color_pixmap(color,
-                                         (70, self.color_combobox.height()-4))
+                                         (70, self.color_combobox.height()-2))
             default_flag = False
         # If that cannot be done, create the default instead
         except ValueError:
             pixmap = create_color_pixmap(self.default_color,
-                                         (70, self.color_combobox.height()-4))
+                                         (70, self.color_combobox.height()-2))
             default_flag = True
 
         # Set the colorlabel
