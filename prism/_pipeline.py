@@ -20,6 +20,7 @@ from os import path
 import sys
 from textwrap import dedent
 from time import time
+import warnings
 
 # Package imports
 from e13tools import InputError, ShapeError
@@ -38,8 +39,8 @@ from sortedcontainers import SortedDict as sdict
 from prism._docstrings import (
     call_emul_i_doc, call_model_doc_s, call_model_doc_m, def_par_doc,
     ext_mod_set_doc, ext_real_set_doc_d, ext_real_set_doc_s, ext_sam_set_doc,
-    impl_cut_doc, paths_doc_d, paths_doc_s, save_data_doc_p, set_par_doc,
-    std_emul_i_doc, user_emul_i_doc)
+    impl_cut_doc, make_call_doc_a, make_call_doc_w, paths_doc_d, paths_doc_s,
+    save_data_doc_p, set_par_doc, std_emul_i_doc, user_emul_i_doc)
 from prism._internal import (
     RequestError, RequestWarning, check_vals,  getCLogger, get_PRISM_File,
     getRLogger, move_logger, np_array, set_base_logger)
@@ -778,55 +779,45 @@ class Pipeline(Projection, object):
         # All workers start listening for calls and process calls received
         if self._is_worker:
             while self._worker_mode:
-                self.__process_call(*self._comm.bcast([], 0))
+                _ = self.__process_call(*self._comm.bcast([], 0))
 
     # Function that sends a code string to all workers and executes it
+    @docstring_append(make_call_doc_a)
     def _make_call(self, exec_fn, *args, **kwargs):
-        """
-        Send the provided `exec_fn` to all worker ranks, if they are
-        listening for calls, and tell them to execute it using the provided
-        `args` and `kwargs`. All ranks that call this function will execute
-        `exec_fn` as well.
-
-        If used within the :attr:`~worker_mode` context manager, this function
-        should only be called by the controller. If not, it should be called by
-        all ranks that must execute `exec_fn`.
-
-        Parameters
-        ----------
-        exec_fn : str, callable or None
-            If string, a callable attribute of this :obj:`~Pipeline` instance
-            or a callable object that the workers should execute if not.
-            If *None*, the workers stop listening for calls instead (disables
-            worker mode).
-        args : positional arguments
-            Positional arguments that need to be provided to `exec_fn`.
-        kwargs : keyword arguments
-            Keyword arguments that need to be provided to `exec_fn`.
-
-        Returns
-        -------
-        out : object
-            The object returned by executing `exec_fn`. Note that only ranks
-            that directly call this function return, as the workers cannot do
-            so.
-
-        """
-
-        # Send received exec_code to all workers if they are listening
+        # Send received exec_fn to all workers if they are listening
         if self._worker_mode and self._is_controller:
             self._comm.bcast([exec_fn, args, kwargs], 0)
 
-        # Execute exec_fn as well
+        # Execute exec_fn on all callers as well
         return(self.__process_call(exec_fn, args, kwargs))
+
+    # Function that sends a code string to all workers (does not execute it)
+    @docstring_append(make_call_doc_w)
+    def _make_call_workers(self, exec_fn, *args, **kwargs):
+        # If exec_fn is None by accident, raise warning and call _make_call
+        if exec_fn is None:
+            warn_msg = ("Invalid input 'exec_fn=None'. Worker mode can only be"
+                        " disabled through '_make_call'. Executing "
+                        "'_make_call(None)' to fully disable worker mode.")
+            warnings.warn(warn_msg, UserWarning, stacklevel=2)
+            self._make_call(None)
+
+        # Send received exec_fn to all workers if they are listening
+        if self._worker_mode and self._is_controller:
+            self._comm.bcast([exec_fn, args, kwargs], 0)
+
+        # Execute exec_fn on all workers
+        if self._is_worker:
+            return(self.__process_call(exec_fn, args, kwargs))
 
     # This function processes a call made by _make_call
     def __process_call(self, exec_fn, args, kwargs):
         """
-        Processes a call that was made with the :meth:`~_make_call` method.
+        Processes a call that was made with the :meth:`~_make_call` or
+        :meth:`~_make_call_workers` method.
 
-        This function should solely be called through :meth:`~_make_call` and
-        never directly.
+        This function should solely be called through either of these methods
+        and never directly.
 
         Parameters
         ----------
@@ -844,19 +835,81 @@ class Pipeline(Projection, object):
         out : object
             The object returned by executing `exec_fn`.
 
+        Note
+        ----
+        If any entry in `args` or `kwargs` is a string written as 'pipe.XXX',
+        it is assumed that 'XXX' refers to a :class:`~prism.Pipeline`
+        attribute. It will be replaced with the corresponding attribute before
+        `exec_fn` is called.
+
         """
 
-        # Process the call and execute the requested operation
+        # If exec_fn is None, disable worker mode and return
         if exec_fn is None:
             self._worker_mode = 0
-        elif isinstance(exec_fn, str):
-            attrs = exec_fn.split('.')
-            obj = self
-            for attr in attrs:
-                obj = getattr(obj, attr)
-            return(obj(*args, **kwargs))
-        else:
-            return(exec_fn(*args, **kwargs))
+            return
+
+        # Process the input arguments
+        # ARGS
+        # Make sure that args is a list, such that it can be edited
+        args = list(args)
+
+        # Loop over all args and process it further if it is a string
+        for i, arg in enumerate(args):
+            if isinstance(arg, str):
+                args[i] = self.__process_call_str(arg)
+
+        # KWARGS
+        # Loop over all args and process it further if it is a string
+        for key, value in kwargs.items():
+            if isinstance(value, str):
+                kwargs[key] = self.__process_call_str(value)
+
+        # EXEC_FN
+        # If exec_fn is given as a string, get corresponding Pipeline attribute
+        if isinstance(exec_fn, str):
+            exec_fn = "pipe.%s" % (exec_fn)
+            exec_fn = self.__process_call_str(exec_fn)
+
+        # Execute exec_fn with provided args and kwargs, and return the result
+        return(exec_fn(*args, **kwargs))
+
+    # This function converts a provided string into an attribute if possible
+    def __process_call_str(self, string):
+        """
+        Processes a provided `string` that was provided as an argument value to
+        :meth:`~__process_call`.
+
+        Parameters
+        ----------
+        string : str
+            String value that must be processed.
+
+        Returns
+        -------
+        out : str or object
+            If `string` starts with 'pipe.', the corresponding
+            :class:`~Pipeline` attribute will be returned. Else, `string` is
+            returned.
+
+        """
+
+        # Split string up into individual elements
+        str_list = string.split('.')
+
+        # If the first element is 'pipe', it refers to a Pipeline attribute
+        if str_list.pop(0) == 'pipe':
+            # Remove 'pipe' again in case 'pipe.pipe.xxx' was provided
+            if len(str_list) and str_list[0] == 'pipe':
+                _ = str_list.pop(0)
+
+            # Retrieve the attribute that string refers to
+            string = self
+            for attr in str_list:
+                string = getattr(string, attr)
+
+        # Return string
+        return(string)
 
     # This function evaluates the model for a given set of evaluation samples
     # TODO: If not MPI_call, all ranks evaluate part of sam_set simultaneously?

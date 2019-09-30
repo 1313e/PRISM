@@ -99,6 +99,48 @@ ext_sam_set_doc =\
             Array containing the externally provided model evaluation
             samples."""
 
+# Docstrings for the _make_call methods
+make_call_doc =\
+        """Sends the provided `exec_fn` to all worker ranks, if they are
+        listening for calls, and tells them to execute it using the provided
+        `args` and `kwargs`.{0}
+
+        If used within the :attr:`~worker_mode` context manager, this function
+        should only be called by the controller. If not, it should be called by
+        all valid ranks that must execute `exec_fn`.
+
+        Parameters
+        ----------
+        exec_fn : {1}
+            If string, a callable attribute of this :obj:`~Pipeline` instance
+            or a callable object that the workers should execute if not.{2}
+        args : positional arguments
+            Positional arguments that need to be provided to `exec_fn`.
+        kwargs : keyword arguments
+            Keyword arguments that need to be provided to `exec_fn`.
+
+        Returns
+        -------
+        out : object
+            The object returned by executing `exec_fn`. Note that only ranks
+            that directly call this function return, as workers in worker mode
+            cannot do so.
+
+        Note
+        ----
+        If any entry in `args` or `kwargs` is a string written as 'pipe.XXX',
+        it is assumed that 'XXX' refers to a :class:`~prism.Pipeline`
+        attribute. It will be replaced with the corresponding attribute before
+        `exec_fn` is called.
+
+        """
+make_call_doc_a = make_call_doc.format(
+    " All ranks that call this function will execute `exec_fn` as well.",
+    "str, callable or None",
+    (" If *None*, the workers stop listening for calls instead (disables "
+     "worker mode)."))
+make_call_doc_w = make_call_doc.format("", "str or callable", "")
+
 # Docstrings for the different paths parameters
 paths_doc =\
         """root_dir : str or None{0}{1}
