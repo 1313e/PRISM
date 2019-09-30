@@ -23,7 +23,8 @@ from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
 from prism._gui.widgets import (
-    QW_QComboBox, QW_QDoubleSpinBox, QW_QLabel, QW_QSpinBox)
+    QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox, QW_QLabel,
+    QW_QSpinBox)
 from prism._gui.widgets.preferences.helpers import get_box_value, set_box_value
 
 # All declaration
@@ -95,7 +96,7 @@ class ColorBox(QW.QWidget):
         cum_len = np.cumsum(list(map(len, colors)))
 
         # Make combobox for colors
-        color_box = QW_QComboBox()
+        color_box = QW_QEditableComboBox()
 
         # Fill combobox with all colors
         for i, color in enumerate(chain(*colors)):
@@ -112,9 +113,6 @@ class ColorBox(QW.QWidget):
 
         # Set remaining properties
         color_box.setToolTip("Select or type (in HEX) the color")
-        color_box.setEditable(True)
-        color_box.setInsertPolicy(QW.QComboBox.NoInsert)
-        color_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
         color_box.highlighted[str].connect(self.set_color_label)
         color_box.popup_hidden[str].connect(self.set_color_label)
         color_box.currentTextChanged.connect(self.options.enable_save_button)
@@ -223,7 +221,7 @@ class DefaultBox(QW.QWidget):
             str: 'str'}
 
         # Create a combobox for the type
-        type_box = QW.QComboBox()
+        type_box = QW_QComboBox()
         type_box.addItems(self.type_dict.values())
         type_box.setToolTip("Type of the entered value")
         type_box.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)

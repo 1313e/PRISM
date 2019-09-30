@@ -144,7 +144,7 @@ class OptionsDialog(QW.QDialog):
 
     # INTERFACE TAB
     def add_tab_appearance(self, *args):
-        self.create_tab("Appearance", *args, 'fonts', 'interface')
+        self.create_tab("Appearance", *args, 'interface')
 
     # PROJ_GRID GROUP
     def add_group_proj_grid(self, *args):
@@ -158,7 +158,7 @@ class OptionsDialog(QW.QDialog):
 
     # INTERFACE GROUP
     def add_group_interface(self, *args):
-        self.create_group("Interface", *args, 'auto_tile', 'auto_show', 'dpi')
+        self.create_group("Interface", *args, 'auto_tile', 'auto_show')
 
     # FONTS GROUP
     def add_group_fonts(self, *args):
@@ -172,7 +172,7 @@ class OptionsDialog(QW.QDialog):
         plain_box = QW.QFontComboBox()
         plain_box.setFontFilters(QW.QFontComboBox.MonospacedFonts)
         plain_box.setEditable(True)
-        plain_box.setInsertPolicy(QW.QComboBox.NoInsert)
+        plain_box.setInsertPolicy(plain_box.NoInsert)
         plain_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
 
         # Create a font size spinbox
@@ -184,7 +184,7 @@ class OptionsDialog(QW.QDialog):
         # Create a font families combobox
         rich_box = QW.QFontComboBox()
         rich_box.setEditable(True)
-        rich_box.setInsertPolicy(QW.QComboBox.NoInsert)
+        rich_box.setInsertPolicy(rich_box.NoInsert)
         rich_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
 
         # Create a font size spinbox
@@ -211,6 +211,7 @@ class OptionsDialog(QW.QDialog):
         font_grid.addWidget(QW.QLabel("NOTE: Does not work yet"), 2, 0, 1, 4)
 
     # DPI OPTION
+    # TODO: Further implement this one as well
     def add_option_dpi(self, group_layout):
         # Make a checkbox for setting a custom DPI scaling
         dpi_check = QW.QCheckBox("Custom DPI scaling:")

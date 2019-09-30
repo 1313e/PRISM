@@ -13,6 +13,7 @@ that allow for certain layouts to be standardized.
 # Built-in imports
 import sys
 import threading
+from time import sleep
 from traceback import format_exception_only, format_tb
 
 # Package imports
@@ -23,8 +24,9 @@ from prism._gui import APP_NAME
 
 # All declaration
 __all__ = ['ExceptionDialog', 'QW_QAction', 'QW_QComboBox',
-           'QW_QDoubleSpinBox', 'QW_QLabel', 'QW_QMenu', 'QW_QSpinBox',
-           'ThreadedProgressDialog', 'TracedThread', 'show_exception_details']
+           'QW_QDoubleSpinBox', 'QW_QEditableComboBox', 'QW_QLabel',
+           'QW_QMenu', 'QW_QSpinBox', 'ThreadedProgressDialog',
+           'show_exception_details']
 
 
 # %% CLASS DEFINITIONS
@@ -249,6 +251,16 @@ class QW_QComboBox(QW.QComboBox):
         return(super().hidePopup(*args, **kwargs))
 
 
+# Create custom QComboBox class that is editable
+class QW_QEditableComboBox(QW_QComboBox):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setEditable(True)
+        self.setInsertPolicy(self.NoInsert)
+        self.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
+        self.completer().setFilterMode(QC.Qt.MatchContains)
+
+
 # Create custom QAbstractSpinBox that automatically sets some properties
 class QW_QAbstractSpinBox(QW.QAbstractSpinBox):
     def __init__(self, *args, **kwargs):
@@ -285,11 +297,11 @@ class QW_QMenu(QW.QMenu):
 
 
 # Class that provides a special threaded progress dialog
-# TODO: This currently does not work properly in MPI
 class ThreadedProgressDialog(QW.QProgressDialog):
     def __init__(self, main_window_obj, label, cancel, func, *iterables):
         # Save provided MainWindow obj
         self.main = main_window_obj
+        self.pipe = self.main.pipe
 
         # Call the super constructor
         super().__init__(self.main)
@@ -324,62 +336,54 @@ class ThreadedProgressDialog(QW.QProgressDialog):
     # This function executes the entire run_map until finished or aborted
     def open(self):
         # Initialize the traced thread
-        thread = TracedThread(self.run_map, self)
+        self.thread = TracedControllerThread(self.run_map, self)
 
         # Connect the proper signals with each other
-        thread.n_finished.connect(self.setValue)
-        super().open(thread.kill)
+        self.thread.n_finished.connect(self.setValue)
+        super().open(self.kill_threads)
+
+        # Start the threads for all other MPI ranks
+        self.pipe._make_call_workers(_run_traced_worker_threads, 'pipe')
 
         # Start the thread
-        thread.start()
-        print('hoi')
+        self.thread.start()
 
         # While the thread is running, keep processing user input events
-        while thread.isAlive():
+        while self.thread.isAlive():
             self.main.qapp.processEvents()
-            thread.join(0.1)
-            print('hooi')
+            self.thread.join(0.1)
 
-        print('hoooi')
-        # Join the thread to make sure that it is terminated everywhere (MPI)
-        thread.join()
-        print('hooooi')
+        # If the dialog ended successfully, end all the threads
+        if not self.wasCanceled():
+            self.end_threads()
+            return(True)
+        else:
+            return(False)
 
-        # Return whether the dialog ended normally
-        return(not self.wasCanceled())
+    # This function finalizes all worker threads and then the controller thread
+    def end_threads(self):
+        # Let the secondary worker threads wait for a second
+        self.pipe._make_call_workers(sleep, 1)
+
+        # Kill all threads in the mean time
+        self.kill_threads()
+
+    # This function kills all worker threads and then the controller thread
+    def kill_threads(self):
+        for rank in range(1, self.pipe._comm.size):
+            self.pipe._comm.send(True, rank, 999+rank)
+        self.thread.killed = True
+        self.thread.join()
 
 
-# https://www.geeksforgeeks.org/python-different-ways-to-kill-a-thread/
-# Special system traced thread that loops over a provided map iterator
-class TracedThread(QC.QObject, threading.Thread):
-    # Define a signal that sends out the number of finished iterations
-    n_finished = QC.pyqtSignal('int')
-
-    # Define a signal that is emitted whenever an exception occurs
-    exception = QC.pyqtSignal()
-
-    def __init__(self, run_map, *args, **kwargs):
-        # Save provided map iterator
-        self.run_map = run_map
-
+# Special system traced thread that stops whenever killed is set to True
+class TracedThread(threading.Thread):
+    def __init__(self):
         # Set killed to False
         self.killed = False
 
-        # Call the super constructors
-        super().__init__(*args, **kwargs)
-        threading.Thread.__init__(self, None)
-
-    # This function gets called when TracedThread.start() is called
-    def run(self):
-        # Set the system tracer
-        sys.settrace(self.global_trace)
-
-        # Emit that currently the number of finished iteration is 0
-        self.n_finished.emit(0)
-
-        # Loop over the map iterator and send a signal after each iteration
-        for i, _ in enumerate(self.run_map):
-            self.n_finished.emit(i+1)
+        # Call super constructor
+        super().__init__(None)
 
     # Make a custom system tracer
     def global_trace(self, frame, event, arg):
@@ -396,12 +400,75 @@ class TracedThread(QC.QObject, threading.Thread):
         # Return self
         return(self.local_trace)
 
-    # Kill this thread
-    def kill(self):
-        self.killed = True
+
+# https://www.geeksforgeeks.org/python-different-ways-to-kill-a-thread/
+# System traced controller thread that loops over a provided map iterator
+class TracedControllerThread(QC.QObject, TracedThread):
+    # Define a signal that sends out the number of finished iterations
+    n_finished = QC.pyqtSignal('int')
+
+    # Define a signal that is emitted whenever an exception occurs
+    exception = QC.pyqtSignal()
+
+    def __init__(self, run_map, parent):
+        # Save provided map iterator
+        self.run_map = run_map
+
+        # Call the super constructors
+        super().__init__(parent)
+        TracedThread.__init__(self)
+
+    # This function gets called when TracedThread.start() is called
+    def run(self):
+        # Set the system tracer
+        sys.settrace(self.global_trace)
+
+        # Emit that currently the number of finished iteration is 0
+        self.n_finished.emit(0)
+
+        # Loop over the map iterator and send a signal after each iteration
+        for i, _ in enumerate(self.run_map):
+            self.n_finished.emit(i+1)
+
+
+# https://www.geeksforgeeks.org/python-different-ways-to-kill-a-thread/
+# Special system traced worker thread that connects to the controller thread
+class TracedWorkerThread(TracedThread):
+    def __init__(self, pipeline_obj):
+        # Save provided pipeline_obj
+        self.pipe = pipeline_obj
+
+        # Call the super constructor
+        super().__init__()
+
+    # This function gets called when TracedThread.start() is called
+    def run(self):
+        # Set the system tracer
+        sys.settrace(self.global_trace)
+
+        # Start listening for calls on this thread as well
+        self.pipe._listen_for_calls()
 
 
 # %% FUNCTION DEFINITIONS
+# This function starts up the threads for all workers
+def _run_traced_worker_threads(pipeline_obj):
+    # Abbreviate pipeline_obj
+    pipe = pipeline_obj
+
+    # Initialize a worker thread
+    thread = TracedWorkerThread(pipe)
+
+    # Start executing on this thread
+    thread.start()
+
+    # Keep listening for the controller telling to stop the worker thread
+    thread.killed = pipe._comm.recv(None, 0, 999+pipe._comm.rank)
+
+    # Connect to the thread to make sure it ended properly
+    thread.join()
+
+
 # This function creates a message box with exception information
 def show_exception_details(parent, etype, value, tb):
     # Emit the exception signal

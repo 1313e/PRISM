@@ -27,7 +27,7 @@ from prism.__version__ import __version__
 from prism._internal import RequestError, RequestWarning
 from prism._gui import APP_NAME, DIR_PATH
 from prism._gui.widgets.helpers import (
-    QW_QAction, QW_QMenu, show_exception_details)
+    QW_QAction, QW_QComboBox, QW_QMenu, show_exception_details)
 from prism._gui.widgets.overview import OverviewDockWidget
 from prism._gui.widgets.preferences import OptionsDialog
 from prism._gui.widgets.viewing_area import ViewingAreaDockWidget
@@ -325,7 +325,7 @@ class MainViewerWindow(QW.QMainWindow):
         emul_i = self.pipe._emulator._emul_i
 
         # Create a combobox for selecting the desired emulator iteration
-        emul_i_box = QW.QComboBox()
+        emul_i_box = QW_QComboBox()
         grid.addWidget(QW.QLabel("Emulator iteration:"), 0, 0)
         grid.addWidget(emul_i_box, 0, 1)
 

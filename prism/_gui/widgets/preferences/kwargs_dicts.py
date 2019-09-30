@@ -23,7 +23,8 @@ from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
-from prism._gui.widgets import QW_QDoubleSpinBox, QW_QSpinBox
+from prism._gui.widgets import (
+    QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox, QW_QSpinBox)
 from prism._gui.widgets.preferences.custom_boxes import (
     ColorBox, DefaultBox, FigSizeBox)
 from prism._gui.widgets.preferences.helpers import (
@@ -247,14 +248,11 @@ class KwargsDictDialogPage(QW.QWidget):
     # This function adds an editable entry
     def add_editable_entry(self):
         # Create a combobox with different standard kwargs
-        kwargs_box = QW.QComboBox()
+        kwargs_box = QW_QEditableComboBox()
         kwargs_box.addItem('')
         kwargs_box.addItems(self.std_entries)
         kwargs_box.setToolTip("Select a standard type for this entry or add "
                               "it manually")
-        kwargs_box.setEditable(True)
-        kwargs_box.setInsertPolicy(QW.QComboBox.NoInsert)
-        kwargs_box.completer().setCompletionMode(QW.QCompleter.PopupCompletion)
         kwargs_box.currentTextChanged.connect(
             lambda x: self.entry_type_selected(x, kwargs_box))
         kwargs_box.currentTextChanged.connect(self.options.enable_save_button)
@@ -357,7 +355,7 @@ class KwargsDictDialogPage(QW.QWidget):
             self.cmap_icons = cmap_icons
 
         # Create a combobox for cmaps
-        cmaps_box = QW.QComboBox()
+        cmaps_box = QW_QComboBox()
         for cmap in chain(*cmaps):
             cmap_icon = self.cmap_icons[cmap]
             cmaps_box.addItem(cmap_icon, cmap)
@@ -388,7 +386,7 @@ class KwargsDictDialogPage(QW.QWidget):
     # This function adds a scale box
     def add_type_scale(self, axis):
         # Make a combobox for scale
-        scale_box = QW.QComboBox()
+        scale_box = QW_QComboBox()
         scale_box.addItems(['linear', 'log'])
         scale_box.setToolTip("Scale type to use on the %s-axis" % (axis))
         scale_box.currentTextChanged.connect(self.options.enable_save_button)
@@ -425,7 +423,7 @@ class KwargsDictDialogPage(QW.QWidget):
         linestyles_lst.sort(key=lambda x: x[0])
 
         # Make combobox for linestyles
-        linestyle_box = QW.QComboBox()
+        linestyle_box = QW_QComboBox()
         for i, (linestyle, tooltip) in enumerate(linestyles_lst):
             linestyle_box.addItem(linestyle)
             linestyle_box.setItemData(i, tooltip, QC.Qt.ToolTipRole)
@@ -456,7 +454,7 @@ class KwargsDictDialogPage(QW.QWidget):
         markers_lst.sort(key=lambda x: x[0])
 
         # Make combobox for markers
-        marker_box = QW.QComboBox()
+        marker_box = QW_QComboBox()
         for i, (marker, tooltip) in enumerate(markers_lst):
             marker_box.addItem(marker)
             marker_box.setItemData(i, tooltip, QC.Qt.ToolTipRole)
