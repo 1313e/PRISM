@@ -313,28 +313,28 @@ class MainViewerWindow(QW.QMainWindow):
             QC.Qt.WindowSystemMenuHint |
             QC.Qt.Window |
             QC.Qt.WindowCloseButtonHint |
-            QC.Qt.MSWindowsOwnDC |
-            QC.Qt.MSWindowsFixedSizeDialogHint)
+            QC.Qt.MSWindowsOwnDC)
         details_box.setWindowTitle("%s: Pipeline details" % (APP_NAME))
 
-        # Create a grid layout for this dialog
-        grid = QW.QGridLayout(details_box)
-        grid.setColumnStretch(2, 1)
+        # Create a layout for this dialog
+        layout = QW.QVBoxLayout(details_box)
 
         # Obtain the latest emul_i
         emul_i = self.pipe._emulator._emul_i
 
-        # Create a combobox for selecting the desired emulator iteration
-        emul_i_box = QW_QComboBox()
-        grid.addWidget(QW.QLabel("Emulator iteration:"), 0, 0)
-        grid.addWidget(emul_i_box, 0, 1)
-
-        # Create a details pages widget
-        pages_widget = QW.QStackedWidget()
-        grid.addWidget(pages_widget, grid.rowCount(), 0, 1, grid.columnCount())
-
-        # Set signal handling for swapping between details pages
-        emul_i_box.currentIndexChanged.connect(pages_widget.setCurrentIndex)
+        # Create a details tab widget
+        tab_widget = QW.QTabWidget()
+        tab_widget.setCornerWidget(QW.QLabel("Emulator iteration:"),
+                                   QC.Qt.TopLeftCorner)
+        tab_widget.setUsesScrollButtons(True)
+        tab_widget.setStyleSheet(
+            """
+            QTabWidget::pane {
+                padding: 1px;}
+            QTabWidget::tab-bar {
+                left: 10px;}
+            """)
+        layout.addWidget(tab_widget)
 
         # Loop over all emulator iterations and add their pages
         for i in range(1, emul_i+1):
@@ -343,7 +343,7 @@ class MainViewerWindow(QW.QMainWindow):
                 # Use this stream to capture the overview of details()
                 with redirect_stdout(string_stream):
                     # Obtain the details at specified emulator iteration
-                    self.pipe._make_call('details', emul_i)
+                    self.pipe._make_call('details', i)
 
                 # Save the entire string stream as a separate object
                 details = string_stream.getvalue()
@@ -430,35 +430,33 @@ class MainViewerWindow(QW.QMainWindow):
             details_layout.addStretch()
 
             # Add this details_layout to a new widget
-            details_page = QW.QWidget(details_box)
-            details_page.setLayout(details_layout)
-            details_page.setFixedWidth(details_layout.sizeHint().width())
+            details_tab = QW.QWidget(details_box)
+            details_tab.setLayout(details_layout)
 
-            # Add the page to a scrollarea
+            # Add the tab to a scrollarea
             scrollarea = QW.QScrollArea(details_box)
+            scrollarea.setFrameStyle(QW.QFrame.NoFrame)
+            scrollarea.setContentsMargins(0, 0, 0, 0)
             scrollarea.setWidgetResizable(True)
             scrollarea.setHorizontalScrollBarPolicy(QC.Qt.ScrollBarAlwaysOff)
             scrollarea.horizontalScrollBar().setEnabled(False)
-            scrollarea.setWidget(details_page)
+            scrollarea.setWidget(details_tab)
 
             # Set size constraints on the scrollarea
-            scrollarea.setFixedWidth(
-                details_page.width() +
-                scrollarea.verticalScrollBar().sizeHint().width())
-            scrollarea.setMaximumHeight(details_page.height() + 2)
+            scrollarea.setMaximumHeight(details_tab.height() + 2)
 
-            # Add it to the pages_widget and emul_i_box
-            pages_widget.addWidget(scrollarea)
-            emul_i_box.addItem(str(i))
+            # Add it to the tab_widget
+            tab_widget.addTab(scrollarea, "&%i" % (i))
 
         # Set size constraints on the details box
-        details_box.setFixedWidth(1.1*pages_widget.sizeHint().width())
+        details_box.setFixedWidth(tab_widget.sizeHint().width() +
+                                  scrollarea.verticalScrollBar().width() +
+                                  layout.contentsMargins().left() +
+                                  layout.contentsMargins().right())
         details_box.setMaximumHeight(scrollarea.maximumHeight() +
-                                     emul_i_box.sizeHint().height() +
-                                     grid.spacing()*(grid.rowCount()+2) + 4)
-
-        # Set the emul_i_box to the latest emul_i
-        emul_i_box.setCurrentIndex(emul_i-1)
+                                     tab_widget.tabBar().sizeHint().height() +
+                                     layout.contentsMargins().top() +
+                                     layout.contentsMargins().bottom())
 
         # Show the details message box
         details_box.show()

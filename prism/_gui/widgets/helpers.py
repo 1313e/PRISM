@@ -371,7 +371,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
     # This function kills all worker threads and then the controller thread
     def kill_threads(self):
         for rank in range(1, self.pipe._comm.size):
-            self.pipe._comm.send(True, rank, 999+rank)
+            self.pipe._comm.send(True, rank, 671589+rank)
         self.thread.killed = True
         self.thread.join()
 
@@ -463,7 +463,7 @@ def _run_traced_worker_threads(pipeline_obj):
     thread.start()
 
     # Keep listening for the controller telling to stop the worker thread
-    thread.killed = pipe._comm.recv(None, 0, 999+pipe._comm.rank)
+    thread.killed = pipe._comm.recv(None, 0, 671589+pipe._comm.rank)
 
     # Connect to the thread to make sure it ended properly
     thread.join()
