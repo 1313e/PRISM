@@ -71,6 +71,7 @@ class ViewingAreaDockWidget(QW.QDockWidget):
 
     # This function saves the current state of the viewer to file
     # TODO: See if the window frames can be removed from the saved image
+    @QC.pyqtSlot()
     def save_view(self):
         # Get dict of all file extensions allowed
         exts = sdict({
@@ -147,6 +148,7 @@ class ViewingAreaDockWidget(QW.QDockWidget):
         return(default_pos)
 
     # This function sets dock widgets and toolbars to their default position
+    @QC.pyqtSlot()
     def set_default_dock_positions(self):
         # Set the dock widgets and toolbars to their default positions
         # TOOLS TOOLBAR
@@ -164,21 +166,6 @@ class ViewingAreaDockWidget(QW.QDockWidget):
         proj_toolbar_act.setText("Tools toolbar")
         proj_toolbar_act.setStatusTip("Enable/disable the 'Tools' toolbar")
         self.main.toolbars_menu.addAction(proj_toolbar_act)
-
-        # Add tools for manipulating projection figures
-
-        # Add a separator
-        self.proj_toolbar.addSeparator()
-
-        # Add action for reoption the view
-        reset_act = QW_QAction(
-            self, "&Reset",
-            shortcut=QC.Qt.CTRL + QC.Qt.SHIFT + QC.Qt.Key_R,
-            statustip="Reset projection viewing area to its default state")
-        self.proj_toolbar.addAction(reset_act)
-
-        # Add a separator
-        self.proj_toolbar.addSeparator()
 
         # Add action for cascading all subwindows
         cascade_act = QW_QAction(

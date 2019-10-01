@@ -154,6 +154,7 @@ class ExceptionDialog(QW.QDialog):
         return(traceback_box)
 
     # This function shows or hides the traceback box
+    @QC.pyqtSlot()
     def toggle_traceback_box(self):
         # Toggle the visibility of the traceback box
         self.tb_box.setHidden(not self.tb_box.isHidden())
@@ -345,12 +346,15 @@ class ThreadedProgressDialog(QW.QProgressDialog):
         # Start the threads for all other MPI ranks
         self.pipe._make_call_workers(_run_traced_worker_threads, 'pipe')
 
+        # Determine what the current QApplication instance is
+        qapp = QW.QApplication.instance()
+
         # Start the thread
         self.thread.start()
 
         # While the thread is running, keep processing user input events
         while self.thread.isAlive():
-            self.main.qapp.processEvents()
+            qapp.processEvents()
             self.thread.join(0.1)
 
         # If the dialog ended successfully, end all the threads
@@ -361,6 +365,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
             return(False)
 
     # This function finalizes all worker threads and then the controller thread
+    @QC.pyqtSlot()
     def end_threads(self):
         # Let the secondary worker threads wait for a second
         self.pipe._make_call_workers(sleep, 1)
@@ -369,6 +374,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
         self.kill_threads()
 
     # This function kills all worker threads and then the controller thread
+    @QC.pyqtSlot()
     def kill_threads(self):
         for rank in range(1, self.pipe._comm.size):
             self.pipe._comm.send(True, rank, 671589+rank)

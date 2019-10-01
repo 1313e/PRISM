@@ -70,7 +70,7 @@ def start_gui(pipeline_obj):
                     qapp.quit, QC.Qt.QueuedConnection)
 
                 # Initialize main window and draw (show) it
-                main_window = MainViewerWindow(qapp, pipeline_obj)
+                main_window = MainViewerWindow(pipeline_obj)
                 main_window.show()
                 main_window.raise_()
                 main_window.activateWindow()

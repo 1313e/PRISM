@@ -120,6 +120,7 @@ class ColorBox(QW.QWidget):
         return(color_box)
 
     # This function shows the custom color picker dialog
+    @QC.pyqtSlot()
     def show_colorpicker(self):
         # Obtain current qcolor
         qcolor = convert_to_qcolor(self.get_box_value())
@@ -134,6 +135,7 @@ class ColorBox(QW.QWidget):
             self.set_color(convert_to_mpl_color(color))
 
     # This function sets a given color as the current color
+    @QC.pyqtSlot(str)
     def set_color(self, color):
         # If color can be converted to a hex integer, do so and add hash to it
         try:
@@ -153,6 +155,7 @@ class ColorBox(QW.QWidget):
             set_box_value(self.color_combobox, color)
 
     # This function sets the color of the colorlabel
+    @QC.pyqtSlot(str)
     def set_color_label(self, color):
         # Try to create the pixmap of the colorlabel
         try:
@@ -238,6 +241,7 @@ class DefaultBox(QW.QWidget):
         box_layout.addWidget(value_box)
 
     # This function creates a field_box depending on the type that was selected
+    @QC.pyqtSlot(str)
     def create_field_box(self, value_type):
         # Obtain a widget box for the specified value_type
         value_box = getattr(self, "add_type_%s" % (value_type))()

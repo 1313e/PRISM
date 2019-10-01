@@ -112,6 +112,7 @@ class KwargsDictDialog(QW.QDialog):
         self.setWindowTitle("Viewing projection keyword dicts")     # Title
 
     # This function shows an editable window with the entries in the dict
+    @QC.pyqtSlot()
     def __call__(self):
         # Show it
         self.show()
@@ -246,6 +247,7 @@ class KwargsDictDialogPage(QW.QWidget):
                           field_value)
 
     # This function adds an editable entry
+    @QC.pyqtSlot()
     def add_editable_entry(self):
         # Create a combobox with different standard kwargs
         kwargs_box = QW_QEditableComboBox()
@@ -280,6 +282,7 @@ class KwargsDictDialogPage(QW.QWidget):
         self.kwargs_grid.addWidget(QW.QWidget(), n_rows, 2)
 
     # This function deletes an editable entry
+    @QC.pyqtSlot(QW.QComboBox)
     def remove_editable_entry(self, kwargs_box):
         # Determine at what index the provided kwargs_box currently is
         index = self.kwargs_grid.indexOf(kwargs_box)
@@ -295,6 +298,7 @@ class KwargsDictDialogPage(QW.QWidget):
 
     # This function is called when an item in the combobox is selected
     # TODO: Make sure that two fields cannot have the same name
+    @QC.pyqtSlot(str, QW.QComboBox)
     def entry_type_selected(self, entry_type, kwargs_box):
         # Determine at what index the provided kwargs_box currently is
         index = self.kwargs_grid.indexOf(kwargs_box)

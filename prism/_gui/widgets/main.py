@@ -27,7 +27,7 @@ from prism.__version__ import __version__
 from prism._internal import RequestError, RequestWarning
 from prism._gui import APP_NAME, DIR_PATH
 from prism._gui.widgets.helpers import (
-    QW_QAction, QW_QComboBox, QW_QMenu, show_exception_details)
+    QW_QAction, QW_QMenu, show_exception_details)
 from prism._gui.widgets.overview import OverviewDockWidget
 from prism._gui.widgets.preferences import OptionsDialog
 from prism._gui.widgets.viewing_area import ViewingAreaDockWidget
@@ -44,10 +44,7 @@ class MainViewerWindow(QW.QMainWindow):
     exception = QC.pyqtSignal()
 
     # Initialize ViewerWindow class
-    def __init__(self, qapplication_obj, pipeline_obj, *args, **kwargs):
-        # Save qapplication_obj as qapp
-        self.qapp = qapplication_obj
-
+    def __init__(self, pipeline_obj, *args, **kwargs):
         # Save pipeline_obj as pipe
         self.pipe = pipeline_obj
 
@@ -220,7 +217,8 @@ class MainViewerWindow(QW.QMainWindow):
         # Add details action to help menu
         details_act = QW_QAction(
             self, '&Details',
-            statustip="Show the details overview of a specified iteration",
+            statustip=("Show the pipeline details overview of a specified "
+                       "iteration"),
             triggered=self.show_pipeline_details_overview)
         help_menu.addAction(details_act)
 
@@ -230,6 +228,7 @@ class MainViewerWindow(QW.QMainWindow):
         self.statusbar = self.statusBar()
 
     # This function creates a message box with the 'about' information
+    @QC.pyqtSlot()
     def about(self):
         QW.QMessageBox.about(
             self, "About %s" % (APP_NAME), dedent(r"""
@@ -290,6 +289,7 @@ class MainViewerWindow(QW.QMainWindow):
         return(default_pos)
 
     # This function sets dock widgets and toolbars to their default position
+    @QC.pyqtSlot()
     def set_default_dock_positions(self):
         # Set the dock widgets and toolbars to their default positions
         # OVERVIEW
@@ -304,6 +304,7 @@ class MainViewerWindow(QW.QMainWindow):
         self.area_dock.set_default_dock_positions()
 
     # This function shows the details() overview of a given emulator iteration
+    @QC.pyqtSlot()
     def show_pipeline_details_overview(self):
         # Make a details dialog
         details_box = QW.QDialog(self)

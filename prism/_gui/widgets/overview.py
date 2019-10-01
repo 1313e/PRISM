@@ -107,9 +107,7 @@ class OverviewDockWidget(QW.QDockWidget):
         self.create_drawn_context_menu()
         self.proj_list_d.customContextMenuRequested.connect(
             self.show_drawn_context_menu)
-        self.proj_list_d.itemActivated.connect(
-            lambda: self.show_projection_figures(
-                self.proj_list_d.selectedItems()))
+        self.proj_list_d.itemActivated.connect(self.show_projection_figures)
 
         # Add list to overview
         self.proj_overview.addWidget(self.proj_list_d)
@@ -133,9 +131,7 @@ class OverviewDockWidget(QW.QDockWidget):
         self.create_available_context_menu()
         self.proj_list_a.customContextMenuRequested.connect(
             self.show_available_context_menu)
-        self.proj_list_a.itemActivated.connect(
-            lambda: self.draw_projection_figures(
-                self.proj_list_a.selectedItems()))
+        self.proj_list_a.itemActivated.connect(self.draw_projection_figures)
 
         # Add list to overview
         self.proj_overview.addWidget(self.proj_list_a)
@@ -159,9 +155,7 @@ class OverviewDockWidget(QW.QDockWidget):
         self.create_unavailable_context_menu()
         self.proj_list_u.customContextMenuRequested.connect(
             self.show_unavailable_context_menu)
-        self.proj_list_u.itemActivated.connect(
-            lambda: self.create_projection_figures(
-                self.proj_list_u.selectedItems()))
+        self.proj_list_u.itemActivated.connect(self.create_projection_figures)
 
         # Add list to overview
         self.proj_overview.addWidget(self.proj_list_u)
@@ -171,56 +165,53 @@ class OverviewDockWidget(QW.QDockWidget):
         # Create context menu
         menu = QW_QMenu(self, 'Drawn')
 
-        # Make shortcut for obtaining selected items
-        items = self.proj_list_d.selectedItems
-
         # Add show action to menu
         show_act = QW_QAction(
             self, 'S&how',
             statustip="Show selected projection figure(s)",
-            triggered=lambda: self.show_projection_figures(items()))
+            triggered=self.show_projection_figures)
         menu.addAction(show_act)
 
         # Add save action to menu
         save_act = QW_QAction(
             self, '&Save',
             statustip="Save selected projection figure(s) to file",
-            triggered=lambda: self.save_projection_figures(items()))
+            triggered=self.save_projection_figures)
         menu.addAction(save_act)
 
         # Add save as action to menu
         save_as_act = QW_QAction(
             self, 'Save &as...',
             statustip="Save selected projection figure(s) to chosen file",
-            triggered=lambda: self.save_projection_figures(items(),
-                                                           choose=True))
+            triggered=self.save_as_projection_figures)
         menu.addAction(save_as_act)
 
         # Add redraw action to menu
         redraw_act = QW_QAction(
             self, '&Redraw',
             statustip="Redraw selected projection figure(s)",
-            triggered=lambda: self.redraw_projection_figures(items()))
+            triggered=self.redraw_projection_figures)
         menu.addAction(redraw_act)
 
         # Add close action to menu
         close_act = QW_QAction(
             self, '&Close',
             statustip="Close selected projection figure(s)",
-            triggered=lambda: self.close_projection_figures(items()))
+            triggered=self.close_projection_figures)
         menu.addAction(close_act)
 
         # Add details action to menu (single item only)
         self.details_u_act = QW_QAction(
             self, 'De&tails',
             statustip="Show details about selected projection figure",
-            triggered=lambda: self.details_projection_figure(items()[0]))
+            triggered=self.details_drawn_projection_figure)
         menu.addAction(self.details_u_act)
 
         # Save made menu as an attribute
         self.context_menu_d = menu
 
     # This function shows the context menu for drawn projections
+    @QC.pyqtSlot()
     def show_drawn_context_menu(self):
         # Calculate number of selected items
         n_items = len(self.proj_list_d.selectedItems())
@@ -238,48 +229,46 @@ class OverviewDockWidget(QW.QDockWidget):
         # Create context menu
         menu = QW_QMenu(self, 'Available')
 
-        # Make shortcut for obtaining selected items
-        items = self.proj_list_a.selectedItems
-
         # Add draw action to menu
         draw_act = QW_QAction(
             self, '&Draw',
             statustip="Draw selected projection figure(s)",
-            triggered=lambda: self.draw_projection_figures(items()))
+            triggered=self.draw_projection_figures)
         menu.addAction(draw_act)
 
         # Add draw&save action to menu
         draw_save_act = QW_QAction(
             self, 'Draw && &Save',
             statustip="Draw & save selected projection figure(s)",
-            triggered=lambda: self.draw_save_projection_figures(items()))
+            triggered=self.draw_save_projection_figures)
         menu.addAction(draw_save_act)
 
         # Add recreate action to menu
         recreate_act = QW_QAction(
             self, '&Recreate',
             statustip="Recreate selected projection figure(s)",
-            triggered=lambda: self.recreate_projection_figures(items()))
+            triggered=self.recreate_projection_figures)
         menu.addAction(recreate_act)
 
         # Add delete action to menu
         delete_act = QW_QAction(
             self, 'D&elete',
             statustip="Delete selected projection figure(s)",
-            triggered=lambda: self.delete_projection_figures(items()))
+            triggered=self.delete_projection_figures)
         menu.addAction(delete_act)
 
         # Add details action to menu (single item only)
         self.details_a_act = QW_QAction(
             self, 'De&tails',
             statustip="Show details about selected projection figure",
-            triggered=lambda: self.details_projection_figure(items()[0]))
+            triggered=self.details_available_projection_figure)
         menu.addAction(self.details_a_act)
 
         # Save made menu as an attribute
         self.context_menu_a = menu
 
     # This function shows the context menu for available projections
+    @QC.pyqtSlot()
     def show_available_context_menu(self):
         # Calculate number of selected items
         n_items = len(self.proj_list_a.selectedItems())
@@ -297,42 +286,45 @@ class OverviewDockWidget(QW.QDockWidget):
         # Create context menu
         menu = QW_QMenu(self, 'Unavailable')
 
-        # Make shortcut for obtaining selected items
-        items = self.proj_list_u.selectedItems
-
         # Add create action to menu
         create_act = QW_QAction(
             self, '&Create',
             statustip="Create selected projection figure(s)",
-            triggered=lambda: self.create_projection_figures(items()))
+            triggered=self.create_projection_figures)
         menu.addAction(create_act)
 
         # Add create&draw action to menu
         create_draw_act = QW_QAction(
             self, 'Create && &Draw',
             statustip="Create & draw selected projection figure(s)",
-            triggered=lambda: self.create_draw_projection_figures(items()))
+            triggered=self.create_draw_projection_figures)
         menu.addAction(create_draw_act)
 
         # Add create, draw & save action to menu
         create_draw_save_act = QW_QAction(
             self, 'Create, Draw && &Save',
             statustip="Create, draw & save selected projection figure(s)",
-            triggered=(
-                lambda: self.create_draw_save_projection_figures(items())))
+            triggered=self.create_draw_save_projection_figures)
         menu.addAction(create_draw_save_act)
 
         # Save made menu as an attribute
         self.context_menu_u = menu
 
     # This function shows the context menu for unavailable projections
+    @QC.pyqtSlot()
     def show_unavailable_context_menu(self):
         # If there is currently at least one item selected, show context menu
         if len(self.proj_list_u.selectedItems()):
             self.context_menu_u.popup(QG.QCursor.pos())
 
     # This function shows a list of projection figures in the viewing area
-    def show_projection_figures(self, list_items):
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(list)
+    def show_projection_figures(self, list_items=None):
+        # Obtain the list_items
+        if list_items is None:
+            list_items = self.proj_list_d.selectedItems()
+
         # Loop over all items in list_items
         for list_item in list_items:
             # Retrieve text of list_item
@@ -375,7 +367,13 @@ class OverviewDockWidget(QW.QDockWidget):
             self.main.area_dock.proj_area.tileSubWindows()
 
     # This function removes a list of projection figures permanently
-    def close_projection_figures(self, list_items):
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(list)
+    def close_projection_figures(self, list_items=None):
+        # Obtain the list_items
+        if list_items is None:
+            list_items = self.proj_list_d.selectedItems()
+
         # Loop over all items in list_items
         for list_item in list_items:
             # Retrieve text of list_item
@@ -397,7 +395,13 @@ class OverviewDockWidget(QW.QDockWidget):
     # OPTIMIZE: Reshaping a 3D projection figure takes up to 15 seconds
     # TODO: Figure out if there is a way to make a figure static, and only
     # resize when explicitly told to do so
-    def draw_projection_figures(self, list_items):
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(list)
+    def draw_projection_figures(self, list_items=None):
+        # Obtain the list_items
+        if list_items is None:
+            list_items = self.proj_list_a.selectedItems()
+
         # Create a threaded progress dialog for creating projections
         progress_dialog = ThreadedProgressDialog(
             self.main, "Drawing projection figures...", "Abort",
@@ -441,7 +445,14 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function deletes a list of projection figures
     # TODO: Avoid reimplementing the __get_req_hcubes() logic here
-    def delete_projection_figures(self, list_items, *, skip_warning=False):
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(list)
+    def delete_projection_figures(self, list_items=None, *,
+                                  skip_warning=False):
+        # Obtain the list_items
+        if list_items is None:
+            list_items = self.proj_list_a.selectedItems()
+
         # If skip_warning is False, ask the user if they really want this
         if not skip_warning:
             button_clicked = QW.QMessageBox.warning(
@@ -482,7 +493,13 @@ class OverviewDockWidget(QW.QDockWidget):
                 self.proj_list_u.addItem(item)
 
     # This function creates a list of projection figures
-    def create_projection_figures(self, list_items):
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(list)
+    def create_projection_figures(self, list_items=None):
+        # Obtain the list_items
+        if list_items is None:
+            list_items = self.proj_list_u.selectedItems()
+
         # Create a threaded progress dialog for creating projections
         progress_dialog = ThreadedProgressDialog(
             self.main, "Creating projection figures...", "Abort",
@@ -508,7 +525,13 @@ class OverviewDockWidget(QW.QDockWidget):
         self.proj_list_a.addItem(item)
 
     # This function saves a list of projection figures to file
-    def save_projection_figures(self, list_items, *, choose=False):
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(list)
+    def save_projection_figures(self, list_items=None, *, choose=False):
+        # Obtain the list_items
+        if list_items is None:
+            list_items = self.proj_list_d.selectedItems()
+
         # Loop over all items in list_items
         for list_item in list_items:
             # Retrieve text of list_item
@@ -585,20 +608,44 @@ class OverviewDockWidget(QW.QDockWidget):
             else:
                 fig.savefig(fig_path)
 
+    # This function saves a list of projection figures to file
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(list)
+    def save_as_projection_figures(self, list_items=None):
+        self.save_projection_figures(list_items, choose=True)
+
     # This function redraws a list of projection figures
-    def redraw_projection_figures(self, list_items):
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(list)
+    def redraw_projection_figures(self, list_items=None):
+        # Obtain the list_items
+        if list_items is None:
+            list_items = self.proj_list_d.selectedItems()
+
         # Close and redraw all projection figures in list_items
         self.close_projection_figures(list_items)
         self.draw_projection_figures(list_items)
 
     # This function draws and saves a list of projection figures
-    def draw_save_projection_figures(self, list_items):
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(list)
+    def draw_save_projection_figures(self, list_items=None):
+        # Obtain the list_items
+        if list_items is None:
+            list_items = self.proj_list_a.selectedItems()
+
         # Draw and save all projection figures in list_items
         if self.draw_projection_figures(list_items):
             self.save_projection_figures(list_items)
 
     # This function recreates a list of projection figures
-    def recreate_projection_figures(self, list_items):
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(list)
+    def recreate_projection_figures(self, list_items=None):
+        # Obtain the list_items
+        if list_items is None:
+            list_items = self.proj_list_a.selectedItems()
+
         # Ask the user if they really want to recreate the figures
         button_clicked = QW.QMessageBox.warning(
             self, "WARNING: Recreate projection(s)",
@@ -612,21 +659,55 @@ class OverviewDockWidget(QW.QDockWidget):
             self.create_projection_figures(list_items)
 
     # This function creates and draws a list of projection figures
-    def create_draw_projection_figures(self, list_items):
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(list)
+    def create_draw_projection_figures(self, list_items=None):
+        # Obtain the list_items
+        if list_items is None:
+            list_items = self.proj_list_u.selectedItems()
+
         # Create and draw all projection figures in list_items
         if self.create_projection_figures(list_items):
             self.draw_projection_figures(list_items)
 
     # This function creates, draws and saves a list of projection figures
-    def create_draw_save_projection_figures(self, list_items):
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(list)
+    def create_draw_save_projection_figures(self, list_items=None):
+        # Obtain the list_items
+        if list_items is None:
+            list_items = self.proj_list_u.selectedItems()
+
         # Create, draw and save all projection figures in list_items
         if self.create_projection_figures(list_items):
             if self.draw_projection_figures(list_items):
                 self.save_projection_figures(list_items)
 
+    # This function shows a details overview of a drawn projection figure
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(QW.QListWidgetItem)
+    def details_drawn_projection_figure(self, list_item=None):
+        # Obtain the list_item
+        if list_item is None:
+            list_item = self.proj_list_d.selectedItems()[0]
+
+        # Show details
+        self._details_projection_figure(list_item)
+
+    # This function shows a details overview of an available projection figure
+    @QC.pyqtSlot()
+    @QC.pyqtSlot(QW.QListWidgetItem)
+    def details_available_projection_figure(self, list_item=None):
+        # Obtain the list_item
+        if list_item is None:
+            list_item = self.proj_list_a.selectedItems()[0]
+
+        # Show details
+        self._details_projection_figure(list_item)
+
     # This function shows a details overview of a projection figure
     # TODO: Add section on how the figure was drawn for drawn projections?
-    def details_projection_figure(self, list_item):
+    def _details_projection_figure(self, list_item):
         # Retrieve text of list_item
         hcube_name = list_item.text()
         hcube = self.hcubes[self.names.index(hcube_name)]

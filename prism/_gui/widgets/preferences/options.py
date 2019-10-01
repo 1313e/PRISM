@@ -80,6 +80,7 @@ class OptionsDialog(QW.QDialog):
         self.main.get_option = self.get_option
 
     # This function shows the options window
+    @QC.pyqtSlot()
     def __call__(self):
         # Show it
         self.show()
@@ -436,6 +437,7 @@ class OptionsDialog(QW.QDialog):
         close_but.setDefault(True)
 
     # This function saves the new options values
+    @QC.pyqtSlot()
     def save_options(self):
         # Save all new values
         for key, entry in self.options_entries.items():
@@ -458,14 +460,17 @@ class OptionsDialog(QW.QDialog):
         self.disable_save_button()
 
     # This function enables the save button
+    @QC.pyqtSlot()
     def enable_save_button(self):
         self.save_but.setEnabled(True)
 
     # This function disables the save button
+    @QC.pyqtSlot()
     def disable_save_button(self):
         self.save_but.setEnabled(False)
 
     # This function resets the default options
+    @QC.pyqtSlot()
     def reset_options(self):
         # Reset all options to defaults
         for entry in self.options_entries.values():
@@ -475,6 +480,7 @@ class OptionsDialog(QW.QDialog):
         self.save_options()
 
     # This function sets the current options
+    @QC.pyqtSlot()
     def set_options(self):
         # Set all options to their current saved values
         for entry in self.options_entries.values():
