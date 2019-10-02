@@ -2,6 +2,7 @@ include LICENSE
 include README.rst
 include MANIFEST.in
 include requirements*.txt
+include conftest.py
 recursive-include prism data/*
 
 exclude docs joss_paper logo prism_trash tutorials .github
