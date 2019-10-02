@@ -18,7 +18,7 @@ from PyQt5 import QtCore as QC, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
-from prism._gui.widgets.helpers import QW_QAction
+from prism._gui.widgets import QW_QAction, QW_QToolBar
 
 # All declaration
 __all__ = ['ViewingAreaDockWidget']
@@ -159,7 +159,7 @@ class ViewingAreaDockWidget(QW.QDockWidget):
     # This function creates the toolbar of the projection viewing area
     def create_projection_toolbar(self):
         # Create toolbar for projection viewer
-        self.proj_toolbar = QW.QToolBar("Tools", self)
+        self.proj_toolbar = QW_QToolBar(self, "Tools")
 
         # Create an action for enabling/disabling the toolbar
         proj_toolbar_act = self.proj_toolbar.toggleViewAction()

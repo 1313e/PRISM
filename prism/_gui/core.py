@@ -31,7 +31,7 @@ __all__ = ['start_gui']
 # This function starts up the Projection GUI
 @docstring_append(start_gui_doc_pars, '\n\t\n\t')
 @docstring_append(start_gui_doc)
-def start_gui(pipeline_obj):
+def start_gui(pipeline_obj):  # pragma: no cover
     # Create a logger
     logger = getCLogger('GUI')
     logger.info("Starting the projection GUI.")
@@ -66,8 +66,8 @@ def start_gui(pipeline_obj):
                     qapp.setApplicationName(APP_NAME)
 
                 # Make sure that the application quits when last window closes
-                qapp.lastWindowClosed.connect(
-                    qapp.quit, QC.Qt.QueuedConnection)
+                qapp.lastWindowClosed.connect(qapp.quit,
+                                              QC.Qt.QueuedConnection)
 
                 # Initialize main window and draw (show) it
                 main_window = MainViewerWindow(pipeline_obj)

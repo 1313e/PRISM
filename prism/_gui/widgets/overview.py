@@ -23,8 +23,8 @@ from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism._gui import APP_NAME
-from prism._gui.widgets.helpers import (
-    QW_QAction, QW_QMenu, ThreadedProgressDialog)
+from prism._gui.widgets import (
+    QW_QAction, QW_QMenu, OverviewListWidget, ThreadedProgressDialog)
 
 # All declaration
 __all__ = ['OverviewDockWidget']
@@ -90,75 +90,37 @@ class OverviewDockWidget(QW.QDockWidget):
 
         # DRAWN PROJECTIONS
         # Add list for drawn projections
+        self.proj_list_d = OverviewListWidget(
+            hcubes_list=drawn_hcubes,
+            status_tip="Lists all projections that have been drawn",
+            context_menu=self.show_drawn_context_menu,
+            activated=self.show_projection_figures)
         self.proj_overview.addWidget(QW.QLabel("Drawn:"))
-        self.proj_list_d = QW.QListWidget()
-        self.proj_list_d.setSortingEnabled(True)
-        self.proj_list_d.addItems(drawn_hcubes)
-        self.proj_list_d.setStatusTip("Lists all projections that have been "
-                                      "drawn")
-
-        # Set a variety of properties
-        self.proj_list_d.setAlternatingRowColors(True)
-        self.proj_list_d.setSelectionMode(
-            QW.QAbstractItemView.ExtendedSelection)
-        self.proj_list_d.setContextMenuPolicy(QC.Qt.CustomContextMenu)
-
-        # Add signal handling
-        self.create_drawn_context_menu()
-        self.proj_list_d.customContextMenuRequested.connect(
-            self.show_drawn_context_menu)
-        self.proj_list_d.itemActivated.connect(self.show_projection_figures)
-
-        # Add list to overview
         self.proj_overview.addWidget(self.proj_list_d)
+        self.create_drawn_context_menu()
 
         # AVAILABLE PROJECTIONS
         # Add list for available projections
+        self.proj_list_a = OverviewListWidget(
+            hcubes_list=avail_hcubes,
+            status_tip=("Lists all projections that have been calculated but "
+                        "not drawn"),
+            context_menu=self.show_available_context_menu,
+            activated=self.draw_projection_figures)
         self.proj_overview.addWidget(QW.QLabel("Available:"))
-        self.proj_list_a = QW.QListWidget()
-        self.proj_list_a.setSortingEnabled(True)
-        self.proj_list_a.addItems(avail_hcubes)
-        self.proj_list_a.setStatusTip("Lists all projections that have been "
-                                      "calculated but not drawn")
-
-        # Set a variety of properties
-        self.proj_list_a.setAlternatingRowColors(True)
-        self.proj_list_a.setSelectionMode(
-            QW.QAbstractItemView.ExtendedSelection)
-        self.proj_list_a.setContextMenuPolicy(QC.Qt.CustomContextMenu)
-
-        # Add signal handling
-        self.create_available_context_menu()
-        self.proj_list_a.customContextMenuRequested.connect(
-            self.show_available_context_menu)
-        self.proj_list_a.itemActivated.connect(self.draw_projection_figures)
-
-        # Add list to overview
         self.proj_overview.addWidget(self.proj_list_a)
+        self.create_available_context_menu()
 
         # UNAVAILABLE PROJECTIONS
         # Add list for projections that can be created
+        self.proj_list_u = OverviewListWidget(
+            hcubes_list=unavail_hcubes,
+            status_tip="Lists all projections that have not been calculated",
+            context_menu=self.show_unavailable_context_menu,
+            activated=self.create_projection_figures)
         self.proj_overview.addWidget(QW.QLabel("Unavailable:"))
-        self.proj_list_u = QW.QListWidget()
-        self.proj_list_u.setSortingEnabled(True)
-        self.proj_list_u.addItems(unavail_hcubes)
-        self.proj_list_u.setStatusTip("Lists all projections that have not "
-                                      "been calculated")
-
-        # Set a variety of properties
-        self.proj_list_u.setAlternatingRowColors(True)
-        self.proj_list_u.setSelectionMode(
-            QW.QAbstractItemView.ExtendedSelection)
-        self.proj_list_u.setContextMenuPolicy(QC.Qt.CustomContextMenu)
-
-        # Add signal handling
-        self.create_unavailable_context_menu()
-        self.proj_list_u.customContextMenuRequested.connect(
-            self.show_unavailable_context_menu)
-        self.proj_list_u.itemActivated.connect(self.create_projection_figures)
-
-        # Add list to overview
         self.proj_overview.addWidget(self.proj_list_u)
+        self.create_unavailable_context_menu()
 
     # This function creates the context menu for drawn projections
     def create_drawn_context_menu(self):

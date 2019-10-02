@@ -14,7 +14,6 @@ from collections import OrderedDict as odict
 from contextlib import redirect_stdout
 from functools import partial
 from io import StringIO
-from os import path
 import sys
 from textwrap import dedent
 import warnings
@@ -25,9 +24,8 @@ from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 # PRISM imports
 from prism.__version__ import __version__
 from prism._internal import RequestError, RequestWarning
-from prism._gui import APP_NAME, DIR_PATH
-from prism._gui.widgets.helpers import (
-    QW_QAction, QW_QMenu, show_exception_details)
+from prism._gui import APP_ICON_PATH, APP_NAME
+from prism._gui.widgets import QW_QAction, QW_QMenu, show_exception_details
 from prism._gui.widgets.overview import OverviewDockWidget
 from prism._gui.widgets.preferences import OptionsDialog
 from prism._gui.widgets.viewing_area import ViewingAreaDockWidget
@@ -91,7 +89,7 @@ class MainViewerWindow(QW.QMainWindow):
 
         # Set window icon and title
         self.setWindowTitle(APP_NAME)
-        self.setWindowIcon(QG.QIcon(path.join(DIR_PATH, 'data/app_icon.ico')))
+        self.setWindowIcon(QG.QIcon(APP_ICON_PATH))
 
         # Create statusbar
         self.create_statusbar()
@@ -204,23 +202,31 @@ class MainViewerWindow(QW.QMainWindow):
             triggered=self.options)
         help_menu.addAction(options_act)
 
+        # Add details action to help menu
+        details_act = QW_QAction(
+            self, '&Details',
+            shortcut=QC.Qt.CTRL + QC.Qt.Key_D,
+            statustip=("Show the pipeline details overview of a specified "
+                       "iteration"),
+            triggered=self.show_pipeline_details_overview)
+        help_menu.addAction(details_act)
+
         # Add a separator
         help_menu.addSeparator()
 
         # Add about action to help menu
         about_act = QW_QAction(
-            self, '&About',
+            self, '&About...',
             statustip="About %s" % (APP_NAME),
             triggered=self.about)
         help_menu.addAction(about_act)
 
-        # Add details action to help menu
-        details_act = QW_QAction(
-            self, '&Details',
-            statustip=("Show the pipeline details overview of a specified "
-                       "iteration"),
-            triggered=self.show_pipeline_details_overview)
-        help_menu.addAction(details_act)
+        # Add aboutQt action to help menu
+        aboutqt_act = QW_QAction(
+            self, 'About &Qt...',
+            statustip="About Qt framework",
+            triggered=QW.QApplication.aboutQt)
+        help_menu.addAction(aboutqt_act)
 
     # This function creates the statusbar in the viewer
     def create_statusbar(self):
