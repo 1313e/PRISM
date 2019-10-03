@@ -13,7 +13,6 @@ from e13tools.utils import check_instance
 import h5py
 from mpi4pyd import MPI
 import numpy as np
-from py.path import local
 import pytest
 from pytest_mpl.plugin import switch_backend
 from sortedcontainers import SortedDict as sdict
@@ -28,14 +27,6 @@ from prism.modellink.tests.modellink import GaussianLink2D, GaussianLink3D
 
 # Set the random seed of NumPy
 np.random.seed(2)
-
-# Set the current working directory to the temporary directory
-local.get_temproot().chdir()
-
-# Ignore any RequestWarnings
-pytestmark = pytest.mark.filterwarnings(
-    "ignore::prism._internal.RequestWarning")
-
 
 # %% GLOBALS
 DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory

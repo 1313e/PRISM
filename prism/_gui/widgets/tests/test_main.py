@@ -5,42 +5,19 @@
 from os import path
 
 # Package imports
+from mpi4pyd import MPI
 from PyQt5 import QtWidgets as QW
-from py.path import local
 import pytest
-
-# Set the current working directory to the temporary directory
-local.get_temproot().chdir()
-
-# Ignore any RequestWarnings
-pytestmark = pytest.mark.filterwarnings(
-    "ignore::prism._internal.RequestWarning")
 
 
 # %% GLOBALS
 DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
 
 
-# %% HELPER FUNCTIONS
-@pytest.fixture(scope='session')
-def menu_actions(main_window):
-    # Obtain a list of all menus
-    menus = [child for child in main_window.menubar.children()
-             if isinstance(child, QW.QMenu)]
-
-    # Go through all menus and obtain their actions
-    menu_actions = {}
-    for menu in menus:
-        actions = {action.text().replace('&', ''): action
-                   for action in menu.actions()}
-        menu_actions[menu.title().replace('&', '')] = actions
-
-    # Return menu_actions
-    return(menu_actions)
-
-
 # %% PYTEST CLASSES AND FUNCTIONS
 # Pytest for the file menu
+@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                    reason="Cannot be pytested in MPI")
 class TestMenus_File(object):
     # Test the save view action
     def test_save_view(self, pipe, monkeypatch, menu_actions):
@@ -48,7 +25,7 @@ class TestMenus_File(object):
         assert 'Save view as...' in menu_actions['File']
 
         # Set expected filename
-        filename = path.join(pipe._working_dir, "test.png")
+        filename = path.join(pipe._working_dir, "test_save_view.png")
 
         # Monkey patch the QFileDialog.getSaveFileName function
         monkeypatch.setattr(QW.QFileDialog, 'getSaveFileName',
@@ -62,6 +39,8 @@ class TestMenus_File(object):
 
 
 # Pytest for the tools menu
+@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                    reason="Cannot be pytested in MPI")
 class TestMenus_Tools(object):
     # Test the cascade option
     def test_cascade(self, menu_actions):
@@ -89,6 +68,8 @@ class TestMenus_Tools(object):
 
 
 # Pytest for the help menu
+@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                    reason="Cannot be pytested in MPI")
 class TestMenus_Help(object):
     # Test the about window
     def test_about(self, monkeypatch, menu_actions):

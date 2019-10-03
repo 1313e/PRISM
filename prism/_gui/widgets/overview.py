@@ -22,6 +22,7 @@ from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
+import prism
 from prism._gui import APP_NAME
 from prism._gui.widgets import (
     QW_QAction, QW_QMenu, OverviewListWidget, ThreadedProgressDialog)
@@ -364,13 +365,27 @@ class OverviewDockWidget(QW.QDockWidget):
         if list_items is None:
             list_items = self.proj_list_a.selectedItems()
 
-        # Create a threaded progress dialog for creating projections
-        progress_dialog = ThreadedProgressDialog(
-            self.main, "Drawing projection figures...", "Abort",
-            self._draw_projection_figure, list_items)
+        # If PRISM has the __PYTEST attribute, do not use progress dialog
+        if hasattr(prism, '__PYTEST'):
+            # Set result to False
+            result = False
 
-        # Execute the function provided to the progress dialog
-        result = progress_dialog()
+            # Loop over all list_items
+            for list_item in list_items:
+                self._draw_projection_figure(list_item)
+            # If this finishes successfully, set result to True
+            else:
+                result = True
+
+        # Else, use a threaded progress dialog
+        else:   # pragma: no cover
+            # Create a threaded progress dialog for creating projections
+            progress_dialog = ThreadedProgressDialog(
+                self.main, "Drawing projection figures...", "Abort",
+                self._draw_projection_figure, list_items)
+
+            # Execute the function provided to the progress dialog
+            result = progress_dialog()
 
         # Show all drawn projection figures if the dialog was not cancelled
         if result and self.main.get_option('auto_show'):
@@ -462,13 +477,27 @@ class OverviewDockWidget(QW.QDockWidget):
         if list_items is None:
             list_items = self.proj_list_u.selectedItems()
 
-        # Create a threaded progress dialog for creating projections
-        progress_dialog = ThreadedProgressDialog(
-            self.main, "Creating projection figures...", "Abort",
-            self._create_projection_figure, list_items)
+        # If PRISM has the __PYTEST attribute, do not use progress dialog
+        if hasattr(prism, '__PYTEST'):
+            # Set result to False
+            result = False
 
-        # Execute the function provided to the progress dialog
-        result = progress_dialog()
+            # Loop over all list_items
+            for list_item in list_items:
+                self._create_projection_figure(list_item)
+            # If this finishes successfully, set result to True
+            else:
+                result = True
+
+        # Else, use a threaded progress dialog
+        else:   # pragma: no cover
+            # Create a threaded progress dialog for creating projections
+            progress_dialog = ThreadedProgressDialog(
+                self.main, "Creating projection figures...", "Abort",
+                self._create_projection_figure, list_items)
+
+            # Execute the function provided to the progress dialog
+            result = progress_dialog()
 
         # Return result
         return(result)

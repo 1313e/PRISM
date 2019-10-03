@@ -195,6 +195,9 @@ class OverviewListWidget(QW.QListWidget):
 
 # Class that provides a special threaded progress dialog
 class ThreadedProgressDialog(QW.QProgressDialog):
+    # Make a signal that is emitted whenever the progress dialog finishes
+    finished = QC.pyqtSignal()
+
     def __init__(self, main_window_obj, label, cancel, func, *iterables):
         # Save provided MainWindow obj
         self.main = main_window_obj
@@ -256,9 +259,12 @@ class ThreadedProgressDialog(QW.QProgressDialog):
         # If the dialog ended successfully, end all the threads
         if not self.wasCanceled():
             self.end_threads()
-            return(True)
-        else:
-            return(False)
+
+        # Emit that the progress dialog has finished
+        self.finished.emit()
+
+        # Return if dialog finished successfully or not
+        return(not self.wasCanceled())
 
     # This function finalizes all worker threads and then the controller thread
     @QC.pyqtSlot()

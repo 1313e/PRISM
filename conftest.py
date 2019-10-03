@@ -2,16 +2,32 @@
 
 # %% IMPORTS
 # Package imports
+import matplotlib as mpl
+from py.path import local
 import pytest
 
-# PRISM imports
-from prism.__version__ import __version__
+
+# Set MPL backend
+mpl.use('Agg')
 
 
 # %% PYTEST CUSTOM CONFIGURATION PLUGINS
 # This makes the pytest report header mention the tested PRISM version
 def pytest_report_header(config):
-    return("PRISM: v%s" % (__version__))
+    from prism.__version__ import __version__
+    return("PRISM: %s" % (__version__))
+
+
+# Add an attribute to PRISM stating that pytest is being used
+def pytest_configure(config):
+    import prism
+    prism.__PYTEST = True
+
+
+# After pytest has finished, remove this attribute again
+def pytest_unconfigure(config):
+    import prism
+    del prism.__PYTEST
 
 
 # This introduces a marker that auto-fails tests if a previous one failed
@@ -29,3 +45,7 @@ def pytest_runtest_setup(item):
         if previousfailed is not None:
             pytest.xfail("Previous test failed (%s)" % (previousfailed.name))
 
+
+# %% PYTEST SETTINGS
+# Set the current working directory to the temporary directory
+local.get_temproot().chdir()

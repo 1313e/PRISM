@@ -6,16 +6,12 @@ from os import path
 
 # Package imports
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
-from py.path import local
 
 # PRISM imports
 from prism._gui import APP_ICON_PATH
 from prism._gui.widgets.base_widgets import (
     QW_QAction, QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox,
     QW_QLabel, QW_QMenu, QW_QSpinBox, QW_QToolBar)
-
-# Set the current working directory to the temporary directory
-local.get_temproot().chdir()
 
 
 # %% GLOBALS
