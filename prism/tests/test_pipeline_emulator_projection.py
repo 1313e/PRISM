@@ -25,8 +25,6 @@ from prism.emulator import Emulator
 from prism.modellink import ModelLink
 from prism.modellink.tests.modellink import GaussianLink2D, GaussianLink3D
 
-# Set the random seed of NumPy
-np.random.seed(2)
 
 # %% GLOBALS
 DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
@@ -54,6 +52,12 @@ def get_prism_dict(prism_dict_custom):
 
     # Return it
     return(prism_dict)
+
+
+# Set the random seed of NumPy for this test module
+@pytest.fixture(scope='module', autouse=True)
+def set_numpy_random_seed():
+    np.random.seed(2)
 
 
 # %% CUSTOM CLASSES
