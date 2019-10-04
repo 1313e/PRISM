@@ -57,7 +57,7 @@ def get_prism_dict(prism_dict_custom):
 # Set the random seed of NumPy for this test module
 @pytest.fixture(scope='module', autouse=True)
 def set_numpy_random_seed():
-    np.random.seed(2)
+    np.random.seed(1)
 
 
 # %% CUSTOM CLASSES
