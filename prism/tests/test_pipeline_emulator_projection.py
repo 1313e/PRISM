@@ -241,6 +241,7 @@ class Test_Pipeline_Gaussian2D(object):
         pipe.do_logging = 1
 
     # Check if the worker mode works properly
+    @pytest.mark.timeout(10)
     def test_worker_mode(self, pipe):
         with pipe.worker_mode:
             if pipe._is_controller:
@@ -263,8 +264,7 @@ class Test_Pipeline_Gaussian2D(object):
 
                 # Test if initializing another worker mode does nothing
                 pipe._make_call('construct')
-                with pytest.mark.timeout(10):
-                    pipe._make_call('_comm.Barrier')
+                pipe._make_call('_comm.Barrier')
 
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model
