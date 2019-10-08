@@ -131,8 +131,8 @@ class MainViewerWindow(QW.QMainWindow):
         self.set_default_dock_positions()
 
         # Set the exception handler to an internal message window
-        gui_excepthook = partial(show_exception_details, self)
-        sys.excepthook = gui_excepthook
+#        gui_excepthook = partial(show_exception_details, self)
+#        sys.excepthook = gui_excepthook
 
         # Turn off all regular logging in Pipeline
         self.was_logging = bool(self.pipe.do_logging)
@@ -152,7 +152,8 @@ class MainViewerWindow(QW.QMainWindow):
             self, '&Save view as...',
             shortcut=QC.Qt.CTRL + QC.Qt.Key_S,
             statustip="Save current projection viewing area as an image",
-            triggered=self.area_dock.save_view)
+            triggered=self.area_dock.save_view,
+            role=QW_QAction.ApplicationSpecificRole)
         file_menu.addAction(save_act)
 
         # Add quit action to file menu
@@ -210,7 +211,8 @@ class MainViewerWindow(QW.QMainWindow):
             shortcut=QC.Qt.CTRL + QC.Qt.Key_D,
             statustip=("Show the pipeline details overview of a specified "
                        "iteration"),
-            triggered=self.show_pipeline_details_overview)
+            triggered=self.show_pipeline_details_overview,
+            role=QW_QAction.ApplicationSpecificRole)
         help_menu.addAction(details_act)
 
         # Add a separator

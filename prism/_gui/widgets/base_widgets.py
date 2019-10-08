@@ -41,8 +41,7 @@ class QW_QAction(QW.QAction):
             self.triggered.connect(triggered)
 
         # Set the action menu role
-        self.setMenuRole(self.ApplicationSpecificRole if role is None
-                         else role)
+        self.setMenuRole(self.NoRole if role is None else role)
 
     # Make new method that automatically sets Shortcut, ToolTip and StatusTip
     def setDetails(self, *, shortcut=None, tooltip=None, statustip=None):
