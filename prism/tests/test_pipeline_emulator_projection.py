@@ -55,9 +55,9 @@ def get_prism_dict(prism_dict_custom):
 
 
 # Set the random seed of NumPy for this test module
-@pytest.fixture(scope='module', autouse=True)
+@pytest.fixture(scope='class', autouse=True)
 def set_numpy_random_seed():
-    np.random.seed(1)
+    np.random.seed(4)
 
 
 # %% CUSTOM CLASSES
@@ -248,6 +248,9 @@ class Test_Pipeline_Gaussian2D(object):
                 # Test if default actions can be requested
                 pipe._make_call(np.array, [1])
                 assert pipe._make_call('_emulator._get_emul_i', 1, 0) == 1
+                assert pipe._make_call('_evaluate_sam_set', 1,
+                                       np.array([[2.5, 2]]),
+                                       ("", "", "", "", "")) is None
 
                 # Test if properties can be requested
                 assert pipe._make_call('_comm.__getattribute__', 'rank') == 0
@@ -262,9 +265,13 @@ class Test_Pipeline_Gaussian2D(object):
                                         'pipe._comm.rank', 0)
                 assert ranks == exp_ranks
 
-                # Test if initializing another worker mode does nothing
+                # Test if initializing another worker mode works
                 pipe._make_call('construct')
+                assert pipe._make_call('__getattribute__', 'worker_mode')
                 pipe._make_call('_comm.Barrier')
+
+                # Test if a call solely to workers can be made
+                pipe._make_call_workers('print', 'pipe._comm.size')
 
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model

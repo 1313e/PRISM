@@ -48,10 +48,10 @@ class TestOverviewDockWidget_Main(object):
         assert isinstance(overview, OverviewDockWidget)
 
     # Test if the overview contains a specific number of hcubes
-    def test_hcubes(self, pipe, overview):
+    def test_hcubes(self, pipe_GUI, overview):
         # Calculate how many hcubes there should be
         n_hcubes = sum([nCr(n, 2)+n
-                        for n in map(len, pipe._emulator._active_par)])
+                        for n in map(len, pipe_GUI._emulator._active_par)])
 
         # Check if this many hcubes are currently in the GUI
         assert (len(overview.hcubes) == n_hcubes)
@@ -186,12 +186,12 @@ class TestOverviewListWidget_Drawn(object):
         assert path.exists(figpath)
 
     # Test the save as action
-    def test_save_as_action(self, pipe, actions, monkeypatch):
+    def test_save_as_action(self, pipe_GUI, actions, monkeypatch):
         # Make sure that this action is valid
         assert 'Save as...' in actions
 
         # Set custom figpath
-        figpath = path.join(pipe._working_dir, "test_save_as.png")
+        figpath = path.join(pipe_GUI._working_dir, "test_save_as.png")
 
         # Monkey patch the QFileDialog.getSaveFileName function
         monkeypatch.setattr(QW.QFileDialog, 'getSaveFileName',

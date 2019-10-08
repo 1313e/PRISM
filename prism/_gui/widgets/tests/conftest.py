@@ -20,7 +20,7 @@ DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
 
 # %% HELPER FUNCTIONS
 @pytest.fixture(scope='session')
-def pipe(tmpdir_factory):
+def pipe_GUI(tmpdir_factory):
     # Get paths to files
     model_data = path.join(
         DIR_PATH, '../../../tests/data/data_gaussian_single.txt')
@@ -48,9 +48,9 @@ def pipe(tmpdir_factory):
 
 
 @pytest.fixture(scope='session')
-def main_window(qapp, pipe):
+def main_window(qapp, pipe_GUI):
     # Create the main_window
-    main_window = MainViewerWindow(pipe)
+    main_window = MainViewerWindow(pipe_GUI)
 
     # Return main_window
     return(main_window)

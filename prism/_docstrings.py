@@ -110,10 +110,10 @@ make_call_doc =\
         all valid ranks that must execute `exec_fn`.
 
         Parameters
-        ----------
-        exec_fn : {1}
+        ----------{1}
+        exec_fn : str or callable
             If string, a callable attribute of this :obj:`~Pipeline` instance
-            or a callable object that the workers should execute if not.{2}
+            or a callable object that the workers should execute if not.
         args : positional arguments
             Positional arguments that need to be provided to `exec_fn`.
         kwargs : keyword arguments
@@ -134,12 +134,18 @@ make_call_doc =\
         `exec_fn` is called.
 
         """
+make_call_pipeline_doc =\
+        """pipeline_obj : :obj:`~Pipeline` object
+            The instance of the :class:`~Pipeline` class that is making this
+            call."""
+
 make_call_doc_a = make_call_doc.format(
+    " All ranks that call this function will execute `exec_fn` as well.", "")
+make_call_doc_w = make_call_doc.format("", "")
+make_call_doc_aw = make_call_doc.format(
     " All ranks that call this function will execute `exec_fn` as well.",
-    "str, callable or None",
-    (" If *None*, the workers stop listening for calls instead (disables "
-     "worker mode)."))
-make_call_doc_w = make_call_doc.format("", "str or callable", "")
+    "\n\t"+make_call_pipeline_doc)
+make_call_doc_ww = make_call_doc.format("", "\n\t"+make_call_pipeline_doc)
 
 # Docstrings for the different paths parameters
 paths_doc =\

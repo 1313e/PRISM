@@ -19,7 +19,6 @@ from os import path
 import sys
 from textwrap import dedent
 from time import time
-import warnings
 
 # Package imports
 from e13tools import InputError, ShapeError
@@ -38,7 +37,8 @@ from sortedcontainers import SortedDict as sdict
 from prism._docstrings import (
     call_emul_i_doc, call_model_doc_s, call_model_doc_m, def_par_doc,
     ext_mod_set_doc, ext_real_set_doc_d, ext_real_set_doc_s, ext_sam_set_doc,
-    impl_cut_doc, make_call_doc_a, make_call_doc_w, paths_doc_d, paths_doc_s,
+    impl_cut_doc, make_call_doc_a, make_call_doc_aw, make_call_doc_w,
+    make_call_doc_ww, make_call_pipeline_doc, paths_doc_d, paths_doc_s,
     save_data_doc_p, set_par_doc, std_emul_i_doc, user_emul_i_doc)
 from prism._internal import (
     RequestError, RequestWarning, check_vals,  getCLogger, get_PRISM_File,
@@ -357,8 +357,8 @@ class Pipeline(Projection, object):
         controller rank (but the worker ranks sometimes need to execute
         something).
 
-        If worker mode is already enabled/active, the returned context manager
-        does nothing.
+        All worker modes are independent of each other and can be created in a
+        nested fashion.
 
         """
 
@@ -746,166 +746,15 @@ class Pipeline(Projection, object):
         return(self._impl_sam)
 
     # %% GENERAL CLASS METHODS
-    # Function that locks workers into listening for controller calls
-    def _listen_for_calls(self):
-        """
-        All worker ranks in the :attr:`~comm` communicator start listening for
-        calls from the corresponding controller rank and will attempt to
-        execute the received message. Listening for calls continues until
-        :attr:`~_worker_mode` is set to *False*.
-
-        This method is automatically initialized and finalized when using the
-        :attr:`~worker_mode` context manager.
-
-        """
-
-        # Set worker_mode to 1
-        self._worker_mode = 1
-
-        # All workers start listening for calls and process calls received
-        if self._is_worker:
-            while self._worker_mode:
-                _ = self.__process_call(*self._comm.bcast([], 0))
-
     # Function that sends a code string to all workers and executes it
     @docstring_append(make_call_doc_a)
     def _make_call(self, exec_fn, *args, **kwargs):
-        # If worker mode is active
-        if self._worker_mode:
-            # Then the controller sends received exec_fn to all workers
-            if self._is_controller:
-                self._comm.bcast([exec_fn, args, kwargs], 0)
-            # Make sure workers never call anything directly in worker mode
-            else:
-                return
-
-        # Execute exec_fn on all callers as well
-        return(self.__process_call(exec_fn, args, kwargs))
+        return(WorkerMode.make_call(self, exec_fn, *args, **kwargs))
 
     # Function that sends a code string to all workers (does not execute it)
     @docstring_append(make_call_doc_w)
     def _make_call_workers(self, exec_fn, *args, **kwargs):
-        # If exec_fn is None by accident, raise warning and call _make_call
-        if exec_fn is None:
-            warn_msg = ("Invalid input 'exec_fn=None'. Worker mode can only be"
-                        " disabled through '_make_call'. Executing "
-                        "'_make_call(None)' to fully disable worker mode.")
-            warnings.warn(warn_msg, UserWarning, stacklevel=2)
-            self._make_call(None)
-
-        # If worker mode is active
-        if self._worker_mode:
-            # Then the controller sends received exec_fn to all workers
-            if self._is_controller:
-                self._comm.bcast([exec_fn, args, kwargs], 0)
-            # Make sure workers never call anything directly in worker mode
-            else:
-                return
-
-        # Execute exec_fn on all workers
-        if self._is_worker:
-            return(self.__process_call(exec_fn, args, kwargs))
-
-    # This function processes a call made by _make_call
-    def __process_call(self, exec_fn, args, kwargs):
-        """
-        Processes a call that was made with the :meth:`~_make_call` or
-        :meth:`~_make_call_workers` method.
-
-        This function should solely be called through either of these methods
-        and never directly.
-
-        Parameters
-        ----------
-        exec_fn : str, callable or None
-            If string, a callable attribute of this :obj:`~Pipeline` instance
-            or a callable object that should be executed if not.
-            If *None*, worker mode will be disabled instead.
-        args : tuple
-            Positional arguments that need to be provided to `exec_fn`.
-        kwargs : dict
-            Keyword arguments that need to be provided to `exec_fn`.
-
-        Returns
-        -------
-        out : object
-            The object returned by executing `exec_fn`.
-
-        Note
-        ----
-        If any entry in `args` or `kwargs` is a string written as 'pipe.XXX',
-        it is assumed that 'XXX' refers to a :class:`~prism.Pipeline`
-        attribute. It will be replaced with the corresponding attribute before
-        `exec_fn` is called.
-
-        """
-
-        # If exec_fn is None, disable worker mode and return
-        if exec_fn is None:
-            self._worker_mode = 0
-            return
-
-        # Process the input arguments
-        # EXEC_FN
-        # If exec_fn is given as a string, get corresponding Pipeline attribute
-        if isinstance(exec_fn, str):
-            exec_fn = "pipe.%s" % (exec_fn)
-            exec_fn = self.__process_call_str(exec_fn)
-
-        # ARGS
-        # Make sure that args is a list, such that it can be edited
-        args = list(args)
-
-        # Loop over all args and process it further if it is a string
-        for i, arg in enumerate(args):
-            if isinstance(arg, str):
-                args[i] = self.__process_call_str(arg)
-
-        # KWARGS
-        # Loop over all args and process it further if it is a string
-        for key, value in kwargs.items():
-            if isinstance(value, str):
-                kwargs[key] = self.__process_call_str(value)
-
-        # Execute exec_fn with provided args and kwargs, and return the result
-        return(exec_fn(*args, **kwargs))
-
-    # This function converts a provided string into an attribute if possible
-    def __process_call_str(self, string):
-        """
-        Processes a provided `string` that was provided as an argument value to
-        :meth:`~__process_call`.
-
-        Parameters
-        ----------
-        string : str
-            String value that must be processed.
-
-        Returns
-        -------
-        out : str or object
-            If `string` starts with 'pipe.', the corresponding
-            :class:`~Pipeline` attribute will be returned. Else, `string` is
-            returned.
-
-        """
-
-        # Split string up into individual elements
-        str_list = string.split('.')
-
-        # If the first element is 'pipe', it refers to a Pipeline attribute
-        if str_list.pop(0) == 'pipe':
-            # Remove 'pipe' again in case 'pipe.pipe.xxx' was provided
-            if len(str_list) and str_list[0] == 'pipe':
-                _ = str_list.pop(0)
-
-            # Retrieve the attribute that string refers to
-            string = self
-            for attr in str_list:
-                string = getattr(string, attr)
-
-        # Return string
-        return(string)
+        return(WorkerMode.make_call_workers(self, exec_fn, *args, **kwargs))
 
     # This function evaluates the model for a given set of evaluation samples
     # TODO: If not MPI_call, all ranks evaluate part of sam_set simultaneously?
@@ -3353,36 +3202,220 @@ class Pipeline(Projection, object):
 # %% SUPPORT CLASSES
 # Define a worker mode context manager
 class WorkerMode(object):
-    # Initialize WorkerMode object
+    # Initialize the WorkerMode class
     def __init__(self, pipeline_obj):
-        # Save the provided Pipeline object
+        """
+        Initialize the :class:`~WorkerMode` class using the MPI ranks defined
+        in the provided `pipeline_obj`.
+        This class should solely be initialized and finalized through the
+        :class:`~Pipeline` class.
+
+        Parameters
+        ----------
+        pipeline_obj : :obj:`~prism.Pipeline` object
+            The instance of the :class:`~prism.Pipeline` class that is enabling
+            this worker mode.
+
+        """
+
+        # Save provided Pipeline object
         self.pipe = pipeline_obj
 
-    # Enable the worker mode
+    # This function enters/enables the worker mode
     def __enter__(self):
+        # MPI Barrier
+        self.pipe._comm.Barrier()
+
         # Save whether worker mode is already active
         self.was_active = bool(self.pipe._worker_mode)
 
-        # All workers start (or continue) listening for calls
-        self.pipe._listen_for_calls()
+        # Get the key required for disabling this worker mode on the controller
+        if self.pipe._is_controller:
+            # Generate a random 32-bit integer
+            key = np.random.randint(0, 2**32-1)
 
-        # Log that workers are now listening if worker mode was disabled before
-        if not self.was_active:
-            logger = getCLogger('WORKER_M')
-            logger.info("Workers are now listening for calls.")
+            # Broadcast this key to all workers
+            self.__key = self.pipe._comm.bcast(key, 0)
 
-    # Disable worker mode if it was not active before enabling it
+        # Obtain disable-key from the controller
+        else:
+            self.__key = self.pipe._comm.bcast(None, 0)
+
+        # All workers start listening for calls
+        self.listen_for_calls()
+
+    # Function that locks workers into listening for controller calls
+    def listen_for_calls(self):
+        """
+        All worker ranks in the :attr:`~prism.Pipeline.comm` communicator start
+        listening for calls from the corresponding controller rank and will
+        attempt to execute the received message. Listening for calls continues
+        until this context manager exits (:attr:`~__exit__` is called).
+
+        This method is automatically initialized and finalized when using the
+        :attr:`~prism.Pipeline.worker_mode` context manager.
+
+        """
+
+        # Tell the Pipeline that at least 1 worker mode is being used right now
+        self.pipe._worker_mode = 1
+
+        # All workers start listening for calls and process calls received
+        if self.pipe._is_worker:
+            while self.pipe._worker_mode:
+                # Receive the message from the controller
+                msg = self.pipe._comm.bcast([], 0)
+
+                # If this message is the disable-key, break the while-loop
+                if(msg == self.__key):
+                    break
+                # Else, process the received message
+                else:
+                    _ = self._process_call(self.pipe, *msg)
+
+    # Function that sends a code string to all workers and executes it
+    @staticmethod
+    @docstring_append(make_call_doc_aw)
+    def make_call(pipe, exec_fn, *args, **kwargs):
+        # If worker mode is active
+        if pipe._worker_mode:
+            # Then the controller sends received exec_fn to all workers
+            if pipe._is_controller:
+                pipe._comm.bcast([exec_fn, args, kwargs], 0)
+            # Make sure workers never call anything directly in worker mode
+            else:
+                return
+
+        # Execute exec_fn on all callers as well
+        return(WorkerMode._process_call(pipe, exec_fn, args, kwargs))
+
+    # Function that sends a code string to all workers (does not execute it)
+    @staticmethod
+    @docstring_append(make_call_doc_ww)
+    def make_call_workers(pipe, exec_fn, *args, **kwargs):
+        # If worker mode is active
+        if pipe._worker_mode:
+            # Then the controller sends received exec_fn to all workers
+            if pipe._is_controller:
+                pipe._comm.bcast([exec_fn, args, kwargs], 0)
+            # Make sure workers never call anything directly in worker mode
+            else:
+                return
+
+        # Execute exec_fn on all workers
+        if pipe._is_worker:
+            return(WorkerMode._process_call(pipe, exec_fn, args, kwargs))
+
+    # This function processes a call made by _make_call
+    @staticmethod
+    @docstring_substitute(pipeline=make_call_pipeline_doc)
+    def _process_call(pipe, exec_fn, args, kwargs):
+        """
+        Processes a call that was made with the :meth:`~make_call` or
+        :meth:`~make_call_workers` method.
+
+        This function should solely be called through either of these methods
+        and never directly.
+
+        Parameters
+        ----------
+        %(pipeline)s
+        exec_fn : str or callable
+            If string, a callable attribute of this :obj:`~Pipeline` instance
+            or a callable object that should be executed if not.
+        args : tuple
+            Positional arguments that need to be provided to `exec_fn`.
+        kwargs : dict
+            Keyword arguments that need to be provided to `exec_fn`.
+
+        Returns
+        -------
+        out : object
+            The object returned by executing `exec_fn`.
+
+        Note
+        ----
+        If any entry in `args` or `kwargs` is a string written as 'pipe.XXX',
+        it is assumed that 'XXX' refers to a :class:`~prism.Pipeline`
+        attribute. It will be replaced with the corresponding attribute before
+        `exec_fn` is called.
+
+        """
+
+        # Process the input arguments
+        # EXEC_FN
+        # If exec_fn is given as a string, get corresponding Pipeline attribute
+        if isinstance(exec_fn, str):
+            exec_fn = "pipe.%s" % (exec_fn)
+            exec_fn = WorkerMode._process_call_str(pipe, exec_fn)
+
+        # If exec_fn is not _make_call(_workers), process args and kwargs
+        if exec_fn not in (pipe._make_call, pipe._make_call_workers):
+            # ARGS
+            # Make sure that args is a list, such that it can be edited
+            args = list(args)
+
+            # Loop over all args and process it further if it is a string
+            for i, arg in enumerate(args):
+                if isinstance(arg, str):
+                    args[i] = WorkerMode._process_call_str(pipe, arg)
+
+            # KWARGS
+            # Loop over all args and process it further if it is a string
+            for key, value in kwargs.items():
+                if isinstance(value, str):
+                    kwargs[key] = WorkerMode._process_call_str(pipe, value)
+
+        # Execute exec_fn with provided args and kwargs, and return the result
+        return(exec_fn(*args, **kwargs))
+
+    # This function converts a provided string into an attribute if possible
+    @staticmethod
+    @docstring_substitute(pipeline=make_call_pipeline_doc)
+    def _process_call_str(pipe, string):
+        """
+        Processes a provided `string` that was provided as an argument value to
+        :meth:`~_process_call`.
+
+        Parameters
+        ----------
+        %(pipeline)s
+        string : str
+            String value that must be processed.
+
+        Returns
+        -------
+        out : str or object
+            If `string` starts with 'pipe.', the corresponding
+            :class:`~Pipeline` attribute will be returned. Else, `string` is
+            returned.
+
+        """
+
+        # Split string up into individual elements
+        str_list = string.split('.')
+
+        # If the first element is 'pipe', it refers to a Pipeline attribute
+        if str_list.pop(0) == 'pipe':
+            # Remove 'pipe' again in case 'pipe.pipe.xxx' was provided
+            if len(str_list) and str_list[0] == 'pipe':
+                _ = str_list.pop(0)
+
+            # Retrieve the attribute that string refers to
+            string = pipe
+            for attr in str_list:
+                string = getattr(string, attr)
+
+        # Return string
+        return(string)
+
+    # This function exits/disables the worker mode
     def __exit__(self, *args, **kwargs):
-        # Disable worker mode if it was not active before
+        # Disable this worker mode
+        if self.pipe._is_controller:
+            self.pipe._comm.bcast(self.__key, 0)
+
+        # If this is the final worker mode, tell this to the Pipeline
         if not self.was_active:
-            # Make logger
-            logger = getCLogger('WORKER_M')
-
-            # Disable worker mode
-            self.pipe._make_call(None)
-
-            # Log that workers are no longer listening for calls
-            logger.info("Workers are no longer listening for calls.")
-
-            # MPI Barrier
+            self.pipe._worker_mode = 0
             self.pipe._comm.Barrier()

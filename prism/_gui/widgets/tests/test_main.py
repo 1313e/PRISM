@@ -20,12 +20,12 @@ DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
                     reason="Cannot be pytested in MPI")
 class TestMenus_File(object):
     # Test the save view action
-    def test_save_view(self, pipe, monkeypatch, menu_actions):
+    def test_save_view(self, pipe_GUI, monkeypatch, menu_actions):
         # Check if the 'save view as' action is in the proper menu
         assert 'Save view as...' in menu_actions['File']
 
         # Set expected filename
-        filename = path.join(pipe._working_dir, "test_save_view.png")
+        filename = path.join(pipe_GUI._working_dir, "test_save_view.png")
 
         # Monkey patch the QFileDialog.getSaveFileName function
         monkeypatch.setattr(QW.QFileDialog, 'getSaveFileName',
