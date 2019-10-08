@@ -3232,7 +3232,7 @@ class WorkerMode(object):
         # Get the key required for disabling this worker mode on the controller
         if self.pipe._is_controller:
             # Generate a random 32-bit integer
-            key = np.random.randint(0, 2**32-1)
+            key = np.random.randint(0, 2**31-1)
 
             # Broadcast this key to all workers
             self.__key = self.pipe._comm.bcast(key, 0)
