@@ -12,7 +12,6 @@ Provides the definition of the main class of the *PRISM* package, the
 # %% IMPORTS
 # Built-in imports
 from ast import literal_eval
-from contextlib import contextmanager
 from inspect import isclass
 import logging
 import os
@@ -340,44 +339,31 @@ class Pipeline(Projection, object):
         return(bool(self._is_worker))
 
     @property
-    @contextmanager
     def worker_mode(self):
         """
-        :obj:`~contextlib._GeneratorContextManager`: Special context manager
-        within which all code is executed in worker mode. In worker mode, all
-        worker ranks are continuously listening for calls from the controller
-        rank made with :meth:`~_make_call`.
+        :obj:`~WorkerMode`: Special context manager within which all code is
+        executed in worker mode. In worker mode, all worker ranks are
+        continuously listening for calls from the controller rank made with
+        :meth:`~_make_call`.
 
         Note that all code within the context manager is executed by all ranks,
-        with the worker ranks executing it after the controller rank exited.
+        with the worker ranks executing it after the controller rank exits.
         It is therefore advised to use an if-statement inside to make sure only
         the controller rank executes the code.
 
         Using this context manager allows for easier use of *PRISM* in
-        combination with serial/OpenMP codes (like MCMC methods).
+        combination with serial/OpenMP codes (like MCMC methods). It also makes
+        it easier to write long complex code that is mostly executed on the
+        controller rank (but the worker ranks sometimes need to execute
+        something).
+
+        If worker mode is already enabled/active, the returned context manager
+        does nothing.
 
         """
 
-        # Make logger
-        logger = getCLogger('WORKER_M')
-
-        # Workers start listening for calls
-        self._listen_for_calls()
-
-        # Log that workers are now listening
-        logger.info("Workers are now listening for calls.")
-
-        # Execute code block within context manager
-        yield
-
-        # Make workers stop listening for calls
-        self._make_call(None)
-
-        # Log that workers are no longer listening for calls
-        logger.info("Workers are no longer listening for calls.")
-
-        # MPI Barrier
-        self._comm.Barrier()
+        # Initialize WorkerMode object and return it
+        return(WorkerMode(self))
 
     # Pipeline details
     @property
@@ -784,9 +770,14 @@ class Pipeline(Projection, object):
     # Function that sends a code string to all workers and executes it
     @docstring_append(make_call_doc_a)
     def _make_call(self, exec_fn, *args, **kwargs):
-        # Send received exec_fn to all workers if they are listening
-        if self._worker_mode and self._is_controller:
-            self._comm.bcast([exec_fn, args, kwargs], 0)
+        # If worker mode is active
+        if self._worker_mode:
+            # Then the controller sends received exec_fn to all workers
+            if self._is_controller:
+                self._comm.bcast([exec_fn, args, kwargs], 0)
+            # Make sure workers never call anything directly in worker mode
+            else:
+                return
 
         # Execute exec_fn on all callers as well
         return(self.__process_call(exec_fn, args, kwargs))
@@ -802,9 +793,14 @@ class Pipeline(Projection, object):
             warnings.warn(warn_msg, UserWarning, stacklevel=2)
             self._make_call(None)
 
-        # Send received exec_fn to all workers if they are listening
-        if self._worker_mode and self._is_controller:
-            self._comm.bcast([exec_fn, args, kwargs], 0)
+        # If worker mode is active
+        if self._worker_mode:
+            # Then the controller sends received exec_fn to all workers
+            if self._is_controller:
+                self._comm.bcast([exec_fn, args, kwargs], 0)
+            # Make sure workers never call anything directly in worker mode
+            else:
+                return
 
         # Execute exec_fn on all workers
         if self._is_worker:
@@ -850,6 +846,12 @@ class Pipeline(Projection, object):
             return
 
         # Process the input arguments
+        # EXEC_FN
+        # If exec_fn is given as a string, get corresponding Pipeline attribute
+        if isinstance(exec_fn, str):
+            exec_fn = "pipe.%s" % (exec_fn)
+            exec_fn = self.__process_call_str(exec_fn)
+
         # ARGS
         # Make sure that args is a list, such that it can be edited
         args = list(args)
@@ -864,12 +866,6 @@ class Pipeline(Projection, object):
         for key, value in kwargs.items():
             if isinstance(value, str):
                 kwargs[key] = self.__process_call_str(value)
-
-        # EXEC_FN
-        # If exec_fn is given as a string, get corresponding Pipeline attribute
-        if isinstance(exec_fn, str):
-            exec_fn = "pipe.%s" % (exec_fn)
-            exec_fn = self.__process_call_str(exec_fn)
 
         # Execute exec_fn with provided args and kwargs, and return the result
         return(exec_fn(*args, **kwargs))
@@ -3352,3 +3348,41 @@ class Pipeline(Projection, object):
     @docstring_copy(__call__)
     def run(self, emul_i=None, *, force=False):
         self(emul_i, force=force)
+
+
+# %% SUPPORT CLASSES
+# Define a worker mode context manager
+class WorkerMode(object):
+    # Initialize WorkerMode object
+    def __init__(self, pipeline_obj):
+        # Save the provided Pipeline object
+        self.pipe = pipeline_obj
+
+    # Enable the worker mode
+    def __enter__(self):
+        # Save whether worker mode is already active
+        self.was_active = bool(self.pipe._worker_mode)
+
+        # All workers start (or continue) listening for calls
+        self.pipe._listen_for_calls()
+
+        # Log that workers are now listening if worker mode was disabled before
+        if not self.was_active:
+            logger = getCLogger('WORKER_M')
+            logger.info("Workers are now listening for calls.")
+
+    # Disable worker mode if it was not active before enabling it
+    def __exit__(self, *args, **kwargs):
+        # Disable worker mode if it was not active before
+        if not self.was_active:
+            # Make logger
+            logger = getCLogger('WORKER_M')
+
+            # Disable worker mode
+            self.pipe._make_call(None)
+
+            # Log that workers are no longer listening for calls
+            logger.info("Workers are no longer listening for calls.")
+
+            # MPI Barrier
+            self.pipe._comm.Barrier()

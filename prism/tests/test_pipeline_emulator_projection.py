@@ -240,15 +240,31 @@ class Test_Pipeline_Gaussian2D(object):
         pipe.do_logging = 0
         pipe.do_logging = 1
 
-    # Check if the workers can start listening
+    # Check if the worker mode works properly
     def test_worker_mode(self, pipe):
         with pipe.worker_mode:
             if pipe._is_controller:
+                # Test if default actions can be requested
                 pipe._make_call(np.array, [1])
                 assert pipe._make_call('_emulator._get_emul_i', 1, 0) == 1
-                assert pipe._make_call('_evaluate_sam_set', 1,
-                                       np.array([[2.5, 2]]),
-                                       ("", "", "", "", "")) is None
+
+                # Test if properties can be requested
+                assert pipe._make_call('_comm.__getattribute__', 'rank') == 0
+
+                # Test if properties can be provided
+                exp_ranks = list(range(pipe._comm.size))
+                ranks = pipe._make_call('_comm.gather', 'pipe._comm.rank', 0)
+                assert ranks == exp_ranks
+
+                # Test if make_call can be called within make_call
+                ranks = pipe._make_call('_make_call', 'pipe._comm.gather',
+                                        'pipe._comm.rank', 0)
+                assert ranks == exp_ranks
+
+                # Test if initializing another worker mode does nothing
+                pipe._make_call('construct')
+                with pytest.mark.timeout(10):
+                    pipe._make_call('_comm.Barrier')
 
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model
