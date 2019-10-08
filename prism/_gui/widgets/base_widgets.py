@@ -24,7 +24,7 @@ __all__ = ['QW_QAction', 'QW_QComboBox', 'QW_QDoubleSpinBox',
 class QW_QAction(QW.QAction):
     # Override constructor
     def __init__(self, parent, text, *, shortcut=None, tooltip=None,
-                 statustip=None, icon=None, triggered=None):
+                 statustip=None, icon=None, triggered=None, role=None):
         # Call super constructor
         if icon is None:
             super().__init__(text, parent)
@@ -39,6 +39,10 @@ class QW_QAction(QW.QAction):
         # Set the signal trigger
         if triggered is not None:
             self.triggered.connect(triggered)
+
+        # Set the action menu role
+        self.setMenuRole(self.ApplicationSpecificRole if role is None
+                         else role)
 
     # Make new method that automatically sets Shortcut, ToolTip and StatusTip
     def setDetails(self, *, shortcut=None, tooltip=None, statustip=None):

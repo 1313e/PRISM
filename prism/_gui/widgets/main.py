@@ -160,7 +160,8 @@ class MainViewerWindow(QW.QMainWindow):
             self, '&Quit',
             shortcut=QC.Qt.CTRL + QC.Qt.Key_Q,
             statustip="Quit viewer",
-            triggered=self.close)
+            triggered=self.close,
+            role=QW_QAction.QuitRole)
         file_menu.addAction(quit_act)
 
         # TOOLS
@@ -199,7 +200,8 @@ class MainViewerWindow(QW.QMainWindow):
             self, '&Preferences',
             shortcut=QC.Qt.CTRL + QC.Qt.Key_P,
             statustip="Adjust viewer preferences",
-            triggered=self.options)
+            triggered=self.options,
+            role=QW_QAction.PreferencesRole)
         help_menu.addAction(options_act)
 
         # Add details action to help menu
@@ -218,14 +220,16 @@ class MainViewerWindow(QW.QMainWindow):
         about_act = QW_QAction(
             self, '&About...',
             statustip="About %s" % (APP_NAME),
-            triggered=self.about)
+            triggered=self.about,
+            role=QW_QAction.AboutRole)
         help_menu.addAction(about_act)
 
         # Add aboutQt action to help menu
         aboutqt_act = QW_QAction(
             self, 'About &Qt...',
             statustip="About Qt framework",
-            triggered=QW.QApplication.aboutQt)
+            triggered=QW.QApplication.aboutQt,
+            role=QW_QAction.AboutQtRole)
         help_menu.addAction(aboutqt_act)
 
     # This function creates the statusbar in the viewer

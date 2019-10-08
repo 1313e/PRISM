@@ -22,7 +22,7 @@ from prism._gui.widgets.preferences.helpers import set_box_value
 
 # %% GLOBALS
 DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
-ACT_KEY = (QC.Qt.Key_Control + QC.Qt.Key_O if platform.startswith('darwin')
+ACT_KEY = (QC.Qt.CTRL + QC.Qt.Key_O if platform.startswith('darwin')
            else QC.Qt.Key_Enter)
 
 
