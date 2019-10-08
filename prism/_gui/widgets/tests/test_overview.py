@@ -4,7 +4,6 @@
 # Built-in imports
 import os
 from os import path
-from sys import platform
 
 # Package imports
 from e13tools.math import nCr
@@ -22,8 +21,6 @@ from prism._gui.widgets.preferences.helpers import set_box_value
 
 # %% GLOBALS
 DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
-ACT_KEY = (QC.Qt.CTRL + QC.Qt.Key_O if platform.startswith('darwin')
-           else QC.Qt.Key_Enter)
 
 
 # %% HELPER FUNCTIONS
@@ -74,7 +71,7 @@ class TestOverviewDockWidget_Main(object):
                                            QC.QItemSelectionModel.Select)
 
         # Press enter
-        qtbot.keyPress(overview.proj_list_u, ACT_KEY)
+        qtbot.keyPress(overview.proj_list_u, QC.Qt.Key_Enter)
 
         # Check if two items are in available now
         assert (len(overview.proj_list_u) == len(overview.hcubes)-2)
@@ -90,7 +87,7 @@ class TestOverviewDockWidget_Main(object):
         overview.proj_list_a.selectAll()
 
         # Press enter
-        qtbot.keyPress(overview.proj_list_a, ACT_KEY)
+        qtbot.keyPress(overview.proj_list_a, QC.Qt.Key_Enter)
 
         # Check if all items are in drawn now
         assert (len(overview.proj_list_a) == 0)
@@ -106,7 +103,7 @@ class TestOverviewDockWidget_Main(object):
         overview.proj_list_d.selectAll()
 
         # Press enter
-        qtbot.keyPress(overview.proj_list_d, ACT_KEY)
+        qtbot.keyPress(overview.proj_list_d, QC.Qt.Key_Enter)
 
 
 # Pytest for testing the drawn list

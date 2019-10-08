@@ -15,8 +15,6 @@ from os import path
 import sys
 
 # Package imports
-from matplotlib.backends.backend_qt5agg import (
-    FigureCanvasQTAgg as FigureCanvas)
 import matplotlib.pyplot as plt
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict
@@ -25,7 +23,8 @@ from sortedcontainers import SortedDict as sdict
 import prism
 from prism._gui import APP_NAME
 from prism._gui.widgets import (
-    QW_QAction, QW_QMenu, OverviewListWidget, ThreadedProgressDialog)
+    FigureCanvas, QW_QAction, QW_QMenu, OverviewListWidget,
+    ThreadedProgressDialog)
 
 # All declaration
 __all__ = ['OverviewDockWidget']

@@ -131,8 +131,8 @@ class MainViewerWindow(QW.QMainWindow):
         self.set_default_dock_positions()
 
         # Set the exception handler to an internal message window
-#        gui_excepthook = partial(show_exception_details, self)
-#        sys.excepthook = gui_excepthook
+        gui_excepthook = partial(show_exception_details, self)
+        sys.excepthook = gui_excepthook
 
         # Turn off all regular logging in Pipeline
         self.was_logging = bool(self.pipe.do_logging)

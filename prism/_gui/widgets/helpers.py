@@ -17,14 +17,15 @@ from time import sleep
 from traceback import format_exception_only, format_tb
 
 # Package imports
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from PyQt5 import QtCore as QC, QtWidgets as QW
 
 # PRISM imports
 from prism._gui import APP_NAME
 
 # All declaration
-__all__ = ['ExceptionDialog', 'OverviewListWidget', 'ThreadedProgressDialog',
-           'show_exception_details']
+__all__ = ['ExceptionDialog', 'FigureCanvas', 'OverviewListWidget',
+           'ThreadedProgressDialog', 'show_exception_details']
 
 
 # %% CLASS DEFINITIONS
@@ -167,6 +168,28 @@ class ExceptionDialog(QW.QDialog):
         self.setFixedSize(self.layout().minimumSize())
 
 
+# Class used for holding the projection figures in the projection viewing area
+class FigureCanvas(FigureCanvasQTAgg):
+    def __init__(self, figure, *args, **kwargs):
+        # Call the super constructor
+        super().__init__(figure)
+
+        # Create the figure canvas
+        self.init()
+
+    # Create the figure canvas
+    def init(self):
+        pass
+
+    # Override the resizeEvent to automatically properly resize figure
+    def resizeEvent(self, *args, **kwargs):
+        # Call super event
+        super().resizeEvent(*args, **kwargs)
+
+        # Recalculate the constrained layout of the figure
+#        self.figure.execute_constrained_layout()
+
+
 # Class used for making the overview lists in the GUI
 class OverviewListWidget(QW.QListWidget):
     def __init__(self, *, hcubes_list, status_tip, context_menu, activated):
@@ -191,6 +214,19 @@ class OverviewListWidget(QW.QListWidget):
         # Set signal handling
         self.customContextMenuRequested.connect(context_menu)
         self.itemActivated.connect(activated)
+
+        # Make sure the items in the list are sorted
+        self.sortItems()
+
+    # Override keyPressEvent
+    def keyPressEvent(self, event):
+        # Check if the event involved pressing Enter or Return
+        if event.key() in (QC.Qt.Key_Enter, QC.Qt.Key_Return):
+            # If so, emit the itemActivated signal
+            self.itemActivated.emit(self.currentItem())
+        # Else, handle as normal
+        else:
+            super().keyPressEvent(event)
 
 
 # Class that provides a special threaded progress dialog
