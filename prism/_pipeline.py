@@ -3271,7 +3271,7 @@ class WorkerMode(object):
                     break
                 # Else, process the received message
                 else:
-                    _ = self._process_call(self.pipe, *msg)
+                    self._process_call(self.pipe, *msg)
 
     # Function that sends a code string to all workers and executes it
     @staticmethod
@@ -3399,7 +3399,7 @@ class WorkerMode(object):
         if str_list.pop(0) == 'pipe':
             # Remove 'pipe' again in case 'pipe.pipe.xxx' was provided
             if len(str_list) and str_list[0] == 'pipe':
-                _ = str_list.pop(0)
+                str_list.pop(0)
 
             # Retrieve the attribute that string refers to
             string = pipe

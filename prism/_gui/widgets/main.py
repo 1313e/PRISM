@@ -244,9 +244,9 @@ class MainViewerWindow(QW.QMainWindow):
     def about(self):
         QW.QMessageBox.about(
             self, "About %s" % (APP_NAME), dedent(r"""
-                <b>PRISM v%s | %s</b><br>
+                <b>%s | PRISM v%s</b><br>
                 Copyright (C) 2019 Ellert van der Velden
-                """ % (__version__, APP_NAME)))
+                """ % (APP_NAME, __version__)))
 
     # This function is called when the viewer is closed
     def closeEvent(self, *args, **kwargs):

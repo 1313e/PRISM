@@ -224,6 +224,10 @@ class OverviewListWidget(QW.QListWidget):
         if event.key() in (QC.Qt.Key_Enter, QC.Qt.Key_Return):
             # If so, emit the itemActivated signal
             self.itemActivated.emit(self.currentItem())
+        # Else, check if the event involved pressing CTRL + A
+        elif(event.key() == QC.Qt.CTRL + QC.Qt.Key_A):
+            # If so, select all items in the list
+            self.selectAll()
         # Else, handle as normal
         else:
             super().keyPressEvent(event)

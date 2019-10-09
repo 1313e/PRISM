@@ -18,6 +18,6 @@ __all__ = ['APP_NAME', 'DIR_PATH', 'APP_ICON_PATH']
 
 
 # %% GUI GLOBALS
-APP_NAME = "PRISM Projection Viewer"                # Name of application
+APP_NAME = "Crystal"                                # Name of application
 DIR_PATH = path.abspath(path.dirname(__file__))     # Path to GUI directory
 APP_ICON_PATH = path.join(DIR_PATH, "data/app_icon.ico")   # App icon path
