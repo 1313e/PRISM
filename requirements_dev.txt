@@ -6,6 +6,7 @@ pytest>=3.8.0
 pytest-cov
 pytest-pep8
 pytest-qt>=2.0
+pytest-xvfb>=1.2.0;platform_system=="Linux"
 readme_renderer[md]
 setuptools>=38.6.0
 twine>=1.13.0

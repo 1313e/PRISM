@@ -3,6 +3,7 @@
 # %% IMPORTS
 # Package imports
 import matplotlib as mpl
+from mpi4pyd import MPI
 from py.path import local
 import pytest
 
@@ -16,6 +17,12 @@ mpl.use('Agg')
 def pytest_report_header(config):
     from prism.__version__ import __version__
     return("PRISM: %s" % (__version__))
+
+
+# Disable xvfb on all cores except the first
+def pytest_load_initial_conftests(args):
+    if MPI.COMM_WORLD.Get_rank():
+        args = ["--no-xvfb"] + args
 
 
 # Add an attribute to PRISM stating that pytest is being used
