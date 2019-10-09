@@ -270,7 +270,7 @@ class Test_Pipeline_Gaussian2D(object):
                 pipe._make_call('_comm.Barrier')
 
                 # Test if a call solely to workers can be made
-                pipe._make_call_workers('print', 'pipe._comm.size')
+                pipe._make_call_workers(print, 'pipe._comm.size')
 
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model
