@@ -48,9 +48,12 @@ def pipe_GUI(tmpdir_factory):
 
 
 @pytest.fixture(scope='session')
-def main_window(qapp, pipe_GUI):
+def main_window(qapp, request, pipe_GUI):
     # Create the main_window
     main_window = MainViewerWindow(pipe_GUI)
+
+    # Request for the main_window to be closed at the end
+    request.addfinalizer(lambda: main_window.close())
 
     # Return main_window
     return(main_window)

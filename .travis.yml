@@ -23,6 +23,7 @@ before_install:
           sudo apt-get update -q
       else
           brew update
+          brew cleanup
       fi
     - python$PY -m pip install --upgrade pip setuptools wheel
     - pip$PY install -r requirements_dev.txt

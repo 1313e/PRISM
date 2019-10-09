@@ -101,6 +101,7 @@ steps:
     $Env:Path += ";C:\Program Files\Microsoft MPI\Bin"
     pip install --no-cache-dir mpi4py
     cmd \c mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
+    pip install astropy
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows and run in MPI
 

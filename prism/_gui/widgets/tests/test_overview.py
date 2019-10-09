@@ -417,8 +417,8 @@ class TestOverviewListWidget_Available(object):
         item = overview.proj_list_u.item(len(overview.proj_list_u)-1)
         overview._create_projection_figure(item)
 
-        # Select the first item
-        proj_list.setCurrentRow(len(proj_list)-1)
+        # Select the created item
+        proj_list.setCurrentItem(item)
 
         # Trigger the action
         actions['Details'].trigger()

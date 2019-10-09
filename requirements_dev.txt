@@ -6,7 +6,6 @@ pytest>=3.8.0
 pytest-cov
 pytest-pep8
 pytest-qt>=2.0
-pytest-timeout>=1.3.3
 readme_renderer[md]
 setuptools>=38.6.0
 twine>=1.13.0
