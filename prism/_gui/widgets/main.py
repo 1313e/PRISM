@@ -160,7 +160,7 @@ class MainViewerWindow(QW.QMainWindow):
         quit_act = QW_QAction(
             self, '&Quit',
             shortcut=QC.Qt.CTRL + QC.Qt.Key_Q,
-            statustip="Quit viewer",
+            statustip="Quit %s" % (APP_NAME),
             triggered=self.close,
             role=QW_QAction.QuitRole)
         file_menu.addAction(quit_act)

@@ -28,13 +28,13 @@ __all__ = ['start_gui']
 
 
 # %% FUNCTIONS DEFINITIONS
-# This function starts up the Projection GUI
+# This function starts up the Projection GUI 'Crystal'
 @docstring_append(start_gui_doc_pars, '\n\t\n\t')
 @docstring_append(start_gui_doc)
 def start_gui(pipeline_obj):  # pragma: no cover
     # Create a logger
     logger = getCLogger('GUI')
-    logger.info("Starting the projection GUI.")
+    logger.info("Starting %s." % (APP_NAME))
 
     # Import Pipeline class here to avoid an ImportError
     from prism import Pipeline

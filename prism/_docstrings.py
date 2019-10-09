@@ -311,40 +311,42 @@ proj_res_doc = ("Number of emulator evaluations that will be used to generate "
 
 # %% PROJECTION GUI DOCSTRINGS
 # Docstrings for the start_gui() function/method
+GUI_APP_NAME = 'Crystal'
 start_gui_doc =\
         """Creates an instance of :class:`~PyQt5.QtWidgets.QApplication` or
-        retrieves it if one already exists, and starts *PRISM*'s Projection
-        GUI.
+        retrieves it if one already exists, and starts *{0}*, *PRISM*'s
+        Projection GUI.
 
-        This GUI provides an interactive way of creating projection figures, as
+        *{0}* provides an interactive way of creating projection figures, as
         opposed to the static and linear method provided by
         :meth:`~prism.Pipeline.project`.
         It is made to make it easier to create; view; compare; and analyze
         large numbers of projection figures.
         All options available in the :meth:`~prism.Pipeline.project` method
-        can also be accessed through the GUI.
+        can also be accessed through *{0}*.
 
         As with all :class:`~prism.Pipeline` user methods, this function must
-        be called by all MPI ranks."""
+        be called by all MPI ranks.""".format(GUI_APP_NAME)
 
 start_gui_doc_pars =\
         """Parameters
         ----------
         pipeline_obj : :obj:`~prism.Pipeline` object
-            The instance of the :class:`~prism.Pipeline` class for which the
-            GUI must be initialized.
+            The instance of the :class:`~prism.Pipeline` class for which *{0}*
+            must be initialized.
 
         Returns
         -------
         main_window_obj : :obj:`~PyQt5.QtWidgets.QMainWindow` object
             The instance of the :class:`~prism._gui.widgets.MainViewerWindow`
-            class that was created for drawing the GUI.
+            class that was created for drawing *{0}*.
             Can be used for debugging purposes.
 
         Note
         ----
         This function can also be accessed through the
-        :meth:`~prism.Pipeline.start_gui` method."""
+        :meth:`~prism.Pipeline.{1}` method.""".format(
+            GUI_APP_NAME, GUI_APP_NAME.lower())
 
 
 # %% GENERAL DOCSTRINGS

@@ -22,8 +22,8 @@ from e13tools import InputError
 from e13tools.pyplot import draw_textline
 from e13tools.sampling import lhd
 from e13tools.utils import (
-    convert_str_seq, docstring_append, docstring_substitute, raise_error,
-    raise_warning)
+    convert_str_seq, docstring_append, docstring_copy, docstring_substitute,
+    raise_error, raise_warning)
 from matplotlib import cm
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
@@ -38,7 +38,7 @@ from prism._docstrings import (
     proj_depth_doc, proj_par_doc_d, proj_par_doc_s, proj_res_doc,
     save_data_doc_pr, set_par_doc, start_gui_doc, std_emul_i_doc,
     user_emul_i_doc)
-from prism._gui import start_gui
+from prism._gui import start_gui as _start_gui
 from prism._internal import (
     RequestError, RequestWarning, check_vals, getCLogger, np_array)
 
@@ -307,8 +307,13 @@ class Projection(object):
 
     # Function that starts up the Projection GUI
     @docstring_append(start_gui_doc)
-    def start_gui(self):                                # pragma: no cover
-        start_gui(self)
+    def start_gui(self):                               # pragma: no cover
+        _start_gui(self)
+
+    # Function that starts up the Projection GUI
+    @docstring_copy(start_gui)
+    def crystal(self):                                 # pragma: no cover
+        self.start_gui()
 
     # %% CLASS PROPERTIES
     @property
