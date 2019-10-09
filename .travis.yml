@@ -42,7 +42,7 @@ script:
       fi
     - pip$PY --no-cache-dir install mpi4py
     - |
-      mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest --no-xvfb
+      mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
       coverage combine
       coverage report -m
 after_success:
