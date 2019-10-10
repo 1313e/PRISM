@@ -11,11 +11,25 @@ import pytest
 # PRISM imports
 from prism import Pipeline
 from prism._gui.widgets.main import MainViewerWindow
+from prism._pipeline import WorkerMode
 from prism.modellink.tests.modellink import GaussianLink3D
 
 
 # %% GLOBALS
 DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
+
+
+# %% PYTEST CUSTOM CONFIGURATION PLUGINS
+# Add an attribute to PRISM stating that pytest is being used
+def pytest_configure(config):
+    import prism
+    prism.__PYTEST = True
+
+
+# After pytest has finished, remove this attribute again
+def pytest_unconfigure(config):
+    import prism
+    del prism.__PYTEST
 
 
 # %% HELPER FUNCTIONS
@@ -47,19 +61,42 @@ def pipe_GUI(tmpdir_factory):
     return(pipe)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def main_window(qapp, request, pipe_GUI):
-    # Create the main_window
-    main_window = MainViewerWindow(pipe_GUI)
+    # Initialize worker mode
+    worker_mode = WorkerMode(pipe_GUI)
 
-    # Request for the main_window to be closed at the end
-    request.addfinalizer(lambda: main_window.close())
+    # Request for the worker_mode to be closed at the end
+    request.addfinalizer(lambda: exit_worker_mode(worker_mode))
 
-    # Return main_window
-    return(main_window)
+    # Enter worker mode
+    worker_mode.__enter__()
+
+    # All workers skip all tests at module level
+    if pipe_GUI._is_worker:
+        pytest.skip("Worker ranks are in worker mode", allow_module_level=True)
+
+    # Controller only
+    if pipe_GUI._is_controller:
+        # Create the main_window
+        main_window = MainViewerWindow(pipe_GUI)
+
+        # Request for the main_window to be closed at the end
+        request.addfinalizer(lambda: close_main_window(main_window))
+
+        # Return main_window
+        return(main_window)
 
 
-@pytest.fixture(scope='session')
+def close_main_window(main_window_obj):
+    main_window_obj.close()
+
+
+def exit_worker_mode(worker_mode_obj):
+    worker_mode_obj.__exit__()
+
+
+@pytest.fixture(scope='module')
 def menu_actions(main_window):
     # Obtain a list of all menus
     menus = [child for child in main_window.menubar.children()

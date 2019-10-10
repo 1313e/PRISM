@@ -24,26 +24,16 @@ def pytest_report_header(config):
 
 # Disable xvfb on all cores except the first
 def pytest_load_initial_conftests(args):
-    if MPI.COMM_WORLD.Get_rank() and sys.platform.startswith('linux'):
+    if MPI.COMM_WORLD.rank and sys.platform.startswith('linux'):
         args = ["--no-xvfb"] + args
 
 
-# Add an attribute to PRISM stating that pytest is being used
-# Also add the pep8 and incremental markers
+# Add the pep8 and incremental markers
 def pytest_configure(config):
-    import prism
-    prism.__PYTEST = True
-
     config.addinivalue_line("markers", "pep8: Checks for PEP8 compliancy.")
     config.addinivalue_line("markers",
                             "incremental: Mark test suite to xfail all "
                             "remaining tests when one fails.")
-
-
-# After pytest has finished, remove this attribute again
-def pytest_unconfigure(config):
-    import prism
-    del prism.__PYTEST
 
 
 # This introduces a marker that auto-fails tests if a previous one failed

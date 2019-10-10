@@ -10,7 +10,6 @@ from e13tools.math import nCr
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 import matplotlib.pyplot as plt
-from mpi4pyd import MPI
 from PyQt5 import QtCore as QC, QtWidgets as QW
 import pytest
 
@@ -38,8 +37,6 @@ def viewing_area(main_window):
 
 # %% PYTEST CLASSES AND FUNCTIONS
 # Pytest for the overview dock widget, main properties
-@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
-                    reason="Cannot be pytested in MPI")
 class TestOverviewDockWidget_Main(object):
     # Test if it is bound to main_window
     def test_bound_main(self, main_window, overview):
@@ -108,8 +105,6 @@ class TestOverviewDockWidget_Main(object):
 
 # Pytest for testing the drawn list
 @pytest.mark.incremental
-@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
-                    reason="Cannot be pytested in MPI")
 class TestOverviewListWidget_Drawn(object):
     # Make abbreviation for proj_list
     @pytest.fixture(scope='class')
@@ -283,8 +278,6 @@ class TestOverviewListWidget_Drawn(object):
 
 # Pytest for testing the available list
 @pytest.mark.incremental
-@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
-                    reason="Cannot be pytested in MPI")
 class TestOverviewListWidget_Available(object):
     # Make abbreviation for proj_list
     @pytest.fixture(scope='class')
@@ -456,8 +449,6 @@ class TestOverviewListWidget_Available(object):
 
 # Pytest for testing the unavailable list
 @pytest.mark.incremental
-@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
-                    reason="Cannot be pytested in MPI")
 class TestOverviewListWidget_Unavailable(object):
     # Make abbreviation for proj_list
     @pytest.fixture(scope='class')

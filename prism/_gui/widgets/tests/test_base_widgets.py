@@ -5,13 +5,20 @@
 from os import path
 
 # Package imports
+from mpi4pyd import MPI
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
+import pytest
 
 # PRISM imports
 from prism._gui import APP_ICON_PATH
 from prism._gui.widgets.base_widgets import (
     QW_QAction, QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox,
     QW_QLabel, QW_QMenu, QW_QSpinBox, QW_QToolBar)
+
+
+# Skip this entire module for any rank that is not the controller
+pytestmark = pytest.mark.skipif(MPI.COMM_WORLD.rank,
+                                reason="Worker ranks cannot test this")
 
 
 # %% GLOBALS

@@ -123,6 +123,7 @@ class MainViewerWindow(QW.QMainWindow):
 
         # Create menubar
         self.create_menubar()
+        self.menubar.setFocus()
 
         # Set resolution of window
         self.resize(800, 600)

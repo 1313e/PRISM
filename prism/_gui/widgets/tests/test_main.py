@@ -5,9 +5,7 @@
 from os import path
 
 # Package imports
-from mpi4pyd import MPI
 from PyQt5 import QtWidgets as QW
-import pytest
 
 
 # %% GLOBALS
@@ -16,8 +14,6 @@ DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
 
 # %% PYTEST CLASSES AND FUNCTIONS
 # Pytest for the file menu
-@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
-                    reason="Cannot be pytested in MPI")
 class TestMenus_File(object):
     # Test the save view action
     def test_save_view(self, pipe_GUI, monkeypatch, menu_actions):
@@ -39,8 +35,6 @@ class TestMenus_File(object):
 
 
 # Pytest for the tools menu
-@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
-                    reason="Cannot be pytested in MPI")
 class TestMenus_Tools(object):
     # Test the cascade option
     def test_cascade(self, menu_actions):
@@ -68,8 +62,6 @@ class TestMenus_Tools(object):
 
 
 # Pytest for the help menu
-@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
-                    reason="Cannot be pytested in MPI")
 class TestMenus_Help(object):
     # Test the about window
     def test_about(self, monkeypatch, menu_actions):
