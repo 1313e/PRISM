@@ -37,9 +37,9 @@ def pytest_unconfigure(config):
 def pipe_GUI(tmpdir_factory):
     # Get paths to files
     model_data = path.join(
-        DIR_PATH, '../../../tests/data/data_gaussian_single.txt')
+        DIR_PATH, '../tests/data/data_gaussian_single.txt')
     model_parameters_3D = path.join(
-        DIR_PATH, '../../../tests/data/parameters_gaussian_3D.txt')
+        DIR_PATH, '../tests/data/parameters_gaussian_3D.txt')
 
     # Create PolyLink object
     modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,

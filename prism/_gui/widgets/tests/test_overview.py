@@ -29,12 +29,6 @@ def overview(main_window):
     return(main_window.overview_dock)
 
 
-# Make abbreviation for viewing_area
-@pytest.fixture(scope='module')
-def viewing_area(main_window):
-    return(main_window.viewing_area)
-
-
 # %% PYTEST CLASSES AND FUNCTIONS
 # Pytest for the overview dock widget, main properties
 class TestOverviewDockWidget_Main(object):

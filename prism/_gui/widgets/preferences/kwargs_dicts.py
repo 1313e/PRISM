@@ -333,8 +333,8 @@ class KwargsDictDialogPage(QW.QWidget):
     # This function adds a cmap box
     def add_type_cmap(self):
         # Obtain a list with default colormaps that should be at the top
-        std_cmaps = sset(['cividis', 'freeze', 'inferno', 'magma', 'plasma',
-                          'rainforest', 'viridis'])
+        std_cmaps = sset(['cividis', 'dusk', 'freeze', 'heat', 'inferno',
+                          'magma', 'plasma', 'rainforest', 'viridis'])
         std_cmaps_r = sset([cmap+'_r' for cmap in std_cmaps])
 
         # Obtain a list with all colormaps and their reverses
@@ -374,8 +374,34 @@ class KwargsDictDialogPage(QW.QWidget):
         cmaps_box.setIconSize(QC.QSize(*cmap_size))
         cmaps_box.setToolTip("Colormap to be used for the corresponding plot "
                              "type")
+        cmaps_box.currentTextChanged.connect(self.cmap_selected)
         cmaps_box.currentTextChanged.connect(self.options.enable_save_button)
         return(cmaps_box)
+
+    # This function checks a selected cmap
+    @QC.pyqtSlot(str)
+    def cmap_selected(self, cmap):
+        # Make a tuple with terrible colormaps
+        bad_cmaps = ('gist_ncar', 'gist_rainbow', 'gist_stern', 'jet',
+                     'nipy_spectral')
+
+        # If a terrible colormap is selected, raise error
+        if cmap.startswith(bad_cmaps):
+            # Create error message
+            err_msg = ("The selected <b><i>%s</i></b> cmap is terrible for "
+                       "drawing PRISM's projection figures. To avoid "
+                       "introducing fake perceptual features, it is "
+                       "recommended to pick a <i>perceptually uniform "
+                       "sequential</i> colormap, like the ones at the top of "
+                       "this list.<br><br>"
+                       "See <a href=\"%s\">here</a> for more information on "
+                       "this subject."
+                       % (cmap, ("https://e13tools.readthedocs.io/en/latest/"
+                                 "user/colormaps.html#background")))
+
+            # Show error window
+            QW.QMessageBox.warning(
+                self, "%s WARNING" % (cmap.upper()), err_msg)
 
     # This function adds an alpha box
     def add_type_alpha(self):
