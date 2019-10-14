@@ -10,6 +10,9 @@ that allow for certain widgets to be standardized.
 
 
 # %% IMPORTS
+# Built-in imports
+from sys import platform
+
 # Package imports
 from PyQt5 import QtCore as QC, QtWidgets as QW
 
@@ -123,6 +126,12 @@ class QW_QAbstractSpinBox(QW.QAbstractSpinBox):
         self.setStepType(self.AdaptiveDecimalStepType)
         self.setAccelerated(True)
         self.setGroupSeparatorShown(True)
+        self.setStyleSheet(
+            """
+            QAbstractSpinBox {{
+                margin: {0}px 0px {0}px 0px;
+                max-height: 24px;}}
+            """.format("-1" if platform.startswith('linux') else '0'))
 
 
 # Create custom QDoubleSpinBox

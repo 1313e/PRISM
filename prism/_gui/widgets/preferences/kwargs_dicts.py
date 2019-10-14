@@ -24,7 +24,8 @@ from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
 from prism._gui.widgets import (
-    QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox, QW_QSpinBox)
+    QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox, QW_QLabel,
+    QW_QSpinBox)
 from prism._gui.widgets.preferences.custom_boxes import (
     ColorBox, DefaultBox, FigSizeBox)
 from prism._gui.widgets.preferences.helpers import (
@@ -111,6 +112,9 @@ class KwargsDictDialog(QW.QDialog):
         # Set some properties for this window
         self.setWindowTitle("Viewing projection keyword dicts")     # Title
 
+        # Set the height of an editable entry
+        self.entry_height = 24
+
     # This function shows an editable window with the entries in the dict
     @QC.pyqtSlot()
     def __call__(self):
@@ -147,6 +151,7 @@ class KwargsDictDialogPage(QW.QWidget):
                  banned_entries, *args, **kwargs):
         # Save provided kwargs_dict_dialog_obj
         self.pages_dialog = kwargs_dict_dialog_obj
+        self.entry_height = self.pages_dialog.entry_height
         self.options = self.pages_dialog.options
         self.name = name
         self.std_entries = sset(std_entries)
@@ -163,12 +168,16 @@ class KwargsDictDialogPage(QW.QWidget):
         # Create tab layout
         page_layout = QW.QVBoxLayout(self)
 
-        # TODO: Add header?
         # Create a grid for this layout
         self.kwargs_grid = QW.QGridLayout()
         self.kwargs_grid.setColumnStretch(1, 1)
         self.kwargs_grid.setColumnStretch(2, 2)
         page_layout.addLayout(self.kwargs_grid)
+
+        # Add a header
+        self.kwargs_grid.addWidget(QW_QLabel(""), 0, 0)
+        self.kwargs_grid.addWidget(QW_QLabel("Entry type"), 0, 1)
+        self.kwargs_grid.addWidget(QW_QLabel("Field value"), 0, 2)
 
         # Make sure that '' is not in std_entries or banned_entries
         self.std_entries.discard('')
@@ -184,6 +193,7 @@ class KwargsDictDialogPage(QW.QWidget):
 
         # Add an 'add' button at the bottom of this layout
         add_but = QW.QToolButton()
+        add_but.setFixedSize(self.entry_height, self.entry_height)
         add_but.setToolTip("Add a new entry")
         add_but.clicked.connect(self.add_editable_entry)
         add_but.clicked.connect(self.options.enable_save_button)
@@ -199,18 +209,27 @@ class KwargsDictDialogPage(QW.QWidget):
         page_layout.addWidget(add_but)
         page_layout.addStretch()
 
+        # Set a minimum width for the first grid column
+        self.kwargs_grid.setColumnMinimumWidth(0, self.entry_height)
+
     # This function gets the dict value of a tab
     def get_box_value(self):
         # Create an empty dict to hold the values in
         page_dict = sdict()
 
         # Loop over all items in grid and save them to page_dict
-        for row in range(self.kwargs_grid.count()//3):
-            # Obtain the entry_type
-            entry_type = get_box_value(
-                self.kwargs_grid.itemAtPosition(row, 1).widget())
+        for row in range(1, self.kwargs_grid.rowCount()):
+            # Obtain item that should contain the entry_type in this row
+            entry_type_item = self.kwargs_grid.itemAtPosition(row, 1)
 
-            # If the entry_type is empty, skip this row
+            # If entry_type_item is None, this row contains no items
+            if entry_type_item is None:
+                continue
+
+            # Obtain the entry_type
+            entry_type = get_box_value(entry_type_item.widget())
+
+            # If the entry_type is empty or banned, skip this row
             if(entry_type == '' or entry_type in self.banned_entries):
                 continue
 
@@ -225,22 +244,54 @@ class KwargsDictDialogPage(QW.QWidget):
         return(page_dict)
 
     # This function sets the dict value of a tab
-    # OPTIMIZE: Reuse grid items that were already in the grid?
     def set_box_value(self, page_dict):
-        # Remove all items in the grid
-        for _ in range(self.kwargs_grid.count()):
-            item = self.kwargs_grid.takeAt(0)
-            item.widget().close()
-            del item
+        # Make empty dict containing all current valid entries
+        cur_entry_dict = sdict()
 
-        # Add all items in page_dict to kwargs_tab
-        for row, (entry_type, field_value) in enumerate(page_dict.items()):
-            # Add a new entry to this tab
-            self.add_editable_entry()
+        # Remove all entries from kwargs_grid
+        for row in range(1, self.kwargs_grid.rowCount()):
+            # Obtain item that should contain the entry_type in this row
+            entry_type_item = self.kwargs_grid.itemAtPosition(row, 1)
 
-            # Set this entry to the proper type
-            set_box_value(self.kwargs_grid.itemAtPosition(row, 1).widget(),
-                          entry_type)
+            # If entry_type_item is None, this row contains no items
+            if entry_type_item is None:
+                continue
+
+            # Obtain the entry_type
+            entry_type = get_box_value(entry_type_item.widget())
+
+            # Delete this entry if not in page_dict or if it is not allowed
+            if(entry_type not in page_dict or (entry_type == '') or
+               entry_type in self.banned_entries):
+                del_but = self.kwargs_grid.itemAtPosition(row, 0).widget()
+                del_but.click()
+                continue
+
+            # If this entry appears multiple times, delete its previous entry
+            if entry_type in cur_entry_dict:
+                for item in cur_entry_dict[entry_type]:
+                    item.widget().close()
+                    del item
+                cur_entry_dict.pop(entry_type)
+
+            # Add this entry to cur_entry_dict
+            cur_entry_dict[entry_type] =\
+                [self.kwargs_grid.takeAt(3) for _ in range(3)]
+
+        # Loop over all items in page_dict and act accordingly
+        for row, (entry_type, field_value) in enumerate(page_dict.items(), 1):
+            # Check if this entry_type already existed
+            if entry_type in cur_entry_dict:
+                # If so, put it back into kwargs_grid
+                for col, item in enumerate(cur_entry_dict[entry_type]):
+                    self.kwargs_grid.addItem(item, row, col)
+            else:
+                # If not, add it to kwargs_grid
+                self.add_editable_entry()
+
+                # Set this new entry to the proper type
+                set_box_value(self.kwargs_grid.itemAtPosition(row, 1).widget(),
+                              entry_type)
 
             # Set the value of the corresponding field
             set_box_value(self.kwargs_grid.itemAtPosition(row, 2).widget(),
@@ -251,6 +302,7 @@ class KwargsDictDialogPage(QW.QWidget):
     def add_editable_entry(self):
         # Create a combobox with different standard kwargs
         kwargs_box = QW_QEditableComboBox()
+        kwargs_box.setFixedHeight(self.entry_height)
         kwargs_box.addItem('')
         kwargs_box.addItems(self.std_entries)
         kwargs_box.setToolTip("Select a standard type for this entry or add "
@@ -261,6 +313,7 @@ class KwargsDictDialogPage(QW.QWidget):
 
         # Create a delete button
         delete_but = QW.QToolButton()
+        delete_but.setFixedSize(self.entry_height, self.entry_height)
         delete_but.setToolTip("Delete this entry")
         delete_but.clicked.connect(
             lambda: self.remove_editable_entry(kwargs_box))
@@ -324,6 +377,9 @@ class KwargsDictDialogPage(QW.QWidget):
                 return
             else:
                 field_box = self.add_unknown_type()
+
+        # Set the height of this box
+        field_box.setFixedHeight(self.entry_height)
 
         # Replace current field_box with new field_box
         cur_item = self.kwargs_grid.replaceWidget(cur_box, field_box)
