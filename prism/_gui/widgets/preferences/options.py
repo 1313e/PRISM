@@ -20,7 +20,7 @@ from sortedcontainers import SortedDict as sdict
 from prism._docstrings import proj_depth_doc, proj_res_doc
 from prism._gui.widgets import QW_QDoubleSpinBox, QW_QSpinBox
 from prism._gui.widgets.preferences.helpers import (
-    get_box_value, options_entry, set_box_value)
+    get_box_value, get_modified_box_signal, set_box_value)
 from prism._gui.widgets.preferences.kwargs_dicts import KwargsDictBoxLayout
 
 # All declaration
@@ -30,6 +30,11 @@ __all__ = ['OptionsDialog']
 # %% CLASS DEFINITIONS
 # Define class for options dialog
 class OptionsDialog(QW.QDialog):
+    # Create saving, resetting and setting signals
+    saving_options = QC.pyqtSignal()
+    resetting_options = QC.pyqtSignal()
+    setting_options = QC.pyqtSignal()
+
     def __init__(self, main_window_obj, *args, **kwargs):
         # Save provided MainWindow object
         self.main = main_window_obj
@@ -64,13 +69,10 @@ class OptionsDialog(QW.QDialog):
 
         # Include all tabs named in options_tabs
         for tab in options_tabs:
-            getattr(self, 'add_tab_%s' % (tab))(window_tabs)
+            window_tabs.addTab(*getattr(self, 'create_tab_%s' % (tab))())
 
         # Also add the buttons
-        self.add_group_buttons(window_layout)
-
-        # Set default options
-        self.reset_options()
+        self.create_group_buttons(window_layout)
 
         # Set a few properties of options window
         self.setWindowModality(QC.Qt.WindowModal)           # Modality
@@ -103,71 +105,87 @@ class OptionsDialog(QW.QDialog):
     def get_option(self, name):
         return(self.options_entries[name].value)
 
+    # This function creates a new options entry
+    def create_entry(self, name, box, default):
+        # Create new options entry
+        entry = OptionsEntry(box, default)
+
+        # Connect box signals
+        get_modified_box_signal(box).connect(self.enable_save_button)
+
+        # Connect entry slots
+        self.saving_options.connect(entry.save_entry)
+        self.resetting_options.connect(entry.reset_entry)
+        self.setting_options.connect(entry.set_entry)
+
+        # Add new entry to options_entries
+        self.options_entries[name] = entry
+
     # This function creates a new tab
-    def create_tab(self, name, page_widget, *groups_list):
+    def create_tab(self, name, groups_list):
         # Create a tab
-        options_tab = QW.QWidget()
-        page_layout = QW.QVBoxLayout()
-        options_tab.setLayout(page_layout)
+        tab = QW.QWidget()
+        layout = QW.QVBoxLayout()
+        tab.setLayout(layout)
 
         # Include all groups named in groups_list
         for group in groups_list:
-            getattr(self, 'add_group_%s' % (group))(page_layout)
+            layout.addWidget(getattr(self, 'create_group_%s' % (group))())
 
         # Add a stretch
-        page_layout.addStretch()
+        layout.addStretch()
 
-        # Add tab to page_widget
-        page_widget.addTab(options_tab, name)
+        # Return tab
+        return(tab, name)
 
     # This function creates a new group
-    def create_group(self, name, page_layout, *options_list):
+    def create_group(self, name, options_list):
         # Create a group
-        options_group = QW.QGroupBox(name)
-        group_layout = QW.QFormLayout()
-        options_group.setLayout(group_layout)
+        group = QW.QGroupBox(name)
+        layout = QW.QFormLayout()
+        group.setLayout(layout)
 
         # Include all options named in options_list
         for option in options_list:
-            getattr(self, 'add_option_%s' % (option))(group_layout)
+            layout.addRow(*getattr(self, 'create_option_%s' % (option))())
 
-        # Add group to tab
-        page_layout.addWidget(options_group)
+        # Return group
+        return(group)
 
     # GENERAL TAB
-    def add_tab_general(self, *args):
+    def create_tab_general(self):
         self.proj_defaults = sdict(self.get_proj_attr('proj_kwargs'))
         self.proj_keys = list(self.proj_defaults.keys())
         self.proj_keys.remove('align')
         self.proj_keys.extend(['align_col', 'align_row'])
-        self.create_tab("General", *args,
-                        'proj_grid', 'proj_kwargs')
+        return(self.create_tab("General", ['proj_grid', 'proj_kwargs']))
 
     # INTERFACE TAB
-    def add_tab_appearance(self, *args):
-        self.create_tab("Appearance", *args, 'interface')
+    def create_tab_appearance(self):
+        return(self.create_tab("Appearance", ['interface']))
 
     # PROJ_GRID GROUP
-    def add_group_proj_grid(self, *args):
-        self.create_group("Projection grid", *args,
-                          'proj_res', 'proj_depth')
+    def create_group_proj_grid(self):
+        return(self.create_group("Projection grid",
+                                 ['proj_res', 'proj_depth']))
 
     # PROJ_KWARGS GROUP
-    def add_group_proj_kwargs(self, *args):
-        self.create_group("Projection keywords", *args,
-                          'align', 'show_cuts', 'smooth', 'kwargs_dicts')
+    def create_group_proj_kwargs(self):
+        return(self.create_group("Projection keywords",
+                                 ['align', 'show_cuts', 'smooth',
+                                  'kwargs_dicts']))
 
     # INTERFACE GROUP
-    def add_group_interface(self, *args):
-        self.create_group("Interface", *args, 'auto_tile', 'auto_show')
+    def create_group_interface(self):
+        return(self.create_group("Interface", ['auto_tile', 'auto_show']))
 
     # FONTS GROUP
-    def add_group_fonts(self, *args):
-        self.create_group("Fonts", *args, 'text_fonts')
+    def create_group_fonts(self):
+        return(self.create_group("Fonts", ['text_fonts']))
 
     # TEXT_FONTS OPTION
     # TODO: Further implement this
-    def add_option_text_fonts(self, group_layout):
+    def create_option_text_fonts(self):
         # PLAIN TEXT
         # Create a font families combobox
         plain_box = QW.QFontComboBox()
@@ -197,7 +215,6 @@ class OptionsDialog(QW.QDialog):
         font_grid = QW.QGridLayout()
         font_grid.setColumnStretch(1, 2)
         font_grid.setColumnStretch(3, 1)
-        group_layout.addRow(font_grid)
 
         # Add everything to this grid
         font_grid.addWidget(QW.QLabel("Plain text:"), 0, 0)
@@ -211,15 +228,17 @@ class OptionsDialog(QW.QDialog):
 
         font_grid.addWidget(QW.QLabel("NOTE: Does not work yet"), 2, 0, 1, 4)
 
+        # Return the grid
+        return(font_grid,)
+
     # DPI OPTION
     # TODO: Further implement this one as well
-    def add_option_dpi(self, group_layout):
+    def create_option_dpi(self):
         # Make a checkbox for setting a custom DPI scaling
         dpi_check = QW.QCheckBox("Custom DPI scaling:")
         dpi_check.setToolTip("Set this to enable custom DPI scaling of the "
                              "GUI")
-        dpi_check.toggled.connect(self.enable_save_button)
-        self.options_entries['dpi_flag'] = options_entry(dpi_check, False)
+        self.create_entry('dpi_flag', dpi_check, False)
 
         # Make a spinbox for setting the DPI scaling
         dpi_box = QW_QDoubleSpinBox()
@@ -229,143 +248,114 @@ class OptionsDialog(QW.QDialog):
         dpi_box.setToolTip("Custom DPI scaling factor to use. "
                            "'1.0' is no scaling. "
                            "'Auto' is automatic scaling.")
-        dpi_box.valueChanged.connect(self.enable_save_button)
         dpi_check.toggled.connect(dpi_box.setEnabled)
         dpi_box.setEnabled(False)
-        self.options_entries['dpi_scaling'] = options_entry(dpi_box, 1.0)
-        group_layout.addRow(dpi_check, dpi_box)
+        self.create_entry('dpi_scaling', dpi_box, 1.0)
+
+        # Return DPI box
+        return(dpi_check, dpi_box)
 
     # AUTO_TILE OPTION
-    def add_option_auto_tile(self, group_layout):
+    def create_option_auto_tile(self):
         # Make check box for auto tiling
         auto_tile_box = QW.QCheckBox("Auto-tile subwindows")
         auto_tile_box.setToolTip("Set this to automatically tile all "
                                  "projection subwindows whenever a new one is "
                                  "added")
-        auto_tile_box.toggled.connect(self.enable_save_button)
-        self.options_entries['auto_tile'] = options_entry(auto_tile_box, True)
-        group_layout.addRow(auto_tile_box)
+        self.create_entry('auto_tile', auto_tile_box, True)
+
+        # Return auto_tile box
+        return(auto_tile_box,)
 
     # AUTO_SHOW OPTIONS
-    def add_option_auto_show(self, group_layout):
+    def create_option_auto_show(self):
         # Make check box for auto showing projection figures/subwindows
         auto_show_box = QW.QCheckBox("Auto-show subwindows")
         auto_show_box.setToolTip("Set this to automatically show a projection "
                                  "subwindow after it has been drawn")
-        auto_show_box.toggled.connect(self.enable_save_button)
-        self.options_entries['auto_show'] = options_entry(auto_show_box, True)
-        group_layout.addRow(auto_show_box)
+        self.create_entry('auto_show', auto_show_box, True)
+
+        # Return auto_show box
+        return(auto_show_box,)
 
     # PROJ_RES OPTION
-    def add_option_proj_res(self, group_layout):
+    def create_option_proj_res(self):
         # Make spinbox for option proj_res
         proj_res_box = QW_QSpinBox()
         proj_res_box.setRange(0, 9999999)
         proj_res_box.setToolTip(proj_res_doc)
-        proj_res_box.valueChanged.connect(self.enable_save_button)
-        self.options_entries['proj_res'] =\
-            options_entry(proj_res_box, self.proj_defaults['proj_res'])
-        group_layout.addRow('Resolution:', proj_res_box)
+        self.create_entry('proj_res', proj_res_box,
+                          self.proj_defaults['proj_res'])
+
+        # Return resolution box
+        return('Resolution:', proj_res_box)
 
     # PROJ_DEPTH OPTION
-    def add_option_proj_depth(self, group_layout):
+    def create_option_proj_depth(self):
         # Make spinbox for option proj_depth
         proj_depth_box = QW_QSpinBox()
         proj_depth_box.setRange(0, 9999999)
         proj_depth_box.setToolTip(proj_depth_doc)
-        proj_depth_box.valueChanged.connect(self.enable_save_button)
-        self.options_entries['proj_depth'] =\
-            options_entry(proj_depth_box, self.proj_defaults['proj_depth'])
-        group_layout.addRow('Depth:', proj_depth_box)
+        self.create_entry('proj_depth', proj_depth_box,
+                          self.proj_defaults['proj_depth'])
 
-    # EMUL_I OPTION
-    def add_option_emul_i(self, group_layout):
-        # Make spinbox for option emul_i
-        emul_i_box = QW_QSpinBox()
-        emul_i_box.setRange(0, self.pipe._emulator._emul_i)
-        emul_i_box.valueChanged.connect(self.enable_save_button)
-        self.options_entries['emul_i'] =\
-            options_entry(emul_i_box, self.proj_defaults['emul_i'])
-        group_layout.addRow('Iteration:', emul_i_box)
-
-    # PROJ_TYPE OPTION
-    def add_option_proj_type(self, group_layout):
-        # Make check boxes for 2D and 3D projections
-        # 2D projections
-        proj_2D_box = QW.QCheckBox('2D')
-        proj_2D_box.setEnabled(self.n_par > 2)
-        proj_2D_box.toggled.connect(self.enable_save_button)
-        self.options_entries['proj_2D'] =\
-            options_entry(proj_2D_box, self.proj_defaults['proj_2D'])
-
-        # 3D projections
-        proj_3D_box = QW.QCheckBox('3D')
-        proj_3D_box.setEnabled(self.n_par > 2)
-        proj_3D_box.toggled.connect(self.enable_save_button)
-        self.options_entries['proj_3D'] =\
-            options_entry(proj_3D_box, self.proj_defaults['proj_3D'])
-
-        # Create layout for proj_type and add it to options layout
-        proj_type_box = QW.QHBoxLayout()
-        proj_type_box.addWidget(proj_2D_box)
-        proj_type_box.addWidget(proj_3D_box)
-        proj_type_box.addStretch()
-        group_layout.addRow('Projection type:', proj_type_box)
+        # Return depth box
+        return('Depth:', proj_depth_box)
 
     # ALIGN OPTION
-    def add_option_align(self, group_layout):
+    def create_option_align(self):
         # Column align
         align_col_box = QW.QRadioButton('Column')
         align_col_box.setToolTip("Align the projection subplots in a single "
                                  "column")
-        align_col_box.toggled.connect(self.enable_save_button)
-        self.options_entries['align_col'] =\
-            options_entry(align_col_box, self.proj_defaults['align'] == 'col')
+        self.create_entry('align_col', align_col_box,
+                          self.proj_defaults['align'] == 'col')
 
         # Row align
         align_row_box = QW.QRadioButton('Row')
         align_row_box.setToolTip("Align the projection subplots in a single "
                                  "row")
-        align_row_box.toggled.connect(self.enable_save_button)
-        self.options_entries['align_row'] =\
-            options_entry(align_row_box, self.proj_defaults['align'] == 'row')
+        self.create_entry('align_row', align_row_box,
+                          self.proj_defaults['align'] == 'row')
 
         # Create layout for align and add it to options layout
         align_box = QW.QHBoxLayout()
         align_box.addWidget(align_col_box)
         align_box.addWidget(align_row_box)
         align_box.addStretch()
-        group_layout.addRow('Alignment:', align_box)
+
+        # Return alignment box
+        return('Alignment:', align_box)
 
     # SHOW_CUTS OPTION
-    def add_option_show_cuts(self, group_layout):
+    def create_option_show_cuts(self):
         # Make check box for show_cuts
         show_cuts_box = QW.QCheckBox()
         show_cuts_box.setToolTip("Enable/disable showing all implausibility "
                                  "cut-off lines in 2D projections")
-        show_cuts_box.toggled.connect(self.enable_save_button)
-        self.options_entries['show_cuts'] =\
-            options_entry(show_cuts_box, self.proj_defaults['show_cuts'])
-        group_layout.addRow('Show cuts?', show_cuts_box)
+        self.create_entry('show_cuts', show_cuts_box,
+                          self.proj_defaults['show_cuts'])
+
+        # Return shot_cuts box
+        return('Show cuts?', show_cuts_box)
 
     # SMOOTH OPTION
-    def add_option_smooth(self, group_layout):
+    def create_option_smooth(self):
         # Make check box for smooth
         smooth_box = QW.QCheckBox()
         smooth_box.setToolTip("Enable/disable smoothing the projections. When "
                               "smoothed, the minimum implausibility is forced "
                               "to be above the first cut-off for implausible "
                               "regions")
-        smooth_box.toggled.connect(self.enable_save_button)
-        self.options_entries['smooth'] =\
-            options_entry(smooth_box, self.proj_defaults['smooth'])
-        group_layout.addRow('Smooth?', smooth_box)
+        self.create_entry('smooth', smooth_box, self.proj_defaults['smooth'])
+
+        # Return smooth box
+        return('Smooth?', smooth_box)
 
     # KWARGS_DICTS OPTION
-    def add_option_kwargs_dicts(self, group_layout):
+    def create_option_kwargs_dicts(self):
         # Create a kwargs_dicts_box
         kwargs_dicts_box = KwargsDictBoxLayout(self)
-        group_layout.addRow('Projection keyword dicts:', kwargs_dicts_box)
 
         # Add all kwargs_dicts to it
         # FIG_KWARGS
@@ -412,8 +402,11 @@ class OptionsDialog(QW.QDialog):
             std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
             banned_entries=[])
 
+        # Return kwargs_dict box
+        return('Projection keyword dicts:', kwargs_dicts_box)
+
     # BUTTONS GROUP
-    def add_group_buttons(self, window_layout):
+    def create_group_buttons(self, window_layout):
         # Create a button_box
         button_box = QW.QDialogButtonBox()
         window_layout.addWidget(button_box)
@@ -439,16 +432,13 @@ class OptionsDialog(QW.QDialog):
     # This function saves the new options values
     @QC.pyqtSlot()
     def save_options(self):
+        # Emit the saving_options signal
+        self.saving_options.emit()
+
         # Save all new values
         for key, entry in self.options_entries.items():
-            self.options_entries[key] =\
-                entry._replace(value=get_box_value(entry.box))
-
             # If key is a projection parameter, save it in the Pipeline as well
             if key in self.proj_keys:
-                # Make abbreviation for the new entry
-                entry = self.options_entries[key]
-
                 # Align
                 if key in ['align_col', 'align_row']:
                     if entry.box.isChecked():
@@ -472,9 +462,8 @@ class OptionsDialog(QW.QDialog):
     # This function resets the default options
     @QC.pyqtSlot()
     def reset_options(self):
-        # Reset all options to defaults
-        for entry in self.options_entries.values():
-            set_box_value(entry.box, entry.default)
+        # Emit the resetting_options signal
+        self.resetting_options.emit()
 
         # Save current options
         self.save_options()
@@ -482,9 +471,59 @@ class OptionsDialog(QW.QDialog):
     # This function sets the current options
     @QC.pyqtSlot()
     def set_options(self):
-        # Set all options to their current saved values
-        for entry in self.options_entries.values():
-            set_box_value(entry.box, entry.value)
+        # Emit the setting_options signal
+        self.setting_options.emit()
 
         # Disable the save button
         self.disable_save_button()
+
+
+# Define class used as a container for options entries
+class OptionsEntry(QC.QObject):
+    # Initialize options entry
+    def __init__(self, box, default):
+        # Save provided box and default
+        self._box = box
+        self._default = default
+
+        # Call super constructor
+        super().__init__()
+
+        # Initialize the options entry
+        self.init()
+
+    # This function creates the options entry
+    def init(self):
+        # Set the box value to the default value and save it
+        self.reset_entry()
+        self.save_entry()
+
+    # This property contains the associated QWidget object of this entry
+    @property
+    def box(self):
+        return(self._box)
+
+    # This property contains the default value of this entry
+    @property
+    def default(self):
+        return(self._default)
+
+    # This property contains the currently saved value of this entry
+    @property
+    def value(self):
+        return(self._value)
+
+    # This function saves the value of this entry's box
+    @QC.pyqtSlot()
+    def save_entry(self):
+        self._value = get_box_value(self._box)
+
+    # This function resets the value of this entry's box to the default value
+    @QC.pyqtSlot()
+    def reset_entry(self):
+        set_box_value(self._box, self._default)
+
+    # This function sets the value of this entry's box to the saved value
+    @QC.pyqtSlot()
+    def set_entry(self):
+        set_box_value(self._box, self._value)

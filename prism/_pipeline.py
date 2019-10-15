@@ -41,7 +41,7 @@ from prism._docstrings import (
     make_call_doc_ww, make_call_pipeline_doc, paths_doc_d, paths_doc_s,
     save_data_doc_p, set_par_doc, std_emul_i_doc, user_emul_i_doc)
 from prism._internal import (
-    RequestError, RequestWarning, check_vals,  getCLogger, get_PRISM_File,
+    RequestError, RequestWarning, check_vals, getCLogger, get_PRISM_File,
     getRLogger, move_logger, np_array, set_base_logger)
 from prism._projection import Projection
 from prism.emulator import Emulator

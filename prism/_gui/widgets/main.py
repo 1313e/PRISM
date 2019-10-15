@@ -321,10 +321,11 @@ class MainViewerWindow(QW.QMainWindow):
         details_box.setWindowModality(QC.Qt.NonModal)
         details_box.setAttribute(QC.Qt.WA_DeleteOnClose)
         details_box.setWindowFlags(
-            QC.Qt.WindowSystemMenuHint |
+            QC.Qt.MSWindowsOwnDC |
             QC.Qt.Window |
-            QC.Qt.WindowCloseButtonHint |
-            QC.Qt.MSWindowsOwnDC)
+            QC.Qt.WindowTitleHint |
+            QC.Qt.WindowSystemMenuHint |
+            QC.Qt.WindowCloseButtonHint)
         details_box.setWindowTitle("%s: Pipeline details" % (APP_NAME))
 
         # Create a layout for this dialog

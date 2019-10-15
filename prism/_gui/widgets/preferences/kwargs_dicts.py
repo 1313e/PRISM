@@ -29,7 +29,7 @@ from prism._gui.widgets import (
 from prism._gui.widgets.preferences.custom_boxes import (
     ColorBox, DefaultBox, FigSizeBox)
 from prism._gui.widgets.preferences.helpers import (
-    get_box_value, options_entry, set_box_value)
+    BaseBox, get_box_value, get_modified_box_signal, set_box_value)
 
 # All declaration
 __all__ = ['KwargsDictBoxLayout', 'KwargsDictDialog', 'KwargsDictDialogPage']
@@ -130,8 +130,8 @@ class KwargsDictDialog(QW.QDialog):
         kwargs_page = KwargsDictDialogPage(self, name, *args, **kwargs)
 
         # Add this new tab to the options_entries
-        self.options.options_entries[option_key] =\
-            options_entry(kwargs_page, self.options.proj_defaults[option_key])
+        self.options.create_entry(option_key, kwargs_page,
+                                  self.options.proj_defaults[option_key])
 
         # Create a scrollarea for the page
         scrollarea = QW.QScrollArea(self)
@@ -146,13 +146,12 @@ class KwargsDictDialog(QW.QDialog):
 
 
 # Make a class for describing a kwargs dict page
-class KwargsDictDialogPage(QW.QWidget):
+class KwargsDictDialogPage(BaseBox):
     def __init__(self, kwargs_dict_dialog_obj, name, std_entries,
                  banned_entries, *args, **kwargs):
         # Save provided kwargs_dict_dialog_obj
         self.pages_dialog = kwargs_dict_dialog_obj
         self.entry_height = self.pages_dialog.entry_height
-        self.options = self.pages_dialog.options
         self.name = name
         self.std_entries = sset(std_entries)
         self.banned_entries = sset(banned_entries)
@@ -165,6 +164,9 @@ class KwargsDictDialogPage(QW.QWidget):
 
     # This function creates the kwargs dict tab
     def init(self):
+        # Call super init
+        super().init()
+
         # Create tab layout
         page_layout = QW.QVBoxLayout(self)
 
@@ -184,8 +186,8 @@ class KwargsDictDialogPage(QW.QWidget):
         self.banned_entries.discard('')
 
         # Create list of available entry types
-        self.avail_entries = sset([attr[9:] for attr in dir(self)
-                                   if attr.startswith('add_type_')])
+        self.avail_entries = sset([attr[12:] for attr in dir(self)
+                                   if attr.startswith('create_type_')])
 
         # Convert std_entries to solely contain valid available entry types
         self.std_entries.intersection_update(self.avail_entries)
@@ -196,7 +198,7 @@ class KwargsDictDialogPage(QW.QWidget):
         add_but.setFixedSize(self.entry_height, self.entry_height)
         add_but.setToolTip("Add a new entry")
         add_but.clicked.connect(self.add_editable_entry)
-        add_but.clicked.connect(self.options.enable_save_button)
+        get_modified_box_signal(add_but).connect(self.modified)
 
         # If this theme has an 'add' icon, use it
         if QG.QIcon.hasThemeIcon('add'):
@@ -309,7 +311,7 @@ class KwargsDictDialogPage(QW.QWidget):
                               "it manually")
         kwargs_box.currentTextChanged.connect(
             lambda x: self.entry_type_selected(x, kwargs_box))
-        kwargs_box.currentTextChanged.connect(self.options.enable_save_button)
+        get_modified_box_signal(kwargs_box).connect(self.modified)
 
         # Create a delete button
         delete_but = QW.QToolButton()
@@ -317,7 +319,7 @@ class KwargsDictDialogPage(QW.QWidget):
         delete_but.setToolTip("Delete this entry")
         delete_but.clicked.connect(
             lambda: self.remove_editable_entry(kwargs_box))
-        delete_but.clicked.connect(self.options.enable_save_button)
+        get_modified_box_signal(delete_but).connect(self.modified)
 
         # If this theme has a 'remove' icon, use it
         if QG.QIcon.hasThemeIcon('remove'):
@@ -369,14 +371,14 @@ class KwargsDictDialogPage(QW.QWidget):
                         % (entry_type))
             field_box = QW.QLabel(warn_msg)
         elif entry_type in self.std_entries:
-            # If one of the standard types is selected, add its box
-            field_box = getattr(self, 'add_type_%s' % (entry_type))()
+            # If one of the standard types is selected, create its box
+            field_box = getattr(self, 'create_type_%s' % (entry_type))()
         else:
             # If an unknown type is given, add default box if not used already
             if isinstance(cur_box, DefaultBox):
                 return
             else:
-                field_box = self.add_unknown_type()
+                field_box = DefaultBox()
 
         # Set the height of this box
         field_box.setFixedHeight(self.entry_height)
@@ -387,7 +389,7 @@ class KwargsDictDialogPage(QW.QWidget):
         del cur_item
 
     # This function adds a cmap box
-    def add_type_cmap(self):
+    def create_type_cmap(self):
         # Obtain a list with default colormaps that should be at the top
         std_cmaps = sset(['cividis', 'dusk', 'freeze', 'heat', 'inferno',
                           'magma', 'plasma', 'rainforest', 'viridis'])
@@ -431,7 +433,7 @@ class KwargsDictDialogPage(QW.QWidget):
         cmaps_box.setToolTip("Colormap to be used for the corresponding plot "
                              "type")
         cmaps_box.currentTextChanged.connect(self.cmap_selected)
-        cmaps_box.currentTextChanged.connect(self.options.enable_save_button)
+        get_modified_box_signal(cmaps_box).connect(self.modified)
         return(cmaps_box)
 
     # This function checks a selected cmap
@@ -460,49 +462,49 @@ class KwargsDictDialogPage(QW.QWidget):
                 self, "%s WARNING" % (cmap.upper()), err_msg)
 
     # This function adds an alpha box
-    def add_type_alpha(self):
+    def create_type_alpha(self):
         # Make double spinbox for alpha
         alpha_box = QW_QDoubleSpinBox()
         alpha_box.setRange(0, 1)
         set_box_value(alpha_box, 1)
         alpha_box.setToolTip("Alpha value to use for the plotted data")
-        alpha_box.valueChanged.connect(self.options.enable_save_button)
+        get_modified_box_signal(alpha_box).connect(self.modified)
         return(alpha_box)
 
     # This function adds a scale box
-    def add_type_scale(self, axis):
+    def create_type_scale(self, axis):
         # Make a combobox for scale
         scale_box = QW_QComboBox()
         scale_box.addItems(['linear', 'log'])
         scale_box.setToolTip("Scale type to use on the %s-axis" % (axis))
-        scale_box.currentTextChanged.connect(self.options.enable_save_button)
+        get_modified_box_signal(scale_box).connect(self.modified)
         return(scale_box)
 
     # This function adds a xscale box
-    def add_type_xscale(self):
-        return(self.add_type_scale('x'))
+    def create_type_xscale(self):
+        return(self.create_type_scale('x'))
 
     # This function adds a yscale box
-    def add_type_yscale(self):
-        return(self.add_type_scale('y'))
+    def create_type_yscale(self):
+        return(self.create_type_scale('y'))
 
     # This function adds a dpi box
-    def add_type_dpi(self):
+    def create_type_dpi(self):
         # Make spinbox for dpi
         dpi_box = QW_QSpinBox()
         dpi_box.setRange(1, 9999999)
         set_box_value(dpi_box, rcParams['figure.dpi'])
         dpi_box.setToolTip("DPI (dots per inch) to use for the projection "
                            "figure")
-        dpi_box.valueChanged.connect(self.options.enable_save_button)
+        get_modified_box_signal(dpi_box).connect(self.modified)
         return(dpi_box)
 
     # This function adds a figsize box
-    def add_type_figsize(self):
-        return(FigSizeBox(self.options))
+    def create_type_figsize(self):
+        return(FigSizeBox())
 
     # This function adds a linestyle box
-    def add_type_linestyle(self):
+    def create_type_linestyle(self):
         # Obtain list with all supported linestyles
         linestyles_lst = [(key, value[6:]) for key, value in lineStyles.items()
                           if value != '_draw_nothing']
@@ -516,23 +518,22 @@ class KwargsDictDialogPage(QW.QWidget):
         set_box_value(linestyle_box, rcParams['lines.linestyle'])
         linestyle_box.setToolTip("Linestyle to be used for the corresponding "
                                  "plot type")
-        linestyle_box.currentTextChanged.connect(
-            self.options.enable_save_button)
+        get_modified_box_signal(linestyle_box).connect(self.modified)
         return(linestyle_box)
 
     # This function adds a linewidth box
-    def add_type_linewidth(self):
+    def create_type_linewidth(self):
         # Make a double spinbox for linewidth
         linewidth_box = QW_QDoubleSpinBox()
         linewidth_box.setRange(0, 9999999)
         linewidth_box.setSuffix(" pts")
         set_box_value(linewidth_box, rcParams['lines.linewidth'])
         linewidth_box.setToolTip("Width of the plotted line")
-        linewidth_box.valueChanged.connect(self.options.enable_save_button)
+        get_modified_box_signal(linewidth_box).connect(self.modified)
         return(linewidth_box)
 
     # This function adds a marker box
-    def add_type_marker(self):
+    def create_type_marker(self):
         # Obtain list with all supported markers
         markers_lst = [(key, value) for key, value in lineMarkers.items()
                        if(value != 'nothing' and isinstance(key, str))]
@@ -547,26 +548,22 @@ class KwargsDictDialogPage(QW.QWidget):
         set_box_value(marker_box, rcParams['lines.marker'])
         marker_box.setToolTip("Marker to be used for the corresponding plot "
                               "type")
-        marker_box.currentTextChanged.connect(self.options.enable_save_button)
+        get_modified_box_signal(marker_box).connect(self.modified)
         return(marker_box)
 
     # This function adds a markersize box
-    def add_type_markersize(self):
+    def create_type_markersize(self):
         # Make a double spinbox for markersize
         markersize_box = QW_QDoubleSpinBox()
         markersize_box.setRange(0, 9999999)
         markersize_box.setSuffix(" pts")
         markersize_box.setToolTip("Size of the plotted markers")
         set_box_value(markersize_box, rcParams['lines.markersize'])
-        markersize_box.valueChanged.connect(self.options.enable_save_button)
+        get_modified_box_signal(markersize_box).connect(self.modified)
         return(markersize_box)
 
-    def add_type_color(self):
-        return(ColorBox(self.options))
-
-    # This function adds a default box
-    def add_unknown_type(self):
-        return(DefaultBox(self.options))
+    def create_type_color(self):
+        return(ColorBox())
 
 
 # %% FUNCTION DEFINITIONS

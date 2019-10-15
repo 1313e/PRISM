@@ -48,14 +48,13 @@ class ExceptionDialog(QW.QDialog):
         # Create a window layout
         grid_layout = QW.QGridLayout(self)
         grid_layout.setColumnStretch(2, 1)
+        grid_layout.setRowStretch(3, 1)
 
         # Set properties of message box
         self.setWindowModality(QC.Qt.ApplicationModal)
         self.setAttribute(QC.Qt.WA_DeleteOnClose)
         self.setWindowTitle("ERROR")
-        self.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
         self.setWindowFlags(
-            QC.Qt.MSWindowsFixedSizeDialogHint |
             QC.Qt.MSWindowsOwnDC |
             QC.Qt.Dialog |
             QC.Qt.WindowTitleHint |
@@ -140,7 +139,7 @@ class ExceptionDialog(QW.QDialog):
 
         # Add a textedit to the layout
         tb_text_box = QW.QTextEdit(traceback_box)
-        tb_text_box.setFixedHeight(100)
+        tb_text_box.setMinimumHeight(100)
         tb_text_box.setFocusPolicy(QC.Qt.NoFocus)
         tb_text_box.setReadOnly(True)
         tb_text_box.setText(tb_str)
@@ -164,8 +163,20 @@ class ExceptionDialog(QW.QDialog):
 
     # This function updates the size of the dialog
     def update_size(self):
-        # Determine the minimum size required for making the dialog
-        self.setFixedSize(self.layout().minimumSize())
+        # Determine the minimum/maximum size required for making the dialog
+        min_size = self.layout().minimumSize()
+        max_size = self.layout().maximumSize()
+
+        # Set the fixed width
+        self.setFixedWidth(min_size.width())
+
+        # If the traceback box is shown, set minimum/maximum height
+        if self.tb_box.isVisible():
+            self.setMinimumHeight(min_size.height())
+            self.setMaximumHeight(max_size.height())
+        # Else, set fixed height
+        else:
+            self.setFixedHeight(min_size.height())
 
 
 # Class used for holding the projection figures in the projection viewing area
