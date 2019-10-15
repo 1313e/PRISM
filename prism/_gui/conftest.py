@@ -11,7 +11,6 @@ import pytest
 # PRISM imports
 from prism import Pipeline
 from prism._gui.widgets.main import MainViewerWindow
-from prism._pipeline import WorkerMode
 from prism.modellink.tests.modellink import GaussianLink3D
 
 
@@ -64,7 +63,7 @@ def pipe_GUI(tmpdir_factory):
 @pytest.fixture(scope='module')
 def main_window(qapp, request, pipe_GUI):
     # Initialize worker mode
-    worker_mode = WorkerMode(pipe_GUI)
+    worker_mode = pipe_GUI.worker_mode
 
     # Request for the worker_mode to be closed at the end
     request.addfinalizer(lambda: exit_worker_mode(worker_mode))

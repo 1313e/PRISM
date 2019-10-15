@@ -3244,6 +3244,17 @@ class WorkerMode(object):
         # All workers start listening for calls
         self.listen_for_calls()
 
+    # This function exits/disables the worker mode
+    def __exit__(self, *args, **kwargs):
+        # Disable this worker mode
+        if self.pipe._is_controller:
+            self.pipe._comm.bcast(self.__key, 0)
+
+        # If this is the final worker mode, tell this to the Pipeline
+        if not self.was_active:
+            self.pipe._worker_mode = 0
+            self.pipe._comm.Barrier()
+
     # Function that locks workers into listening for controller calls
     def listen_for_calls(self):
         """
@@ -3408,14 +3419,3 @@ class WorkerMode(object):
 
         # Return string
         return(string)
-
-    # This function exits/disables the worker mode
-    def __exit__(self, *args, **kwargs):
-        # Disable this worker mode
-        if self.pipe._is_controller:
-            self.pipe._comm.bcast(self.__key, 0)
-
-        # If this is the final worker mode, tell this to the Pipeline
-        if not self.was_active:
-            self.pipe._worker_mode = 0
-            self.pipe._comm.Barrier()

@@ -265,6 +265,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
         self.setWindowModality(QC.Qt.ApplicationModal)
         self.setWindowTitle(APP_NAME)
         self.setAttribute(QC.Qt.WA_DeleteOnClose)
+        self.setAutoReset(False)
 
         # Setup the run_map that will be used
         self.run_map = map(func, *iterables)
@@ -280,7 +281,12 @@ class ThreadedProgressDialog(QW.QProgressDialog):
 
         # Connect the proper signals with each other
         self.thread.n_finished.connect(self.setValue)
+        self.thread.finished.connect(self.set_successful_finish)
+        self.thread.exception.connect(self.raise_exception)
         super().open(self.kill_threads)
+
+        # Save that progress dialog has currently not finished successfully
+        self.successful = False
 
         # Start the threads for all other MPI ranks
         self.pipe._make_call_workers(_run_traced_worker_threads, 'pipe')
@@ -296,32 +302,45 @@ class ThreadedProgressDialog(QW.QProgressDialog):
             qapp.processEvents()
             self.thread.join(0.1)
 
-        # If the dialog ended successfully, end all the threads
+        # Process user input events one last time
+        qapp.processEvents()
+
+        # If the dialog was not canceled, kill all the threads
         if not self.wasCanceled():
-            self.end_threads()
+            self.kill_threads()
+            self.reset()
 
         # Emit that the progress dialog has finished
         self.finished.emit()
 
         # Return if dialog finished successfully or not
-        return(not self.wasCanceled())
+        return(self.successful)
 
-    # This function finalizes all worker threads and then the controller thread
+    # This function sets an attribute and serves as a slot
     @QC.pyqtSlot()
-    def end_threads(self):
-        # Let the secondary worker threads wait for a second
-        self.pipe._make_call_workers(sleep, 1)
+    def set_successful_finish(self):
+        self.successful = True
 
-        # Kill all threads in the mean time
-        self.kill_threads()
+    # This function raises an exception caught in the controller thread
+    @QC.pyqtSlot(Exception)
+    def raise_exception(self, exception):
+        raise exception
 
     # This function kills all worker threads and then the controller thread
     @QC.pyqtSlot()
     def kill_threads(self):
+        # Let the secondary worker threads wait for a second
+        self.pipe._make_call_workers(sleep, 1)
+
+        # Set all worker threads to 'killed'
         for rank in range(1, self.pipe._comm.size):
             self.pipe._comm.send(True, rank, 671589+rank)
         self.thread.killed = True
         self.thread.join()
+
+        # Use an MPI Barrier to make sure that all threads were killed
+        # This means that the controller also has to wait for a second
+        self.pipe._make_call('_comm.Barrier')
 
 
 # Special system traced thread that stops whenever killed is set to True
@@ -355,8 +374,11 @@ class TracedControllerThread(QC.QObject, TracedThread):
     # Define a signal that sends out the number of finished iterations
     n_finished = QC.pyqtSignal('int')
 
+    # Define a signal that is emitted when the thread finishes executing
+    finished = QC.pyqtSignal()
+
     # Define a signal that is emitted whenever an exception occurs
-    exception = QC.pyqtSignal()
+    exception = QC.pyqtSignal(Exception)
 
     def __init__(self, run_map, parent):
         # Save provided map iterator
@@ -375,8 +397,14 @@ class TracedControllerThread(QC.QObject, TracedThread):
         self.n_finished.emit(0)
 
         # Loop over the map iterator and send a signal after each iteration
-        for i, _ in enumerate(self.run_map):
-            self.n_finished.emit(i+1)
+        try:
+            for i, _ in enumerate(self.run_map):
+                self.n_finished.emit(i+1)
+        except Exception as error:
+            self.exception.emit(error)
+        # Emit signal that execution has finished
+        else:
+            self.finished.emit()
 
 
 # https://www.geeksforgeeks.org/python-different-ways-to-kill-a-thread/
@@ -395,7 +423,9 @@ class TracedWorkerThread(TracedThread):
         sys.settrace(self.global_trace)
 
         # Start listening for calls on this thread as well
-        self.pipe._listen_for_calls()
+        worker_mode = self.pipe.worker_mode
+        worker_mode._WorkerMode__key = -1
+        worker_mode.listen_for_calls()
 
 
 # %% FUNCTION DEFINITIONS
@@ -419,9 +449,6 @@ def _run_traced_worker_threads(pipeline_obj):
 
 # This function creates a message box with exception information
 def show_exception_details(parent, etype, value, tb):
-    # Emit the exception signal
-    parent.exception.emit()
-
     # Create exception message box
     exception_box = ExceptionDialog(parent, etype, value, tb)
 
