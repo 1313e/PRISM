@@ -62,7 +62,7 @@ class TestOverviewDockWidget_Main(object):
                                            QC.QItemSelectionModel.Select)
 
         # Press enter
-        qtbot.keyPress(overview.proj_list_u, QC.Qt.Key_Enter)
+        qtbot.keyClick(overview.proj_list_u, QC.Qt.Key_Enter)
 
         # Check if two items are in available now
         assert (len(overview.proj_list_u) == len(overview.hcubes)-2)
@@ -74,11 +74,11 @@ class TestOverviewDockWidget_Main(object):
         monkeypatch.setattr(plt, 'show', lambda *args: None)
 
         # Select all items in the list
-        overview.proj_list_a.setCurrentRow(0)
-        overview.proj_list_a.selectAll()
+        qtbot.keyClick(overview.proj_list_a, QC.Qt.Key_A,
+                       QC.Qt.ControlModifier)
 
         # Press enter
-        qtbot.keyPress(overview.proj_list_a, QC.Qt.Key_Enter)
+        qtbot.keyClick(overview.proj_list_a, QC.Qt.Key_Enter)
 
         # Check if all items are in drawn now
         assert (len(overview.proj_list_a) == 0)
@@ -94,7 +94,7 @@ class TestOverviewDockWidget_Main(object):
         overview.proj_list_d.selectAll()
 
         # Press enter
-        qtbot.keyPress(overview.proj_list_d, QC.Qt.Key_Enter)
+        qtbot.keyClick(overview.proj_list_d, QC.Qt.Key_Enter)
 
 
 # Pytest for testing the drawn list
@@ -354,7 +354,7 @@ class TestOverviewListWidget_Available(object):
         hcube = overview.hcubes[overview.names.index(hcube_name)]
 
         # Turn the option for smoothing on
-        set_box_value(main_window.options.options_entries['smooth'].box, True)
+        set_box_value(main_window.options.option_entries['smooth'].box, True)
         main_window.options.save_options()
 
         # Trigger the action

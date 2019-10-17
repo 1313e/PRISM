@@ -30,7 +30,7 @@ from e13tools.utils import (
 from mpi4pyd import MPI
 from mpi4pyd.MPI import get_HybridComm_obj
 import numpy as np
-from numpy.random import normal, random
+from numpy.random import normal, randint, random
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
@@ -3232,7 +3232,7 @@ class WorkerMode(object):
         # Get the key required for disabling this worker mode on the controller
         if self.pipe._is_controller:
             # Generate a random 32-bit integer
-            key = np.random.randint(0, 2**31-1)
+            key = randint(0, 2**31-1)
 
             # Broadcast this key to all workers
             self.__key = self.pipe._comm.bcast(key, 0)

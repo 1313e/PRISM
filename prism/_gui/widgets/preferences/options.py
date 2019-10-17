@@ -30,10 +30,10 @@ __all__ = ['OptionsDialog']
 # %% CLASS DEFINITIONS
 # Define class for options dialog
 class OptionsDialog(QW.QDialog):
-    # Create saving, resetting and setting signals
-    saving_options = QC.pyqtSignal()
-    resetting_options = QC.pyqtSignal()
-    setting_options = QC.pyqtSignal()
+    # Create saving, resetting and discarding signals
+    saving = QC.pyqtSignal()
+    resetting = QC.pyqtSignal()
+    discarding = QC.pyqtSignal()
 
     def __init__(self, main_window_obj, *args, **kwargs):
         # Save provided MainWindow object
@@ -62,13 +62,13 @@ class OptionsDialog(QW.QDialog):
         window_layout.addWidget(window_tabs)
 
         # Create a options dict
-        self.options_entries = sdict()
+        self.option_entries = sdict()
 
         # Define list with all tabs that should be available in what order
-        options_tabs = ['general', 'appearance']
+        option_tabs = ['general', 'appearance']
 
         # Include all tabs named in options_tabs
-        for tab in options_tabs:
+        for tab in option_tabs:
             window_tabs.addTab(*getattr(self, 'create_tab_%s' % (tab))())
 
         # Also add the buttons
@@ -98,28 +98,28 @@ class OptionsDialog(QW.QDialog):
         # Close the window
         super().closeEvent(*args, **kwargs)
 
-        # Set all option boxes back to their current values
-        self.set_options()
+        # Set all option boxes back to their saved values
+        self.discard_options()
 
     # This function returns the value of a specific option
     def get_option(self, name):
-        return(self.options_entries[name].value)
+        return(self.option_entries[name].value)
 
     # This function creates a new options entry
     def create_entry(self, name, box, default):
         # Create new options entry
-        entry = OptionsEntry(box, default)
+        entry = OptionsEntry(name, box, default)
 
         # Connect box signals
         get_modified_box_signal(box).connect(self.enable_save_button)
 
         # Connect entry slots
-        self.saving_options.connect(entry.save_entry)
-        self.resetting_options.connect(entry.reset_entry)
-        self.setting_options.connect(entry.set_entry)
+        self.saving.connect(entry.save_value)
+        self.resetting.connect(entry.reset_value)
+        self.discarding.connect(entry.discard_value)
 
-        # Add new entry to options_entries
-        self.options_entries[name] = entry
+        # Add new entry to option_entries
+        self.option_entries[name] = entry
 
     # This function creates a new tab
     def create_tab(self, name, groups_list):
@@ -180,12 +180,12 @@ class OptionsDialog(QW.QDialog):
         return(self.create_group("Interface", ['auto_tile', 'auto_show']))
 
     # FONTS GROUP
-    def create_group_fonts(self):
+    def create_group_fonts(self):   # pragma: no cover
         return(self.create_group("Fonts", ['text_fonts']))
 
     # TEXT_FONTS OPTION
     # TODO: Further implement this
-    def create_option_text_fonts(self):
+    def create_option_text_fonts(self):     # pragma: no cover
         # PLAIN TEXT
         # Create a font families combobox
         plain_box = QW.QFontComboBox()
@@ -233,7 +233,7 @@ class OptionsDialog(QW.QDialog):
 
     # DPI OPTION
     # TODO: Further implement this one as well
-    def create_option_dpi(self):
+    def create_option_dpi(self):    # pragma: no cover
         # Make a checkbox for setting a custom DPI scaling
         dpi_check = QW.QCheckBox("Custom DPI scaling:")
         dpi_check.setToolTip("Set this to enable custom DPI scaling of the "
@@ -354,56 +354,57 @@ class OptionsDialog(QW.QDialog):
 
     # KWARGS_DICTS OPTION
     def create_option_kwargs_dicts(self):
-        # Create a kwargs_dicts_box
-        kwargs_dicts_box = KwargsDictBoxLayout(self)
+        # Create a kwargs_dict_box
+        kwargs_dict_box = KwargsDictBoxLayout(self)
+        self.kwargs_dict_box = kwargs_dict_box
 
         # Add all kwargs_dicts to it
         # FIG_KWARGS
-        kwargs_dicts_box.add_dict(
+        kwargs_dict_box.add_dict(
             "Figure", 'fig_kwargs',
             std_entries=['dpi', 'figsize'],
             banned_entries=self.get_proj_attr('pop_fig_kwargs'))
 
         # IMPL_KWARGS_2D
-        kwargs_dicts_box.add_dict(
+        kwargs_dict_box.add_dict(
             "2D implausibility", 'impl_kwargs_2D',
             std_entries=['linestyle', 'linewidth', 'marker', 'markersize',
                          'color', 'alpha'],
             banned_entries=[*self.get_proj_attr('pop_plt_kwargs'), 'cmap'])
 
         # IMPL_KWARGS_3D
-        kwargs_dicts_box.add_dict(
+        kwargs_dict_box.add_dict(
             "3D implausibility", 'impl_kwargs_3D',
             std_entries=['cmap', 'alpha', 'xscale', 'yscale'],
             banned_entries=self.get_proj_attr('pop_plt_kwargs'))
 
         # LOS_KWARGS_2D
-        kwargs_dicts_box.add_dict(
+        kwargs_dict_box.add_dict(
             "2D line-of-sight", 'los_kwargs_2D',
             std_entries=['linestyle', 'linewidth', 'marker', 'markersize',
                          'color', 'alpha'],
             banned_entries=[*self.get_proj_attr('pop_plt_kwargs'), 'cmap'])
 
         # LOS_KWARGS_3D
-        kwargs_dicts_box.add_dict(
+        kwargs_dict_box.add_dict(
             "3D line-of-sight", 'los_kwargs_3D',
             std_entries=['cmap', 'alpha', 'xscale', 'yscale'],
             banned_entries=self.get_proj_attr('pop_plt_kwargs'))
 
         # LINE_KWARGS_EST
-        kwargs_dicts_box.add_dict(
+        kwargs_dict_box.add_dict(
             "Estimate lines", 'line_kwargs_est',
             std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
             banned_entries=[])
 
         # LINE_KWARGS_CUT
-        kwargs_dicts_box.add_dict(
+        kwargs_dict_box.add_dict(
             "Cut-off lines", 'line_kwargs_cut',
             std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
             banned_entries=[])
 
         # Return kwargs_dict box
-        return('Projection keyword dicts:', kwargs_dicts_box)
+        return('Projection keyword dicts:', kwargs_dict_box)
 
     # BUTTONS GROUP
     def create_group_buttons(self, window_layout):
@@ -415,6 +416,7 @@ class OptionsDialog(QW.QDialog):
         reset_but = button_box.addButton(button_box.Reset)
         reset_but.setToolTip("Reset to defaults")
         reset_but.clicked.connect(self.reset_options)
+        self.reset_but = reset_but
 
         # Make an 'Apply' button
         save_but = button_box.addButton(button_box.Apply)
@@ -428,15 +430,16 @@ class OptionsDialog(QW.QDialog):
         close_but.setToolTip("Close without saving")
         close_but.clicked.connect(self.close)
         close_but.setDefault(True)
+        self.close_but = close_but
 
     # This function saves the new options values
     @QC.pyqtSlot()
     def save_options(self):
-        # Emit the saving_options signal
-        self.saving_options.emit()
+        # Emit the saving signal
+        self.saving.emit()
 
         # Save all new values
-        for key, entry in self.options_entries.items():
+        for key, entry in self.option_entries.items():
             # If key is a projection parameter, save it in the Pipeline as well
             if key in self.proj_keys:
                 # Align
@@ -459,20 +462,20 @@ class OptionsDialog(QW.QDialog):
     def disable_save_button(self):
         self.save_but.setEnabled(False)
 
-    # This function resets the default options
+    # This function resets the options to default
     @QC.pyqtSlot()
     def reset_options(self):
-        # Emit the resetting_options signal
-        self.resetting_options.emit()
+        # Emit the resetting signal
+        self.resetting.emit()
 
         # Save current options
         self.save_options()
 
-    # This function sets the current options
+    # This function discards all changes to the options
     @QC.pyqtSlot()
-    def set_options(self):
-        # Emit the setting_options signal
-        self.setting_options.emit()
+    def discard_options(self):
+        # Emit the discarding signal
+        self.discarding.emit()
 
         # Disable the save button
         self.disable_save_button()
@@ -481,8 +484,9 @@ class OptionsDialog(QW.QDialog):
 # Define class used as a container for options entries
 class OptionsEntry(QC.QObject):
     # Initialize options entry
-    def __init__(self, box, default):
-        # Save provided box and default
+    def __init__(self, name, box, default):
+        # Save provided name, box and default
+        self._name = name
         self._box = box
         self._default = default
 
@@ -492,11 +496,21 @@ class OptionsEntry(QC.QObject):
         # Initialize the options entry
         self.init()
 
+    # Create a representation of this entry
+    def __repr__(self):
+        return("OptionsEntry(name=%s, box=%s, default=%s, value=%s)"
+               % (self.name, self.box, self.default, self.value))
+
     # This function creates the options entry
     def init(self):
         # Set the box value to the default value and save it
-        self.reset_entry()
-        self.save_entry()
+        self.reset_value()
+        self.save_value()
+
+    # This property contains the name of this entry
+    @property
+    def name(self):
+        return(self._name)
 
     # This property contains the associated QWidget object of this entry
     @property
@@ -515,15 +529,15 @@ class OptionsEntry(QC.QObject):
 
     # This function saves the value of this entry's box
     @QC.pyqtSlot()
-    def save_entry(self):
+    def save_value(self):
         self._value = get_box_value(self._box)
 
     # This function resets the value of this entry's box to the default value
     @QC.pyqtSlot()
-    def reset_entry(self):
+    def reset_value(self):
         set_box_value(self._box, self._default)
 
     # This function sets the value of this entry's box to the saved value
     @QC.pyqtSlot()
-    def set_entry(self):
+    def discard_value(self):
         set_box_value(self._box, self._value)

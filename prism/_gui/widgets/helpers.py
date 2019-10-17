@@ -181,24 +181,7 @@ class ExceptionDialog(QW.QDialog):
 
 # Class used for holding the projection figures in the projection viewing area
 class FigureCanvas(FigureCanvasQTAgg):
-    def __init__(self, figure, *args, **kwargs):
-        # Call the super constructor
-        super().__init__(figure)
-
-        # Create the figure canvas
-        self.init()
-
-    # Create the figure canvas
-    def init(self):
-        pass
-
-    # Override the resizeEvent to automatically properly resize figure
-    def resizeEvent(self, *args, **kwargs):
-        # Call super event
-        super().resizeEvent(*args, **kwargs)
-
-        # Recalculate the constrained layout of the figure
-#        self.figure.execute_constrained_layout()
+    pass
 
 
 # Class used for making the overview lists in the GUI

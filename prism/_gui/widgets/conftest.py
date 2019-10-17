@@ -36,9 +36,9 @@ def pytest_unconfigure(config):
 def pipe_GUI(tmpdir_factory):
     # Get paths to files
     model_data = path.join(
-        DIR_PATH, '../tests/data/data_gaussian_single.txt')
+        DIR_PATH, '../../tests/data/data_gaussian_single.txt')
     model_parameters_3D = path.join(
-        DIR_PATH, '../tests/data/parameters_gaussian_3D.txt')
+        DIR_PATH, '../../tests/data/parameters_gaussian_3D.txt')
 
     # Create PolyLink object
     modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
@@ -48,9 +48,24 @@ def pipe_GUI(tmpdir_factory):
     tmpdir = tmpdir_factory.mktemp('test_GUI')
     root_dir = path.dirname(tmpdir.strpath)
     working_dir = path.basename(tmpdir.strpath)
-    prism_file = path.join(DIR_PATH, "data/prism_default.txt")
+    prism_dict = {
+        'n_sam_init': 150,
+        'proj_res': 5,
+        'proj_depth': 15,
+        'base_eval_sam': 400,
+        'l_corr': 0.3,
+        'impl_cut': [4.0, 3.5, 3.2],
+        'criterion': None,
+        'method': 'full',
+        'use_regr_cov': False,
+        'poly_order': 3,
+        'n_cross_val': 5,
+        'do_active_anal': True,
+        'freeze_active_par': True,
+        'pot_active_par': None,
+        'use_mock': True}
     pipe = Pipeline(modellink_obj, root_dir=root_dir, working_dir=working_dir,
-                    prism_par=prism_file)
+                    prism_par=prism_dict)
 
     # Construct the first and second iteration of the emulator
     pipe.construct(1)

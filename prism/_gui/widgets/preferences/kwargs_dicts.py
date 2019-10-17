@@ -59,9 +59,10 @@ class KwargsDictBoxLayout(QW.QHBoxLayout):
         view_but.setToolTip("View/edit the projection keyword dicts")
         view_but.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
         view_but.clicked.connect(self.dict_dialog)
+        self.view_but = view_but
         self.addWidget(view_but)
 
-    # This function calls the create_page()-method of dict_dialog
+    # This function calls the add_page()-method of dict_dialog
     def add_dict(self, *args, **kwargs):
         self.dict_dialog.add_page(*args, **kwargs)
 
@@ -90,24 +91,24 @@ class KwargsDictDialog(QW.QDialog):
         window_layout.addWidget(splitter_widget)
 
         # Create a contents widget
-        self.contents_widget = QW.QListWidget()
-        self.contents_widget.setMovement(QW.QListView.Static)
-        self.contents_widget.setSpacing(1)
-        splitter_widget.addWidget(self.contents_widget)
+        self.contents = QW.QListWidget()
+        self.contents.setMovement(QW.QListView.Static)
+        self.contents.setSpacing(1)
+        splitter_widget.addWidget(self.contents)
 
         # Create pages widget
-        self.pages_widget = QW.QStackedWidget()
-        splitter_widget.addWidget(self.pages_widget)
+        self.pages = QW.QStackedWidget()
+        splitter_widget.addWidget(self.pages)
 
         # Set signal handling
-        self.contents_widget.currentRowChanged.connect(
-            self.pages_widget.setCurrentIndex)
+        self.contents.currentRowChanged.connect(self.pages.setCurrentIndex)
 
         # Add a close button
         button_box = QW.QDialogButtonBox()
         window_layout.addWidget(button_box)
         close_but = button_box.addButton(button_box.Close)
         close_but.clicked.connect(self.close)
+        self.close_but = close_but
 
         # Set some properties for this window
         self.setWindowTitle("Viewing projection keyword dicts")     # Title
@@ -129,7 +130,7 @@ class KwargsDictDialog(QW.QDialog):
         # Create a tab
         kwargs_page = KwargsDictDialogPage(self, name, *args, **kwargs)
 
-        # Add this new tab to the options_entries
+        # Add this new tab to the option_entries
         self.options.create_entry(option_key, kwargs_page,
                                   self.options.proj_defaults[option_key])
 
@@ -139,10 +140,9 @@ class KwargsDictDialog(QW.QDialog):
         scrollarea.setWidget(kwargs_page)
 
         # Add it to the contents and pages widgets
-        self.contents_widget.addItem(name)
-        self.contents_widget.setFixedWidth(
-            1.1*self.contents_widget.sizeHintForColumn(0))
-        self.pages_widget.addWidget(scrollarea)
+        self.contents.addItem(name)
+        self.contents.setFixedWidth(1.1*self.contents.sizeHintForColumn(0))
+        self.pages.addWidget(scrollarea)
 
 
 # Make a class for describing a kwargs dict page
@@ -150,14 +150,13 @@ class KwargsDictDialogPage(BaseBox):
     def __init__(self, kwargs_dict_dialog_obj, name, std_entries,
                  banned_entries, *args, **kwargs):
         # Save provided kwargs_dict_dialog_obj
-        self.pages_dialog = kwargs_dict_dialog_obj
-        self.entry_height = self.pages_dialog.entry_height
+        self.entry_height = kwargs_dict_dialog_obj.entry_height
         self.name = name
         self.std_entries = sset(std_entries)
         self.banned_entries = sset(banned_entries)
 
         # Call super constructor
-        super().__init__(self.pages_dialog, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Create the kwargs dict window
         self.init()
