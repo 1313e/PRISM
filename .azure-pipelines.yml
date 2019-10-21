@@ -62,8 +62,6 @@ steps:
 # Install missing libraries on Linux
 - bash: |
     sudo apt-get install -y xvfb libdbus-1-3 libxkbcommon-x11-0
-    unset DISPLAY
-    export QT_QPA_PLATFORM=offscreen
   condition: eq(variables['Agent.OS'], 'Linux')
   displayName: Install missing libraries required for Qt on Linux
 
@@ -82,9 +80,19 @@ steps:
   displayName: Test deployability
 
 # Test package in serial
+# Linux
+- bash: |
+    unset DISPLAY
+    export QT_QPA_PLATFORM=offscreen
+    coverage run --rcfile=setup.cfg -m pytest
+  condition: eq(variables['Agent.OS'], 'Linux')
+  displayName: Test package in serial on Linux
+
+# MacOS-X/Windows
 - script: |
     coverage run --rcfile=setup.cfg -m pytest
-  displayName: Test package in serial
+  condition: ne(variables['Agent.OS'], 'Linux')
+  displayName: Test package in serial on MacOS-X/Windows
 
 # Install MPI, mpi4py and run MPI tests
 # Linux
