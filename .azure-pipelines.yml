@@ -89,15 +89,11 @@ steps:
 # Linux
 - bash: |
     sudo apt-get install -y -q openmpi-bin libopenmpi-dev
-    pip install --no-cache-dir mpi4py
-    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
   condition: eq(variables['Agent.OS'], 'Linux')
   displayName: Install MPI distribution on Linux and run in MPI
 # Mac OS-X
 - bash: |
     brew install openmpi
-    pip install --no-cache-dir mpi4py
-    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
   condition: eq(variables['Agent.OS'], 'Darwin')
   displayName: Install MPI distribution on Mac OS-X and run in MPI
 # Windows
@@ -106,11 +102,8 @@ steps:
     Start-Process ..\MSMpiSDK.msi -ArgumentList "/quiet /qn" -Wait
     iwr -outf ..\MSMpiSetup.exe https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSetup.exe
     Start-Process ..\MSMpiSetup.exe -ArgumentList "-unattend -force -verbose" -Wait
-    $Env:MSMPI_BIN = "C:\Program Files\Microsoft MPI\Bin"
-    echo "##vso[task.setvariable variable=1313E_TEST]$Env:MSMPI_BIN"
-    $Env:Path += ";C:\Program Files\Microsoft MPI\Bin"
-    pip install --no-cache-dir mpi4py
-    cmd /c "mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest 2>&1"
+    echo "##vso[task.setvariable variable=MSMPI_BIN]C:\Program Files\Microsoft MPI\Bin"
+    echo "##vso[task.setvariable variable=Path]$Env:Path;C:\Program Files\Microsoft MPI\Bin"
   condition: eq(variables['Agent.OS'], 'Windows_NT')
   displayName: Install MPI distribution on Windows and run in MPI
 
@@ -120,14 +113,14 @@ steps:
   displayName: Windows reusing variables testing
 
 # Install mpi4py
-#- script: |
-#    pip install --no-cache-dir mpi4py
-#  displayName: Install mpi4py
+- script: |
+    pip install --no-cache-dir mpi4py
+  displayName: Install mpi4py
 
 # Test package in MPI
-#- script: |
-#    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
-#  displayName: Test package in MPI
+- script: |
+    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
+  displayName: Test package in MPI
 
 # Report coverage
 - script: |
