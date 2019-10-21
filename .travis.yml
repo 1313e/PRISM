@@ -4,65 +4,65 @@ dist: xenial
 sudo: true
 
 matrix:
-    include:
-        - os: osx
-          python: 3
-          language: generic
-          env: PY=3
-        - python: 3.5
-        - python: 3.5-dev
-        - python: 3.6
-        - python: 3.6-dev
-        - python: 3.7
-        - python: 3.7-dev
+  include:
+    - os: osx
+      python: 3
+      language: generic
+      env: PY=3
+    - python: 3.5
+    - python: 3.5-dev
+    - python: 3.6
+    - python: 3.6-dev
+    - python: 3.7
+    - python: 3.7-dev
+  allow_failures:
+    - python: 3.8-dev
 
 before_install:
-    - |
-      if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-          sudo apt-get update -q
-          sudo apt-get install -y xvfb libdbus-1-3 libxkbcommon-x11-0
-          unset DISPLAY
-          export QT_QPA_PLATFORM=offscreen
-      else
-          brew update
-          brew cleanup
-      fi
-    - python$PY -m pip install --upgrade pip setuptools wheel
-    - pip$PY install -r requirements_dev.txt
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      sudo apt-get update -q
+      sudo apt-get install -y xvfb libdbus-1-3 libxkbcommon-x11-0
+      unset DISPLAY
+      export QT_QPA_PLATFORM=offscreen
+    else
+      brew update
+      brew cleanup
+    fi
+  - python$PY -m pip install --upgrade pip setuptools wheel
+  - pip$PY install -r requirements_dev.txt
 install:
-    - check-manifest
-    - python$PY setup.py sdist bdist_wheel
-    - twine check dist/*
-    - python$PY -c "import prism; prism.get_info()"
+  - check-manifest
+  - python$PY setup.py sdist bdist_wheel
+  - twine check dist/*
+  - python$PY -c "import prism; prism.get_info()"
 script:
-    - coverage run --rcfile=setup.cfg -m pytest
-    - |
-      if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-          sudo apt-get install -y -q openmpi-bin libopenmpi-dev
-      else
-          brew install openmpi
-      fi
-    - pip$PY --no-cache-dir install mpi4py
-    - |
-      mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
-      coverage combine
-      coverage report -m
-after_success:
-    - codecov
+  - coverage run --rcfile=setup.cfg -m pytest
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      sudo apt-get install -y -q openmpi-bin libopenmpi-dev
+    else
+      brew install openmpi
+    fi
+  - pip$PY --no-cache-dir install mpi4py
+  - |
+    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
+    coverage combine
+    coverage report -m
 before_deploy:
-    - rm -r dist
-    - rm -r build
+  - rm -r dist
+  - rm -r build
 deploy:
-    provider: pypi
-    user: 1313e
-    password:
-        secure: "AgsDI+wasX+Msg2rfH4I/WZpx+8uWmx3zCKRc5m+PgTWgtT2oieTX1pqINsVYQPSp58SRfCa7DEsmDMjYQGVjM58bpM3AELGGoiQ3NXv5HGJVlGA5FWMPxh7SE+E6/zqCkwxaTKFNTATtHbr01s0DQYGQBSrt0hhYt5gXTSD7j+iugrEnpBdfAVMD67V4QNfN5u73RgbUEpFPa4DoZkCt5Dm2uIt3rmI6dpojc04RrUXCow2QBBswikoW3l7p6/xXlLGRc/WY5eTTwMV5pxkYyCMT6Of3C2RSyfJ9A0DlmGlyxh5aurSA8Z8ZHNoDIJXiTprlW+66tuAiXr+uoqBK0EC9BnFTEPoqOG/g77zzMSZpVx4nvOS86lCzePygwxZob8XpG6GYazPvUom9Tc9Mn7/COs2a5/TgksABXM8xEo03RvGA/TVIrdNoGug5HDl83t1HjQAwZlIXwgDltr/DmV8u9Jyrq0gRyyZ4rfIGLXt2tqGi2vXQv4XBfluoLoZWXo3wKegMrhTtBESS77M9bAA+2JwQDdrFitkFWZWxAAJ9nc0SEGTDqpdRVkdT+TgNEt0RK/sEjyXBiydZYGS6G92kiWxBlgKFe1TsSOuuVHcxxKkMSdubjpGcV5NxSWYY57gf2udU7v82Wb8PMym2cyPSB1n6BS2LbPNrD1c6t4="
-    distributions: "sdist bdist_wheel"
-    skip_existing: true
-    on:
-        branch: master
-        condition: $TRAVIS_OS_NAME == linux
-        tags: true
+  provider: pypi
+  user: 1313e
+  password:
+    secure: "AgsDI+wasX+Msg2rfH4I/WZpx+8uWmx3zCKRc5m+PgTWgtT2oieTX1pqINsVYQPSp58SRfCa7DEsmDMjYQGVjM58bpM3AELGGoiQ3NXv5HGJVlGA5FWMPxh7SE+E6/zqCkwxaTKFNTATtHbr01s0DQYGQBSrt0hhYt5gXTSD7j+iugrEnpBdfAVMD67V4QNfN5u73RgbUEpFPa4DoZkCt5Dm2uIt3rmI6dpojc04RrUXCow2QBBswikoW3l7p6/xXlLGRc/WY5eTTwMV5pxkYyCMT6Of3C2RSyfJ9A0DlmGlyxh5aurSA8Z8ZHNoDIJXiTprlW+66tuAiXr+uoqBK0EC9BnFTEPoqOG/g77zzMSZpVx4nvOS86lCzePygwxZob8XpG6GYazPvUom9Tc9Mn7/COs2a5/TgksABXM8xEo03RvGA/TVIrdNoGug5HDl83t1HjQAwZlIXwgDltr/DmV8u9Jyrq0gRyyZ4rfIGLXt2tqGi2vXQv4XBfluoLoZWXo3wKegMrhTtBESS77M9bAA+2JwQDdrFitkFWZWxAAJ9nc0SEGTDqpdRVkdT+TgNEt0RK/sEjyXBiydZYGS6G92kiWxBlgKFe1TsSOuuVHcxxKkMSdubjpGcV5NxSWYY57gf2udU7v82Wb8PMym2cyPSB1n6BS2LbPNrD1c6t4="
+  distributions: "sdist bdist_wheel"
+  skip_existing: true
+  on:
+    branch: master
+    condition: $TRAVIS_OS_NAME == linux
+    tags: true
     
 notifications:
   webhooks:
