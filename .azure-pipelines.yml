@@ -89,6 +89,8 @@ steps:
 # Install MPI, mpi4py and run MPI tests
 # Linux
 - bash: |
+    unset DISPLAY
+    export QT_QPA_PLATFORM=offscreen
     sudo apt-get install -y -q openmpi-bin libopenmpi-dev
     pip install --no-cache-dir mpi4py
     mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
