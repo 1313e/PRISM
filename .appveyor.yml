@@ -44,6 +44,3 @@ build: false
 
 test_script:
     - "pytest --cov --cov-config=setup.cfg --cov-report=term-missing"
-
-on_success:
-    - "codecov"
