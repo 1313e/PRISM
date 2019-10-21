@@ -133,5 +133,5 @@ steps:
 # Upload covarage report to CodeCov
 - script: |
     codecov
-  condition: and(succeeded(), eq('${{parameters.upload_coverage}}', true))
+  condition: and(succeeded(), eq(variables['upload_coverage'], true))
   displayName: Upload coverage report if requested
