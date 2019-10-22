@@ -105,15 +105,16 @@ make_call_doc =\
         listening for calls, and tells them to execute it using the provided
         `args` and `kwargs`.{0}
 
-        If used within the :attr:`~worker_mode` context manager, this function
-        should only be called by the controller. If not, it should be called by
-        all valid ranks that must execute `exec_fn`.
+        If used within the :class:`~prism._pipeline.WorkerMode` context
+        manager, this function should only be called by the controller. If not,
+        it should be called by all valid ranks that must execute `exec_fn`.
 
         Parameters
         ----------{1}
         exec_fn : str or callable
-            If string, a callable attribute of this :obj:`~Pipeline` instance
-            or a callable object that the workers should execute if not.
+            If string, a callable attribute of this :obj:`~prism.Pipeline`
+            instance or a callable object that the workers should execute if
+            not.
         args : positional arguments
             Positional arguments that need to be provided to `exec_fn`.
         kwargs : keyword arguments
@@ -128,16 +129,18 @@ make_call_doc =\
 
         Note
         ----
-        If any entry in `args` or `kwargs` is a string written as 'pipe.XXX',
-        it is assumed that 'XXX' refers to a :class:`~prism.Pipeline`
-        attribute. It will be replaced with the corresponding attribute before
-        `exec_fn` is called.
+        .. versionchanged:: 1.2.0
+            If any entry in `args` or `kwargs` is a string written as
+            'pipe.XXX', it is assumed that 'XXX' refers to a
+            :class:`~prism.Pipeline` attribute of the MPI rank receiving the
+            call. It will be replaced with the corresponding attribute before
+            `exec_fn` is called.
 
         """
 make_call_pipeline_doc =\
-        """pipeline_obj : :obj:`~Pipeline` object
-            The instance of the :class:`~Pipeline` class that is making this
-            call."""
+        """pipeline_obj : :obj:`~prism.Pipeline` object
+            The instance of the :class:`~prism.Pipeline` class that is making
+            this call."""
 
 make_call_doc_a = make_call_doc.format(
     " All ranks that call this function will execute `exec_fn` as well.", "")
@@ -326,7 +329,9 @@ start_gui_doc =\
         can also be accessed through *{0}*.
 
         As with all :class:`~prism.Pipeline` user methods, this function must
-        be called by all MPI ranks.""".format(GUI_APP_NAME)
+        be called by all MPI ranks.
+
+        .. versionadded:: 1.2.0""".format(GUI_APP_NAME)
 
 start_gui_doc_pars =\
         """Parameters

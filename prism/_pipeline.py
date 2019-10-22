@@ -145,18 +145,6 @@ class Pipeline(Projection, object):
         if self._is_worker:
             set_base_logger(path.join(self._working_dir, 'prism_log.log'))
 
-        # Check if deprecated prism_file was provided
-        if 'prism_file' in kwargs.keys():  # pragma: no cover
-            # Assign prism_file to prism_par
-            prism_par = kwargs['prism_file']
-
-            # Raise a FutureWarning
-            if self._is_controller:
-                warn_msg = ("Input argument 'prism_file' is deprecated since "
-                            "v1.1.2 in favor of 'prism_par'. It will be "
-                            "removed entirely in v1.2.0.")
-                raise_warning(warn_msg, FutureWarning, logger, stacklevel=2)
-
         # Read in the provided parameter dict/file
         self._read_parameters(prism_par)
 
@@ -341,10 +329,10 @@ class Pipeline(Projection, object):
     @property
     def worker_mode(self):
         """
-        :obj:`~WorkerMode`: Special context manager within which all code is
-        executed in worker mode. In worker mode, all worker ranks are
-        continuously listening for calls from the controller rank made with
-        :meth:`~_make_call`.
+        :obj:`~prism._pipeline.WorkerMode`: Special context manager within
+        which all code is executed in worker mode. In worker mode, all worker
+        ranks are continuously listening for calls from the controller rank
+        made with :meth:`~_make_call` or :meth:`~make_call_workers`.
 
         Note that all code within the context manager is executed by all ranks,
         with the worker ranks executing it after the controller rank exits.
@@ -2797,13 +2785,14 @@ class Pipeline(Projection, object):
                                           ccheck_rank):
                     ccheck_flat[emul_s] = ccheck
 
+            # Generate function for getting string lengths of floats
+            def f(x):
+                return(len("%.5f" % (x)))
+
             # Get max lengths of various strings for parameter space section
-            name_len =\
-                max([len(par_name) for par_name in self._modellink._par_name])
-            lower_len =\
-                max([len(str(i)) for i in self._modellink._par_rng[:, 0]])
-            upper_len =\
-                max([len(str(i)) for i in self._modellink._par_rng[:, 1]])
+            name_len = max(map(len, self._modellink._par_name))
+            lower_len = max(map(f, self._modellink._par_rng[:, 0]))
+            upper_len = max(map(f, self._modellink._par_rng[:, 1]))
             est_lengths = [len('%.5f' % (i)) for i in self._modellink._par_est
                            if i is not None]
             est_len = max(est_lengths) if len(est_lengths) else 0
@@ -3002,14 +2991,15 @@ class Pipeline(Projection, object):
             print("-"*width)
 
             # Define string format if no par_ests are provided
-            str_format1 = "{6}{0: <{1}}: [{2: >{3},}, {4: >{5},}]"
+            str_format1 = "{6}{0: <{1}}: [{2: >{3},.5f}, {4: >{5},.5f}]"
 
             # Define string format if this par_est was provided
-            str_format2 = ("{8}{0: <{1}}: [{2: >{3},}, {4: >{5},}] "
+            str_format2 = ("{8}{0: <{1}}: [{2: >{3},.5f}, {4: >{5},.5f}] "
                            "({6: >{7},.5f})")
 
             # Define string format if this par_est was not provided
-            str_format3 = "{8}{0: <{1}}: [{2: >{3},}, {4: >{5},}] ({6:->{7}})"
+            str_format3 = ("{8}{0: <{1}}: [{2: >{3},.5f}, {4: >{5},.5f}] "
+                           "({6:->{7}})")
 
             # Print details about every model parameter in parameter space
             for i in range(n_par):
@@ -3208,7 +3198,9 @@ class WorkerMode(object):
         Initialize the :class:`~WorkerMode` class using the MPI ranks defined
         in the provided `pipeline_obj`.
         This class should solely be initialized and finalized through the
-        :class:`~Pipeline` class.
+        :class:`~prism.Pipeline` class.
+
+        .. versionchanged:: 1.2.0
 
         Parameters
         ----------
@@ -3261,7 +3253,7 @@ class WorkerMode(object):
         All worker ranks in the :attr:`~prism.Pipeline.comm` communicator start
         listening for calls from the corresponding controller rank and will
         attempt to execute the received message. Listening for calls continues
-        until this context manager exits (:attr:`~__exit__` is called).
+        until this context manager exits (:meth:`~__exit__` is called).
 
         This method is automatically initialized and finalized when using the
         :attr:`~prism.Pipeline.worker_mode` context manager.
@@ -3287,7 +3279,10 @@ class WorkerMode(object):
     # Function that sends a code string to all workers and executes it
     @staticmethod
     @docstring_append(make_call_doc_aw)
-    def make_call(pipe, exec_fn, *args, **kwargs):
+    def make_call(pipeline_obj, exec_fn, *args, **kwargs):
+        # Make abbreviation for pipeline_obj
+        pipe = pipeline_obj
+
         # If worker mode is active
         if pipe._worker_mode:
             # Then the controller sends received exec_fn to all workers
@@ -3303,7 +3298,10 @@ class WorkerMode(object):
     # Function that sends a code string to all workers (does not execute it)
     @staticmethod
     @docstring_append(make_call_doc_ww)
-    def make_call_workers(pipe, exec_fn, *args, **kwargs):
+    def make_call_workers(pipeline_obj, exec_fn, *args, **kwargs):
+        # Make abbreviation for pipeline_obj
+        pipe = pipeline_obj
+
         # If worker mode is active
         if pipe._worker_mode:
             # Then the controller sends received exec_fn to all workers
@@ -3320,7 +3318,7 @@ class WorkerMode(object):
     # This function processes a call made by _make_call
     @staticmethod
     @docstring_substitute(pipeline=make_call_pipeline_doc)
-    def _process_call(pipe, exec_fn, args, kwargs):
+    def _process_call(pipeline_obj, exec_fn, args, kwargs):
         """
         Processes a call that was made with the :meth:`~make_call` or
         :meth:`~make_call_workers` method.
@@ -3332,8 +3330,8 @@ class WorkerMode(object):
         ----------
         %(pipeline)s
         exec_fn : str or callable
-            If string, a callable attribute of this :obj:`~Pipeline` instance
-            or a callable object that should be executed if not.
+            If string, a callable attribute of this :obj:`~prism.Pipeline`
+            instance or a callable object that should be executed if not.
         args : tuple
             Positional arguments that need to be provided to `exec_fn`.
         kwargs : dict
@@ -3348,10 +3346,13 @@ class WorkerMode(object):
         ----
         If any entry in `args` or `kwargs` is a string written as 'pipe.XXX',
         it is assumed that 'XXX' refers to a :class:`~prism.Pipeline`
-        attribute. It will be replaced with the corresponding attribute before
-        `exec_fn` is called.
+        attribute of the MPI rank receiving the call. It will be replaced with
+        the corresponding attribute before `exec_fn` is called.
 
         """
+
+        # Make abbreviation for pipeline_obj
+        pipe = pipeline_obj
 
         # Process the input arguments
         # EXEC_FN
@@ -3383,7 +3384,7 @@ class WorkerMode(object):
     # This function converts a provided string into an attribute if possible
     @staticmethod
     @docstring_substitute(pipeline=make_call_pipeline_doc)
-    def _process_call_str(pipe, string):
+    def _process_call_str(pipeline_obj, string):
         """
         Processes a provided `string` that was provided as an argument value to
         :meth:`~_process_call`.
@@ -3398,10 +3399,13 @@ class WorkerMode(object):
         -------
         out : str or object
             If `string` starts with 'pipe.', the corresponding
-            :class:`~Pipeline` attribute will be returned. Else, `string` is
-            returned.
+            :class:`~prism.Pipeline` attribute will be returned. Else, `string`
+            is returned.
 
         """
+
+        # Make abbreviation for pipeline_obj
+        pipe = pipeline_obj
 
         # Split string up into individual elements
         str_list = string.split('.')

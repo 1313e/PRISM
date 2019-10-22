@@ -9,10 +9,10 @@ In order to use *PRISM* in parallel with a parallelized model, this code would h
 
 Therefore, *PRISM* has a `dual execution/call nature`, where it can be switched between two different modes.
 In the default mode, *PRISM* works as described before, where all MPI ranks call the same user-code.
-However, by using the :attr:`~prism.Pipeline.worker_mode` context manager, all code within will be executed in worker mode.
-When in worker mode, all worker ranks are continously listening for calls from the controller rank, made with the :meth:`~prism.Pipeline._make_call` method.
-They will continue to do so until the controller makes the :pycode:`pipe._make_call(None)` call, which is done automatically when the controller exits :attr:`~prism.Pipeline.worker_mode`.
-Manually making this call should solely be done in advanced use-cases.
+However, by using the :class:`~prism._pipeline.WorkerMode` context manager, accessed through :meth:`~prism.Pipeline.worker_mode`, all code within will be executed in worker mode.
+When in worker mode, all worker ranks are continously listening for calls from the controller rank, made with the :meth:`~prism.Pipeline._make_call` and :meth:`~prism.Pipeline._make_call_workers` methods.
+They will continue to do so until the controller exits :class:`~prism._pipeline.WorkerMode` with :meth:`~prism._pipeline.WorkerMode.__exit__`.
+Manually exiting should solely be done in advanced use-cases.
 
 In :attr:`~prism.Pipeline.worker_mode`, one uses the following structure (assuming that the :obj:`~prism.Pipeline` instance is called :pycode:`pipe`)::
 
@@ -74,4 +74,15 @@ However, by supplying the :meth:`~prism.Pipeline._make_call` method with a calla
 
 This is especially useful when one combines a serial code with *PRISM*, but wants *PRISM* to execute in MPI.
 An application example of this is :ref:`hybrid_sampling`.
+
+.. versionchanged:: 1.2.0
+    It is also possible to make a call that is solely executed by the workers, by using the :meth:`~prism.Pipeline._make_call_workers` method.
+
+.. versionchanged:: 1.2.0
+    If any positional or keyword argument is a string written as :pycode:`'pipe.XXX'`, it is assumed that :pycode:`'XXX'` refers to a :class:`~prism.Pipeline` attribute of the MPI rank receiving the call.
+    It will be replaced with the corresponding attribute before `exec_fn` is called.
+
+.. versionchanged:: 1.2.0
+    Initializing a worker mode within an already existing worker mode is possible and will function properly.
+    An example of this is using the :meth:`~prism.Pipeline.construct` or :meth:`~prism.Pipeline.crystal` method within worker mode, as both use one themselves as well.
 

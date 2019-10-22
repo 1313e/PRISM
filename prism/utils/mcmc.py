@@ -29,7 +29,7 @@ from prism._internal import RequestError, check_vals, np_array
 from prism._pipeline import Pipeline
 
 # All declaration
-__all__ = ['get_hybrid_lnpost_fn', 'get_walkers', 'get_lnpost_fn']
+__all__ = ['get_hybrid_lnpost_fn', 'get_walkers']
 
 
 # %% FUNCTION DEFINITIONS
@@ -249,7 +249,7 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
         be returned. If *None*, all plausible starting positions in
         `init_walkers` are returned instead.
 
-        .. versionadded:: 1.1.4
+        .. versionadded:: 1.2.0
     unit_space : bool. Default: False
         Bool determining whether or not the provided samples and returned
         walkers are given in unit space.
@@ -536,87 +536,3 @@ def _do_mh_walkers(pipeline_obj, p0_walkers, req_n_walkers):
 
     # Return n_walkers, walkers
     return(n_walkers, walkers)
-
-
-# %% DEPRECATED FUNCTION DEFINITIONS
-# This function returns a specialized version of the lnpost function
-@docstring_substitute(emul_i=user_emul_i_doc)
-def get_lnpost_fn(ext_lnpost, pipeline_obj, *, emul_i=None, unit_space=True,
-                  hybrid=True, par_dict=False):  # pragma: no cover
-    """
-    .. deprecated:: 1.1.3
-
-    Returns a function definition ``get_lnpost(par_set, *args, **kwargs)``.
-
-    This `get_lnpost` function can be used to calculate the natural logarithm
-    of the posterior probability, which analyzes a given `par_set` first in the
-    provided `pipeline_obj` at iteration `emul_i` and passes it to the
-    `ext_lnpost` function if it is plausible.
-
-    This function needs to be called by all MPI ranks.
-
-    Parameters
-    ----------
-    ext_lnpost : function
-        Function definition that needs to be called if the provided `par_set`
-        is plausible in iteration `emul_i` of `pipeline_obj`. The used call
-        signature is ``ext_lnpost(par_set, *args, **kwargs)``. All MPI ranks
-        will call this function unless called within the
-        :attr:`~prism.Pipeline.worker_mode` context manager.
-    pipeline_obj : :obj:`~prism.Pipeline` object
-        The instance of the :class:`~prism.Pipeline` class that needs
-        to be used for determining the validity of the proposed sampling step.
-
-    Optional
-    --------
-    %(emul_i)s
-    unit_space : bool. Default: True
-        Bool determining whether or not `par_set` will be given in unit space.
-    hybrid : bool. Default: True
-        Bool determining whether or not the `get_lnpost` function should
-        use the implausibility values of a given `par_set` as an additional
-        prior.
-    par_dict : bool. Default: False
-        Bool determining whether or not `par_set` will be an array_like
-        (*False*) or a dict (*True*).
-
-    Returns
-    -------
-    get_lnpost : function
-        Definition of the function ``get_lnpost(par_set, *args, **kwargs)``.
-
-    See also
-    --------
-    :func:`~get_walkers`
-        Analyzes proposed `init_walkers` and returns valid `p0_walkers`.
-
-    :attr:`~prism.Pipeline.worker_mode`
-        Special context manager within which all code is executed in worker
-        mode.
-
-    Note
-    ----
-    The input arguments `unit_space` and `par_dict` state in what form
-    `par_set` will be provided to the ``get_lnpost()`` function, such that it
-    can be properly converted to the format used in :class:`~prism.Pipeline`.
-    The `par_set` that is passed to the ``ext_lnpost()`` function is unchanged.
-
-    Warning
-    -------
-    Calling this function factory will disable all regular logging in
-    `pipeline_obj` (:attr:`~prism.Pipeline.do_logging` set to
-    *False*), in order to avoid having the same message being logged every time
-    `get_lnpost` is called.
-
-    """
-
-    # Raise a FutureWarning
-    warn_msg = ("This function factory was remade into 'get_hybrid_lnpost_fn' "
-                "in v1.1.3. This compatibility definition will be removed "
-                "entirely in v1.2.0.")
-    warnings.warn(warn_msg, FutureWarning, stacklevel=2)
-
-    # Call new get_hybrid_lnpost_fn() function factory
-    return(get_hybrid_lnpost_fn(ext_lnpost, pipeline_obj, emul_i=emul_i,
-                                unit_space=unit_space, impl_prior=hybrid,
-                                par_dict=par_dict))

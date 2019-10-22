@@ -60,7 +60,7 @@ However, as some sampling methods use unit space, normalized starting positions 
 One has to keep in mind that, because of the way the emulator works, there is no guarantee for a specific number of plausible starting positions to be obtained.
 Having the desired emulator iteration already analyzed may give an indication how many starting positions in total need to be proposed to be left with a specific number.
 
-.. versionchanged:: 1.1.4
+.. versionchanged:: 1.2.0
     It is now possible to request a specific number of plausible starting positions by using the `req_n_walkers` input argument.
     This will use a custom Metropolis-Hastings sampling algorithm to obtain the required number of starting positions, using the plausible samples in `init_walkers` as the start of every MCMC chain.
 

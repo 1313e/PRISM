@@ -85,17 +85,17 @@ steps:
     coverage run --rcfile=setup.cfg -m pytest
   displayName: Test package in serial
 
-# Install MPI, mpi4py and run MPI tests
+# Install MPI
 # Linux
 - bash: |
     sudo apt-get install -y -q openmpi-bin libopenmpi-dev
   condition: eq(variables['Agent.OS'], 'Linux')
-  displayName: Install MPI distribution on Linux and run in MPI
+  displayName: Install MPI distribution on Linux
 # Mac OS-X
 - bash: |
     brew install openmpi
   condition: eq(variables['Agent.OS'], 'Darwin')
-  displayName: Install MPI distribution on Mac OS-X and run in MPI
+  displayName: Install MPI distribution on Mac OS-X
 # Windows
 - powershell: |
     iwr -outf ..\MSMpiSDK.msi https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSDK.msi
@@ -105,12 +105,7 @@ steps:
     echo "##vso[task.setvariable variable=MSMPI_BIN]C:\Program Files\Microsoft MPI\Bin"
     echo "##vso[task.setvariable variable=Path]$Env:Path;C:\Program Files\Microsoft MPI\Bin"
   condition: eq(variables['Agent.OS'], 'Windows_NT')
-  displayName: Install MPI distribution on Windows and run in MPI
-
-- powershell: |
-    Get-ChildItem env:
-  condition: eq(variables['Agent.OS'], 'Windows_NT')
-  displayName: Windows reusing variables testing
+  displayName: Install MPI distribution on Windows
 
 # Install mpi4py
 - script: |
