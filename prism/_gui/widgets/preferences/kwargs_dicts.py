@@ -198,9 +198,10 @@ class KwargsDictDialogPage(BaseBox):
         add_but.setToolTip("Add a new entry")
         add_but.clicked.connect(self.add_editable_entry)
         get_modified_box_signal(add_but).connect(self.modified)
+        self.add_but = add_but
 
         # If this theme has an 'add' icon, use it
-        if QG.QIcon.hasThemeIcon('add'):
+        if QG.QIcon.hasThemeIcon('add'):    # pragma: no cover
             add_but.setIcon(QG.QIcon.fromTheme('add'))
         # Else, use a simple plus
         else:
@@ -298,7 +299,7 @@ class KwargsDictDialogPage(BaseBox):
             set_box_value(self.kwargs_grid.itemAtPosition(row, 2).widget(),
                           field_value)
 
-    # This function adds an editable entry
+    # This function creates an editable entry
     @QC.pyqtSlot()
     def add_editable_entry(self):
         # Create a combobox with different standard kwargs
@@ -321,7 +322,7 @@ class KwargsDictDialogPage(BaseBox):
         get_modified_box_signal(delete_but).connect(self.modified)
 
         # If this theme has a 'remove' icon, use it
-        if QG.QIcon.hasThemeIcon('remove'):
+        if QG.QIcon.hasThemeIcon('remove'):     # pragma: no cover
             delete_but.setIcon(QG.QIcon.fromTheme('remove'))
         # Else, use a simple cross
         else:
@@ -333,7 +334,7 @@ class KwargsDictDialogPage(BaseBox):
         # Make a new editable entry
         self.kwargs_grid.addWidget(delete_but, n_rows, 0)
         self.kwargs_grid.addWidget(kwargs_box, n_rows, 1)
-        self.kwargs_grid.addWidget(QW.QWidget(), n_rows, 2)
+        self.kwargs_grid.addWidget(QW.QLabel(''), n_rows, 2)
 
     # This function deletes an editable entry
     @QC.pyqtSlot(QW.QComboBox)
@@ -362,8 +363,8 @@ class KwargsDictDialogPage(BaseBox):
 
         # Check what entry_type is given and act accordingly
         if(entry_type == ''):
-            # If '' is selected, use an empty widget
-            field_box = QW.QWidget()
+            # If '' is selected, use an empty label widget
+            field_box = QW.QLabel('')
         elif entry_type in self.banned_entries:
             # If one of the banned types is selected, show a warning message
             warn_msg = (r"<b><i>%s</i></b> is a reserved or banned entry type!"
@@ -387,7 +388,17 @@ class KwargsDictDialogPage(BaseBox):
         cur_item.widget().close()
         del cur_item
 
-    # This function adds a cmap box
+    # This function creates an alpha box
+    def create_type_alpha(self):
+        # Make double spinbox for alpha
+        alpha_box = QW_QDoubleSpinBox()
+        alpha_box.setRange(0, 1)
+        set_box_value(alpha_box, 1)
+        alpha_box.setToolTip("Alpha value to use for the plotted data")
+        get_modified_box_signal(alpha_box).connect(self.modified)
+        return(alpha_box)
+
+    # This function creates a cmap box
     def create_type_cmap(self):
         # Obtain a list with default colormaps that should be at the top
         std_cmaps = sset(['cividis', 'dusk', 'freeze', 'heat', 'inferno',
@@ -460,34 +471,11 @@ class KwargsDictDialogPage(BaseBox):
             QW.QMessageBox.warning(
                 self, "%s WARNING" % (cmap.upper()), err_msg)
 
-    # This function adds an alpha box
-    def create_type_alpha(self):
-        # Make double spinbox for alpha
-        alpha_box = QW_QDoubleSpinBox()
-        alpha_box.setRange(0, 1)
-        set_box_value(alpha_box, 1)
-        alpha_box.setToolTip("Alpha value to use for the plotted data")
-        get_modified_box_signal(alpha_box).connect(self.modified)
-        return(alpha_box)
+    # This function creates a color picker box
+    def create_type_color(self):
+        return(ColorBox())
 
-    # This function adds a scale box
-    def create_type_scale(self, axis):
-        # Make a combobox for scale
-        scale_box = QW_QComboBox()
-        scale_box.addItems(['linear', 'log'])
-        scale_box.setToolTip("Scale type to use on the %s-axis" % (axis))
-        get_modified_box_signal(scale_box).connect(self.modified)
-        return(scale_box)
-
-    # This function adds a xscale box
-    def create_type_xscale(self):
-        return(self.create_type_scale('x'))
-
-    # This function adds a yscale box
-    def create_type_yscale(self):
-        return(self.create_type_scale('y'))
-
-    # This function adds a dpi box
+    # This function creates a dpi box
     def create_type_dpi(self):
         # Make spinbox for dpi
         dpi_box = QW_QSpinBox()
@@ -498,11 +486,11 @@ class KwargsDictDialogPage(BaseBox):
         get_modified_box_signal(dpi_box).connect(self.modified)
         return(dpi_box)
 
-    # This function adds a figsize box
+    # This function creates a figsize box
     def create_type_figsize(self):
         return(FigSizeBox())
 
-    # This function adds a linestyle box
+    # This function creates a linestyle box
     def create_type_linestyle(self):
         # Obtain list with all supported linestyles
         linestyles_lst = [(key, value[6:]) for key, value in lineStyles.items()
@@ -520,7 +508,7 @@ class KwargsDictDialogPage(BaseBox):
         get_modified_box_signal(linestyle_box).connect(self.modified)
         return(linestyle_box)
 
-    # This function adds a linewidth box
+    # This function creates a linewidth box
     def create_type_linewidth(self):
         # Make a double spinbox for linewidth
         linewidth_box = QW_QDoubleSpinBox()
@@ -531,7 +519,7 @@ class KwargsDictDialogPage(BaseBox):
         get_modified_box_signal(linewidth_box).connect(self.modified)
         return(linewidth_box)
 
-    # This function adds a marker box
+    # This function creates a marker box
     def create_type_marker(self):
         # Obtain list with all supported markers
         markers_lst = [(key, value) for key, value in lineMarkers.items()
@@ -550,7 +538,7 @@ class KwargsDictDialogPage(BaseBox):
         get_modified_box_signal(marker_box).connect(self.modified)
         return(marker_box)
 
-    # This function adds a markersize box
+    # This function creates a markersize box
     def create_type_markersize(self):
         # Make a double spinbox for markersize
         markersize_box = QW_QDoubleSpinBox()
@@ -561,8 +549,22 @@ class KwargsDictDialogPage(BaseBox):
         get_modified_box_signal(markersize_box).connect(self.modified)
         return(markersize_box)
 
-    def create_type_color(self):
-        return(ColorBox())
+    # This function creates a scale box
+    def create_type_scale(self, axis):
+        # Make a combobox for scale
+        scale_box = QW_QComboBox()
+        scale_box.addItems(['linear', 'log'])
+        scale_box.setToolTip("Scale type to use on the %s-axis" % (axis))
+        get_modified_box_signal(scale_box).connect(self.modified)
+        return(scale_box)
+
+    # This function creates a xscale box
+    def create_type_xscale(self):
+        return(self.create_type_scale('x'))
+
+    # This function creates a yscale box
+    def create_type_yscale(self):
+        return(self.create_type_scale('y'))
 
 
 # %% FUNCTION DEFINITIONS
