@@ -761,10 +761,10 @@ class OverviewDockWidget(QW.QDockWidget):
         general_group.setLayout(general_layout)
 
         # Add general details
-        general_layout.addRow("Emulator iteration:", emul_i)
-        general_layout.addRow("Parameters:", pars)
-        general_layout.addRow("Projection type:", proj_type)
-        general_layout.addRow("% of parameter space remaining:",
+        general_layout.addRow("Emulator iteration", emul_i)
+        general_layout.addRow("Parameters", pars)
+        general_layout.addRow("Projection type", proj_type)
+        general_layout.addRow("% of parameter space remaining",
                               pl_space_rem)
 
         # PROJECTION DATA
@@ -775,10 +775,10 @@ class OverviewDockWidget(QW.QDockWidget):
         data_group.setLayout(data_layout)
 
         # Add projection data details
-        data_layout.addRow("Grid shape:", grid_shape)
-        data_layout.addRow("Grid size:", grid_size)
-        data_layout.addRow("# of implausibility wildcards:", cut_idx)
-        data_layout.addRow("Implausibility cut-offs:", impl_cut)
+        data_layout.addRow("Grid shape", grid_shape)
+        data_layout.addRow("Grid size", grid_size)
+        data_layout.addRow("# of implausibility wildcards", cut_idx)
+        data_layout.addRow("Implausibility cut-offs", impl_cut)
 
         # Create a details message box for this projection figure
         details_box = QW.QDialog(self.main)

@@ -14,8 +14,9 @@ import signal
 
 # Package imports
 from e13tools.utils import docstring_append, raise_error
+import matplotlib as mpl
+from matplotlib.pyplot import switch_backend
 from PyQt5 import QtCore as QC, QtWidgets as QW
-from pytest_mpl.plugin import switch_backend
 
 # PRISM imports
 from prism._docstrings import start_gui_doc, start_gui_doc_pars
@@ -48,38 +49,46 @@ def start_gui(pipeline_obj):  # pragma: no cover
     # Activate worker mode
     with pipeline_obj.worker_mode:
         if pipeline_obj._is_controller:
-            # Wrap entire execution in switch_backend of MPL
-            with switch_backend('Agg'):
-                # Set some application attributes
-                QW.QApplication.setAttribute(QC.Qt.AA_DontShowIconsInMenus,
-                                             False)
-                QW.QApplication.setAttribute(QC.Qt.AA_EnableHighDpiScaling,
-                                             True)
-                QW.QApplication.setAttribute(QC.Qt.AA_UseHighDpiPixmaps, True)
+            # Temporarily switch the backend of MPL
+            cur_backend = mpl.rcParams['backend']
+            switch_backend('Agg')
 
-                # Obtain application instance
-                qapp = QW.QApplication.instance()
+            # Obtain application instance
+            qapp = QW.QApplication.instance()
 
-                # If qapp is None, create a new one
-                if qapp is None:
-                    qapp = QW.QApplication([APP_NAME])
-                    qapp.setApplicationName(APP_NAME)
+            # If qapp is None, create a new one
+            if qapp is None:
+                QW.QApplication.setAttribute(QC.Qt.AA_EnableHighDpiScaling)
+                qapp = QW.QApplication([APP_NAME])
 
-                # Make sure that the application quits when last window closes
-                qapp.lastWindowClosed.connect(qapp.quit,
-                                              QC.Qt.QueuedConnection)
+            # Set name of application
+            qapp.setApplicationName(APP_NAME)
 
-                # Initialize main window and draw (show) it
-                main_window = MainViewerWindow(pipeline_obj)
-                main_window.show()
-                main_window.raise_()
-                main_window.activateWindow()
+            # Hide the 'whats this' tooltip on Windows
+            QW.QApplication.setAttribute(
+                QC.Qt.AA_DisableWindowContextHelpButton)
 
-                # Replace KeyboardInterrupt error by system's default handler
-                signal.signal(signal.SIGINT, signal.SIG_DFL)
+            # Make sure that the application quits when last window closes
+            qapp.lastWindowClosed.connect(qapp.quit,
+                                          QC.Qt.QueuedConnection)
 
-                # Start application
-                qapp.exec_()
+            # Initialize main window and draw (show) it
+            main_window = MainViewerWindow(pipeline_obj)
+            main_window.show()
+            main_window.raise_()
+            main_window.activateWindow()
+
+            # Replace KeyboardInterrupt error by system's default handler
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+            # Start application
+            qapp.exec_()
+
+            # Delete this application to stop event processing
+            del qapp
+
+            # Switch back to previous backend
+            switch_backend(cur_backend)
 
             # Return the main window instance
             return(main_window)

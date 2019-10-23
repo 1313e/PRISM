@@ -148,7 +148,7 @@ class MainViewerWindow(QW.QMainWindow):
         # Add save action to file menu
         save_act = QW_QAction(
             self, '&Save view as...',
-            shortcut=QC.Qt.CTRL + QC.Qt.Key_S,
+            shortcut=QG.QKeySequence.Save,
             statustip="Save current projection viewing area as an image",
             triggered=self.area_dock.save_view,
             role=QW_QAction.ApplicationSpecificRole)
@@ -157,7 +157,7 @@ class MainViewerWindow(QW.QMainWindow):
         # Add quit action to file menu
         quit_act = QW_QAction(
             self, '&Quit',
-            shortcut=QC.Qt.CTRL + QC.Qt.Key_Q,
+            shortcut=QG.QKeySequence.Quit,
             statustip="Quit %s" % (APP_NAME),
             triggered=self.close,
             role=QW_QAction.QuitRole)

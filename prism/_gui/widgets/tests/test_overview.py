@@ -41,8 +41,10 @@ class TestOverviewDockWidget_Main(object):
     # Test if the overview contains a specific number of hcubes
     def test_hcubes(self, pipe_GUI, overview):
         # Calculate how many hcubes there should be
-        n_hcubes = sum([nCr(n, 2)+n
-                        for n in map(len, pipe_GUI._emulator._active_par)])
+        emul_i = overview.pipe._Projection__emul_i
+        n_hcubes = sum(
+            [nCr(n, 2)+n for n in map(
+                len, pipe_GUI._emulator._active_par[:emul_i+1])])
 
         # Check if this many hcubes are currently in the GUI
         assert (len(overview.hcubes) == n_hcubes)
@@ -73,9 +75,15 @@ class TestOverviewDockWidget_Main(object):
         # Monkey patch the plt.show function
         monkeypatch.setattr(plt, 'show', lambda *args: None)
 
+        # Check that currently no items are selected
+        assert not len(overview.proj_list_a.selectedItems())
+
         # Select all items in the list
         qtbot.keyClick(overview.proj_list_a, QC.Qt.Key_A,
                        QC.Qt.ControlModifier)
+
+        # Check that currently all items are selected
+        assert (len(overview.proj_list_a.selectedItems()) == 2)
 
         # Press enter
         qtbot.keyClick(overview.proj_list_a, QC.Qt.Key_Enter)

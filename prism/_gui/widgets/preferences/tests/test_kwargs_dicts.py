@@ -236,6 +236,17 @@ class TestKwargsDictDialog_Main(object):
         assert isinstance(field_box, QW.QLabel)
         assert (field_box.text() != '')
 
+    # Test if saving the kwargs_dicts still works
+    def test_save_kwargs_dicts2(self, options, option_entries):
+        # Try to save the options
+        options.save_but.click()
+
+        # Check that the impl_kwargs_2D entry has not changed
+        entry = option_entries['impl_kwargs_2D']
+        impl_kwargs_2D = get_box_value(entry.box)
+        assert (impl_kwargs_2D == entry.default)
+        assert (entry.value == impl_kwargs_2D)
+
 
 # Pytest for the kwargs dict dialog entry types
 class TestKwargsDictDialog_EntryTypes(object):

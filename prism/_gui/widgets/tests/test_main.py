@@ -5,7 +5,13 @@
 from os import path
 
 # Package imports
+from mpi4pyd import MPI
 from PyQt5 import QtWidgets as QW
+import pytest
+
+# PRISM imports
+from prism._gui.widgets.main import MainViewerWindow
+from prism._internal import RequestWarning
 
 
 # %% GLOBALS
@@ -85,3 +91,22 @@ class TestMenus_Help(object):
 
         # Show the details window by triggering its action
         menu_actions['Help']['Details'].trigger()
+
+
+# Test if an implausible iteration is automatically skipped
+@pytest.mark.last
+@pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                    reason="Cannot be pytested in MPI")
+def test_implausible_emul_i(pipe_GUI):
+    # Analyze the second iteration with low implausibility cut-offs
+    pipe_GUI.analyze(impl_cut=[0.001, 0.001, 0.001])
+
+    # Initialize the main window
+    with pytest.warns(RequestWarning):
+        main_window = MainViewerWindow(pipe_GUI)
+
+    # Check that the emul_i is currently set to 1
+    assert (pipe_GUI._Projection__emul_i == 1)
+
+    # Close the main_window
+    main_window.close()

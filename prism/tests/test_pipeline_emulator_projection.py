@@ -219,7 +219,7 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if first iteration can be evaluated with a single parameter dict
     def test_evaluate_dict_1D(self, pipe):
-        pipe.evaluate({'A': 2.5, 'B': 2}, 1)
+        pipe.evaluate({'A': 1, 'B': 1}, 1)
 
     # Check if first iteration can be evaluated for more than one parameter set
     def test_evaluate_nD(self, pipe):
@@ -240,37 +240,72 @@ class Test_Pipeline_Gaussian2D(object):
         pipe.do_logging = 0
         pipe.do_logging = 1
 
-    # Check if the worker mode works properly
-    def test_worker_mode(self, pipe):
+    # Test if default actions can be requested in worker mode
+    def test_worker_mode_default(self, pipe):
         with pipe.worker_mode:
             if pipe._is_controller:
-                # Test if default actions can be requested
                 pipe._make_call(np.array, [1])
-                assert pipe._make_call('_emulator._get_emul_i', 1, 0) == 1
+                assert pipe._make_call('_emulator._get_emul_i',
+                                       emul_i='pipe._emulator._emul_i') == 2
                 assert pipe._make_call('_evaluate_sam_set', 1,
                                        np.array([[2.5, 2]]),
                                        ("", "", "", "", "")) is None
 
-                # Test if properties can be requested
+    # Test if properties can be requested in worker mode
+    def test_worker_mode_props(self, pipe):
+        with pipe.worker_mode:
+            if pipe._is_controller:
                 assert pipe._make_call('_comm.__getattribute__', 'rank') == 0
 
-                # Test if properties can be provided
+    # Test if properties can be provided in worker mode
+    def test_worker_mode_props2(self, pipe):
+        with pipe.worker_mode:
+            if pipe._is_controller:
                 exp_ranks = list(range(pipe._comm.size))
                 ranks = pipe._make_call('_comm.gather', 'pipe._comm.rank', 0)
                 assert ranks == exp_ranks
 
-                # Test if make_call can be called within make_call
+    # Test if make_call can be called within make_call in worker mode
+    def test_worker_mode_make_call(self, pipe):
+        with pipe.worker_mode:
+            if pipe._is_controller:
+                exp_ranks = list(range(pipe._comm.size))
                 ranks = pipe._make_call('_make_call', 'pipe._comm.gather',
                                         'pipe._comm.rank', 0)
                 assert ranks == exp_ranks
 
-                # Test if initializing another worker mode works
+    # Test if initializing another worker mode works in worker mode
+    def test_worker_mode_double(self, pipe):
+        with pipe.worker_mode:
+            if pipe._is_controller:
                 pipe._make_call('construct')
-                assert pipe._make_call('__getattribute__', 'worker_mode')
+                assert pipe._make_call('__getattribute__', '_worker_mode')
                 pipe._make_call('_comm.Barrier')
 
-                # Test if a call solely to workers can be made
+    # Test if a call solely to workers can be made in worker mode
+    def test_worker_mode_workers(self, pipe):
+        with pipe.worker_mode:
+            if pipe._is_controller:
                 pipe._make_call_workers(print, 'pipe._comm.size')
+
+    # Test if make_call_workers can be called within make_call in worker mode
+    def test_worker_mode_make_call_workers(self, pipe):
+        with pipe.worker_mode:
+            if pipe._is_controller:
+                pipe._make_call('_make_call_workers', print, 'pipe._comm.rank')
+
+    # Test if make_call can be called outside worker mode
+    def test_make_call(self, pipe):
+        pipe._make_call(np.array, [1])
+        assert pipe._make_call('_emulator._get_emul_i', 1, 0) == 1
+        assert pipe._make_call('_evaluate_sam_set', 1, np.array([[2.5, 2]]),
+                               ("", "", "", "", "")) is None
+
+    # Test if make_call_workers can be called outside worker mode
+    def test_make_call_workers(self, pipe):
+        rank = pipe._make_call_workers('__getattribute__', '_comm.rank')
+        if pipe._is_worker:
+            assert (rank == pipe._comm.rank)
 
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model

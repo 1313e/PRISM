@@ -18,7 +18,7 @@ from traceback import format_exception_only, format_tb
 
 # Package imports
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-from PyQt5 import QtCore as QC, QtWidgets as QW
+from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
 from prism._gui import APP_NAME
@@ -219,7 +219,7 @@ class OverviewListWidget(QW.QListWidget):
             # If so, emit the itemActivated signal
             self.itemActivated.emit(self.currentItem())
         # Else, check if the event involved pressing CTRL + A
-        elif(event.key() == QC.Qt.CTRL + QC.Qt.Key_A):
+        elif event.matches(QG.QKeySequence.SelectAll):
             # If so, select all items in the list
             self.selectAll()
         # Else, handle as normal
