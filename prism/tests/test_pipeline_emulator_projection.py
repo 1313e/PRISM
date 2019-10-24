@@ -303,7 +303,7 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Test if make_call_workers can be called outside worker mode
     def test_make_call_workers(self, pipe):
-        rank = pipe._make_call_workers('__getattribute__', '_comm.rank')
+        rank = pipe._make_call_workers('_comm.__getattribute__', 'rank')
         if pipe._is_worker:
             assert (rank == pipe._comm.rank)
 
