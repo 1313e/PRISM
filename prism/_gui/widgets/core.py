@@ -106,7 +106,7 @@ def get_modified_box_signal(box):
         return(box.currentTextChanged)
     # Strings (QLineEdit)
     elif isinstance(box, QW.QLineEdit):
-        return(box.textEdited)
+        return(box.textChanged)
     # Custom boxes (BaseBox)
     elif isinstance(box, BaseBox):
         return(box.modified)
