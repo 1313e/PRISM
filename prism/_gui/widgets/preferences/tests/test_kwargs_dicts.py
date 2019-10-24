@@ -9,11 +9,11 @@ from PyQt5 import QtCore as QC, QtWidgets as QW
 import pytest
 
 # PRISM imports
+from prism._gui.widgets.core import get_box_value, set_box_value
 from prism._gui.widgets.preferences.custom_boxes import (
     ColorBox, DefaultBox, FigSizeBox)
 from prism._gui.widgets.preferences.kwargs_dicts import (
     KwargsDictBoxLayout, KwargsDictDialog, KwargsDictDialogPage)
-from prism._gui.widgets.preferences.helpers import get_box_value, set_box_value
 
 
 # %% GLOBALS

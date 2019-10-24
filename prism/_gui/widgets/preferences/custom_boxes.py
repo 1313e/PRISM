@@ -16,17 +16,15 @@ used as custom option entry boxes in the
 from itertools import chain
 
 # Package imports
-from matplotlib import rcParamsDefault as rcParams
+from matplotlib import rcParams
 from matplotlib.colors import BASE_COLORS, CSS4_COLORS, to_rgba
 import numpy as np
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
 from prism._gui.widgets import (
-    QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox, QW_QLabel,
-    QW_QSpinBox)
-from prism._gui.widgets.preferences.helpers import (
-    BaseBox, get_box_value, get_modified_box_signal, set_box_value)
+    BaseBox, QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox, QW_QLabel,
+    QW_QSpinBox, get_box_value, set_box_value)
 
 # All declaration
 __all__ = ['ColorBox', 'DefaultBox', 'FigSizeBox']
@@ -44,9 +42,6 @@ class ColorBox(BaseBox):
 
     # This function creates the color box
     def init(self):
-        # Call super init
-        super().init()
-
         # Create the box layout
         box_layout = QW.QHBoxLayout(self)
         box_layout.setContentsMargins(0, 0, 0, 0)
@@ -117,7 +112,6 @@ class ColorBox(BaseBox):
         color_box.highlighted[str].connect(self.set_color_label)
         color_box.popup_hidden[str].connect(self.set_color_label)
         color_box.currentTextChanged.connect(self.set_color)
-        get_modified_box_signal(color_box).connect(self.modified)
         return(color_box)
 
     # This function shows the custom color picker dialog
@@ -208,9 +202,6 @@ class DefaultBox(BaseBox):
 
     # This function creates a double box with type and lineedit
     def init(self):
-        # Call super init
-        super().init()
-
         # Create the box_layout
         box_layout = QW.QHBoxLayout(self)
         box_layout.setContentsMargins(0, 0, 0, 0)
@@ -230,7 +221,6 @@ class DefaultBox(BaseBox):
         type_box.setToolTip("Type of the entered value")
         type_box.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
         type_box.currentTextChanged.connect(self.create_field_box)
-        get_modified_box_signal(type_box).connect(self.modified)
         self.type_box = type_box
 
         # Make value box corresponding to the current type
@@ -260,17 +250,7 @@ class DefaultBox(BaseBox):
         # Create a checkbox for bools
         bool_box = QW.QCheckBox()
         bool_box.setToolTip("Boolean value for this entry type")
-        get_modified_box_signal(bool_box).connect(self.modified)
         return(bool_box)
-
-    # This function creates the value box for integers
-    def create_type_int(self):
-        # Create a spinbox for integers
-        int_box = QW_QSpinBox()
-        int_box.setRange(-9999999, 9999999)
-        int_box.setToolTip("Integer value for this entry type")
-        get_modified_box_signal(int_box).connect(self.modified)
-        return(int_box)
 
     # This function creates the value box for floats
     def create_type_float(self):
@@ -279,15 +259,21 @@ class DefaultBox(BaseBox):
         float_box.setRange(-9999999, 9999999)
         float_box.setDecimals(6)
         float_box.setToolTip("Float value for this entry type")
-        get_modified_box_signal(float_box).connect(self.modified)
         return(float_box)
+
+    # This function creates the value box for integers
+    def create_type_int(self):
+        # Create a spinbox for integers
+        int_box = QW_QSpinBox()
+        int_box.setRange(-9999999, 9999999)
+        int_box.setToolTip("Integer value for this entry type")
+        return(int_box)
 
     # This function creates the value box for strings
     def create_type_str(self):
         # Create a lineedit for strings
         str_box = QW.QLineEdit()
         str_box.setToolTip("String value for this entry type")
-        get_modified_box_signal(str_box).connect(self.modified)
         return(str_box)
 
     # This function retrieves a value of this special box
@@ -311,9 +297,6 @@ class FigSizeBox(BaseBox):
 
     # This function creates the figsize box
     def init(self):
-        # Call super init
-        super().init()
-
         # Create the box_layout
         box_layout = QW.QHBoxLayout(self)
         box_layout.setContentsMargins(0, 0, 0, 0)
@@ -327,7 +310,6 @@ class FigSizeBox(BaseBox):
         width_box.setSuffix("'")
         width_box.setStepType(width_box.AdaptiveDecimalStepType)
         width_box.setToolTip("Width (in inches) of projection figure")
-        get_modified_box_signal(width_box).connect(self.modified)
         self.width_box = width_box
 
         # HEIGHT
@@ -335,7 +317,6 @@ class FigSizeBox(BaseBox):
         height_box.setRange(1, 9999999)
         height_box.setSuffix("'")
         height_box.setToolTip("Height (in inches) of projection figure")
-        get_modified_box_signal(height_box).connect(self.modified)
         self.height_box = height_box
 
         # Also create a textlabel with 'X'
@@ -403,7 +384,7 @@ def create_color_pixmap(color, size):
     # Fill the entire image with the same color
     image.fill(color)
 
-    # COnvert the image to a pixmap
+    # Convert the image to a pixmap
     pixmap = QG.QPixmap.fromImage(image)
 
     # Return the pixmap

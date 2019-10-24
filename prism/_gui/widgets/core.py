@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 """
-GUI Options Helpers
-===================
-Provides a collection of utility functions used for making the options window
-in the Projection GUI.
+GUI Widgets Core
+================
+Provides a collection of utility functions and the :class:`~BaseBox` class
+definition, which are core to the functioning of all GUI widgets.
 
 """
 
@@ -29,26 +29,37 @@ class BaseBox(QW.QWidget):
         # Call super constructor
         super().__init__(*args, **kwargs)
 
-    # Initialize base box
-    def init(self):
-        # Get the modified signal of this box
-        signal = get_modified_box_signal(self)
-
-        # If this signal is not the modified signal, connect the two signals
-        if 'modified' not in signal.signal:
-            signal.connect(self.modified)
-
-    # Override childEvent to automatically connect signals if child is BaseBox
+    # Override childEvent to connect signals if child has defined modified sig
     def childEvent(self, event):
         # If this event involved a child being added, check child object
         if(event.type() == QC.QEvent.ChildAdded):
-            # If added child is an instance of BaseBox, connect signals
+            # Obtain child object
             child = event.child()
-            if isinstance(child, BaseBox):
-                child.modified.connect(self.modified)
+
+            # Try to obtain the modified signal of this child
+            try:
+                signal = get_modified_box_signal(child)
+            # If this fails, it does not have one
+            except NotImplementedError:
+                pass
+            # If this succeeds, connect it to the 'modified' signal
+            else:
+                signal.connect(self.modified)
 
         # Call and return super method
         return(super().childEvent(event))
+
+    # This function connects a given box to the modified signal
+    def connect_box(self, box):
+        # Check if the given box is a child of this box and skip if so
+        if box in self.children():
+            return
+
+        # Obtain the modified signal of the given box
+        signal = get_modified_box_signal(box)
+
+        # Connect the signals
+        signal.connect(self.modified)
 
     # Define get_box_value method
     def get_box_value(self):

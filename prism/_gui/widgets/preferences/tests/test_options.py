@@ -9,8 +9,8 @@ from PyQt5 import QtCore as QC
 import pytest
 
 # PRISM imports
+from prism._gui.widgets.core import get_box_value
 from prism._gui.widgets.preferences.options import OptionsDialog, OptionsEntry
-from prism._gui.widgets.preferences.helpers import get_box_value
 
 
 # %% GLOBALS

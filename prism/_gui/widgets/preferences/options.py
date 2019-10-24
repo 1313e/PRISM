@@ -18,9 +18,9 @@ from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
 from prism._docstrings import proj_depth_doc, proj_res_doc
-from prism._gui.widgets import QW_QDoubleSpinBox, QW_QSpinBox
-from prism._gui.widgets.preferences.helpers import (
-    get_box_value, get_modified_box_signal, set_box_value)
+from prism._gui.widgets import (
+    QW_QDoubleSpinBox, QW_QSpinBox, get_box_value, get_modified_box_signal,
+    set_box_value)
 from prism._gui.widgets.preferences.kwargs_dicts import KwargsDictBoxLayout
 
 # All declaration

@@ -14,8 +14,8 @@ from PyQt5 import QtCore as QC, QtWidgets as QW
 import pytest
 
 # PRISM imports
+from prism._gui.widgets.core import set_box_value
 from prism._gui.widgets.overview import OverviewDockWidget
-from prism._gui.widgets.preferences.helpers import set_box_value
 
 
 # %% GLOBALS

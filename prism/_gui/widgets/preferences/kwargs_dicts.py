@@ -24,12 +24,10 @@ from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
 from prism._gui.widgets import (
-    QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox, QW_QLabel,
-    QW_QSpinBox)
+    BaseBox, QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox, QW_QLabel,
+    QW_QSpinBox, get_box_value, set_box_value)
 from prism._gui.widgets.preferences.custom_boxes import (
     ColorBox, DefaultBox, FigSizeBox)
-from prism._gui.widgets.preferences.helpers import (
-    BaseBox, get_box_value, get_modified_box_signal, set_box_value)
 
 # All declaration
 __all__ = ['KwargsDictBoxLayout', 'KwargsDictDialog', 'KwargsDictDialogPage']
@@ -163,9 +161,6 @@ class KwargsDictDialogPage(BaseBox):
 
     # This function creates the kwargs dict tab
     def init(self):
-        # Call super init
-        super().init()
-
         # Create tab layout
         page_layout = QW.QVBoxLayout(self)
 
@@ -197,7 +192,6 @@ class KwargsDictDialogPage(BaseBox):
         add_but.setFixedSize(self.entry_height, self.entry_height)
         add_but.setToolTip("Add a new entry")
         add_but.clicked.connect(self.add_editable_entry)
-        get_modified_box_signal(add_but).connect(self.modified)
         self.add_but = add_but
 
         # If this theme has an 'add' icon, use it
@@ -311,7 +305,6 @@ class KwargsDictDialogPage(BaseBox):
                               "it manually")
         kwargs_box.currentTextChanged.connect(
             lambda x: self.entry_type_selected(x, kwargs_box))
-        get_modified_box_signal(kwargs_box).connect(self.modified)
 
         # Create a delete button
         delete_but = QW.QToolButton()
@@ -319,7 +312,6 @@ class KwargsDictDialogPage(BaseBox):
         delete_but.setToolTip("Delete this entry")
         delete_but.clicked.connect(
             lambda: self.remove_editable_entry(kwargs_box))
-        get_modified_box_signal(delete_but).connect(self.modified)
 
         # If this theme has a 'remove' icon, use it
         if QG.QIcon.hasThemeIcon('remove'):     # pragma: no cover
@@ -395,7 +387,6 @@ class KwargsDictDialogPage(BaseBox):
         alpha_box.setRange(0, 1)
         set_box_value(alpha_box, 1)
         alpha_box.setToolTip("Alpha value to use for the plotted data")
-        get_modified_box_signal(alpha_box).connect(self.modified)
         return(alpha_box)
 
     # This function creates a cmap box
@@ -443,7 +434,6 @@ class KwargsDictDialogPage(BaseBox):
         cmaps_box.setToolTip("Colormap to be used for the corresponding plot "
                              "type")
         cmaps_box.currentTextChanged.connect(self.cmap_selected)
-        get_modified_box_signal(cmaps_box).connect(self.modified)
         return(cmaps_box)
 
     # This function checks a selected cmap
@@ -483,7 +473,6 @@ class KwargsDictDialogPage(BaseBox):
         set_box_value(dpi_box, rcParams['figure.dpi'])
         dpi_box.setToolTip("DPI (dots per inch) to use for the projection "
                            "figure")
-        get_modified_box_signal(dpi_box).connect(self.modified)
         return(dpi_box)
 
     # This function creates a figsize box
@@ -505,7 +494,6 @@ class KwargsDictDialogPage(BaseBox):
         set_box_value(linestyle_box, rcParams['lines.linestyle'])
         linestyle_box.setToolTip("Linestyle to be used for the corresponding "
                                  "plot type")
-        get_modified_box_signal(linestyle_box).connect(self.modified)
         return(linestyle_box)
 
     # This function creates a linewidth box
@@ -516,7 +504,6 @@ class KwargsDictDialogPage(BaseBox):
         linewidth_box.setSuffix(" pts")
         set_box_value(linewidth_box, rcParams['lines.linewidth'])
         linewidth_box.setToolTip("Width of the plotted line")
-        get_modified_box_signal(linewidth_box).connect(self.modified)
         return(linewidth_box)
 
     # This function creates a marker box
@@ -535,7 +522,6 @@ class KwargsDictDialogPage(BaseBox):
         set_box_value(marker_box, rcParams['lines.marker'])
         marker_box.setToolTip("Marker to be used for the corresponding plot "
                               "type")
-        get_modified_box_signal(marker_box).connect(self.modified)
         return(marker_box)
 
     # This function creates a markersize box
@@ -546,7 +532,6 @@ class KwargsDictDialogPage(BaseBox):
         markersize_box.setSuffix(" pts")
         markersize_box.setToolTip("Size of the plotted markers")
         set_box_value(markersize_box, rcParams['lines.markersize'])
-        get_modified_box_signal(markersize_box).connect(self.modified)
         return(markersize_box)
 
     # This function creates a scale box
@@ -555,7 +540,6 @@ class KwargsDictDialogPage(BaseBox):
         scale_box = QW_QComboBox()
         scale_box.addItems(['linear', 'log'])
         scale_box.setToolTip("Scale type to use on the %s-axis" % (axis))
-        get_modified_box_signal(scale_box).connect(self.modified)
         return(scale_box)
 
     # This function creates a xscale box
