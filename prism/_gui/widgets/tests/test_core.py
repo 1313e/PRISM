@@ -6,7 +6,7 @@ from os import path
 
 # Package imports
 from mpi4pyd import MPI
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
+from PyQt5 import QtWidgets as QW
 import pytest
 
 # PRISM imports

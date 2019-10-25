@@ -255,7 +255,7 @@ def check_vals(values, name, *args):
     # Convert values to a NumPy array
     try:
         values = np.asanyarray(values)
-    except Exception as error:
+    except Exception as error:      # pragma: no cover
         err_msg = ("Input argument %r cannot be converted to a NumPy array! "
                    "(%s)" % (name, error))
         raise_error(err_msg, InputError, logger)

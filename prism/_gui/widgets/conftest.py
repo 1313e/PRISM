@@ -18,19 +18,6 @@ from prism.modellink.tests.modellink import GaussianLink3D
 DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
 
 
-# %% PYTEST CUSTOM CONFIGURATION PLUGINS
-# Add an attribute to PRISM stating that pytest is being used
-def pytest_configure(config):
-    import prism
-    prism.__PYTEST = True
-
-
-# After pytest has finished, remove this attribute again
-def pytest_unconfigure(config):
-    import prism
-    del prism.__PYTEST
-
-
 # %% HELPER FUNCTIONS
 @pytest.fixture(scope='session')
 def pipe_GUI(tmpdir_factory):

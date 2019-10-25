@@ -13,6 +13,7 @@ Provides the overview dock widgets for the Projection GUI.
 import os
 from os import path
 import sys
+import time
 
 # Package imports
 import matplotlib.pyplot as plt
@@ -20,7 +21,6 @@ from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
-import prism
 from prism._gui import APP_NAME
 from prism._gui.widgets import (
     FigureCanvas, QW_QAction, QW_QMenu, OverviewListWidget,
@@ -364,27 +364,10 @@ class OverviewDockWidget(QW.QDockWidget):
         if list_items is None:
             list_items = self.proj_list_a.selectedItems()
 
-        # If PRISM has the __PYTEST attribute, do not use progress dialog
-        if hasattr(prism, '__PYTEST'):
-            # Set result to False
-            result = False
-
-            # Loop over all list_items
-            for list_item in list_items:
-                self._draw_projection_figure(list_item)
-            # If this finishes successfully, set result to True
-            else:
-                result = True
-
-        # Else, use a threaded progress dialog
-        else:   # pragma: no cover
-            # Create a threaded progress dialog for creating projections
-            progress_dialog = ThreadedProgressDialog(
-                self.main, "Drawing projection figures...", "Abort",
-                self._draw_projection_figure, list_items)
-
-            # Execute the function provided to the progress dialog
-            result = progress_dialog()
+        # Draw projections
+        result = self.use_progress_dialog("Drawing projection figures...",
+                                          self._draw_projection_figure,
+                                          list_items)
 
         # Show all drawn projection figures if the dialog was not cancelled
         if result and self.main.get_option('auto_show'):
@@ -476,27 +459,10 @@ class OverviewDockWidget(QW.QDockWidget):
         if list_items is None:
             list_items = self.proj_list_u.selectedItems()
 
-        # If PRISM has the __PYTEST attribute, do not use progress dialog
-        if hasattr(prism, '__PYTEST'):
-            # Set result to False
-            result = False
-
-            # Loop over all list_items
-            for list_item in list_items:
-                self._create_projection_figure(list_item)
-            # If this finishes successfully, set result to True
-            else:
-                result = True
-
-        # Else, use a threaded progress dialog
-        else:   # pragma: no cover
-            # Create a threaded progress dialog for creating projections
-            progress_dialog = ThreadedProgressDialog(
-                self.main, "Creating projection figures...", "Abort",
-                self._create_projection_figure, list_items)
-
-            # Execute the function provided to the progress dialog
-            result = progress_dialog()
+        # Create projections
+        result = self.use_progress_dialog("Creating projection figures...",
+                                          self._create_projection_figure,
+                                          list_items)
 
         # Return result
         return(result)
@@ -796,3 +762,51 @@ class OverviewDockWidget(QW.QDockWidget):
 
         # Show the details message box
         details_box.show()
+
+    # This function creates the proper progress dialog for given operation
+    def use_progress_dialog(self, label, func, *iterables):
+        # Use a progress dialog if one was requested
+        if self.main.get_option('use_progress_dialog'):
+            # Create a threaded progress dialog for creating projections
+            progress_dialog = ThreadedProgressDialog(
+                self.main, label, func, *iterables)
+
+            # Execute the function provided to the progress dialog
+            result = progress_dialog()
+
+        # Else, do not use one and execute on main thread
+        else:
+            # Set result to False
+            result = False
+
+            # Create a dialog showing that an operation is being executed
+            dialog = QW.QDialog(self.main)
+            dialog.setWindowModality(QC.Qt.ApplicationModal)
+            dialog.setWindowTitle(APP_NAME)
+            dialog.setAttribute(QC.Qt.WA_DeleteOnClose)
+            dialog.setWindowFlags(
+                QC.Qt.WindowTitleHint |
+                QC.Qt.Dialog |
+                QC.Qt.CustomizeWindowHint)
+            layout = QW.QVBoxLayout(dialog)
+            layout.addWidget(QW.QLabel(label))
+
+            # Show the dialog
+            dialog.show()
+
+            # Wait for 0.1 seconds and then process events to update dialog
+            time.sleep(0.1)
+            QW.QApplication.instance().processEvents()
+
+            # Loop over all iterables
+            for items in zip(*iterables):
+                func(*items)
+            # If this finishes successfully, set result to True
+            else:
+                result = True
+
+            # Close the dialog
+            dialog.close()
+
+        # Return result
+        return(result)

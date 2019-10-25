@@ -177,7 +177,8 @@ class OptionsDialog(QW.QDialog):
 
     # INTERFACE GROUP
     def create_group_interface(self):
-        return(self.create_group("Interface", ['auto_tile', 'auto_show']))
+        return(self.create_group("Interface", ['auto_show', 'auto_tile',
+                                               'progress_dialog']))
 
     # FONTS GROUP
     def create_group_fonts(self):   # pragma: no cover
@@ -267,7 +268,7 @@ class OptionsDialog(QW.QDialog):
         # Return auto_tile box
         return(auto_tile_box,)
 
-    # AUTO_SHOW OPTIONS
+    # AUTO_SHOW OPTION
     def create_option_auto_show(self):
         # Make check box for auto showing projection figures/subwindows
         auto_show_box = QW.QCheckBox("Auto-show subwindows")
@@ -277,6 +278,19 @@ class OptionsDialog(QW.QDialog):
 
         # Return auto_show box
         return(auto_show_box,)
+
+    # PROGRESS_DIALOG OPTION
+    def create_option_progress_dialog(self):
+        # Make check box for using a threaded progress dialog
+        progress_dialog_box = QW.QCheckBox("Use threaded progress dialog")
+        progress_dialog_box.setToolTip(
+            "Set this to use a threaded progress dialog whenever projections "
+            "are created or drawn.\nThis allows for the operation to be "
+            "monitored and/or aborted, but also slows down the execution")
+        self.create_entry('use_progress_dialog', progress_dialog_box, True)
+
+        # Return progress_dialog box
+        return(progress_dialog_box,)
 
     # PROJ_RES OPTION
     def create_option_proj_res(self):

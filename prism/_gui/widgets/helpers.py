@@ -232,7 +232,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
     # Make a signal that is emitted whenever the progress dialog finishes
     finished = QC.pyqtSignal()
 
-    def __init__(self, main_window_obj, label, cancel, func, *iterables):
+    def __init__(self, main_window_obj, label, func, *iterables):
         # Save provided MainWindow obj
         self.main = main_window_obj
         self.pipe = self.main.pipe
@@ -241,13 +241,13 @@ class ThreadedProgressDialog(QW.QProgressDialog):
         super().__init__(self.main)
 
         # Create the progress dialog
-        self.init(label, cancel, func, *iterables)
+        self.init(label, func, *iterables)
 
     # Create the threaded progress dialog
-    def init(self, label, cancel, func, *iterables):
+    def init(self, label, func, *iterables):
         # Set the label and cancel button
         self.setLabelText(label)
-        self.setCancelButtonText(cancel)
+        self.setCancelButtonText("Abort")
 
         # Determine the minimum length of iterables
         min_len = min([len(iterable) for iterable in iterables])
@@ -258,6 +258,10 @@ class ThreadedProgressDialog(QW.QProgressDialog):
         # Make this progress dialog application modal
         self.setWindowModality(QC.Qt.ApplicationModal)
         self.setWindowTitle(APP_NAME)
+        self.setWindowFlags(
+            QC.Qt.WindowTitleHint |
+            QC.Qt.Dialog |
+            QC.Qt.CustomizeWindowHint)
         self.setAttribute(QC.Qt.WA_DeleteOnClose)
         self.setAutoReset(False)
 
@@ -348,18 +352,9 @@ class TracedThread(threading.Thread):
 
     # Make a custom system tracer
     def global_trace(self, frame, event, arg):
-        # Implement default global system tracer behavior
-        if(event == 'call'):
-            return(self.local_trace)
-
-    # This function implements the local part of the system tracer
-    def local_trace(self, frame, event, arg):
-        # If this thread must be killed, raise an error at the next line
-        if self.killed and (event == 'line'):
+        # If killed is True, kill thread at the next function call
+        if self.killed and (event == 'call'):
             raise SystemExit
-
-        # Return self
-        return(self.local_trace)
 
 
 # https://www.geeksforgeeks.org/python-different-ways-to-kill-a-thread/
