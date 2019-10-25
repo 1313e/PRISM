@@ -10,6 +10,7 @@ import pytest
 
 # PRISM imports
 from prism import Pipeline
+from prism._gui.widgets.core import set_box_value
 from prism._gui.widgets.main import MainViewerWindow
 from prism.modellink.tests.modellink import GaussianLink3D
 
@@ -81,6 +82,10 @@ def main_window(qapp, request, pipe_GUI):
     if pipe_GUI._is_controller:
         # Create the main_window
         main_window = MainViewerWindow(pipe_GUI)
+
+        # Disable the use of a threaded progress dialog
+        main_window.options.option_entries['use_progress_dialog']._default = 0
+        main_window.options.reset_options()
 
         # Request for the main_window to be closed at the end
         request.addfinalizer(lambda: close_main_window(main_window))

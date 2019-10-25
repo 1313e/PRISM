@@ -512,7 +512,7 @@ class TestOverviewListWidget_Unavailable(object):
 
     # Test the draw action
     def test_create_draw_action(self, actions, proj_list, overview,
-                                monkeypatch):
+                                monkeypatch, main_window):
         # Make sure that this action is valid
         assert 'Create  Draw' in actions
 
@@ -525,6 +525,11 @@ class TestOverviewListWidget_Unavailable(object):
         # Get the name of the selected hcube item
         item = proj_list.item(0)
         hcube_name = item.text()
+
+        # Use a threaded progress dialog for this
+        box = main_window.options.option_entries['use_progress_dialog'].box
+        set_box_value(box, True)
+        main_window.options.save_options()
 
         # Trigger the show action
         actions['Create  Draw'].trigger()
@@ -540,7 +545,7 @@ class TestOverviewListWidget_Unavailable(object):
 
     # Test the draw/save action
     def test_create_draw_save_action(self, actions, proj_list, overview,
-                                     monkeypatch):
+                                     monkeypatch, main_window):
         # Make sure that this action is valid
         assert 'Create, Draw  Save' in actions
 
@@ -554,6 +559,9 @@ class TestOverviewListWidget_Unavailable(object):
         item = proj_list.item(0)
         hcube_name = item.text()
         hcube = overview.hcubes[overview.names.index(hcube_name)]
+
+        # Do not use a threaded progress dialog for this
+        main_window.options.reset_options()
 
         # Trigger the action
         actions['Create, Draw  Save'].trigger()
