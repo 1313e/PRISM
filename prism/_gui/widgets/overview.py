@@ -798,15 +798,19 @@ class OverviewDockWidget(QW.QDockWidget):
             time.sleep(0.1)
             QW.QApplication.instance().processEvents()
 
-            # Loop over all iterables
-            for items in zip(*iterables):
-                func(*items)
-            # If this finishes successfully, set result to True
-            else:
-                result = True
+            # Wrap in try-statement to make sure the dialog is always closed
+            try:
+                # Loop over all iterables
+                for items in zip(*iterables):
+                    func(*items)
 
-            # Close the dialog
-            dialog.close()
+                # If this finishes successfully, set result to True
+                else:
+                    result = True
+
+            # Close dialog
+            finally:
+                dialog.close()
 
         # Return result
         return(result)

@@ -31,6 +31,7 @@ def overview(main_window):
 
 # %% PYTEST CLASSES AND FUNCTIONS
 # Pytest for the overview dock widget, main properties
+@pytest.mark.incremental
 class TestOverviewDockWidget_Main(object):
     # Test if it is bound to main_window
     def test_bound_main(self, main_window, overview):
