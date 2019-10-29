@@ -4,16 +4,36 @@
 # Built-in imports
 from os import path
 import sys
+import time
 
 # Package imports
 from PyQt5 import QtCore as QC
+import pytest
 
 # PRISM imports
-from prism._gui.widgets.helpers import ExceptionDialog, show_exception_details
+from prism._gui.widgets.helpers import (
+    ExceptionDialog, ThreadedProgressDialog, show_exception_details)
 
 
 # %% GLOBALS
 DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
+
+
+# %% HELPER FUNCTIONS
+# Basic function for testing the ThreadedProgressDialog
+def do_operation(n):
+    print(n)
+
+
+# Basic function for testing exceptions in the ThreadedProgressDialog
+def do_exception(n):
+    raise Exception
+
+
+# Basic function for testing aborting in the ThreadedProgressDialog
+def do_abort(main, n):
+    time.sleep(2)
+    main._test_dialog.canceled.emit()
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -25,7 +45,7 @@ class TestExceptionDialog(object):
 
     # Test if error information can be passed to an ExceptionDialog
     # Due to qapp.exec_ not running, it is impossible to raise and catch an
-    # error successfully from within main_window
+    # error successfully from within main_window outside of it
     def test_raise_error(self, monkeypatch, main_window):
         # Monkey patch the ExceptionDialog.show function
         monkeypatch.setattr(ExceptionDialog, 'show', lambda *args: None)
@@ -54,3 +74,41 @@ class TestExceptionDialog(object):
 
             # Check that it is currently being shown
             assert exception_dialog.tb_box.isVisible()
+
+
+# Pytest for the ThreadedProgressDialog
+class TestThreadedProgressDialog(object):
+    # Test if the threaded progress dialog can be used properly
+    def test_default(self, qtbot, main_window):
+        # Create dialog
+        dialog = ThreadedProgressDialog(main_window, "Testing...",
+                                        do_operation, [1, 2, 3, 4, 5])
+        qtbot.addWidget(dialog)
+
+        # Open the dialog
+        with qtbot.waitSignal(dialog.finished):
+            dialog()
+
+    # Test what happens if an error is raised inside the dialog
+    def test_exception(self, qtbot, main_window):
+        # Create dialog
+        dialog = ThreadedProgressDialog(main_window, "Testing...",
+                                        do_exception, [1, 2, 3, 4, 5])
+        qtbot.addWidget(dialog)
+
+        # Open the dialog
+        with qtbot.waitSignal(main_window.exception):
+            dialog()
+
+    # Test what happens if the dialog is aborted/canceled
+    def test_abort(self, qtbot, main_window):
+        # Create dialog
+        from functools import partial
+        func = partial(do_abort, main_window)
+        dialog = ThreadedProgressDialog(main_window, "Testing...",
+                                        func, [1, 2, 3, 4, 5])
+        main_window._test_dialog = dialog
+        qtbot.addWidget(dialog)
+
+        # Open the dialog
+        assert not dialog()

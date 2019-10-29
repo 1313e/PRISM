@@ -76,17 +76,17 @@ class QW_QAction(QW.QAction):
         super().setStatusTip(statustip)
 
     # Override setShortcut to raise an error when used
-    def setShortcut(self, *args, **kwargs):  # pragma: no cover
+    def setShortcut(self, *args, **kwargs):
         raise AttributeError("Using this method is not allowed! Use "
                              "'setDetails()' instead!")
 
     # Override setToolTip to raise an error when used
-    def setToolTip(self, *args, **kwargs):  # pragma: no cover
+    def setToolTip(self, *args, **kwargs):
         raise AttributeError("Using this method is not allowed! Use "
                              "'setDetails()' instead!")
 
     # Override setStatusTip to raise an error when used
-    def setStatusTip(self, *args, **kwargs):  # pragma: no cover
+    def setStatusTip(self, *args, **kwargs):
         raise AttributeError("Using this method is not allowed! Use "
                              "'setDetails()' instead!")
 

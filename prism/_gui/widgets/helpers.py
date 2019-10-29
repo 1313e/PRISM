@@ -350,7 +350,7 @@ class TracedThread(threading.Thread):
         super().__init__(None)
 
     # Make a custom system tracer
-    def global_trace(self, frame, event, arg):
+    def global_trace(self, frame, event, arg):  # pragma: no cover
         # If killed is True, kill thread at the next function call
         if self.killed and (event == 'call'):
             raise SystemExit

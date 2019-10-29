@@ -46,6 +46,36 @@ class TestQW_QAction(object):
             triggered=print)
         qtbot.addWidget(action)
 
+    # Test if setting the shortcut manually raises an error
+    def test_set_shortcut(self, qtbot):
+        # Create action
+        action = QW_QAction(None, 'test')
+        qtbot.addWidget(action)
+
+        # Try to set the shortcut
+        with pytest.raises(AttributeError):
+            action.setShortcut()
+
+    # Test if setting the tooltip manually raises an error
+    def test_set_tooltip(self, qtbot):
+        # Create action
+        action = QW_QAction(None, 'test')
+        qtbot.addWidget(action)
+
+        # Try to set the shortcut
+        with pytest.raises(AttributeError):
+            action.setToolTip()
+
+    # Test if setting the statustip manually raises an error
+    def test_set_statustip(self, qtbot):
+        # Create action
+        action = QW_QAction(None, 'test')
+        qtbot.addWidget(action)
+
+        # Try to set the shortcut
+        with pytest.raises(AttributeError):
+            action.setStatusTip()
+
 
 # Pytest for custom QComboBox
 class TestQW_QComboBox(object):

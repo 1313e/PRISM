@@ -487,7 +487,8 @@ class TestOverviewListWidget_Unavailable(object):
             menu.hide()
 
     # Test the create action
-    def test_create_action(self, actions, proj_list, overview, monkeypatch):
+    def test_create_action(self, main_window, actions, proj_list, overview,
+                           monkeypatch):
         # Make sure that this action is valid
         assert 'Create' in actions
 
@@ -497,8 +498,16 @@ class TestOverviewListWidget_Unavailable(object):
         # Get the selected item
         item = proj_list.item(0)
 
+        # Use a threaded progress dialog for this
+        box = main_window.options.option_entries['use_progress_dialog'].box
+        set_box_value(box, True)
+        main_window.options.save_options()
+
         # Trigger the action
         actions['Create'].trigger()
+
+        # Do not use a threaded progress dialog anymore
+        main_window.options.reset_options()
 
         # Check that this item has indeed moved to available
         assert (overview.proj_list_a.row(item) == 0)
@@ -527,13 +536,16 @@ class TestOverviewListWidget_Unavailable(object):
         item = proj_list.item(0)
         hcube_name = item.text()
 
-        # Use a threaded progress dialog for this
-        box = main_window.options.option_entries['use_progress_dialog'].box
-        set_box_value(box, True)
-        main_window.options.save_options()
+#        # Use a threaded progress dialog for this
+#        box = main_window.options.option_entries['use_progress_dialog'].box
+#        set_box_value(box, True)
+#        main_window.options.save_options()
 
         # Trigger the show action
         actions['Create  Draw'].trigger()
+
+#        # Do not use a threaded progress dialog anymore
+#        main_window.options.reset_options()
 
         # Check if its corresponding entry exists
         assert hcube_name in overview.proj_fig_registry
@@ -560,9 +572,6 @@ class TestOverviewListWidget_Unavailable(object):
         item = proj_list.item(0)
         hcube_name = item.text()
         hcube = overview.hcubes[overview.names.index(hcube_name)]
-
-        # Do not use a threaded progress dialog for this
-        main_window.options.reset_options()
 
         # Trigger the action
         actions['Create, Draw  Save'].trigger()
