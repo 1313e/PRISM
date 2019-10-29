@@ -72,10 +72,7 @@ class TestOverviewDockWidget_Main(object):
         assert (len(overview.proj_list_a) == 2)
 
     # Test if the standard 'available' action works
-    def test_default_action_a(self, qtbot, overview, monkeypatch):
-        # Monkey patch the plt.show function
-        monkeypatch.setattr(plt, 'show', lambda *args: None)
-
+    def test_default_action_a(self, qtbot, overview):
         # Check that currently no items are selected
         assert not len(overview.proj_list_a.selectedItems())
 
@@ -94,10 +91,7 @@ class TestOverviewDockWidget_Main(object):
         assert (len(overview.proj_list_d) == 2)
 
     # Test if the standard 'drawn' action works
-    def test_default_action_d(self, qtbot, overview, monkeypatch):
-        # Monkey patch the plt.show function
-        monkeypatch.setattr(plt, 'show', lambda *args: None)
-
+    def test_default_action_d(self, qtbot, overview):
         # Select all items in the list
         overview.proj_list_d.setCurrentRow(0)
         overview.proj_list_d.selectAll()
@@ -213,12 +207,9 @@ class TestOverviewListWidget_Drawn(object):
         assert not path.exists(figpath)
 
     # Test the redraw action
-    def test_redraw_action(self, actions, monkeypatch, proj_list, overview):
+    def test_redraw_action(self, actions, proj_list, overview):
         # Make sure that this action is valid
         assert 'Redraw' in actions
-
-        # Monkey patch the plt.show function
-        monkeypatch.setattr(plt, 'show', lambda *args: None)
 
         # Get the name of the selected hcube item
         item = proj_list.item(0)
@@ -316,12 +307,9 @@ class TestOverviewListWidget_Available(object):
             menu.hide()
 
     # Test the draw action
-    def test_draw_action(self, actions, proj_list, overview, monkeypatch):
+    def test_draw_action(self, actions, proj_list, overview):
         # Make sure that this action is valid
         assert 'Draw' in actions
-
-        # Monkey patch the plt.show function
-        monkeypatch.setattr(plt, 'show', lambda *args: None)
 
         # Make sure the first item is selected
         proj_list.setCurrentRow(0)
@@ -346,13 +334,9 @@ class TestOverviewListWidget_Available(object):
         overview.close_projection_figures([item])
 
     # Test the draw/save action
-    def test_draw_save_action(self, actions, proj_list, overview, monkeypatch,
-                              main_window):
+    def test_draw_save_action(self, actions, proj_list, overview, main_window):
         # Make sure that this action is valid
         assert 'Draw  Save' in actions
-
-        # Monkey patch the plt.show function
-        monkeypatch.setattr(plt, 'show', lambda *args: None)
 
         # Make sure the first item is selected
         proj_list.setCurrentRow(0)
@@ -522,12 +506,9 @@ class TestOverviewListWidget_Unavailable(object):
 
     # Test the draw action
     def test_create_draw_action(self, actions, proj_list, overview,
-                                monkeypatch, main_window):
+                                main_window):
         # Make sure that this action is valid
         assert 'Create  Draw' in actions
-
-        # Monkey patch the plt.show function
-        monkeypatch.setattr(plt, 'show', lambda *args: None)
 
         # Make sure the first item is selected
         proj_list.setCurrentRow(0)
@@ -536,7 +517,7 @@ class TestOverviewListWidget_Unavailable(object):
         item = proj_list.item(0)
         hcube_name = item.text()
 
-#        # Use a threaded progress dialog for this
+        # Use a threaded progress dialog for this
 #        box = main_window.options.option_entries['use_progress_dialog'].box
 #        set_box_value(box, True)
 #        main_window.options.save_options()
@@ -544,7 +525,7 @@ class TestOverviewListWidget_Unavailable(object):
         # Trigger the show action
         actions['Create  Draw'].trigger()
 
-#        # Do not use a threaded progress dialog anymore
+        # Do not use a threaded progress dialog anymore
 #        main_window.options.reset_options()
 
         # Check if its corresponding entry exists
@@ -558,12 +539,9 @@ class TestOverviewListWidget_Unavailable(object):
 
     # Test the draw/save action
     def test_create_draw_save_action(self, actions, proj_list, overview,
-                                     monkeypatch, main_window):
+                                     main_window):
         # Make sure that this action is valid
         assert 'Create, Draw  Save' in actions
-
-        # Monkey patch the plt.show function
-        monkeypatch.setattr(plt, 'show', lambda *args: None)
 
         # Make sure the first item is selected
         proj_list.setCurrentRow(0)

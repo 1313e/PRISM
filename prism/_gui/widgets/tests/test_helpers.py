@@ -4,11 +4,9 @@
 # Built-in imports
 from os import path
 import sys
-import time
 
 # Package imports
 from PyQt5 import QtCore as QC
-import pytest
 
 # PRISM imports
 from prism._gui.widgets.helpers import (
@@ -28,12 +26,6 @@ def do_operation(n):
 # Basic function for testing exceptions in the ThreadedProgressDialog
 def do_exception(n):
     raise Exception
-
-
-# Basic function for testing aborting in the ThreadedProgressDialog
-def do_abort(main, n):
-    time.sleep(2)
-    main._test_dialog.canceled.emit()
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -99,16 +91,3 @@ class TestThreadedProgressDialog(object):
         # Open the dialog
         with qtbot.waitSignal(main_window.exception):
             dialog()
-
-    # Test what happens if the dialog is aborted/canceled
-    def test_abort(self, qtbot, main_window):
-        # Create dialog
-        from functools import partial
-        func = partial(do_abort, main_window)
-        dialog = ThreadedProgressDialog(main_window, "Testing...",
-                                        func, [1, 2, 3, 4, 5])
-        main_window._test_dialog = dialog
-        qtbot.addWidget(dialog)
-
-        # Open the dialog
-        assert not dialog()
