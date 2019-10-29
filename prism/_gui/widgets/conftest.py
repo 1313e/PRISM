@@ -84,8 +84,8 @@ def main_window(qapp, request, pipe_GUI):
         main_window = MainViewerWindow(pipe_GUI)
 
         # Disable the use of a threaded progress dialog
-        main_window.options.option_entries['use_progress_dialog']._default = 0
-        main_window.options.reset_options()
+#        main_window.options.option_entries['use_progress_dialog']._default = 0
+#        main_window.options.reset_options()
 
         # Request for the main_window to be closed at the end
         request.addfinalizer(lambda: close_main_window(main_window))

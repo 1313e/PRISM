@@ -483,15 +483,15 @@ class TestOverviewListWidget_Unavailable(object):
         item = proj_list.item(0)
 
         # Use a threaded progress dialog for this
-        box = main_window.options.option_entries['use_progress_dialog'].box
-        set_box_value(box, True)
-        main_window.options.save_options()
+#        box = main_window.options.option_entries['use_progress_dialog'].box
+#        set_box_value(box, True)
+#        main_window.options.save_options()
 
         # Trigger the action
         actions['Create'].trigger()
 
         # Do not use a threaded progress dialog anymore
-        main_window.options.reset_options()
+#        main_window.options.reset_options()
 
         # Check that this item has indeed moved to available
         assert (overview.proj_list_a.row(item) == 0)
