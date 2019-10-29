@@ -160,9 +160,9 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         (linear, log, ln) the data values are. It defaults to 'lin' if it is
         not provided.
 
-        The data identifier is a sequence of ints, floats and strings that is
-        unique for every data point. *PRISM* uses it to identify a data point
-        with, which is required in some cases (like MPI), while the model
+        The data identifier is a sequence of bools, ints, floats and strings
+        that is unique for every data point. *PRISM* uses it to identify a data
+        point with, which is required in some cases (like MPI), while the model
         itself can use it as a description of the operations required to
         extract the data point from the model output. It can be provided as any
         sequence of any length for any data point. If any sequence contains a

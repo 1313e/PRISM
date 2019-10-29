@@ -765,20 +765,25 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function creates the proper progress dialog for given operation
     def use_progress_dialog(self, label, func, *iterables):
+        # Set result to False
+        result = False
+
         # Use a progress dialog if one was requested
         if self.main.get_option('use_progress_dialog'):
             # Create a threaded progress dialog for creating projections
             progress_dialog = ThreadedProgressDialog(
                 self.main, label, func, *iterables)
 
-            # Execute the function provided to the progress dialog
-            result = progress_dialog()
+            # Wrap in try-statement to make sure the dialog is always closed
+            try:
+                # Execute the function provided to the progress dialog
+                result = progress_dialog()
+            # Close dialog
+            finally:
+                progress_dialog.close()
 
         # Else, do not use one and execute on main thread
         else:
-            # Set result to False
-            result = False
-
             # Create a dialog showing that an operation is being executed
             dialog = QW.QDialog(self.main)
             dialog.setWindowModality(QC.Qt.ApplicationModal)

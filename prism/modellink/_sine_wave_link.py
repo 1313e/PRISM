@@ -55,7 +55,7 @@ class SineWaveLink(ModelLink):
 
     def call_model(self, emul_i, par_set, data_idx):
         par = par_set
-        mod_set = np.zeros([len(data_idx), *np.shape(par_set['A'])])
+        mod_set = np.zeros([len(data_idx), *np.shape(par['A'])])
         for i, idx in enumerate(data_idx):
             mod_set[i] = par['A']+0.1*par['B']*np.sin(par['C']*idx+par['D'])
 

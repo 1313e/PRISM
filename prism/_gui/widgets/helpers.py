@@ -303,11 +303,6 @@ class ThreadedProgressDialog(QW.QProgressDialog):
         # Process user input events one last time
         qapp.processEvents()
 
-        # If the dialog was not canceled, kill all the threads
-        if not self.wasCanceled():
-            self.kill_threads()
-            self.reset()
-
         # Emit that the progress dialog has finished
         self.finished.emit()
 

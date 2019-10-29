@@ -332,7 +332,7 @@ class Pipeline(Projection, object):
         :obj:`~prism._pipeline.WorkerMode`: Special context manager within
         which all code is executed in worker mode. In worker mode, all worker
         ranks are continuously listening for calls from the controller rank
-        made with :meth:`~_make_call` or :meth:`~make_call_workers`.
+        made with :meth:`~_make_call` or :meth:`~_make_call_workers`.
 
         Note that all code within the context manager is executed by all ranks,
         with the worker ranks executing it after the controller rank exits.
@@ -3200,7 +3200,7 @@ class WorkerMode(object):
         This class should solely be initialized and finalized through the
         :class:`~prism.Pipeline` class.
 
-        .. versionchanged:: 1.2.0
+        .. versionadded:: 1.2.0
 
         Parameters
         ----------
@@ -3215,6 +3215,13 @@ class WorkerMode(object):
 
     # This function enters/enables the worker mode
     def __enter__(self):
+        """
+        The provided :obj:`~prism.Pipeline` object enters worker mode, making
+        all worker ranks start listening for calls from the controller rank
+        until this context manager exits.
+
+        """
+
         # MPI Barrier
         self.pipe._comm.Barrier()
 
@@ -3238,6 +3245,13 @@ class WorkerMode(object):
 
     # This function exits/disables the worker mode
     def __exit__(self, *args, **kwargs):
+        """
+        The provided :obj:`~prism.Pipeline` objects exits worker mode, making
+        all worker ranks stop listening for calls from the controller rank and
+        resume normal code execution.
+
+        """
+
         # Disable this worker mode
         if self.pipe._is_controller:
             self.pipe._comm.bcast(self.__key, 0)

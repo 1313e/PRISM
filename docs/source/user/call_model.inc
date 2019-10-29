@@ -74,6 +74,7 @@ This can be used when the model requires some kind of preparation before being a
 .. note::
     If one wishes to transform the received :pycode:`sam_dict` back into a normal NumPy array of shape :pycode:`(n_sam, n_par)`, this can be done quite easily by executing :pycode:`sam_set = np.array(par_set.values()).T`, where :pycode:`par_set` is the :pycode:`sam_dict` provided to the :meth:`~prism.modellink.ModelLink.call_model` method.
     Keep in mind that doing so means that the columns are sorted on the names of the model parameters.
+    If one instead wishes to transform it into a generator, use :pycode:`sam_set=map(lambda *args: args, *par_set.values())`.
 
 .. versionadded:: 1.1.2
     It is also possible to make :meth:`~prism.modellink.ModelLink.call_model` return a dict instead, where it has the identifiers in the requested :pycode:`data_idx` as its keys and scalars (single-call) or 1D array-likes of shape :pycode:`(n_sam)` (multi-call) as its values.
@@ -167,8 +168,8 @@ Then, we could incorporate the backup system by writing a :meth:`~prism.modellin
             # Initialize empty array of results
             mod_set = np.zeros([len(par_set['par1']), len(data_idx)])
             
-            # Convert par_set to a generator
-            sam_set = map(lambda *args: args, *par_set.values())
+            # Unpack par_set into a NumPy array
+            sam_set = np.array(par_set.values()).T
 
             # Call model for every individual sample in sam_set
             for i, sam in enumerate(sam_set):
@@ -208,7 +209,7 @@ Put a little bit more simple: :meth:`~prism.modellink.ModelLink._make_backup` mu
             model = prepare_model()
 
             # Prepare par_set for evaluation
-            sam_set = map(lambda *args: args, *par_set.values())
+            sam_set = np.array(par_set.values()).T
 
             # Call a function B
             mod_set = B(modellink_obj, model, sam_set, data_idx)

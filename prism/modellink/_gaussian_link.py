@@ -99,7 +99,7 @@ class GaussianLink(ModelLink):
 
     def call_model(self, emul_i, par_set, data_idx):
         par = par_set
-        mod_set = np.zeros([len(data_idx), *np.shape(par_set['A1'])])
+        mod_set = np.zeros([len(data_idx), *np.shape(par['A1'])])
         for i, idx in enumerate(data_idx):
             for j in range(1, self._n_gaussians+1):
                 mod_set[i] +=\
