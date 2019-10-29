@@ -330,7 +330,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
         self.thread.killed = True
 
         # Make all workers wait for 1 second to force their system trace
-        self.pipe._make_call_workers(sleep, 1)
+        self.pipe._make_call_workers(sleep, 5)
 
         # Wait for this thread to be killed
         self.thread.join()
