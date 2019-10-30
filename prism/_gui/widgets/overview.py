@@ -12,7 +12,7 @@ Provides the overview dock widgets for the Projection GUI.
 # Built-in imports
 import os
 from os import path
-import sys
+from sys import platform
 import time
 
 # Package imports
@@ -540,7 +540,7 @@ class OverviewDockWidget(QW.QDockWidget):
                 options = {}
 
                 # Do not use Linux' native dialog as it is bad on some dists
-                if sys.platform.startswith('linux'):
+                if platform.startswith('linux'):
                     options = {'options': QW.QFileDialog.DontUseNativeDialog}
 
                 # Open the file saving system

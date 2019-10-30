@@ -228,6 +228,9 @@ class OverviewListWidget(QW.QListWidget):
 
 
 # Class that provides a special threaded progress dialog
+# FIXME: Figure out why this dialog can stall forever when used in MPI on Linux
+# This always happens on Travis CI, very rarely on Azure Pipelines and never on
+# any Linux machine (supercomputer or personal) I have access to.
 class ThreadedProgressDialog(QW.QProgressDialog):
     # Make a signal that is emitted whenever the progress dialog finishes
     finished = QC.pyqtSignal()

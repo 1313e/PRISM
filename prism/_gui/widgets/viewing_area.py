@@ -11,7 +11,7 @@ Provides the viewing area dock widget for the Projection GUI.
 # %% IMPORTS
 # Built-in imports
 from os import path
-import sys
+from sys import platform
 
 # Package imports
 from PyQt5 import QtCore as QC, QtWidgets as QW
@@ -110,7 +110,7 @@ class ViewingAreaDockWidget(QW.QDockWidget):
         options = {}
 
         # Do not use Linux' native dialog as it is bad on some dists
-        if sys.platform.startswith('linux'):
+        if platform.startswith('linux'):
             options = {'options': QW.QFileDialog.DontUseNativeDialog}
 
         # Open the file saving system

@@ -4,6 +4,7 @@
 # Built-in imports
 import os
 from os import path
+from sys import platform
 
 # Package imports
 from e13tools.math import nCr
@@ -498,10 +499,11 @@ class TestOverviewListWidget_Unavailable(object):
         overview.delete_projection_figures([item])
 
     # Test the create/draw action
-    # TODO: Figure out why this test stalls forever on Travis CI in MPI
+    # TODO: Figure out why this test stalls forever on Linux, Travis CI in MPI
     @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1 and
-                        hasattr(os.environ, 'TRAVIS'),
-                        reason="Cannot be tested in MPI on Travis CI")
+                        'TRAVIS' in os.environ and
+                        platform.startswith('linux'),
+                        reason="Cannot be tested in MPI on Linux on Travis CI")
     def test_create_draw_action(self, actions, proj_list, overview,
                                 main_window):
         # Make sure that this action is valid
