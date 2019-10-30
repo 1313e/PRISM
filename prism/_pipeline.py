@@ -25,7 +25,7 @@ from e13tools import InputError, ShapeError
 from e13tools.math import nCr, sort2D
 from e13tools.sampling import lhd
 from e13tools.utils import (
-    convert_str_seq, delist, docstring_append, docstring_copy,
+    split_seq, delist, docstring_append, docstring_copy,
     docstring_substitute, get_outer_frame, raise_error, raise_warning)
 from mpi4pyd import MPI
 from mpi4pyd.MPI import get_HybridComm_obj
@@ -959,10 +959,10 @@ class Pipeline(Projection, object):
 
         # GENERAL
         # Set number of starting samples
-        self.n_sam_init = convert_str_seq(par_dict['n_sam_init'])[0]
+        self.n_sam_init = split_seq(par_dict['n_sam_init'])[0]
 
         # Set base number of emulator evaluation samples
-        self.base_eval_sam = convert_str_seq(par_dict['base_eval_sam'])[0]
+        self.base_eval_sam = split_seq(par_dict['base_eval_sam'])[0]
 
         # Convert criterion to a string
         criterion = str(par_dict['criterion'])
@@ -973,7 +973,7 @@ class Pipeline(Projection, object):
 
         # If anything else is given, it must be an int, float or string
         else:
-            self.criterion = convert_str_seq(criterion)[0]
+            self.criterion = split_seq(criterion)[0]
 
         # Set the bool determining whether to do an active parameters analysis
         self.do_active_anal = par_dict['do_active_anal']
@@ -1869,7 +1869,7 @@ class Pipeline(Projection, object):
             par_dict.update(self._prism_dict)
 
             # Remove auxiliary characters from impl_cut
-            impl_cut = convert_str_seq(par_dict['impl_cut'])
+            impl_cut = split_seq(par_dict['impl_cut'])
 
         # Set the impl_par
         self.impl_cut = impl_cut

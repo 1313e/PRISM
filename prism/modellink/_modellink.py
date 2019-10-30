@@ -19,7 +19,7 @@ import warnings
 # Package imports
 from e13tools import InputError, ShapeError
 from e13tools.utils import (
-    convert_str_seq, docstring_substitute, get_outer_frame, raise_error)
+    split_seq, docstring_substitute, get_outer_frame, raise_error)
 import h5py
 import hickle
 import numpy as np
@@ -533,7 +533,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         logger.info("Converting sequence of model parameter names/indices.")
 
         # Remove all unwanted characters from the string and split it up
-        par_seq = convert_str_seq(par_seq)
+        par_seq = split_seq(par_seq)
 
         # Check elements if they are ints or strings, and if they are valid
         for i, par_idx in enumerate(par_seq):

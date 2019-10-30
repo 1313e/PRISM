@@ -22,7 +22,7 @@ from e13tools import InputError
 from e13tools.pyplot import draw_textline
 from e13tools.sampling import lhd
 from e13tools.utils import (
-    convert_str_seq, docstring_append, docstring_copy, docstring_substitute,
+    split_seq, docstring_append, docstring_copy, docstring_substitute,
     raise_error, raise_warning)
 from matplotlib import cm
 import matplotlib.gridspec as gs
@@ -1031,9 +1031,9 @@ class Projection(object):
 
         # Number of samples used for implausibility evaluations
         if not hasattr(self, '_Projection__proj_res'):
-            self.proj_res = convert_str_seq(par_dict['proj_res'])[0]
+            self.proj_res = split_seq(par_dict['proj_res'])[0]
         if not hasattr(self, '_Projection__proj_depth'):
-            self.proj_depth = convert_str_seq(par_dict['proj_depth'])[0]
+            self.proj_depth = split_seq(par_dict['proj_depth'])[0]
 
         # Finish logging
         logger.info("Finished setting projection parameters.")

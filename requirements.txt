@@ -1,4 +1,4 @@
-e13tools>=0.6.11
+e13tools>=0.6.12
 h5py>=2.8.0
 hickle>=3.4.0
 matplotlib>=2.2.4

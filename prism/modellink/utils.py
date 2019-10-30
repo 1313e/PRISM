@@ -17,7 +17,7 @@ import warnings
 
 # Package imports
 from e13tools import InputError
-from e13tools.utils import check_instance, convert_str_seq
+from e13tools.utils import check_instance, split_seq
 from mpi4pyd.MPI import get_HybridComm_obj
 import numpy as np
 from numpy.random import rand
@@ -89,7 +89,7 @@ def convert_data(model_data):
     # Loop over all items in model_data
     for key, value in model_data.items():
         # Convert key to an actual data_idx
-        idx = convert_str_seq(key)
+        idx = split_seq(key)
 
         # Check if tmp_idx is not empty
         if not len(idx):
@@ -97,7 +97,7 @@ def convert_data(model_data):
                              "identifier!")
 
         # Convert value to an actual data point
-        data = convert_str_seq(value)
+        data = split_seq(value)
 
         # Check if provided data value is valid
         val = check_vals(data[0], 'data_val%s' % (idx), 'float')
@@ -210,7 +210,7 @@ def convert_parameters(model_parameters):
     # Loop over all items in model_parameters
     for i, (name, values_str) in enumerate(model_parameters.items()):
         # Convert values_str to values
-        values = convert_str_seq(values_str)
+        values = split_seq(values_str)
 
         # Check if provided name is a string
         name = check_vals(name, 'par_name[%s]' % (name), 'str')

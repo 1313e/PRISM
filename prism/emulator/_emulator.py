@@ -21,7 +21,7 @@ from struct import calcsize
 from e13tools import InputError
 from e13tools.math import diff, nearest_PD
 from e13tools.utils import (
-    check_instance, convert_str_seq, delist, docstring_append,
+    check_instance, split_seq, delist, docstring_append,
     docstring_substitute, raise_error, raise_warning)
 import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
@@ -2771,18 +2771,18 @@ class Emulator(object):
 
         # GENERAL
         # Gaussian sigma
-        self._sigma = check_vals(convert_str_seq(par_dict['sigma'])[0],
+        self._sigma = check_vals(split_seq(par_dict['sigma'])[0],
                                  'sigma', 'float', 'nzero')
 
         # Gaussian correlation length
-        l_corr = check_vals(convert_str_seq(par_dict['l_corr']), 'l_corr',
+        l_corr = check_vals(split_seq(par_dict['l_corr']), 'l_corr',
                             'float', 'pos', 'normal')
         self._l_corr = l_corr*abs(self._modellink._par_rng[:, 1] -
                                   self._modellink._par_rng[:, 0])
 
         # Method used to calculate emulator functions
         # Future will include 'gaussian', 'regression', 'auto' and 'full'
-        self._method = check_vals(convert_str_seq(par_dict['method'])[0],
+        self._method = check_vals(split_seq(par_dict['method'])[0],
                                   'method', 'str').lower()
         if self._method in ('gaussian', 'regression', 'full'):
             pass
@@ -2803,11 +2803,11 @@ class Emulator(object):
 
         # Obtain the polynomial order for the regression selection process
         self._poly_order =\
-            check_vals(convert_str_seq(par_dict['poly_order'])[0],
+            check_vals(split_seq(par_dict['poly_order'])[0],
                        'poly_order', 'int', 'pos')
 
         # Obtain the number of requested cross-validations
-        n_cross_val = check_vals(convert_str_seq(par_dict['n_cross_val'])[0],
+        n_cross_val = check_vals(split_seq(par_dict['n_cross_val'])[0],
                                  'n_cross_val', 'int', 'nneg')
 
         # Make sure that n_cross_val is not unity
@@ -2819,7 +2819,7 @@ class Emulator(object):
 
         # Check whether or not mock data should be used
         # TODO: Allow entire dicts to be given as mock_data (configparser?)
-        use_mock = convert_str_seq(par_dict['use_mock'])
+        use_mock = split_seq(par_dict['use_mock'])
 
         # If use_mock contains a single element, check if it is a bool
         if(len(use_mock) == 1):
