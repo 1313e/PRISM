@@ -2657,7 +2657,6 @@ class Pipeline(Projection, object):
             self.details(emul_i)
 
     # This function allows one to view the pipeline details/properties
-    # TODO: Allow the viewing of the entire polynomial function in SymPy
     @docstring_substitute(emul_i=user_emul_i_doc)
     def details(self, emul_i=None):
         """
@@ -2787,15 +2786,13 @@ class Pipeline(Projection, object):
 
             # Generate function for getting string lengths of floats
             def f(x):
-                return(len("%.5f" % (x)))
+                return(len("{:,.5f}".format(x)) if x is not None else 0)
 
             # Get max lengths of various strings for parameter space section
             name_len = max(map(len, self._modellink._par_name))
             lower_len = max(map(f, self._modellink._par_rng[:, 0]))
             upper_len = max(map(f, self._modellink._par_rng[:, 1]))
-            est_lengths = [len('%.5f' % (i)) for i in self._modellink._par_est
-                           if i is not None]
-            est_len = max(est_lengths) if len(est_lengths) else 0
+            est_len = max(map(f, self._modellink._par_est))
 
             # Open hdf5-file
             with self._File('r', None) as file:
@@ -2863,9 +2860,9 @@ class Pipeline(Projection, object):
             print("-"*width)
 
             # General details about loaded emulator
-            print("{0: <{1}}\t'{2}'".format("Working directory", width,
+            print("{0: <{1}}\t{2!r}".format("Working directory", width,
                                             working_dir_rel_path))
-            print("{0: <{1}}\t'{2}'".format("Emulator type", width,
+            print("{0: <{1}}\t{2!r}".format("Emulator type", width,
                                             self._emulator._emul_type))
             print("{0: <{1}}\t{2}".format("ModelLink subclass", width,
                                           self._modellink._name))
@@ -2928,7 +2925,7 @@ class Pipeline(Projection, object):
                 else:
                     raise NotImplementedError
                 if not self._n_eval_sam[emul_i]:
-                    print("{0: <{1}}\t{2:}/{3:}".format(
+                    print("{0: <{1}}\t{2}/{3}".format(
                         "# of plausible/analyzed samples", width, "-", "-"))
                     print("{0: <{1}}\t{2}".format(
                         "% of parameter space remaining", width, "-"))

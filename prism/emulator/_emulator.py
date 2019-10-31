@@ -55,6 +55,7 @@ INT_SIZE = 'int%i' % (calcsize('P')*8)          # Default bitsize of an integer
 
 
 # %% EMULATOR CLASS DEFINITION
+# TODO: Implement a system that a non-PRISM error is logged with its emul_s
 class Emulator(object):
     """
     Defines the :class:`~Emulator` base class of the *PRISM* package.
