@@ -59,7 +59,8 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'mpi4py': ('https://mpi4py.readthedocs.io/en/stable', None),
                        'matplotlib': ('https://matplotlib.org', None),
                        'h5py': ('https://h5py.readthedocs.io/en/stable', None),
-                       'e13tools': ('https://e13tools.readthedocs.io/en/latest', None)}
+                       'e13tools': ('https://e13tools.readthedocs.io/en/latest', None),
+                       'PyQt5': ('https://www.riverbankcomputing.com/static/Docs/PyQt5', None)}
 
 # Autodoc configuration
 autodoc_default_options = {'members': None,

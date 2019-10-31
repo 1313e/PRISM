@@ -313,6 +313,22 @@ proj_res_doc = ("Number of emulator evaluations that will be used to generate "
 
 
 # %% PROJECTION GUI DOCSTRINGS
+# Docstrings for the OverviewDockWidget class
+list_items_optional_doc =\
+        """Optional
+        --------
+        list_items : list of :obj:`~PyQt5.QtWidgets.QListWidgetItem` objects \
+            or None. Default: None
+            The list of items that contains the requested projection figures.
+            If *None*, all currently selected list items are used instead."""
+list_item_optional_doc =\
+        """Optional
+        --------
+        list_item : :obj:`~PyQt5.QtWidgets.QListWidgetItem` object or None. \
+            Default: None
+            The item that contains the requested projection figure.
+            If *None*, the currently selected list item is used instead."""
+
 # Docstrings for the start_gui() function/method
 GUI_APP_NAME = 'Crystal'
 start_gui_doc =\
@@ -342,7 +358,7 @@ start_gui_doc_pars =\
 
         Returns
         -------
-        main_window_obj : :obj:`~PyQt5.QtWidgets.QMainWindow` object
+        main_window_obj : :obj:`~prism._gui.widgets.MainViewerWindow` object
             The instance of the :class:`~prism._gui.widgets.MainViewerWindow`
             class that was created for drawing *{0}*.
             Can be used for debugging purposes.

@@ -25,9 +25,54 @@ __all__ = ['QW_QAction', 'QW_QComboBox', 'QW_QDoubleSpinBox',
 # %% CLASS DEFINITIONS
 # Make subclass of QW.QAction that automatically sets details based on status
 class QW_QAction(QW.QAction):
+    """
+    Defines the :class:`~QW_QAction` class.
+
+    This class provides default settings and extra options for the
+    :class:`~PyQt5.QtWidgets.QAction` class.
+
+    """
+
     # Override constructor
     def __init__(self, parent, text, *, shortcut=None, tooltip=None,
                  statustip=None, icon=None, triggered=None, role=None):
+        """
+        Initializes the :class:`~QW_QAction` class.
+
+        Parameters
+        ----------
+        parent : :obj:`~PyQt5.QtWidgets.QWidget` object or None
+            The parent widget for this dialog or *None* for no parent.
+        text : str
+            The label that this action must have.
+
+        Optional
+        --------
+        shortcut : :obj:`~PyQt5.QtGui.QKeySequence` or None. Default: None
+            The key sequence that must be set as the shortcut for this action.
+            If *None*, no shortcut will be set.
+        tooltip : str or None. Default: None
+            The text that must be set as the tooltip for this action.
+            If *None*, the tooltip is set to `text`.
+            If `shortcut` is not *None*, the tooltip will also include the
+            shortcut.
+        statustip : str or None. Default: None
+            The text that must be set as the statustip for this action.
+            If *None*, the statustip is set to `tooltip`.
+        icon : :obj:`~PyQt5.QtGui.QIcon` object or None. Default: None
+            The icon that must be set as the icon for this action.
+            If *None*, no icon will be set.
+        triggered : function or None. Default: None
+            The Qt slot function that must be called whenever this action is
+            triggered.
+            If *None*, no slot will connected to this action's signal.
+        role : :obj:`~PyQt5.QtWidgets.QAction.MenuRole` object or None. \
+            Default: None
+            The menu role that must be set as the role of this action.
+            If *None*, it is set to :obj:`~PyQt5.QtWidgets.NoRole`.
+
+        """
+
         # Call super constructor
         if icon is None:
             super().__init__(text, parent)
@@ -48,6 +93,26 @@ class QW_QAction(QW.QAction):
 
     # Make new method that automatically sets Shortcut, ToolTip and StatusTip
     def setDetails(self, *, shortcut=None, tooltip=None, statustip=None):
+        """
+        Uses the provided `shortcut`; `tooltip`; and `statustip` to set the
+        details of this action.
+
+        Parameters
+        ----------
+        shortcut : :obj:`~PyQt5.QtGui.QKeySequence` or None. Default: None
+            The key sequence that must be set as the shortcut for this action.
+            If *None*, no shortcut will be set.
+        tooltip : str or None. Default: None
+            The text that must be set as the tooltip for this action.
+            If *None*, the tooltip is set to `text`.
+            If `shortcut` is not *None*, the tooltip will also include the
+            shortcut.
+        statustip : str or None. Default: None
+            The text that must be set as the statustip for this action.
+            If *None*, the statustip is set to `tooltip`.
+
+        """
+
         # If shortcut is not None, set it
         if shortcut is not None:
             super().setShortcut(shortcut)
@@ -93,6 +158,14 @@ class QW_QAction(QW.QAction):
 
 # Create custom combobox class with more signals
 class QW_QComboBox(QW.QComboBox):
+    """
+    Defines the :class:`~QW_QComboBox` class.
+
+    This class provides default settings and extra options for the
+    :class:`~PyQt5.QtWidgets.QComboBox` class.
+
+    """
+
     popup_shown = QC.pyqtSignal([int], [str])
     popup_hidden = QC.pyqtSignal([int], [str])
 
@@ -111,6 +184,13 @@ class QW_QComboBox(QW.QComboBox):
 
 # Create custom QComboBox class that is editable
 class QW_QEditableComboBox(QW_QComboBox):
+    """
+    Defines the :class:`~QW_QEditableComboBox` class.
+
+    This class makes the :class:`~QW_QComboBox` class editable.
+
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setEditable(True)
@@ -121,6 +201,14 @@ class QW_QEditableComboBox(QW_QComboBox):
 
 # Create custom QAbstractSpinBox that automatically sets some properties
 class QW_QAbstractSpinBox(QW.QAbstractSpinBox):
+    """
+    Defines the :class:`~QW_QAbstractSpinBox` class.
+
+    This class provides default settings and extra options for the
+    :class:`~PyQt5.QtWidgets.QAbstractSpinBox` class.
+
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setStepType(self.AdaptiveDecimalStepType)
@@ -146,6 +234,14 @@ class QW_QSpinBox(QW.QSpinBox, QW_QAbstractSpinBox):
 
 # Create custom label class with more signals
 class QW_QLabel(QW.QLabel):
+    """
+    Defines the :class:`~QW_QLabel` class.
+
+    This class provides default settings and extra options for the
+    :class:`~PyQt5.QtWidgets.QLabel` class.
+
+    """
+
     mousePressed = QC.pyqtSignal()
 
     # Override the mousePressEvent to emit a signal whenever it is triggered
@@ -156,11 +252,27 @@ class QW_QLabel(QW.QLabel):
 
 # Create custom QMenu class that swaps the order of inputs
 class QW_QMenu(QW.QMenu):
+    """
+    Defines the :class:`~QW_QMenu` class.
+
+    This class provides default settings and extra options for the
+    :class:`~PyQt5.QtWidgets.QMenu` class.
+
+    """
+
     def __init__(self, parent, title):
         super().__init__(title, parent)
 
 
 # Create custom QToolbar class that swaps the order of inputs
 class QW_QToolBar(QW.QToolBar):
+    """
+    Defines the :class:`~QW_QToolBar` class.
+
+    This class provides default settings and extra options for the
+    :class:`~PyQt5.QtWidgets.QToolBar` class.
+
+    """
+
     def __init__(self, parent, window_title):
         super().__init__(window_title, parent)

@@ -437,7 +437,6 @@ class TestOverviewListWidget_Available(object):
 
 
 # Pytest for testing the unavailable list
-@pytest.mark.incremental
 class TestOverviewListWidget_Unavailable(object):
     # Make abbreviation for proj_list
     @pytest.fixture(scope='class')

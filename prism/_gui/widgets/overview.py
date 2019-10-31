@@ -3,7 +3,7 @@
 """
 GUI Projection Overview
 =======================
-Provides the overview dock widgets for the Projection GUI.
+Provides the overview dock widget for the Projection GUI.
 
 """
 
@@ -16,11 +16,13 @@ from sys import platform
 import time
 
 # Package imports
+from e13tools.utils import docstring_substitute
 import matplotlib.pyplot as plt
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
+from prism._docstrings import list_items_optional_doc, list_item_optional_doc
 from prism._gui import APP_NAME
 from prism._gui.widgets import (
     FigureCanvas, QW_QAction, QW_QMenu, OverviewListWidget,
@@ -33,8 +35,36 @@ __all__ = ['OverviewDockWidget']
 # %% CLASS DEFINITIONS
 # Create class for the projection overview dock widget
 class OverviewDockWidget(QW.QDockWidget):
+    """
+    Defines the :class:`~OverviewDockWidget` class for the Projection GUI.
+
+    This class provides the user with the ability to quickly create; draw;
+    view; and save projection figures.
+
+    """
+
     # TODO: Allow for the lists to be sorted differently?
     def __init__(self, main_window_obj, *args, **kwargs):
+        """
+        Initialize an instance of the :class:`~OverviewDockWidget` class.
+
+        Parameters
+        ----------
+        main_window_obj : :obj:`~prism._gui.widgets.MainViewerWindow` object
+            Instance of the :class:`~prism._gui.widgets.MainViewerWindow` class
+            that acts as the parent of this dock widget.
+
+        Optional
+        --------
+        args : positional arguments
+            The positional arguments that must be passed to the constructor of
+            the :class:`~PyQt5.QtWidgets.QDockWidget` class.
+        kwargs : keyword arguments
+            The keyword arguments that must be passed to the constructor of the
+            :class:`~PyQt5.QtWidgets.QDockWidget` class.
+
+        """
+
         # Save provided MainWindow object
         self.main = main_window_obj
         self.pipe = self.main.pipe
@@ -52,6 +82,13 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function is called when the main window is closed
     def closeEvent(self, *args, **kwargs):
+        """
+        Special :meth:`~PyQt5.QtWidgets.QWidget.closeEvent` event that
+        automatically performs some clean-up operations before the overview
+        dock widget closes.
+
+        """
+
         # Close all currently opened figures and subwindows
         for fig, subwindow in self.proj_fig_registry.values():
             plt.close(fig)
@@ -62,6 +99,15 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function creates the projection overview
     def init(self):
+        """
+        Sets up the projection overview dock widget after it has been
+        initialized.
+
+        This function is mainly responsible for creating the different overview
+        lists and menus that allow the user to manipulate projection figures.
+
+        """
+
         # Create an overview
         overview_widget = QW.QWidget()
         self.proj_overview = QW.QVBoxLayout()
@@ -124,6 +170,14 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function creates the context menu for drawn projections
     def create_drawn_context_menu(self):
+        """
+        Creates the context (right-click) menu for the 'Drawn' overview list.
+
+        This menu contains all actions that are available for drawn projection
+        figures.
+
+        """
+
         # Create context menu
         menu = QW_QMenu(self, 'Drawn')
 
@@ -175,6 +229,11 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function shows the context menu for drawn projections
     @QC.pyqtSlot()
     def show_drawn_context_menu(self):
+        """
+        Shows the 'Drawn' context menu, giving the user access to its actions.
+
+        """
+
         # Calculate number of selected items
         n_items = len(self.proj_list_d.selectedItems())
 
@@ -188,6 +247,15 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function creates the context menu for available projections
     def create_available_context_menu(self):
+        """
+        Creates the context (right-click) menu for the 'Available' overview
+        list.
+
+        This menu contains all actions that are available for created (but not
+        drawn) projection figures.
+
+        """
+
         # Create context menu
         menu = QW_QMenu(self, 'Available')
 
@@ -232,6 +300,12 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function shows the context menu for available projections
     @QC.pyqtSlot()
     def show_available_context_menu(self):
+        """
+        Shows the 'Available' context menu, giving the user access to its
+        actions.
+
+        """
+
         # Calculate number of selected items
         n_items = len(self.proj_list_a.selectedItems())
 
@@ -245,6 +319,15 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function creates the context menu for unavailable projections
     def create_unavailable_context_menu(self):
+        """
+        Creates the context (right-click) menu for the 'Unavailable' overview
+        list.
+
+        This menu contains all actions that are available for non-existing
+        projection figures.
+
+        """
+
         # Create context menu
         menu = QW_QMenu(self, 'Unavailable')
 
@@ -275,6 +358,12 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function shows the context menu for unavailable projections
     @QC.pyqtSlot()
     def show_unavailable_context_menu(self):
+        """
+        Shows the 'Unavailable' context menu, giving the user access to its
+        actions.
+
+        """
+
         # If there is currently at least one item selected, show context menu
         if len(self.proj_list_u.selectedItems()):
             self.context_menu_u.popup(QG.QCursor.pos())
@@ -282,7 +371,16 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function shows a list of projection figures in the viewing area
     @QC.pyqtSlot()
     @QC.pyqtSlot(list)
+    @docstring_substitute(optional=list_items_optional_doc)
     def show_projection_figures(self, list_items=None):
+        """
+        Retrieves the projection figures requested in the provided `list_items`
+        and shows them in the projection viewing area.
+
+        %(optional)s
+
+        """
+
         # Obtain the list_items
         if list_items is None:
             list_items = self.proj_list_d.selectedItems()
@@ -328,10 +426,19 @@ class OverviewDockWidget(QW.QDockWidget):
         if self.main.get_option('auto_tile'):
             self.main.area_dock.proj_area.tileSubWindows()
 
-    # This function removes a list of projection figures permanently
+    # This function closes a list of projection figures permanently
     @QC.pyqtSlot()
     @QC.pyqtSlot(list)
+    @docstring_substitute(optional=list_items_optional_doc)
     def close_projection_figures(self, list_items=None):
+        """
+        Retrieves the projection figures requested in the provided `list_items`
+        and closes their :obj:`~matplotlib.figure.Figure` objects.
+
+        %(optional)s
+
+        """
+
         # Obtain the list_items
         if list_items is None:
             list_items = self.proj_list_d.selectedItems()
@@ -359,7 +466,20 @@ class OverviewDockWidget(QW.QDockWidget):
     # resize when explicitly told to do so
     @QC.pyqtSlot()
     @QC.pyqtSlot(list)
+    @docstring_substitute(optional=list_items_optional_doc)
     def draw_projection_figures(self, list_items=None):
+        """
+        Retrieves the projection figures requested in the provided `list_items`
+        and draws them, creating their :class:`~matplotlib.figure.Figure`
+        instances.
+
+        If the `auto_show` option is *True*, drawn figures will be shown
+        automatically as well.
+
+        %(optional)s
+
+        """
+
         # Obtain the list_items
         if list_items is None:
             list_items = self.proj_list_a.selectedItems()
@@ -378,6 +498,19 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function draws a projection figure
     def _draw_projection_figure(self, list_item):
+        """
+        Draws the projection figure requested in the provided `list_item`,
+        creating its :class:`~matplotlib.figure.Figure` instance.
+
+        This function is used iteratively by :meth:`~draw_projection_figures`.
+
+        Parameters
+        ----------
+        list_item : :obj:`~PyQt5.QtWidgets.QListWidgetItem` object
+            The item that contains the requested projection figure.
+
+        """
+
         # Retrieve text of list_item
         hcube_name = list_item.text()
         hcube = self.hcubes[self.names.index(hcube_name)]
@@ -406,8 +539,22 @@ class OverviewDockWidget(QW.QDockWidget):
     # TODO: Avoid reimplementing the __get_req_hcubes() logic here
     @QC.pyqtSlot()
     @QC.pyqtSlot(list)
+    @docstring_substitute(optional=list_items_optional_doc)
     def delete_projection_figures(self, list_items=None, *,
                                   skip_warning=False):
+        """
+        Retrieves the projection figures requested in the provided `list_items`
+        and delete them, permanently removing their corresponding projection
+        data.
+
+        %(optional)s
+        skip_warning : bool. Default: False
+            Whether or not to skip showing the warning asking the user if they
+            are sure they want to permanently delete all items in `list_items`.
+            If *True*, the answer is taken to be *True*.
+
+        """
+
         # Obtain the list_items
         if list_items is None:
             list_items = self.proj_list_a.selectedItems()
@@ -454,7 +601,16 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function creates a list of projection figures
     @QC.pyqtSlot()
     @QC.pyqtSlot(list)
+    @docstring_substitute(optional=list_items_optional_doc)
     def create_projection_figures(self, list_items=None):
+        """
+        Retrieves the projection figures requested in the provided `list_items`
+        and creates them, calculating their corresponding projection data.
+
+        %(optional)s
+
+        """
+
         # Obtain the list_items
         if list_items is None:
             list_items = self.proj_list_u.selectedItems()
@@ -469,6 +625,20 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function creates a projection figure
     def _create_projection_figure(self, list_item):
+        """
+        Creates the projection figure requested in the provided `list_item`,
+        calculating its projection data.
+
+        This function is used iteratively by
+        :meth:`~create_projection_figures`.
+
+        Parameters
+        ----------
+        list_item : :obj:`~PyQt5.QtWidgets.QListWidgetItem` object
+            The item that contains the requested projection figure.
+
+        """
+
         # Retrieve text of list_item
         hcube_name = list_item.text()
         hcube = self.hcubes[self.names.index(hcube_name)]
@@ -483,7 +653,21 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function saves a list of projection figures to file
     @QC.pyqtSlot()
     @QC.pyqtSlot(list)
+    @docstring_substitute(optional=list_items_optional_doc)
     def save_projection_figures(self, list_items=None, *, choose=False):
+        """
+        Retrieves the projection figures requested in the provided `list_items`
+        and saves their :obj:`~matplotlib.figure.Figure` objects.
+
+        %(optional)s
+        choose : bool. Default: False
+            Whether or not the user is allowed to choose where the projection
+            figure is saved to.
+            If *False*, it uses the default filename as defined by
+            :meth:`~prism.Pipeline._Projection__get_fig_path`.
+
+        """
+
         # Obtain the list_items
         if list_items is None:
             list_items = self.proj_list_d.selectedItems()
@@ -567,13 +751,39 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function saves a list of projection figures to file
     @QC.pyqtSlot()
     @QC.pyqtSlot(list)
+    @docstring_substitute(optional=list_items_optional_doc)
     def save_as_projection_figures(self, list_items=None):
+        """
+        Retrieves the projection figures requested in the provided `list_items`
+        and saves their :obj:`~matplotlib.figure.Figure` objects, asking the
+        user where to save each one.
+
+        This function basically calls :meth:`~save_projection_figures` with
+        `choose` set to *True*.
+
+        %(optional)s
+
+        """
+
         self.save_projection_figures(list_items, choose=True)
 
     # This function redraws a list of projection figures
     @QC.pyqtSlot()
     @QC.pyqtSlot(list)
+    @docstring_substitute(optional=list_items_optional_doc)
     def redraw_projection_figures(self, list_items=None):
+        """
+        Retrieves the projection figures requested in the provided `list_items`
+        and redraws them, closing and recreating their
+        :obj:`~matplotlib.figure.Figure` objects.
+
+        This function is basically a combination of
+        :meth:`~close_projection_figures` and :meth:`~draw_projection_figures`.
+
+        %(optional)s
+
+        """
+
         # Obtain the list_items
         if list_items is None:
             list_items = self.proj_list_d.selectedItems()
@@ -585,7 +795,20 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function draws and saves a list of projection figures
     @QC.pyqtSlot()
     @QC.pyqtSlot(list)
+    @docstring_substitute(optional=list_items_optional_doc)
     def draw_save_projection_figures(self, list_items=None):
+        """
+        Retrieves the projection figures requested in the provided
+        `list_items`, draws their :obj:`~matplotlib.figure.Figure` objects and
+        saves them afterward.
+
+        This function is basically a combination of
+        :meth:`~draw_projection_figures` and :meth:`~save_projection_figures`.
+
+        %(optional)s
+
+        """
+
         # Obtain the list_items
         if list_items is None:
             list_items = self.proj_list_a.selectedItems()
@@ -597,7 +820,21 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function recreates a list of projection figures
     @QC.pyqtSlot()
     @QC.pyqtSlot(list)
+    @docstring_substitute(optional=list_items_optional_doc)
     def recreate_projection_figures(self, list_items=None):
+        """
+        Retrieves the projection figures requested in the provided `list_items`
+        and recreates them, permanently removing their corresponding projection
+        data and recalculating it.
+
+        This function is basically a combination of
+        :meth:`~delete_projection_figures` and
+        :meth:`~create_projection_figures`.
+
+        %(optional)s
+
+        """
+
         # Obtain the list_items
         if list_items is None:
             list_items = self.proj_list_a.selectedItems()
@@ -617,7 +854,21 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function creates and draws a list of projection figures
     @QC.pyqtSlot()
     @QC.pyqtSlot(list)
+    @docstring_substitute(optional=list_items_optional_doc)
     def create_draw_projection_figures(self, list_items=None):
+        """
+        Retrieves the projection figures requested in the provided
+        `list_items`, calculates their projection data and draws their
+        :obj:`~matplotlib.figure.Figure` objects afterward.
+
+        This function is basically a combination of
+        :meth:`~create_projection_figures` and
+        :meth:`~draw_projection_figures`.
+
+        %(optional)s
+
+        """
+
         # Obtain the list_items
         if list_items is None:
             list_items = self.proj_list_u.selectedItems()
@@ -629,7 +880,21 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function creates, draws and saves a list of projection figures
     @QC.pyqtSlot()
     @QC.pyqtSlot(list)
+    @docstring_substitute(optional=list_items_optional_doc)
     def create_draw_save_projection_figures(self, list_items=None):
+        """
+        Retrieves the projection figures requested in the provided
+        `list_items`, calculates their projection data, draws their
+        :obj:`~matplotlib.figure.Figure` objects and saves them afterward.
+
+        This function is basically a combination of
+        :meth:`~create_projection_figures`; :meth:`~draw_projection_figures`
+        and :meth:`~save_projection_figures`.
+
+        %(optional)s
+
+        """
+
         # Obtain the list_items
         if list_items is None:
             list_items = self.proj_list_u.selectedItems()
@@ -642,7 +907,18 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function shows a details overview of a drawn projection figure
     @QC.pyqtSlot()
     @QC.pyqtSlot(QW.QListWidgetItem)
+    @docstring_substitute(optional=list_item_optional_doc)
     def details_drawn_projection_figure(self, list_item=None):
+        """
+        Retrieves the projection figure requested in the provided `list_item`,
+        gathers its properties and shows a details dialog listing them.
+
+        This function is used for projections in the 'Drawn' list.
+
+        %(optional)s
+
+        """
+
         # Obtain the list_item
         if list_item is None:
             list_item = self.proj_list_d.selectedItems()[0]
@@ -653,7 +929,18 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function shows a details overview of an available projection figure
     @QC.pyqtSlot()
     @QC.pyqtSlot(QW.QListWidgetItem)
+    @docstring_substitute(optional=list_item_optional_doc)
     def details_available_projection_figure(self, list_item=None):
+        """
+        Retrieves the projection figure requested in the provided `list_item`,
+        gathers its properties and shows a details dialog listing them.
+
+        This function is used for projections in the 'Available' list.
+
+        %(optional)s
+
+        """
+
         # Obtain the list_item
         if list_item is None:
             list_item = self.proj_list_a.selectedItems()[0]
@@ -664,6 +951,17 @@ class OverviewDockWidget(QW.QDockWidget):
     # This function shows a details overview of a projection figure
     # TODO: Add section on how the figure was drawn for drawn projections?
     def _details_projection_figure(self, list_item):
+        """
+        Creates and shows a details dialog for the projection figure requested
+        in the provided `list_item`.
+
+        Parameters
+        ----------
+        list_item : :obj:`~PyQt5.QtWidgets.QListWidgetItem` object
+            The item that contains the requested projection figure.
+
+        """
+
         # Retrieve text of list_item
         hcube_name = list_item.text()
         hcube = self.hcubes[self.names.index(hcube_name)]
@@ -765,6 +1063,33 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function creates the proper progress dialog for given operation
     def use_progress_dialog(self, label, func, *iterables):
+        """
+        Creates a progress dialog with the given `label`, and executes the
+        requested `func` using the provided `iterables`.
+
+        Depending on the current settings, this function will either create a
+        threaded progress dialog that allows the user to abort the operation
+        (but is slower), or a static dialog that cannot be interrupted.
+
+        Parameters
+        ----------
+        label : str
+            The label that is used as the description of what operation is
+            currently being executed.
+        func : function
+            The function that must be called iteratively using the arguments
+            provided in `iterables`.
+        iterables : positional arguments
+            All iterables that must be used to call `func` with.
+
+        Returns
+        -------
+        result : bool
+            Whether or not the operations ended successfully, which can be used
+            by other functions to determine if it should continue.
+
+        """
+
         # Set result to False
         result = False
 

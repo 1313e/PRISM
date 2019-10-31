@@ -38,11 +38,39 @@ __all__ = ['MainViewerWindow']
 # Define class for main viewer window
 # TODO: Write documentation (docs and docstrings) for the GUI
 class MainViewerWindow(QW.QMainWindow):
+    """
+    Defines the :class:`~MainViewerWindow` class for the Projection GUI.
+
+    This class provides the main window for the GUI and combines all other
+    widgets; layouts; and elements together.
+
+    """
+
     # Create signal for exception that are raised
     exception = QC.pyqtSignal()
 
     # Initialize MainViewerWindow class
     def __init__(self, pipeline_obj, *args, **kwargs):
+        """
+        Initialize an instance of the :class:`~MainViewerWindow` class.
+
+        Parameters
+        ----------
+        pipeline_obj : :obj:`~prism.Pipeline` object
+            Instance of the :class:`~prism.Pipeline` class for which the GUI
+            needs to be initialized.
+
+        Optional
+        --------
+        args : positional arguments
+            The positional arguments that must be passed to the constructor of
+            the :class:`~PyQt5.QtWidgets.QMainWindow` class.
+        kwargs : keyword arguments
+            The keyword arguments that must be passed to the constructor of the
+            :class:`~PyQt5.QtWidgets.QMainWindow` class.
+
+        """
+
         # Save pipeline_obj as pipe
         self.pipe = pipeline_obj
 
@@ -54,6 +82,14 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function sets up the main window
     def init(self):
+        """
+        Sets up the main window after it has been initialized.
+
+        This function is mainly responsible for initializing all other widgets
+        that are required to make the GUI work, and connecting them together.
+
+        """
+
         # Tell the Projection class that the GUI is being used
         self.all_set_proj_attr('use_GUI', 1)
 
@@ -141,6 +177,13 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function creates the menubar in the viewer
     def create_menubar(self):
+        """
+        Creates the top-level menubar of the main window.
+
+        Other widgets can modify this menubar to add additional actions to it.
+
+        """
+
         # Obtain menubar
         self.menubar = self.menuBar()
 
@@ -237,12 +280,24 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function creates the statusbar in the viewer
     def create_statusbar(self):
+        """
+        Creates the bottom-level statusbar of the main window, primarily used
+        for displaying extended descriptions of actions.
+
+        """
+
         # Obtain statusbar
         self.statusbar = self.statusBar()
 
     # This function creates a message box with the 'about' information
     @QC.pyqtSlot()
     def about(self):
+        """
+        Displays a small section with information about the GUI.
+
+        """
+
+        # Create the 'about' dialog
         QW.QMessageBox.about(
             self, "About %s" % (APP_NAME), dedent(r"""
                 <b>%s | PRISM v%s</b><br>
@@ -251,6 +306,13 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function is called when the viewer is closed
     def closeEvent(self, *args, **kwargs):
+        """
+        Special :meth:`~PyQt5.QtWidgets.QWidget.closeEvent` event that
+        automatically performs some clean-up operations before the main window
+        closes.
+
+        """
+
         # Call the closeEvent of the dock widgets
         self.overview_dock.close()
         self.area_dock.close()
@@ -272,27 +334,68 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function allows for projection attributes to be set more easily
     def set_proj_attr(self, name, value):
+        """
+        Sets the requested :class:`~prism._projection.Projection` attribute
+        `name` to `value` on the controller rank.
+
+        """
+
+        # Set the attribute
         setattr(self.pipe, '_Projection__%s' % (name), value)
 
     # This function is an MPI-version of set_proj_attr
     def all_set_proj_attr(self, name, value):
+        """
+        Sets the requested :class:`~prism._projection.Projection` attribute
+        `name` to `value` on all ranks.
+
+        """
+
+        # Set the attribute on all ranks
         self.pipe._make_call('__setattr__', '_Projection__%s' % (name), value)
 
     # This function allows for projection attributes to be read more easily
     def get_proj_attr(self, name):
+        """
+        Gets the value of the requested :class:`~prism._projection.Projection`
+        attribute `name` on the controller rank.
+
+        """
+
+        # Retrieve the attribute
         return(getattr(self.pipe, '_Projection__%s' % (name)))
 
     # This function allows for projection attributes to be called more easily
     def call_proj_attr(self, name, *args, **kwargs):
+        """
+        Calls the requested :class:`~prism._projection.Projection` attribute
+        `name` using the provided `args` and `kwargs` on the controller rank.
+
+        """
+
+        # Call the attribute
         return(getattr(self.pipe, '_Projection__%s' % (name))(*args, **kwargs))
 
     # This function is an MPI-version of call_proj_attr
     def all_call_proj_attr(self, name, *args, **kwargs):
+        """
+        Calls the requested :class:`~prism._projection.Projection` attribute
+        `name` using the provided `args` and `kwargs` on all ranks.
+
+        """
+
+        # Call the attribute on all ranks
         return(self.pipe._make_call('_Projection__%s' % (name),
                                     *args, **kwargs))
 
     # This function returns the default positions of dock widgets and toolbars
     def get_default_dock_positions(self):
+        """
+        Returns the default positions of all dock widgets connected to the main
+        window.
+
+        """
+
         # Make dict including the default docking positions
         default_pos = {
             'Viewing area': QC.Qt.RightDockWidgetArea,
@@ -304,6 +407,12 @@ class MainViewerWindow(QW.QMainWindow):
     # This function sets dock widgets and toolbars to their default position
     @QC.pyqtSlot()
     def set_default_dock_positions(self):
+        """
+        Sets the positions of all dock widgets connected to the main window to
+        their default positions.
+
+        """
+
         # Set the dock widgets and toolbars to their default positions
         # OVERVIEW
         self.overview_dock.setVisible(True)
@@ -319,6 +428,12 @@ class MainViewerWindow(QW.QMainWindow):
     # This function shows the details() overview of a given emulator iteration
     @QC.pyqtSlot()
     def show_pipeline_details_overview(self):
+        """
+        Creates and shows a dialog containing the output of the
+        :meth:`~prism.Pipeline.details` method for all emulator iterations.
+
+        """
+
         # Make a details dialog
         details_box = QW.QDialog(self)
         details_box.setWindowModality(QC.Qt.NonModal)

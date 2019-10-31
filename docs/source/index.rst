@@ -43,6 +43,7 @@ The documentation of *PRISM* is spread out over several sections:
     api/prism.emulator
     api/prism.modellink
     api/prism.utils
+    api/prism._gui
     api/prism._internal
 
 .. role:: pycode(code)

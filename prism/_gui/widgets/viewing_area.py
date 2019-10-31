@@ -28,7 +28,36 @@ __all__ = ['ViewingAreaDockWidget']
 # Define class for the projection viewing area dock widget
 # TODO: Allow for multiple viewing areas to co-exist?
 class ViewingAreaDockWidget(QW.QDockWidget):
+    """
+    Defines the :class:`~ViewingAreaDockWidget` class for the Projection GUI.
+
+    This class provides the user with an MDI (Multiple Document Interface) area
+    using the :class:`~PyQt5.QtWidgets.QMdiArea` class. All drawn projection
+    figures live in this area and can be interacted with.
+
+    """
+
     def __init__(self, main_window_obj, *args, **kwargs):
+        """
+        Initialize an instance of the :class:`~ViewingAreaDockWidget` class.
+
+        Parameters
+        ----------
+        main_window_obj : :obj:`~prism._gui.widgets.MainViewerWindow` object
+            Instance of the :class:`~prism._gui.widgets.MainViewerWindow` class
+            that acts as the parent of this dock widget.
+
+        Optional
+        --------
+        args : positional arguments
+            The positional arguments that must be passed to the constructor of
+            the :class:`~PyQt5.QtWidgets.QDockWidget` class.
+        kwargs : keyword arguments
+            The keyword arguments that must be passed to the constructor of the
+            :class:`~PyQt5.QtWidgets.QDockWidget` class.
+
+        """
+
         # Save provided MainWindow object
         self.main = main_window_obj
         self.pipe = self.main.pipe
@@ -46,6 +75,16 @@ class ViewingAreaDockWidget(QW.QDockWidget):
 
     # This function creates the main projection viewing area
     def init(self):
+        """
+        Sets up the projection viewing area dock widget after it has been
+        initialized.
+
+        This function is mainly responsible for enabling the
+        :class:`~prism._gui.widgets.OverviewDockWidget` to properly interact
+        and control the projection figures that have been drawn.
+
+        """
+
         # Create an MdiArea for the viewing area
         self.area_window = QW.QMainWindow()
         self.proj_area = QW.QMdiArea(self)
@@ -73,6 +112,11 @@ class ViewingAreaDockWidget(QW.QDockWidget):
     # TODO: See if the window frames can be removed from the saved image
     @QC.pyqtSlot()
     def save_view(self):
+        """
+        Saves the current view of the viewing area to file.
+
+        """
+
         # Get dict of all file extensions allowed
         exts = sdict({
             'Portable Network Graphics': "*.png",
@@ -132,6 +176,13 @@ class ViewingAreaDockWidget(QW.QDockWidget):
 
     # This function is called when the main window is closed
     def closeEvent(self, *args, **kwargs):
+        """
+        Special :meth:`~PyQt5.QtWidgets.QWidget.closeEvent` event that
+        automatically performs some clean-up operations before the viewing area
+        closes.
+
+        """
+
         # Close the main window in this widget
         self.area_window.close()
 
@@ -140,6 +191,12 @@ class ViewingAreaDockWidget(QW.QDockWidget):
 
     # This function returns the default positions of dock widgets and toolbars
     def get_default_dock_positions(self):
+        """
+        Returns the default positions of all dock widgets connected to the
+        viewing area.
+
+        """
+
         # Make dict including the default docking positions
         default_pos = {
             'Tools': QC.Qt.TopToolBarArea}
@@ -150,6 +207,12 @@ class ViewingAreaDockWidget(QW.QDockWidget):
     # This function sets dock widgets and toolbars to their default position
     @QC.pyqtSlot()
     def set_default_dock_positions(self):
+        """
+        Sets the postions of all dock widgets connected to the viewing area to
+        their default positions.
+
+        """
+
         # Set the dock widgets and toolbars to their default positions
         # TOOLS TOOLBAR
         self.proj_toolbar.setVisible(True)
@@ -158,6 +221,12 @@ class ViewingAreaDockWidget(QW.QDockWidget):
 
     # This function creates the toolbar of the projection viewing area
     def create_projection_toolbar(self):
+        """
+        Creates the top-level toolbar of the viewing area, primarily used for
+        manipulating the area subwindows.
+
+        """
+
         # Create toolbar for projection viewer
         self.proj_toolbar = QW_QToolBar(self, "Tools")
 

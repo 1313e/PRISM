@@ -22,15 +22,27 @@ __all__ = ['BaseBox', 'get_box_value', 'get_modified_box_signal',
 # Make base class for custom boxes
 # As QW.QWidget is a strict class (in C++), this cannot be an ABC
 class BaseBox(QW.QWidget):
+    """
+    Defines the :class:`~BaseBox` base class.
+
+    This class is used by many custom :class:`~PyQt5.QtWidgets.QWidget` classes
+    as their base. It defines the :attr:`~modified` signal, which is
+    automatically connected to any widget that changes its state.
+
+    """
+
     # Define modified signal
     modified = QC.pyqtSignal()
 
-    def __init__(self, *args, **kwargs):
-        # Call super constructor
-        super().__init__(*args, **kwargs)
-
-    # Override childEvent to connect signals if child has defined modified sig
+    # Override childEvent to connect signals if child has a modified signal
     def childEvent(self, event):
+        """
+        Special :meth:`~PyQt5.QtCore.QObject.childEvent` event that
+        automatically connects the default modified signal of any widget that
+        becomes a child of this widget.
+
+        """
+
         # If this event involved a child being added, check child object
         if(event.type() == QC.QEvent.ChildAdded):
             # Obtain child object
@@ -51,6 +63,12 @@ class BaseBox(QW.QWidget):
 
     # This function connects a given box to the modified signal
     def connect_box(self, box):
+        """
+        Connect the default modified signal of the provided `box` to this
+        widget's :attr:`~modified` signal.
+
+        """
+
         # Check if the given box is a child of this box and skip if so
         if box in self.children():
             return
@@ -63,16 +81,31 @@ class BaseBox(QW.QWidget):
 
     # Define get_box_value method
     def get_box_value(self):
+        """
+        Obtain the value of this widget and return it.
+
+        """
+
         raise NotImplementedError(self.__class__)
 
     # Define set_box_value method
     def set_box_value(self, value):
+        """
+        Set the value of this widget to `value`.
+
+        """
+
         raise NotImplementedError(self.__class__)
 
 
-# %% FUNCTIONS DEFINITIONS
+# %% FUNCTION DEFINITIONS
 # This function gets the value of a provided box
 def get_box_value(box):
+    """
+    Retrieves the value of the provided widget `box` and returns it.
+
+    """
+
     # Values (QAbstractSpinBox)
     if isinstance(box, QW.QAbstractSpinBox):
         return(box.value())
@@ -95,6 +128,12 @@ def get_box_value(box):
 
 # This function gets the emitted signal when a provided box is modified
 def get_modified_box_signal(box):
+    """
+    Retrieves the default modified signal of the provided widget `box` and
+    returns it.
+
+    """
+
     # Values (QAbstractSpinBox)
     if isinstance(box, QW.QAbstractSpinBox):
         return(box.valueChanged)
@@ -117,6 +156,11 @@ def get_modified_box_signal(box):
 
 # This function sets the value of a provided box
 def set_box_value(box, value):
+    """
+    Sets the value of the provided widget `box` to `value`.
+
+    """
+
     # Values (QAbstractSpinBox)
     if isinstance(box, QW.QAbstractSpinBox):
         box.setValue(value)

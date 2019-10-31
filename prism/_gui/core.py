@@ -28,7 +28,7 @@ from prism._internal import getCLogger
 __all__ = ['start_gui']
 
 
-# %% FUNCTIONS DEFINITIONS
+# %% FUNCTION DEFINITIONS
 # This function starts up the Projection GUI 'Crystal'
 @docstring_append(start_gui_doc_pars, '\n\t\n\t')
 @docstring_append(start_gui_doc)
