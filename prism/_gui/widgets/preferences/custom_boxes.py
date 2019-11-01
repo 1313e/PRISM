@@ -33,7 +33,29 @@ __all__ = ['ColorBox', 'DefaultBox', 'FigSizeBox']
 # %% CLASS DEFINITIONS
 # Make class with a special box for setting the color of a plotted line
 class ColorBox(BaseBox):
+    """
+    Defines the :class:`~ColorBox` class.
+
+    This class is used for making the 'color' entry in the
+    :class:`~prism._gui.widgets.preferences.KwargsDictDialogPage` class.
+
+    """
+
     def __init__(self, *args, **kwargs):
+        """
+        Initialize an instance of the :class:`~ColorBox` class.
+
+        Parameters
+        ----------
+        args : positional arguments
+            The positional arguments that must be passed to the constructor of
+            the :class:`~prism._gui.widgets.core.BaseBox` class.
+        kwargs : keyword arguments
+            The keyword arguments that must be passed to the constructor of the
+            :class:`~prism._gui.widgets.core.BaseBox` class.
+
+        """
+
         # Call super constructor
         super().__init__(*args, **kwargs)
 
@@ -42,6 +64,15 @@ class ColorBox(BaseBox):
 
     # This function creates the color box
     def init(self):
+        """
+        Sets up the color box entry after it has been initialized.
+
+        This function is mainly responsible for creating the color wheel and
+        color label, that allow the user to quickly cycle through different
+        color options.
+
+        """
+
         # Create the box layout
         box_layout = QW.QHBoxLayout(self)
         box_layout.setContentsMargins(0, 0, 0, 0)
@@ -65,6 +96,12 @@ class ColorBox(BaseBox):
 
     # This function creates the color label
     def create_color_label(self):
+        """
+        Creates a special label that shows the currently selected or hovered
+        color, and returns it.
+
+        """
+
         # Create the color label
         color_label = QW_QLabel()
 
@@ -80,6 +117,12 @@ class ColorBox(BaseBox):
 
     # This function creates the color combobox
     def create_color_combobox(self):
+        """
+        Creates a combobox that holds all default colors accepted by matplotlib
+        and returns it.
+
+        """
+
         # Obtain the CN colors
         n_cyclic = len(rcParams['axes.prop_cycle'])
         CN_COLORS = [("C%i" % (i), "This is MPL cyclic color #%i" % (i))
@@ -117,6 +160,12 @@ class ColorBox(BaseBox):
     # This function shows the custom color picker dialog
     @QC.pyqtSlot()
     def show_colorpicker(self):
+        """
+        Shows the colorwheel picker dialog to the user, allowing for any color
+        option to be selected.
+
+        """
+
         # Obtain current qcolor
         qcolor = convert_to_qcolor(self.get_box_value())
 
@@ -132,6 +181,21 @@ class ColorBox(BaseBox):
     # This function sets a given color as the current color
     @QC.pyqtSlot(str)
     def set_color(self, color):
+        """
+        Sets the current color to the provided `color`, and updates the entry
+        in the combobox and the label accordingly.
+
+        Parameters
+        ----------
+        color : str
+            The color that needs to be used as the current color. The provided
+            `color` can be any string that is accepted as a color by
+            matplotlib.
+            If `color` is invalid, it is set to the current default color
+            instead.
+
+        """
+
         # If color can be converted to a hex integer, do so and add hash to it
         try:
             int(color, 16)
@@ -152,6 +216,26 @@ class ColorBox(BaseBox):
     # This function sets the color of the colorlabel
     @QC.pyqtSlot(str)
     def set_color_label(self, color):
+        """
+        Sets the current color label to the provided `color`.
+
+        Parameters
+        ----------
+        color : str
+            The color that needs to be used as the current color label. The
+            provided `color` can be any string that is accepted as a color by
+            matplotlib.
+            If `color` is invalid, it is set to the current default color
+            instead.
+
+        Returns
+        -------
+        default_flag : bool
+            Whether or not the color label is currently set to the default
+            color. This happens when `color` is an invalid color.
+
+        """
+
         # Try to create the pixmap of the colorlabel
         try:
             pixmap = create_color_pixmap(color,
@@ -171,6 +255,16 @@ class ColorBox(BaseBox):
 
     # This function retrieves a value of this special box
     def get_box_value(self):
+        """
+        Returns the current (valid) color value of the color combobox.
+
+        Returns
+        -------
+        color : str
+            The current valid matplotlib color value.
+
+        """
+
         # Obtain the value
         color = get_box_value(self.color_combobox)
 
@@ -186,14 +280,47 @@ class ColorBox(BaseBox):
 
     # This function sets the value of this special box
     def set_box_value(self, value):
+        """
+        Sets the current (default) color value to `value`.
+
+        Parameters
+        ----------
+        value : str
+            The matplotlib color value that must be set for this colorbox.
+
+        """
+
         self.set_color(value)
         self.default_color = value
         self.color_combobox.lineEdit().setPlaceholderText(value)
 
 
-# Make class for the default lineedit box that allows for type to be selected
+# Make class for the default non-standard box that allows type to be selected
 class DefaultBox(BaseBox):
+    """
+    Defines the :class:`~ColorBox` class.
+
+    This class is used for making a non-standard entry in the
+    :class:`~prism._gui.widgets.preferences.KwargsDictDialogPage` class.
+    It currently supports inputs of type bool; float; int; and str.
+
+    """
+
     def __init__(self, *args, **kwargs):
+        """
+        Initialize an instance of the :class:`~DefaultBox` class.
+
+        Parameters
+        ----------
+        args : positional arguments
+            The positional arguments that must be passed to the constructor of
+            the :class:`~prism._gui.widgets.core.BaseBox` class.
+        kwargs : keyword arguments
+            The keyword arguments that must be passed to the constructor of the
+            :class:`~prism._gui.widgets.core.BaseBox` class.
+
+        """
+
         # Call super constructor
         super().__init__(*args, **kwargs)
 
@@ -202,6 +329,16 @@ class DefaultBox(BaseBox):
 
     # This function creates a double box with type and lineedit
     def init(self):
+        """
+        Sets up the non-standard default box entry after it has been
+        initialized.
+
+        This function is mainly responsible for creating the type combobox and
+        allowing for different field boxes to be used for different value
+        types.
+
+        """
+
         # Create the box_layout
         box_layout = QW.QHBoxLayout(self)
         box_layout.setContentsMargins(0, 0, 0, 0)
@@ -234,6 +371,17 @@ class DefaultBox(BaseBox):
     # This function creates a field_box depending on the type that was selected
     @QC.pyqtSlot(str)
     def create_field_box(self, value_type):
+        """
+        Creates a field box for the provided type `value_type` and replaces the
+        current field box with it.
+
+        Parameters
+        ----------
+        value_type : {'bool'; 'float'; 'int'; 'str'}
+            The string that defines what type of field box is requested.
+
+        """
+
         # Create a widget box for the specified value_type
         value_box = getattr(self, "create_type_%s" % (value_type))()
 
@@ -247,6 +395,11 @@ class DefaultBox(BaseBox):
 
     # This function creates the value box for bools
     def create_type_bool(self):
+        """
+        Creates the field box for values of type 'bool' and returns it.
+
+        """
+
         # Create a checkbox for bools
         bool_box = QW.QCheckBox()
         bool_box.setToolTip("Boolean value for this entry type")
@@ -254,6 +407,11 @@ class DefaultBox(BaseBox):
 
     # This function creates the value box for floats
     def create_type_float(self):
+        """
+        Creates the field box for values of type 'float' and returns it.
+
+        """
+
         # Create a spinbox for floats
         float_box = QW_QDoubleSpinBox()
         float_box.setRange(-9999999, 9999999)
@@ -263,6 +421,11 @@ class DefaultBox(BaseBox):
 
     # This function creates the value box for integers
     def create_type_int(self):
+        """
+        Creates the field box for values of type 'int' and returns it.
+
+        """
+
         # Create a spinbox for integers
         int_box = QW_QSpinBox()
         int_box.setRange(-9999999, 9999999)
@@ -271,6 +434,11 @@ class DefaultBox(BaseBox):
 
     # This function creates the value box for strings
     def create_type_str(self):
+        """
+        Creates the field box for values of type 'str' and returns it.
+
+        """
+
         # Create a lineedit for strings
         str_box = QW.QLineEdit()
         str_box.setToolTip("String value for this entry type")
@@ -278,17 +446,60 @@ class DefaultBox(BaseBox):
 
     # This function retrieves a value of this special box
     def get_box_value(self):
+        """
+        Returns the current value of the field box.
+
+        Returns
+        -------
+        value : bool, float, int or str
+            The current value of this default box.
+
+        """
+
         return(get_box_value(self.value_box))
 
     # This function sets the value of this special box
     def set_box_value(self, value):
+        """
+        Sets the value type to `type(value)` and the field value to `value`.
+
+        Parameters
+        ----------
+        value : bool, float, int or str
+            The value to use for this default box. The type of `value`
+            determines which field box must be used.
+
+        """
+
         set_box_value(self.type_box, self.type_dict[type(value)])
         set_box_value(self.value_box, value)
 
 
 # Make class with a special box for setting the figsize
 class FigSizeBox(BaseBox):
+    """
+    Defines the :class:`~FigSizeBox` class.
+
+    This class is used for making the 'figsize' entry in the
+    :class:`~prism._gui.widgets.preferences.KwargsDictDialogPage` class.
+
+    """
+
     def __init__(self, *args, **kwargs):
+        """
+        Initialize an instance of the :class:`~FigSizeBox` class.
+
+        Parameters
+        ----------
+        args : positional arguments
+            The positional arguments that must be passed to the constructor of
+            the :class:`~prism._gui.widgets.core.BaseBox` class.
+        kwargs : keyword arguments
+            The keyword arguments that must be passed to the constructor of the
+            :class:`~prism._gui.widgets.core.BaseBox` class.
+
+        """
+
         # Call super constructor
         super().__init__(*args, **kwargs)
 
@@ -297,6 +508,14 @@ class FigSizeBox(BaseBox):
 
     # This function creates the figsize box
     def init(self):
+        """
+        Sets up the figure size entry after it has been initialized.
+
+        This function is mainly responsible for simply creating the two double
+        spinboxes that allow for the width and height to be set.
+
+        """
+
         # Create the box_layout
         box_layout = QW.QHBoxLayout(self)
         box_layout.setContentsMargins(0, 0, 0, 0)
@@ -333,10 +552,33 @@ class FigSizeBox(BaseBox):
 
     # This function retrieves a value of this special box
     def get_box_value(self):
+        """
+        Returns the current width and height of this figsize box and returns
+        it.
+
+        Returns
+        -------
+        figsize : tuple
+            A tuple containing the width and height values of the figsize,
+            formatted as `(width, height)`.
+
+        """
+
         return((get_box_value(self.width_box), get_box_value(self.height_box)))
 
     # This function sets the value of this special box
     def set_box_value(self, value):
+        """
+        Sets the current value of the figsize box to `value`.
+
+        Parameters
+        ----------
+        value : tuple
+            A tuple containing the width and height values of the figsize,
+            formatted as `(width, height)`.
+
+        """
+
         set_box_value(self.width_box, value[0])
         set_box_value(self.height_box, value[1])
 
@@ -344,6 +586,25 @@ class FigSizeBox(BaseBox):
 # %% FUNCTION DEFINITIONS
 # This function converts an MPL color to a QColor
 def convert_to_qcolor(color):
+    """
+    Converts a provided matplotlib color `color` to a
+    :obj:`~PyQt5.QtGui.QColor` object.
+
+    Parameters
+    ----------
+    color : str
+        The matplotlib color that must be converted.
+        If `color` is a float string, an error will be raised, as Qt5 does not
+        accept those.
+
+    Returns
+    -------
+    qcolor : :obj:`~PyQt5.QtGui.QColor` object
+        The instance of the :class:`~PyQt5.QtGui.QColor` class that corresponds
+        to the provided `color`.
+
+    """
+
     # If the color can be converted to a float, raise a ValueError
     # This is because MPL accepts float strings as valid colors
     try:
@@ -369,12 +630,49 @@ def convert_to_qcolor(color):
 
 # This function converts a QColor to an MPL color
 def convert_to_mpl_color(qcolor):
+    """
+    Converts a provided :obj:`~PyQt5.QtGui.QColor` object `color` to a
+    matplotlib color.
+
+    Parameters
+    ----------
+    qcolor : :obj:`~PyQt5.QtGui.QColor` object
+        The instance of the :class:`~PyQt5.QtGui.QColor` class must be
+        converted to a matplotlib color.
+
+    Returns
+    -------
+    color : str
+        The corresponding matplotlib color.
+        The returned `color` is always written in HEX.
+
+    """
+
     hexid = qcolor.name()
     return str(hexid)
 
 
 # This function creates a pixmap of an MPL color
 def create_color_pixmap(color, size):
+    """
+    Creates a :obj:`~PyQt5.QtGui.QPixmap` object consisting of the given
+    `color` with the provided `size`.
+
+    Parameters
+    ----------
+    color : str
+        The matplotlib color that must be used for the pixmap.
+    size : tuple
+        The width and height dimensions of the pixmap to be created.
+
+    Returns
+    -------
+    pixmap : :obj:`~PyQt5.QtGui.QPixmap` object
+        The instance of the :class:`~PyQt5.QtGui.QPixmap` class that was
+        created from the provided `color` and `size`.
+
+    """
+
     # Obtain the RGBA values of an MPL color
     color = convert_to_qcolor(color)
 

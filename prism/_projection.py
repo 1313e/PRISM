@@ -92,7 +92,7 @@ class Projection(object):
 
         Keyword arguments
         -----------------
-        proj_type : {'2D', '3D', '2D+3D'}. Default: '2D' (2D), '2D+3D' (nD)
+        proj_type : {'2D'; '3D'; '2D+3D'}. Default: '2D' (2D), '2D+3D' (nD)
             String indicating which projection type to create for all supplied
             active parameters.
             If :attr:`~prism.modellink.ModelLink.n_par` == 2, this is always
@@ -101,7 +101,7 @@ class Projection(object):
             Whether or not to create the projection figures. If *True*, the
             figures are calculated, drawn and saved. If *False*, the figures
             are calculated and their data is returned in a dict.
-        align : {'row'/'horizontal', 'col'/'column'/'vertical'}. Default: 'col'
+        align : {'row'/'horizontal'; 'col'/'column'/'vertical'}. Default: 'col'
             If `figure` is *True*, string indicating how to position the two
             subplots.
             If 'row'/'horizontal', the subplots are positioned on a single row.

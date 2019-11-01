@@ -210,20 +210,21 @@ def check_vals(values, name, *args):
 
     Parameters
     ----------
-    values : array_like of {int, float, complex, str, bool}
+    values : array_like of {bool; complex; float; int; str}
         The values to be checked against all given criteria in `args`. It must
         be possible to convert `values` to a :obj:`~numpy.ndarray` object.
     name : str
         The name of the input argument, which is used in the error message if
         a criterion is not met.
-    args : tuple of {'bool', 'complex', 'float', 'int', 'neg', 'nneg', \
-        'normal', 'npos', 'nzero', 'pos', 'str'}
+    args : positional arguments in {'bool'; 'complex'; 'float'; 'int'; 'neg'; \
+                                    'nneg'; 'normal'; 'npos'; 'nzero'; 'pos'; \
+                                    'str'}
         Sequence of strings determining the criteria that `values` must meet.
         If `args` is empty, it is checked if `values` are finite.
 
     Returns
     -------
-    return_values : array_like of {int, float, complex, str}
+    return_values : array_like of {complex; float; int; str}
         If `args` contained 'bool', returns 0s or 1s. Else, returns `values`.
 
     Notes
@@ -499,7 +500,7 @@ def get_PRISM_File(prism_hdf5_file):
 
             Parameters
             ----------
-            mode : {'r', 'r+', 'w', 'w-'/'x', 'a'}
+            mode : {'r'; 'r+'; 'w'; 'w-'/'x'; 'a'}
                 String indicating how the HDF5-file needs to be opened.
 
             Optional
