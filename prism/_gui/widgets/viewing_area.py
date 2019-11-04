@@ -14,10 +14,12 @@ from os import path
 from sys import platform
 
 # Package imports
+from e13tools.utils import docstring_substitute
 from PyQt5 import QtCore as QC, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
+from prism._docstrings import kwargs_doc, qt_slot_doc
 from prism._gui.widgets import QW_QAction, QW_QToolBar
 
 # All declaration
@@ -37,6 +39,8 @@ class ViewingAreaDockWidget(QW.QDockWidget):
 
     """
 
+    @docstring_substitute(optional=kwargs_doc.format(
+        'PyQt5.QtWidgets.QDockWidget'))
     def __init__(self, main_window_obj, *args, **kwargs):
         """
         Initialize an instance of the :class:`~ViewingAreaDockWidget` class.
@@ -47,14 +51,7 @@ class ViewingAreaDockWidget(QW.QDockWidget):
             Instance of the :class:`~prism._gui.widgets.MainViewerWindow` class
             that acts as the parent of this dock widget.
 
-        Optional
-        --------
-        args : positional arguments
-            The positional arguments that must be passed to the constructor of
-            the :class:`~PyQt5.QtWidgets.QDockWidget` class.
-        kwargs : keyword arguments
-            The keyword arguments that must be passed to the constructor of the
-            :class:`~PyQt5.QtWidgets.QDockWidget` class.
+        %(optional)s
 
         """
 
@@ -111,9 +108,12 @@ class ViewingAreaDockWidget(QW.QDockWidget):
     # This function saves the current state of the viewer to file
     # TODO: See if the window frames can be removed from the saved image
     @QC.pyqtSlot()
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def save_view(self):
         """
         Saves the current view of the viewing area to file.
+
+        %(qt_slot)s
 
         """
 
@@ -206,10 +206,13 @@ class ViewingAreaDockWidget(QW.QDockWidget):
 
     # This function sets dock widgets and toolbars to their default position
     @QC.pyqtSlot()
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def set_default_dock_positions(self):
         """
         Sets the postions of all dock widgets connected to the viewing area to
         their default positions.
+
+        %(qt_slot)s
 
         """
 

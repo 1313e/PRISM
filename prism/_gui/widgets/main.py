@@ -19,10 +19,12 @@ from textwrap import dedent
 import warnings
 
 # Package imports
+from e13tools.utils import docstring_substitute
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
 from prism.__version__ import __version__
+from prism._docstrings import kwargs_doc, qt_slot_doc
 from prism._internal import RequestError, RequestWarning
 from prism._gui import APP_ICON_PATH, APP_NAME
 from prism._gui.widgets import QW_QAction, QW_QMenu, show_exception_details
@@ -50,6 +52,8 @@ class MainViewerWindow(QW.QMainWindow):
     exception = QC.pyqtSignal()
 
     # Initialize MainViewerWindow class
+    @docstring_substitute(optional=kwargs_doc.format(
+        'PyQt5.QtWidgets.QMainWindow'))
     def __init__(self, pipeline_obj, *args, **kwargs):
         """
         Initialize an instance of the :class:`~MainViewerWindow` class.
@@ -60,14 +64,7 @@ class MainViewerWindow(QW.QMainWindow):
             Instance of the :class:`~prism.Pipeline` class for which the GUI
             needs to be initialized.
 
-        Optional
-        --------
-        args : positional arguments
-            The positional arguments that must be passed to the constructor of
-            the :class:`~PyQt5.QtWidgets.QMainWindow` class.
-        kwargs : keyword arguments
-            The keyword arguments that must be passed to the constructor of the
-            :class:`~PyQt5.QtWidgets.QMainWindow` class.
+        %(optional)s
 
         """
 
@@ -291,9 +288,12 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function creates a message box with the 'about' information
     @QC.pyqtSlot()
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def about(self):
         """
         Displays a small section with information about the GUI.
+
+        %(qt_slot)s
 
         """
 
@@ -406,10 +406,13 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function sets dock widgets and toolbars to their default position
     @QC.pyqtSlot()
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def set_default_dock_positions(self):
         """
         Sets the positions of all dock widgets connected to the main window to
         their default positions.
+
+        %(qt_slot)s
 
         """
 
@@ -427,10 +430,13 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function shows the details() overview of a given emulator iteration
     @QC.pyqtSlot()
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def show_pipeline_details_overview(self):
         """
         Creates and shows a dialog containing the output of the
         :meth:`~prism.Pipeline.details` method for all emulator iterations.
+
+        %(qt_slot)s
 
         """
 

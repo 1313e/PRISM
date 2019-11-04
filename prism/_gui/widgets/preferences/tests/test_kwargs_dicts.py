@@ -154,7 +154,6 @@ class TestKwargsDictDialog_Main(object):
         # Obtain the fig_kwargs page and the index of the last row
         page = option_entries['fig_kwargs'].box
         row = page.kwargs_grid.count()//3-2
-        print(row, page.kwargs_grid.rowCount())
 
         # Obtain the kwargs_box
         kwargs_box = page.kwargs_grid.itemAtPosition(row, 1).widget()

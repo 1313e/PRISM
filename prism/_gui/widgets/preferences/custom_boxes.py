@@ -16,12 +16,14 @@ used as custom option entry boxes in the
 from itertools import chain
 
 # Package imports
+from e13tools.utils import docstring_substitute
 from matplotlib import rcParams
 from matplotlib.colors import BASE_COLORS, CSS4_COLORS, to_rgba
 import numpy as np
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
+from prism._docstrings import kwargs_doc, qt_slot_doc
 from prism._gui.widgets import (
     BaseBox, QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox, QW_QLabel,
     QW_QSpinBox, get_box_value, set_box_value)
@@ -41,18 +43,13 @@ class ColorBox(BaseBox):
 
     """
 
+    @docstring_substitute(optional=kwargs_doc.format(
+        'prism._gui.widgets.core.BaseBox'))
     def __init__(self, *args, **kwargs):
         """
         Initialize an instance of the :class:`~ColorBox` class.
 
-        Parameters
-        ----------
-        args : positional arguments
-            The positional arguments that must be passed to the constructor of
-            the :class:`~prism._gui.widgets.core.BaseBox` class.
-        kwargs : keyword arguments
-            The keyword arguments that must be passed to the constructor of the
-            :class:`~prism._gui.widgets.core.BaseBox` class.
+        %(optional)s
 
         """
 
@@ -157,17 +154,125 @@ class ColorBox(BaseBox):
         color_box.currentTextChanged.connect(self.set_color)
         return(color_box)
 
+    # This function converts an MPL color to a QColor
+    @staticmethod
+    def convert_to_qcolor(color):
+        """
+        Converts a provided matplotlib color `color` to a
+        :obj:`~PyQt5.QtGui.QColor` object.
+
+        Parameters
+        ----------
+        color : str
+            The matplotlib color that must be converted.
+            If `color` is a float string, an error will be raised, as Qt5 does
+            not accept those.
+
+        Returns
+        -------
+        qcolor : :obj:`~PyQt5.QtGui.QColor` object
+            The instance of the :class:`~PyQt5.QtGui.QColor` class that
+            corresponds to the provided `color`.
+
+        """
+
+        # If the color can be converted to a float, raise a ValueError
+        # This is because MPL accepts float strings as valid colors
+        try:
+            float(color)
+        except ValueError:
+            pass
+        else:
+            raise ValueError
+
+        # Obtain the RGBA values of an MPL color
+        r, g, b, a = to_rgba(color)
+
+        # Convert to Qt RGBA values
+        color = QG.QColor(
+            int(r*255),
+            int(g*255),
+            int(b*255),
+            int(a*255))
+
+        # Return color
+        return(color)
+
+    # This function converts a QColor to an MPL color
+    @staticmethod
+    def convert_to_mpl_color(qcolor):
+        """
+        Converts a provided :obj:`~PyQt5.QtGui.QColor` object `color` to a
+        matplotlib color.
+
+        Parameters
+        ----------
+        qcolor : :obj:`~PyQt5.QtGui.QColor` object
+            The instance of the :class:`~PyQt5.QtGui.QColor` class must be
+            converted to a matplotlib color.
+
+        Returns
+        -------
+        color : str
+            The corresponding matplotlib color.
+            The returned `color` is always written in HEX.
+
+        """
+
+        hexid = qcolor.name()
+        return str(hexid)
+
+    # This function creates a pixmap of an MPL color
+    @staticmethod
+    def create_color_pixmap(color, size):
+        """
+        Creates a :obj:`~PyQt5.QtGui.QPixmap` object consisting of the given
+        `color` with the provided `size`.
+
+        Parameters
+        ----------
+        color : str
+            The matplotlib color that must be used for the pixmap.
+        size : tuple
+            The width and height dimension values of the pixmap to be created.
+
+        Returns
+        -------
+        pixmap : :obj:`~PyQt5.QtGui.QPixmap` object
+            The instance of the :class:`~PyQt5.QtGui.QPixmap` class that was
+            created from the provided `color` and `size`.
+
+        """
+
+        # Obtain the RGBA values of an MPL color
+        color = ColorBox.convert_to_qcolor(color)
+
+        # Create an image object
+        image = QG.QImage(*size, QG.QImage.Format_RGB32)
+
+        # Fill the entire image with the same color
+        image.fill(color)
+
+        # Convert the image to a pixmap
+        pixmap = QG.QPixmap.fromImage(image)
+
+        # Return the pixmap
+        return(pixmap)
+
     # This function shows the custom color picker dialog
     @QC.pyqtSlot()
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def show_colorpicker(self):
         """
         Shows the colorwheel picker dialog to the user, allowing for any color
         option to be selected.
 
+        %(qt_slot)s
+
         """
 
         # Obtain current qcolor
-        qcolor = convert_to_qcolor(self.get_box_value())
+        qcolor = self.convert_to_qcolor(self.get_box_value())
 
         # Show color dialog
         color = QW.QColorDialog.getColor(
@@ -176,14 +281,17 @@ class ColorBox(BaseBox):
 
         # If the returned color is valid, save it
         if color.isValid():
-            self.set_color(convert_to_mpl_color(color))
+            self.set_color(self.convert_to_mpl_color(color))
 
     # This function sets a given color as the current color
     @QC.pyqtSlot(str)
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def set_color(self, color):
         """
         Sets the current color to the provided `color`, and updates the entry
         in the combobox and the label accordingly.
+
+        %(qt_slot)s
 
         Parameters
         ----------
@@ -215,9 +323,12 @@ class ColorBox(BaseBox):
 
     # This function sets the color of the colorlabel
     @QC.pyqtSlot(str)
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def set_color_label(self, color):
         """
         Sets the current color label to the provided `color`.
+
+        %(qt_slot)s
 
         Parameters
         ----------
@@ -238,13 +349,15 @@ class ColorBox(BaseBox):
 
         # Try to create the pixmap of the colorlabel
         try:
-            pixmap = create_color_pixmap(color,
-                                         (70, self.color_combobox.height()-2))
+            pixmap = self.create_color_pixmap(color,
+                                              (70,
+                                               self.color_combobox.height()-2))
             default_flag = False
         # If that cannot be done, create the default instead
         except ValueError:
-            pixmap = create_color_pixmap(self.default_color,
-                                         (70, self.color_combobox.height()-2))
+            pixmap = self.create_color_pixmap(self.default_color,
+                                              (70,
+                                               self.color_combobox.height()-2))
             default_flag = True
 
         # Set the colorlabel
@@ -270,7 +383,7 @@ class ColorBox(BaseBox):
 
         # Try to convert this to QColor
         try:
-            convert_to_qcolor(color)
+            self.convert_to_qcolor(color)
         # If this fails, return the default color
         except ValueError:
             return(self.default_color)
@@ -306,18 +419,13 @@ class DefaultBox(BaseBox):
 
     """
 
+    @docstring_substitute(optional=kwargs_doc.format(
+        'prism._gui.widgets.core.BaseBox'))
     def __init__(self, *args, **kwargs):
         """
         Initialize an instance of the :class:`~DefaultBox` class.
 
-        Parameters
-        ----------
-        args : positional arguments
-            The positional arguments that must be passed to the constructor of
-            the :class:`~prism._gui.widgets.core.BaseBox` class.
-        kwargs : keyword arguments
-            The keyword arguments that must be passed to the constructor of the
-            :class:`~prism._gui.widgets.core.BaseBox` class.
+        %(optional)s
 
         """
 
@@ -370,10 +478,13 @@ class DefaultBox(BaseBox):
 
     # This function creates a field_box depending on the type that was selected
     @QC.pyqtSlot(str)
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def create_field_box(self, value_type):
         """
         Creates a field box for the provided type `value_type` and replaces the
         current field box with it.
+
+        %(qt_slot)s
 
         Parameters
         ----------
@@ -485,18 +596,13 @@ class FigSizeBox(BaseBox):
 
     """
 
+    @docstring_substitute(optional=kwargs_doc.format(
+        'prism._gui.widgets.core.BaseBox'))
     def __init__(self, *args, **kwargs):
         """
         Initialize an instance of the :class:`~FigSizeBox` class.
 
-        Parameters
-        ----------
-        args : positional arguments
-            The positional arguments that must be passed to the constructor of
-            the :class:`~prism._gui.widgets.core.BaseBox` class.
-        kwargs : keyword arguments
-            The keyword arguments that must be passed to the constructor of the
-            :class:`~prism._gui.widgets.core.BaseBox` class.
+        %(optional)s
 
         """
 
@@ -581,109 +687,3 @@ class FigSizeBox(BaseBox):
 
         set_box_value(self.width_box, value[0])
         set_box_value(self.height_box, value[1])
-
-
-# %% FUNCTION DEFINITIONS
-# This function converts an MPL color to a QColor
-def convert_to_qcolor(color):
-    """
-    Converts a provided matplotlib color `color` to a
-    :obj:`~PyQt5.QtGui.QColor` object.
-
-    Parameters
-    ----------
-    color : str
-        The matplotlib color that must be converted.
-        If `color` is a float string, an error will be raised, as Qt5 does not
-        accept those.
-
-    Returns
-    -------
-    qcolor : :obj:`~PyQt5.QtGui.QColor` object
-        The instance of the :class:`~PyQt5.QtGui.QColor` class that corresponds
-        to the provided `color`.
-
-    """
-
-    # If the color can be converted to a float, raise a ValueError
-    # This is because MPL accepts float strings as valid colors
-    try:
-        float(color)
-    except ValueError:
-        pass
-    else:
-        raise ValueError
-
-    # Obtain the RGBA values of an MPL color
-    r, g, b, a = to_rgba(color)
-
-    # Convert to Qt RGBA values
-    color = QG.QColor(
-        int(r*255),
-        int(g*255),
-        int(b*255),
-        int(a*255))
-
-    # Return color
-    return(color)
-
-
-# This function converts a QColor to an MPL color
-def convert_to_mpl_color(qcolor):
-    """
-    Converts a provided :obj:`~PyQt5.QtGui.QColor` object `color` to a
-    matplotlib color.
-
-    Parameters
-    ----------
-    qcolor : :obj:`~PyQt5.QtGui.QColor` object
-        The instance of the :class:`~PyQt5.QtGui.QColor` class must be
-        converted to a matplotlib color.
-
-    Returns
-    -------
-    color : str
-        The corresponding matplotlib color.
-        The returned `color` is always written in HEX.
-
-    """
-
-    hexid = qcolor.name()
-    return str(hexid)
-
-
-# This function creates a pixmap of an MPL color
-def create_color_pixmap(color, size):
-    """
-    Creates a :obj:`~PyQt5.QtGui.QPixmap` object consisting of the given
-    `color` with the provided `size`.
-
-    Parameters
-    ----------
-    color : str
-        The matplotlib color that must be used for the pixmap.
-    size : tuple
-        The width and height dimensions of the pixmap to be created.
-
-    Returns
-    -------
-    pixmap : :obj:`~PyQt5.QtGui.QPixmap` object
-        The instance of the :class:`~PyQt5.QtGui.QPixmap` class that was
-        created from the provided `color` and `size`.
-
-    """
-
-    # Obtain the RGBA values of an MPL color
-    color = convert_to_qcolor(color)
-
-    # Create an image object
-    image = QG.QImage(*size, QG.QImage.Format_RGB32)
-
-    # Fill the entire image with the same color
-    image.fill(color)
-
-    # Convert the image to a pixmap
-    pixmap = QG.QPixmap.fromImage(image)
-
-    # Return the pixmap
-    return(pixmap)

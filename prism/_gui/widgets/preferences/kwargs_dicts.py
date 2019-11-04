@@ -15,6 +15,7 @@ GUI preferences.
 from itertools import chain
 
 # Package imports
+from e13tools.utils import docstring_append, docstring_substitute
 from matplotlib import cm
 from matplotlib import rcParamsDefault as rcParams
 from matplotlib.lines import lineMarkers, lineStyles
@@ -23,6 +24,7 @@ from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
+from prism._docstrings import create_type_doc, kwargs_doc, qt_slot_doc
 from prism._gui.widgets import (
     BaseBox, QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox, QW_QLabel,
     QW_QSpinBox, get_box_value, set_box_value)
@@ -36,8 +38,34 @@ __all__ = ['KwargsDictBoxLayout', 'KwargsDictDialog', 'KwargsDictDialogPage']
 # %% CLASS DEFINITIONS
 # Make a subclass that allows for kwargs dicts to be saved and edited
 class KwargsDictBoxLayout(QW.QHBoxLayout):
+    """
+    Defines the :class:`~KwargsDictBoxLayout` class for the preferences window.
+
+    This class provides the options entry box that gives the user access to a
+    separate window, where the various different keyword dicts can be modified.
+
+    """
+
     # This function creates an editable list of input boxes for the kwargs
+    @docstring_substitute(optional=kwargs_doc.format(
+        'PyQt5.QtWidgets.QHBoxLayout'))
     def __init__(self, options_dialog_obj, *args, **kwargs):
+        """
+        Initialize an instance of the :class:`~KwargsDictBoxLayout` class.
+
+        Parameters
+        ----------
+        options_dialog_obj : \
+            :obj:`~prism._gui.widgets.preferences.OptionsDialog` object
+            Instance of the
+            :class:`~prism._gui.widgets.preferences.OptionsDialog` class that
+            acts as the parent of the :class:`~KwargsDictDialog` this layout
+            creates.
+
+        %(optional)s
+
+        """
+
         # Save provided options_dialog_obj
         self.options = options_dialog_obj
 
@@ -49,6 +77,14 @@ class KwargsDictBoxLayout(QW.QHBoxLayout):
 
     # This function creates the kwargs dict window
     def init(self):
+        """
+        Sets up the box layout after it has been initialized.
+
+        This function is mainly responsible for initializing the
+        :class:`~KwargsDictDialog` class and binding it.
+
+        """
+
         # Initialize the window for the kwargs dict
         self.dict_dialog = KwargsDictDialog(self.options)
 
@@ -62,12 +98,44 @@ class KwargsDictBoxLayout(QW.QHBoxLayout):
 
     # This function calls the add_page()-method of dict_dialog
     def add_dict(self, *args, **kwargs):
+        """
+        Adds a new kwargs dict to the box layout, by calling the
+        :meth:`~KwargsDictDialog.add_page` method using the provided `args` and
+        `kwargs`.
+
+        """
+
         self.dict_dialog.add_page(*args, **kwargs)
 
 
 # Make a subclass that shows the kwargs dict entries window
 class KwargsDictDialog(QW.QDialog):
+    """
+    Defines the :class:`~KwargsDictDialog` class for the preferences window.
+
+    This class provides the 'Projection keyword argument dicts' dialog, which
+    allows for the various different kwargs dicts to be modified by the user.
+
+    """
+
+    @docstring_substitute(optional=kwargs_doc.format(
+        'PyQt5.QtWidgets.QDialog'))
     def __init__(self, options_dialog_obj, *args, **kwargs):
+        """
+        Initialize an instance of the :class:`~KwargsDictDialog` class.
+
+        Parameters
+        ----------
+        options_dialog_obj : \
+            :obj:`~prism._gui.widgets.preferences.OptionsDialog` object
+            Instance of the
+            :class:`~prism._gui.widgets.preferences.OptionsDialog` class that
+            acts as the parent of this dialog.
+
+        %(optional)s
+
+        """
+
         # Save provided options_dialog_obj
         self.options = options_dialog_obj
         self.options.dict_dialog = self
@@ -78,8 +146,31 @@ class KwargsDictDialog(QW.QDialog):
         # Create the kwargs dict window
         self.init()
 
+    # This function shows an editable window with the entries in the dict
+    @QC.pyqtSlot()
+    def __call__(self):
+        """
+        Qt slot that shows the kwargs dict dialog in the center of the
+        preferences window.
+
+        """
+
+        # Show it
+        self.show()
+
+        # Move the kwargs_dicts window to the center of the main window
+        self.move(self.options.geometry().center()-self.rect().center())
+
     # This function creates the kwargs dict window
     def init(self):
+        """
+        Sets up the kwargs dict dialog after it has been initialized.
+
+        This function is mainly responsible for setting up the layout of the
+        dialog, and making sure that new kwargs dict pages can be added.
+
+        """
+
         # Create a window layout
         window_layout = QW.QVBoxLayout(self)
 
@@ -114,21 +205,31 @@ class KwargsDictDialog(QW.QDialog):
         # Set the height of an editable entry
         self.entry_height = 24
 
-    # This function shows an editable window with the entries in the dict
-    @QC.pyqtSlot()
-    def __call__(self):
-        # Show it
-        self.show()
-
-        # Move the kwargs_dicts window to the center of the main window
-        self.move(self.options.geometry().center()-self.rect().center())
-
     # This function creates a new page
+    @docstring_substitute(optional=kwargs_doc.format(
+        'prism._gui.widgets.preferences.KwargsDictDialogPage'))
     def add_page(self, name, option_key, *args, **kwargs):
-        # Create a tab
+        """
+        Initializes a new :obj:`~KwargsDictDialogPage` object with name `name`
+        and adds it to this dialog.
+
+        Parameters
+        ----------
+        name : str
+            The name that this kwargs dict page will have.
+        option_key : str
+            The name of the options entry that this page will create.
+            The value of `option_key` must correspond to the name the
+            associated dict has in the :meth:`~prism.Pipeline.project` method.
+
+        %(optional)s
+
+        """
+
+        # Create a page
         kwargs_page = KwargsDictDialogPage(self, name, *args, **kwargs)
 
-        # Add this new tab to the option_entries
+        # Add this new page to the option_entries
         self.options.create_entry(option_key, kwargs_page,
                                   self.options.proj_defaults[option_key])
 
@@ -145,8 +246,41 @@ class KwargsDictDialog(QW.QDialog):
 
 # Make a class for describing a kwargs dict page
 class KwargsDictDialogPage(BaseBox):
+    """
+    Defines the :class:`~KwargsDictDialogPage` class for the kwargs dict
+    dialog.
+
+    This class provides the tab/page in the kwargs dict dialog where the items
+    of the associated kwargs dict can be viewed and modified by the user.
+
+    """
+
+    @docstring_substitute(optional=kwargs_doc.format(
+        'prism._gui.widgets.core.BaseBox'))
     def __init__(self, kwargs_dict_dialog_obj, name, std_entries,
                  banned_entries, *args, **kwargs):
+        """
+        Initialize an instance of the :class:`~KwargsDictDialogPage` class.
+
+        Parameters
+        ----------
+        kwargs_dict_dialog_obj : :obj:`~KwargsDictDialog` object
+            Instance of the :class:`~KwargsDictDialog` class that initialized
+            this kwargs dict page.
+        name : str
+            The name of this kwargs dict page.
+        std_entries : list of str
+            A list of all standard entry types that this kwargs dict should
+            accept.
+        banned_entries : list of str
+            A list of all entry types that this kwargs dict should not accept.
+            Usually, these entry types are used by *PRISM* and therefore should
+            not be modified by the user.
+
+        %(optional)s
+
+        """
+
         # Save provided kwargs_dict_dialog_obj
         self.entry_height = kwargs_dict_dialog_obj.entry_height
         self.name = name
@@ -159,9 +293,18 @@ class KwargsDictDialogPage(BaseBox):
         # Create the kwargs dict window
         self.init()
 
-    # This function creates the kwargs dict tab
+    # This function creates the kwargs dict page
     def init(self):
-        # Create tab layout
+        """
+        Sets up the kwargs dict page after it has been initialized.
+
+        This function is mainly responsibe for creating the layout of the page;
+        determining what entry types are available; and preparing for the user
+        to add entries.
+
+        """
+
+        # Create page layout
         page_layout = QW.QVBoxLayout(self)
 
         # Create a grid for this layout
@@ -208,8 +351,20 @@ class KwargsDictDialogPage(BaseBox):
         # Set a minimum width for the first grid column
         self.kwargs_grid.setColumnMinimumWidth(0, self.entry_height)
 
-    # This function gets the dict value of a tab
+    # This function gets the dict value of a page
     def get_box_value(self):
+        """
+        Returns the current value of the kwargs dict page.
+
+        Returns
+        -------
+        page_dict : dict
+            A dict containing all valid entries that are currently on this
+            kwargs dict page. Any invalid entries (banned or empty ones) are
+            ignored.
+
+        """
+
         # Create an empty dict to hold the values in
         page_dict = sdict()
 
@@ -239,8 +394,20 @@ class KwargsDictDialogPage(BaseBox):
         # Return page_dict
         return(page_dict)
 
-    # This function sets the dict value of a tab
+    # This function sets the dict value of a page
     def set_box_value(self, page_dict):
+        """
+        Sets the current value of the kwargs dict page to `page_dict`.
+
+        Parameters
+        ----------
+        page_dict : dict
+            A dict containing all entries that this kwargs dict page must have.
+            Current entries that are also in `page_dict` will be reused,
+            otherwise they are deleted.
+
+        """
+
         # Make empty dict containing all current valid entries
         cur_entry_dict = sdict()
 
@@ -259,8 +426,7 @@ class KwargsDictDialogPage(BaseBox):
             # Delete this entry if not in page_dict or if it is not allowed
             if(entry_type not in page_dict or (entry_type == '') or
                entry_type in self.banned_entries):
-                del_but = self.kwargs_grid.itemAtPosition(row, 0).widget()
-                del_but.click()
+                self.remove_editable_entry(entry_type_item.widget())
                 continue
 
             # If this entry appears multiple times, delete its previous entry
@@ -295,7 +461,16 @@ class KwargsDictDialogPage(BaseBox):
 
     # This function creates an editable entry
     @QC.pyqtSlot()
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def add_editable_entry(self):
+        """
+        Adds a new editable entry to the kwargs dict page, which allows for the
+        user to edit the contents of the kwargs dict.
+
+        %(qt_slot)s
+
+        """
+
         # Create a combobox with different standard kwargs
         kwargs_box = QW_QEditableComboBox()
         kwargs_box.setFixedHeight(self.entry_height)
@@ -330,7 +505,21 @@ class KwargsDictDialogPage(BaseBox):
 
     # This function deletes an editable entry
     @QC.pyqtSlot(QW.QComboBox)
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def remove_editable_entry(self, kwargs_box):
+        """
+        Removes the editable entry associated with the provided `kwargs_box`.
+
+        %(qt_slot)s
+
+        Parameters
+        ----------
+        kwargs_box : \
+            :obj:`~prism._gui.widgets.base_widgets.QW_QEditableComboBox` object
+            The combobox that is used for setting the entry type of this entry.
+
+        """
+
         # Determine at what index the provided kwargs_box currently is
         index = self.kwargs_grid.indexOf(kwargs_box)
 
@@ -347,6 +536,20 @@ class KwargsDictDialogPage(BaseBox):
     # TODO: Make sure that two fields cannot have the same name
     @QC.pyqtSlot(str, QW.QComboBox)
     def entry_type_selected(self, entry_type, kwargs_box):
+        """
+        Qt slot that modifies the field box associated with the provided
+        `kwargs_box` to given `entry_type`.
+
+        Parameters
+        ----------
+        entry_type : str
+            The entry type that is requested for the field box.
+        kwargs_box : \
+            :obj:`~prism._gui.widgets.base_widgets.QW_QEditableComboBox` object
+            The combobox that is used for setting the entry type of this entry.
+
+        """
+
         # Determine at what index the provided kwargs_box currently is
         index = self.kwargs_grid.indexOf(kwargs_box)
 
@@ -381,6 +584,7 @@ class KwargsDictDialogPage(BaseBox):
         del cur_item
 
     # This function creates an alpha box
+    @docstring_append(create_type_doc.format('alpha'))
     def create_type_alpha(self):
         # Make double spinbox for alpha
         alpha_box = QW_QDoubleSpinBox()
@@ -390,6 +594,7 @@ class KwargsDictDialogPage(BaseBox):
         return(alpha_box)
 
     # This function creates a cmap box
+    @docstring_append(create_type_doc.format('cmap'))
     def create_type_cmap(self):
         # Obtain a list with default colormaps that should be at the top
         std_cmaps = sset(['cividis', 'dusk', 'freeze', 'heat', 'inferno',
@@ -414,7 +619,7 @@ class KwargsDictDialogPage(BaseBox):
         if not hasattr(self, 'cmap_icons'):
             cmap_icons = sdict()
             for cmap in chain(all_cmaps, all_cmaps_r):
-                cmap_icons[cmap] = create_cmap_icon(cmap, cmap_size)
+                cmap_icons[cmap] = self.create_cmap_icon(cmap, cmap_size)
             self.cmap_icons = cmap_icons
 
         # Create a combobox for cmaps
@@ -436,14 +641,77 @@ class KwargsDictDialogPage(BaseBox):
         cmaps_box.currentTextChanged.connect(self.cmap_selected)
         return(cmaps_box)
 
+    # This function creates an icon of a colormap
+    @staticmethod
+    def create_cmap_icon(cmap, size):
+        """
+        Creates a :obj:`~PyQt5.QtGui.QIcon` object of the given `cmap` with the
+        provided `size`.
+
+        Parameters
+        ----------
+        cmap : :obj:`~matplotlib.colors.Colormap` object or str
+            The colormap for which an icon needs to be created.
+        size : tuple
+            A tuple containing the width and height dimension values of the
+            icon to be created.
+
+        Returns
+        -------
+        icon : :obj:`~PyQt5.QtGui.QIcon` object
+            The instance of the :class:`~PyQt5.QtGui.QIcon` class that was
+            created from the provided `cmap` and `size`.
+
+        """
+
+        # Obtain the cmap
+        cmap = cm.get_cmap(cmap)
+
+        # Obtain the RGBA values of the colormap
+        x = np.linspace(0, 1, 256)
+        rgba = cmap(x)
+
+        # Convert to Qt RGBA values
+        rgba = [QG.QColor(
+            int(r*255),
+            int(g*255),
+            int(b*255),
+            int(a*255)).rgba() for r, g, b, a in rgba]
+
+        # Create an image object
+        image = QG.QImage(256, 1, QG.QImage.Format_Indexed8)
+
+        # Set the value of every pixel in this image
+        image.setColorTable(rgba)
+        for i in range(256):
+            image.setPixel(i, 0, i)
+
+        # Scale the image to its proper size
+        image = image.scaled(*size)
+
+        # Convert the image to a pixmap
+        pixmap = QG.QPixmap.fromImage(image)
+
+        # Convert the pixmap to an icon
+        icon = QG.QIcon(pixmap)
+
+        # Return the icon
+        return(icon)
+
     # This function checks a selected cmap
     @QC.pyqtSlot(str)
     def cmap_selected(self, cmap):
+        """
+        Qt slot that checks a provided `cmap` and shows an error message if
+        `cmap` is a terrible colormap.
+
+        """
+
         # Make a tuple with terrible colormaps
         bad_cmaps = ('gist_ncar', 'gist_rainbow', 'gist_stern', 'jet',
                      'nipy_spectral')
 
-        # If a terrible colormap is selected, raise error
+        # If a terrible colormap is selected, show error message
         if cmap.startswith(bad_cmaps):
             # Create error message
             err_msg = ("The selected <b><i>%s</i></b> cmap is terrible for "
@@ -462,10 +730,12 @@ class KwargsDictDialogPage(BaseBox):
                 self, "%s WARNING" % (cmap.upper()), err_msg)
 
     # This function creates a color picker box
+    @docstring_append(create_type_doc.format('color'))
     def create_type_color(self):
         return(ColorBox())
 
     # This function creates a dpi box
+    @docstring_append(create_type_doc.format('dpi'))
     def create_type_dpi(self):
         # Make spinbox for dpi
         dpi_box = QW_QSpinBox()
@@ -476,10 +746,12 @@ class KwargsDictDialogPage(BaseBox):
         return(dpi_box)
 
     # This function creates a figsize box
+    @docstring_append(create_type_doc.format('figsize'))
     def create_type_figsize(self):
         return(FigSizeBox())
 
     # This function creates a linestyle box
+    @docstring_append(create_type_doc.format('linestyle'))
     def create_type_linestyle(self):
         # Obtain list with all supported linestyles
         linestyles_lst = [(key, value[6:]) for key, value in lineStyles.items()
@@ -497,6 +769,7 @@ class KwargsDictDialogPage(BaseBox):
         return(linestyle_box)
 
     # This function creates a linewidth box
+    @docstring_append(create_type_doc.format('linewidth'))
     def create_type_linewidth(self):
         # Make a double spinbox for linewidth
         linewidth_box = QW_QDoubleSpinBox()
@@ -507,6 +780,7 @@ class KwargsDictDialogPage(BaseBox):
         return(linewidth_box)
 
     # This function creates a marker box
+    @docstring_append(create_type_doc.format('marker'))
     def create_type_marker(self):
         # Obtain list with all supported markers
         markers_lst = [(key, value) for key, value in lineMarkers.items()
@@ -525,6 +799,7 @@ class KwargsDictDialogPage(BaseBox):
         return(marker_box)
 
     # This function creates a markersize box
+    @docstring_append(create_type_doc.format('markersize'))
     def create_type_markersize(self):
         # Make a double spinbox for markersize
         markersize_box = QW_QDoubleSpinBox()
@@ -536,6 +811,11 @@ class KwargsDictDialogPage(BaseBox):
 
     # This function creates a scale box
     def create_type_scale(self, axis):
+        """
+        Base function for creating the entry types 'xscale' and 'yscale'.
+
+        """
+
         # Make a combobox for scale
         scale_box = QW_QComboBox()
         scale_box.addItems(['linear', 'log'])
@@ -543,47 +823,11 @@ class KwargsDictDialogPage(BaseBox):
         return(scale_box)
 
     # This function creates a xscale box
+    @docstring_append(create_type_doc.format('xscale'))
     def create_type_xscale(self):
         return(self.create_type_scale('x'))
 
     # This function creates a yscale box
+    @docstring_append(create_type_doc.format('yscale'))
     def create_type_yscale(self):
         return(self.create_type_scale('y'))
-
-
-# %% FUNCTION DEFINITIONS
-# This function creates an icon of a colormap
-def create_cmap_icon(cmap, size=(100, 15)):
-    # Obtain the cmap
-    cmap = cm.get_cmap(cmap)
-
-    # Obtain the RGBA values of the colormap
-    x = np.linspace(0, 1, 256)
-    rgba = cmap(x)
-
-    # Convert to Qt RGBA values
-    rgba = [QG.QColor(
-        int(r*255),
-        int(g*255),
-        int(b*255),
-        int(a*255)).rgba() for r, g, b, a in rgba]
-
-    # Create an image object
-    image = QG.QImage(256, 1, QG.QImage.Format_Indexed8)
-
-    # Set the value of every pixel in this image
-    image.setColorTable(rgba)
-    for i in range(256):
-        image.setPixel(i, 0, i)
-
-    # Scale the image to its proper size
-    image = image.scaled(*size)
-
-    # Convert the image to a pixmap
-    pixmap = QG.QPixmap.fromImage(image)
-
-    # Convert the pixmap to an icon
-    icon = QG.QIcon(pixmap)
-
-    # Return the icon
-    return(icon)

@@ -17,10 +17,12 @@ from time import sleep
 from traceback import format_exception_only, format_tb
 
 # Package imports
+from e13tools.utils import docstring_substitute
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
+from prism._docstrings import qt_slot_doc
 from prism._gui import APP_NAME
 
 # All declaration
@@ -202,10 +204,13 @@ class ExceptionDialog(QW.QDialog):
 
     # This function shows or hides the traceback box
     @QC.pyqtSlot()
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def toggle_traceback_box(self):
         """
         Toggles the visibility of the traceback box and updates the dimensions
         of the exception dialog accordingly.
+
+        %(qt_slot)s
 
         """
 
@@ -498,12 +503,15 @@ class ThreadedProgressDialog(QW.QProgressDialog):
 
     # This function kills all worker threads and then the controller thread
     @QC.pyqtSlot()
+    @docstring_substitute(qt_slot=qt_slot_doc)
     def kill_threads(self):
         """
         Terminates all currently running threads besides the main thread (on
         all MPI ranks) and returns control to the main thread.
 
         This function is the sole way to abort the operation.
+
+        %(qt_slot)s
 
         """
 
@@ -711,12 +719,15 @@ def show_exception_details(parent, *args, **kwargs):
     ----------
     parent : :obj:`~PyQt5.QtWidgets.QWidget` object or None
         The parent widget for this dialog or *None* for no parent.
+
+    Optional
+    --------
     args : positional arguments
-        The positional arguments that must be passed to the constructor of the
-        :class:`~ExceptionDialog` class.
+        The positional arguments that must be passed to the constructor of
+        the :class:`~prism._gui.widgets.helpers.ExceptionDialog` class.
     kwargs : keyword arguments
         The keyword arguments that must be passed to the constructor of the
-        :class:`~ExceptionDialog` class.
+        :class:`~prism._gui.widgets.helpers.ExceptionDialog` class.
 
     """
 

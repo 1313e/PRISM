@@ -313,6 +313,9 @@ proj_res_doc = ("Number of emulator evaluations that will be used to generate "
 
 
 # %% PROJECTION GUI DOCSTRINGS
+# Docstring for the create_type_xxx methods in KwargsDictDialogPage
+create_type_doc = "Creates the '{}' entry and returns it."
+
 # Docstrings for the OverviewDockWidget class
 list_items_optional_doc =\
         """Optional
@@ -328,6 +331,9 @@ list_item_optional_doc =\
             Default: None
             The item that contains the requested projection figure.
             If *None*, the currently selected list item is used instead."""
+
+# Docstring for mentioning that a function acts as a Qt slot
+qt_slot_doc = "This function acts as a Qt slot."
 
 # Docstrings for the start_gui() function/method
 GUI_APP_NAME = 'Crystal'
@@ -389,6 +395,17 @@ impl_cut_doc =\
         cut_idx : int
             Index of the first impl_cut-off in the impl_cut list that is not
             0."""
+
+# Descriptions for the args/kwargs arguments of many classes
+kwargs_doc =\
+        """Optional
+        --------
+        args : positional arguments
+            The positional arguments that must be passed to the constructor of
+            the :class:`~{0}` class.
+        kwargs : keyword arguments
+            The keyword arguments that must be passed to the constructor of the
+            :class:`~{0}` class."""
 
 # Docstrings for the various set_parameters methods
 set_par_doc =\
