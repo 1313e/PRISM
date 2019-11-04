@@ -8,22 +8,22 @@ from sys import platform
 import warnings
 
 # Package imports
-from e13tools.core import InputError
+from e13tools.core import InputError, compare_versions
 import numpy as np
 import pytest
 
 # PRISM imports
 from prism.__version__ import __version__, compat_version
-from prism._internal import (FeatureWarning, PRISM_Logger, RequestError,
-                             RequestWarning, check_vals, check_compatibility,
-                             get_PRISM_File, get_info, getCLogger, getRLogger,
-                             np_array)
+from prism._internal import (
+    FeatureWarning, PRISM_Logger, RequestError, RequestWarning, check_vals,
+    check_compatibility, get_PRISM_File, get_bibtex, get_info, getCLogger,
+    getRLogger, np_array)
 
-# Save the path to this directory
-dirpath = path.dirname(__file__)
 
-# Save if this platform is Windows
-win32 = platform.startswith('win')
+# %% GLOBALS
+DIR_PATH = path.dirname(__file__)                     # Path to file directory
+WIN32 = platform.startswith('win')                    # Bool if this is Windows
+NP1_16 = compare_versions(np.__version__, '1.16.0')   # NumPy 1.16.0+?
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -194,7 +194,7 @@ class Test_check_val(object):
         array = np.array([False, True])
         array2 = check_vals(array, 'array', 'bool')
         assert (array2 == [0, 1]).all()
-        assert array2.dtype.name == 'int64' if not win32 else 'int32'
+        assert array2.dtype.name == 'int64' if not WIN32 else 'int32'
 
         # Check for NumPy array of strings
         array = np.array(['a', 'b'])
@@ -208,15 +208,21 @@ class Test_check_val(object):
         # Check if providing a dict or sequenced list raises an error
         with pytest.raises(InputError):
             check_vals({}, 'dict', 'float')
-        with pytest.raises(InputError):
+        with pytest.raises(TypeError if NP1_16 else InputError):
             check_vals([1, [2]], 'seq_list', 'float')
-        with pytest.raises(InputError):
+        with pytest.raises(TypeError):
             check_vals([[1, 2], [3, 4, 5]], 'seq_list', 'float')
 
     # Check if providing incorrect arguments raises an error
     def test_args(self):
         with pytest.raises(ValueError):
             check_vals(1, 'int', 'invalid')
+
+
+# Pytest for the get_bibtex function
+def test_get_bibtex():
+    # Print the output of the get_bibtex() function
+    get_bibtex()
 
 
 # Pytest for the get_info function

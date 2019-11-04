@@ -20,9 +20,9 @@ from struct import calcsize
 # Package imports
 from e13tools import InputError
 from e13tools.math import diff, nearest_PD
-from e13tools.utils import (check_instance, convert_str_seq, delist,
-                            docstring_append, docstring_substitute,
-                            raise_error, raise_warning)
+from e13tools.utils import (
+    check_instance, split_seq, delist, docstring_append,
+    docstring_substitute, raise_error, raise_warning)
 import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 from mpi4pyd import MPI
@@ -37,22 +37,25 @@ import threadpoolctl as tpc
 
 # PRISM imports
 from prism import __version__
-from prism._docstrings import (adj_exp_doc, adj_var_doc, def_par_doc,
-                               emul_s_seq_doc, eval_doc, full_cov_doc,
-                               get_emul_i_doc, regr_cov_doc, save_data_doc_e,
-                               set_par_doc, std_emul_i_doc)
-from prism._internal import (RequestError, RequestWarning, check_compatibility,
-                             check_vals, getCLogger, getRLogger, np_array)
+from prism._docstrings import (
+    adj_exp_doc, adj_var_doc, def_par_doc, emul_s_seq_doc, eval_doc,
+    full_cov_doc, get_emul_i_doc, regr_cov_doc, save_data_doc_e, set_par_doc,
+    std_emul_i_doc)
+from prism._internal import (
+    RequestError, RequestWarning, check_compatibility, check_vals, getCLogger,
+    getRLogger, np_array)
 from prism.modellink import ModelLink
 
 # All declaration
 __all__ = ['Emulator']
 
-# Windows 32-bit/64-bit compatibility
-int_size = 'int%i' % (calcsize('P')*8)
+
+# %% GLOBALS
+INT_SIZE = 'int%i' % (calcsize('P')*8)          # Default bitsize of an integer
 
 
 # %% EMULATOR CLASS DEFINITION
+# TODO: Implement a system that a non-PRISM error is logged with its emul_s
 class Emulator(object):
     """
     Defines the :class:`~Emulator` base class of the *PRISM* package.
@@ -500,7 +503,7 @@ class Emulator(object):
     # %% GENERAL CLASS METHODS
     # This function checks if provided emul_i can be requested
     @docstring_substitute(emul_i=get_emul_i_doc)
-    def _get_emul_i(self, emul_i, cur_iter):
+    def _get_emul_i(self, emul_i, cur_iter=True):
         """
         Checks if the provided emulator iteration `emul_i` can be requested or
         replaces it if *None* was provided.
@@ -509,6 +512,9 @@ class Emulator(object):
         Parameters
         ----------
         %(emul_i)s
+
+        Optional
+        --------
         cur_iter : bool
             Bool determining whether the current (*True*) or the next (*False*)
             emulator iteration is requested.
@@ -701,8 +707,7 @@ class Emulator(object):
                         # Try to remove figures for which data is available
                         for hcube in hcube_names:
                             fig_path, fig_path_s =\
-                                self._pipeline._Projection__get_fig_path(hcube,
-                                                                         i)
+                                self._pipeline._Projection__get_fig_path(hcube)
                             if path.exists(fig_path):
                                 os.remove(fig_path)
                             if path.exists(fig_path_s):
@@ -898,7 +903,12 @@ class Emulator(object):
         emul_s_counter = Counter()
 
         # Calculate the total number of active and passive emulator systems
-        n_emul_s = max(self._modellink._n_data, self._n_emul_s_tot)
+        if not self._emul_load:
+            # If no emulator is loaded, this is always n_data
+            n_emul_s = self._modellink._n_data
+        else:
+            # Else, it is either n_data or n_emul_s_tot
+            n_emul_s = max(self._modellink._n_data, self._n_emul_s_tot)
 
         # Create some empty lists
         active_emul_s_list = [[]]
@@ -1178,8 +1188,9 @@ class Emulator(object):
             # Gather the diff_flags on the controller
             diff_flag = np.any(self._comm.gather(diff_flag, 0))
 
-            # If all diff_flags were 0, give out a warning
-            if self._is_controller and not diff_flag:
+            # If all diff_flags were 0 and no n_data diff, give out a warning
+            if(self._is_controller and not diff_flag and
+               (self._n_data_tot[emul_i] == self._modellink._n_data)):
                 warn_msg = ("No differences in model comparison data detected."
                             "\nUnless this repreparation was intentional, "
                             "using the 'analyze' method of the Pipeline class "
@@ -1619,6 +1630,8 @@ class Emulator(object):
             poly_coef = poly_coef[poly_sign if sum(poly_sign) else ()]
 
             # Redetermine the active parameters, poly_powers and poly_idx
+            # TODO: If no parameters are active, this fails
+            # Should this be allowed (intercept only)?
             new_active_par_idx = [np.any(powers) for powers in poly_powers.T]
             poly_powers = poly_powers[:, new_active_par_idx]
             new_active_par =\
@@ -2439,7 +2452,7 @@ class Emulator(object):
                         else:
                             poly_coef_cov.append([])
                         poly_powers.append(data_set['poly_powers'][()])
-                        poly_powers[-1].dtype = int_size
+                        poly_powers[-1].dtype = INT_SIZE
                         poly_idx.append(data_set['poly_idx'][()])
                     except KeyError:
                         rsdl_var.append([])
@@ -2648,7 +2661,7 @@ class Emulator(object):
                     # Determine dtype-list for compound dataset
                     names = [self._modellink._par_name[par] for par in
                              self._active_par_data[emul_i][lemul_s]]
-                    dtype = [(n, int_size) for n in names]
+                    dtype = [(n, INT_SIZE) for n in names]
 
                     # Convert poly_powers to a compound dataset
                     data_c = data['poly_powers'].copy()
@@ -2759,18 +2772,18 @@ class Emulator(object):
 
         # GENERAL
         # Gaussian sigma
-        self._sigma = check_vals(convert_str_seq(par_dict['sigma'])[0],
+        self._sigma = check_vals(split_seq(par_dict['sigma'])[0],
                                  'sigma', 'float', 'nzero')
 
         # Gaussian correlation length
-        l_corr = check_vals(convert_str_seq(par_dict['l_corr']), 'l_corr',
+        l_corr = check_vals(split_seq(par_dict['l_corr']), 'l_corr',
                             'float', 'pos', 'normal')
         self._l_corr = l_corr*abs(self._modellink._par_rng[:, 1] -
                                   self._modellink._par_rng[:, 0])
 
         # Method used to calculate emulator functions
         # Future will include 'gaussian', 'regression', 'auto' and 'full'
-        self._method = check_vals(convert_str_seq(par_dict['method'])[0],
+        self._method = check_vals(split_seq(par_dict['method'])[0],
                                   'method', 'str').lower()
         if self._method in ('gaussian', 'regression', 'full'):
             pass
@@ -2791,11 +2804,11 @@ class Emulator(object):
 
         # Obtain the polynomial order for the regression selection process
         self._poly_order =\
-            check_vals(convert_str_seq(par_dict['poly_order'])[0],
+            check_vals(split_seq(par_dict['poly_order'])[0],
                        'poly_order', 'int', 'pos')
 
         # Obtain the number of requested cross-validations
-        n_cross_val = check_vals(convert_str_seq(par_dict['n_cross_val'])[0],
+        n_cross_val = check_vals(split_seq(par_dict['n_cross_val'])[0],
                                  'n_cross_val', 'int', 'nneg')
 
         # Make sure that n_cross_val is not unity
@@ -2807,7 +2820,7 @@ class Emulator(object):
 
         # Check whether or not mock data should be used
         # TODO: Allow entire dicts to be given as mock_data (configparser?)
-        use_mock = convert_str_seq(par_dict['use_mock'])
+        use_mock = split_seq(par_dict['use_mock'])
 
         # If use_mock contains a single element, check if it is a bool
         if(len(use_mock) == 1):

@@ -16,8 +16,7 @@ Provides the definition of the :class:`~SineWaveLink` class.
 import numpy as np
 
 # PRISM imports
-from prism._internal import np_array
-from prism.modellink import ModelLink
+from prism.modellink._modellink import ModelLink
 
 # All declaration
 __all__ = ['SineWaveLink']
@@ -56,11 +55,11 @@ class SineWaveLink(ModelLink):
 
     def call_model(self, emul_i, par_set, data_idx):
         par = par_set
-        mod_set = [0]*len(data_idx)
+        mod_set = np.zeros([len(data_idx), *np.shape(par['A'])])
         for i, idx in enumerate(data_idx):
             mod_set[i] = par['A']+0.1*par['B']*np.sin(par['C']*idx+par['D'])
 
-        return(np_array(mod_set).T)
+        return(mod_set.T)
 
     def get_md_var(self, emul_i, par_set, data_idx):
         return(pow(0.1*np.ones_like(data_idx), 2))

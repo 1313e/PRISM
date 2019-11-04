@@ -34,9 +34,9 @@ from prism.__version__ import __version__, compat_version
 # All declaration
 __all__ = ['CFilter', 'FeatureWarning', 'PRISM_Logger', 'RFilter',
            'RequestError', 'RequestWarning', 'check_compatibility',
-           'check_vals', 'get_PRISM_File', 'get_formatter', 'get_handler',
-           'get_info', 'getCLogger', 'getLogger', 'getRLogger', 'move_logger',
-           'np_array', 'set_base_logger']
+           'check_vals', 'get_bibtex', 'get_PRISM_File', 'get_formatter',
+           'get_handler', 'get_info', 'getCLogger', 'getLogger', 'getRLogger',
+           'move_logger', 'np_array', 'set_base_logger']
 
 # Determine MPI size and ranks
 size = MPI.COMM_WORLD.Get_size()
@@ -210,20 +210,21 @@ def check_vals(values, name, *args):
 
     Parameters
     ----------
-    values : array_like of {int, float, complex, str, bool}
+    values : array_like of {bool; complex; float; int; str}
         The values to be checked against all given criteria in `args`. It must
         be possible to convert `values` to a :obj:`~numpy.ndarray` object.
     name : str
         The name of the input argument, which is used in the error message if
         a criterion is not met.
-    args : tuple of {'bool', 'complex', 'float', 'int', 'neg', 'nneg', \
-        'normal', 'npos', 'nzero', 'pos', 'str'}
+    args : positional arguments in {'bool'; 'complex'; 'float'; 'int'; 'neg'; \
+                                    'nneg'; 'normal'; 'npos'; 'nzero'; 'pos'; \
+                                    'str'}
         Sequence of strings determining the criteria that `values` must meet.
         If `args` is empty, it is checked if `values` are finite.
 
     Returns
     -------
-    return_values : array_like of {int, float, complex, str}
+    return_values : array_like of {complex; float; int; str}
         If `args` contained 'bool', returns 0s or 1s. Else, returns `values`.
 
     Notes
@@ -246,7 +247,7 @@ def check_vals(values, name, *args):
         arr_type = 'list'
     elif isinstance(values, np.ndarray):
         arr_type = 'ndarray'
-    elif np.isscalar(values):
+    elif np.isscalar(values) or values is None:
         arr_type = 'scalar'
     else:
         err_msg = "Input argument %r is not array_like!" % (name)
@@ -255,17 +256,17 @@ def check_vals(values, name, *args):
     # Convert values to a NumPy array
     try:
         values = np.asanyarray(values)
-    except Exception as error:
+    except Exception as error:      # pragma: no cover
         err_msg = ("Input argument %r cannot be converted to a NumPy array! "
                    "(%s)" % (name, error))
         raise_error(err_msg, InputError, logger)
     else:
-        # Since NumPy v1.16.0, sequenced lists can be converted to NumPy arrays
+        # Since NumPy v1.16.0, anything can be converted to NumPy arrays
         # So, check if the dtype is not np.object_
         if issubclass(values.dtype.type, np.object_):
-            err_msg = ("Input argument %r cannot be a sequenced container!"
-                       % (name))
-            raise_error(err_msg, InputError, logger)
+            err_msg = ("Input argument %r cannot be converted to a NumPy "
+                       "dtype!" % (name))
+            raise_error(err_msg, TypeError, logger)
 
     # Check if values is not empty and raise error if so
     if not values.size:
@@ -458,98 +459,6 @@ def check_vals(values, name, *args):
     return(values)
 
 
-# This function returns a logging.Formatter used for PRISM logging
-def get_formatter():
-    """
-    Returns a :obj:`~logging.Formatter` object containing the default logging
-    formatting.
-
-    """
-
-    # Set formatting strings
-    fmt = "[%(asctime)s][%(levelname)-4s] %(name)-10s \t%(message)s"
-    datefmt = "%Y-%m-%d %H:%M:%S"
-
-    # Initialize Formatter class and return it
-    return(logging.Formatter(fmt, datefmt))
-
-
-# This function returns a logging.Handler used for PRISM logging
-def get_handler(filename):
-    """
-    Returns a :obj:`~logging.Handler` object containing the default logging
-    handling settings.
-
-    """
-
-    # Initialize Handler class
-    handler = logging.FileHandler(filename, mode='a', encoding='utf-8')
-
-    # Add name to handler
-    handler.set_name('prism_base')
-
-    # Set logLevel to DEBUG
-    handler.setLevel('DEBUG')
-
-    # Add formatter to handler
-    handler.setFormatter(get_formatter())
-
-    # Return handler
-    return(handler)
-
-
-# Define function that prints a string with all PRISM package information
-def get_info():
-    """
-    Prints a string that gives an overview of all information relevant to the
-    PRISM package distribution.
-
-    """
-
-    # Create info list
-    info_list = []
-
-    # Add header to info_list
-    info_list.append(dedent("""
-        Configuration
-        -------------"""))
-
-    # Add platform to info_list
-    info_list.append("Platform: %s %i-bit"
-                     % (platform.system(), calcsize('P')*8))
-
-    # Add python version to info_list
-    info_list.append("Python: %s" % (platform.python_version()))
-
-    # Add PRISM version to info_list
-    info_list.append("Version: %s" % (__version__))
-
-    # Access PRISM metadata
-    prism_dist = get_distribution('prism')
-
-    # Get list of all PRISM requirements
-    req_list = [req.name for req in prism_dist.requires()]
-
-    # Sort the requirements list
-    req_list.sort()
-
-    # Make requirements header
-    info_list.append(dedent("""
-        Requirements
-        ------------"""))
-
-    # Get distribution version of every requirement of PRISM
-    for req in req_list:
-        dist = get_distribution(req)
-        info_list.append("%s: %s" % (req, dist.version))
-
-    # Combine all strings in info_list to info_str
-    info_str = '\n'.join(info_list)
-
-    # Print info_str, stripping any additional whitespaces
-    print(info_str.strip())
-
-
 # Define class factory that returns a specialized h5py.File class
 def get_PRISM_File(prism_hdf5_file):
     """
@@ -591,7 +500,7 @@ def get_PRISM_File(prism_hdf5_file):
 
             Parameters
             ----------
-            mode : {'r', 'r+', 'w', 'w-'/'x', 'a'}
+            mode : {'r'; 'r+'; 'w'; 'w-'/'x'; 'a'}
                 String indicating how the HDF5-file needs to be opened.
 
             Optional
@@ -654,6 +563,136 @@ def get_PRISM_File(prism_hdf5_file):
 
     # Return PRISM_File class definition
     return(PRISM_File)
+
+
+# Define function that prints a string with the BibTeX entry to PRISM's paper
+def get_bibtex():
+    """
+    Prints a string that gives the BibTeX entry for citing the *PRISM* paper
+    (Van der Velden et al. 2019, ApJS, 242, 22).
+
+    """
+
+    # Create string with BibTeX entry
+    bibtex = dedent(
+        r"""
+        @ARTICLE{2019ApJS..242...22V,
+            author = {{van der Velden}, E. and {Duffy}, A.~R. and {Croton}, D.
+                and {Mutch}, S.~J. and {Sinha}, M.},
+            title = "{Model dispersion with PRISM; an alternative to MCMC for
+                rapid analysis of models}",
+            journal = {\apjs},
+            keywords = {Astrophysics - Instrumentation and Methods for
+                Astrophysics, Physics - Computational Physics},
+            year = "2019",
+            month = "Jun",
+            volume = {242},
+            number = {2},
+            eid = {22},
+            pages = {22},
+            doi = {10.3847/1538-4365/ab1f7d},
+            archivePrefix = {arXiv},
+            eprint = {1901.08725},
+            primaryClass = {astro-ph.IM},
+            adsurl = {http://adsabs.harvard.edu/abs/2019ApJS..242...22V},
+            adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+        }
+        """)
+
+    # Print the string
+    print(bibtex.strip())
+
+
+# This function returns a logging.Formatter used for PRISM logging
+def get_formatter():
+    """
+    Returns a :obj:`~logging.Formatter` object containing the default logging
+    formatting.
+
+    """
+
+    # Set formatting strings
+    fmt = "[%(asctime)s][%(levelname)-4s] %(name)-10s \t%(message)s"
+    datefmt = "%Y-%m-%d %H:%M:%S"
+
+    # Initialize Formatter class and return it
+    return(logging.Formatter(fmt, datefmt))
+
+
+# This function returns a logging.Handler used for PRISM logging
+def get_handler(filename):
+    """
+    Returns a :obj:`~logging.Handler` object containing the default logging
+    handling settings.
+
+    """
+
+    # Initialize Handler class
+    handler = logging.FileHandler(filename, mode='a', encoding='utf-8')
+
+    # Add name to handler
+    handler.set_name('prism_base')
+
+    # Set logLevel to DEBUG
+    handler.setLevel('DEBUG')
+
+    # Add formatter to handler
+    handler.setFormatter(get_formatter())
+
+    # Return handler
+    return(handler)
+
+
+# Define function that prints a string with all PRISM package information
+def get_info():
+    """
+    Prints a string that gives an overview of all information relevant to the
+    *PRISM* package distribution.
+
+    """
+
+    # Create info list
+    info_list = []
+
+    # Add header to info_list
+    info_list.append(dedent("""
+        Configuration
+        -------------"""))
+
+    # Add platform to info_list
+    info_list.append("Platform: %s %i-bit"
+                     % (platform.system(), calcsize('P')*8))
+
+    # Add python version to info_list
+    info_list.append("Python: %s" % (platform.python_version()))
+
+    # Add PRISM version to info_list
+    info_list.append("Version: %s" % (__version__))
+
+    # Access PRISM metadata
+    prism_dist = get_distribution('prism')
+
+    # Get list of all PRISM requirements
+    req_list = [req.name for req in prism_dist.requires()]
+
+    # Sort the requirements list
+    req_list.sort()
+
+    # Make requirements header
+    info_list.append(dedent("""
+        Requirements
+        ------------"""))
+
+    # Get distribution version of every requirement of PRISM
+    for req in req_list:
+        dist = get_distribution(req)
+        info_list.append("%s: %s" % (req, dist.version))
+
+    # Combine all strings in info_list to info_str
+    info_str = '\n'.join(info_list)
+
+    # Print info_str, stripping any additional whitespaces
+    print(info_str.strip())
 
 
 # Define custom getLogger function that adds the CFilter

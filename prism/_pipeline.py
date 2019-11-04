@@ -12,7 +12,6 @@ Provides the definition of the main class of the *PRISM* package, the
 # %% IMPORTS
 # Built-in imports
 from ast import literal_eval
-from contextlib import contextmanager
 from inspect import isclass
 import logging
 import os
@@ -23,27 +22,27 @@ from time import time
 
 # Package imports
 from e13tools import InputError, ShapeError
-from e13tools.math import nCr
+from e13tools.math import nCr, sort2D
 from e13tools.sampling import lhd
-from e13tools.utils import (convert_str_seq, delist, docstring_append,
-                            docstring_copy, docstring_substitute,
-                            get_outer_frame, raise_error, raise_warning)
+from e13tools.utils import (
+    split_seq, delist, docstring_append, docstring_copy,
+    docstring_substitute, get_outer_frame, raise_error, raise_warning)
 from mpi4pyd import MPI
 from mpi4pyd.MPI import get_HybridComm_obj
 import numpy as np
-from numpy.random import normal, random
+from numpy.random import normal, randint, random
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
-from prism._docstrings import (call_emul_i_doc, call_model_doc_s,
-                               call_model_doc_m, def_par_doc, ext_mod_set_doc,
-                               ext_real_set_doc_d, ext_real_set_doc_s,
-                               ext_sam_set_doc, impl_cut_doc, paths_doc_d,
-                               paths_doc_s, save_data_doc_p, set_par_doc,
-                               std_emul_i_doc, user_emul_i_doc)
-from prism._internal import (RequestError, RequestWarning, check_vals,
-                             getCLogger, get_PRISM_File, getRLogger,
-                             move_logger, np_array, set_base_logger)
+from prism._docstrings import (
+    call_emul_i_doc, call_model_doc_s, call_model_doc_m, def_par_doc,
+    ext_mod_set_doc, ext_real_set_doc_d, ext_real_set_doc_s, ext_sam_set_doc,
+    impl_cut_doc, make_call_doc_a, make_call_doc_aw, make_call_doc_w,
+    make_call_doc_ww, make_call_pipeline_doc, paths_doc_d, paths_doc_s,
+    save_data_doc_p, set_par_doc, std_emul_i_doc, user_emul_i_doc)
+from prism._internal import (
+    RequestError, RequestWarning, check_vals, getCLogger, get_PRISM_File,
+    getRLogger, move_logger, np_array, set_base_logger)
 from prism._projection import Projection
 from prism.emulator import Emulator
 
@@ -57,6 +56,7 @@ __all__ = ['Pipeline']
 # TODO: Think of a way to allow no ModelLink instance to be provided.
 # This could be done with a DummyLink, but md_var is then uncallable.
 # OPTIMIZE: Use the Numba package to speed up certain calculations?
+# TODO: Figure out how to do log-values properly for parameters as well.
 class Pipeline(Projection, object):
     """
     Defines the :class:`~Pipeline` class of the *PRISM* package.
@@ -144,18 +144,6 @@ class Pipeline(Projection, object):
         # Start logger for workers as well
         if self._is_worker:
             set_base_logger(path.join(self._working_dir, 'prism_log.log'))
-
-        # Check if deprecated prism_file was provided
-        if 'prism_file' in kwargs.keys():  # pragma: no cover
-            # Assign prism_file to prism_par
-            prism_par = kwargs['prism_file']
-
-            # Raise a FutureWarning
-            if self._is_controller:
-                warn_msg = ("Input argument 'prism_file' is deprecated since "
-                            "v1.1.2 in favor of 'prism_par'. It will be "
-                            "removed entirely in v1.2.0.")
-                raise_warning(warn_msg, FutureWarning, logger, stacklevel=2)
 
         # Read in the provided parameter dict/file
         self._read_parameters(prism_par)
@@ -283,7 +271,7 @@ class Pipeline(Projection, object):
             str_repr.append("emul_type=%s" % (emul_repr))
 
         # Return representation
-        return("Pipeline(%s)" % (", ".join(str_repr)))
+        return("%s(%s)" % (self.__class__.__name__, ", ".join(str_repr)))
 
     # %% CLASS PROPERTIES
     # MPI properties
@@ -339,44 +327,31 @@ class Pipeline(Projection, object):
         return(bool(self._is_worker))
 
     @property
-    @contextmanager
     def worker_mode(self):
         """
-        :obj:`~contextlib._GeneratorContextManager`: Special context manager
-        within which all code is executed in worker mode. In worker mode, all
-        worker ranks are continuously listening for calls from the controller
-        rank made with :meth:`~_make_call`.
+        :obj:`~prism._pipeline.WorkerMode`: Special context manager within
+        which all code is executed in worker mode. In worker mode, all worker
+        ranks are continuously listening for calls from the controller rank
+        made with :meth:`~_make_call` or :meth:`~_make_call_workers`.
 
         Note that all code within the context manager is executed by all ranks,
-        with the worker ranks executing it after the controller rank exited.
+        with the worker ranks executing it after the controller rank exits.
         It is therefore advised to use an if-statement inside to make sure only
         the controller rank executes the code.
 
         Using this context manager allows for easier use of *PRISM* in
-        combination with serial/OpenMP codes (like MCMC methods).
+        combination with serial/OpenMP codes (like MCMC methods). It also makes
+        it easier to write long complex code that is mostly executed on the
+        controller rank (but the worker ranks sometimes need to execute
+        something).
+
+        All worker modes are independent of each other and can be created in a
+        nested fashion.
 
         """
 
-        # Make logger
-        logger = getCLogger('WORKER_M')
-
-        # Workers start listening for calls
-        self._listen_for_calls()
-
-        # Log that workers are now listening
-        logger.info("Workers are now listening for calls.")
-
-        # Execute code block within context manager
-        yield
-
-        # Make workers stop listening for calls
-        self._make_call(None)
-
-        # Log that workers are no longer listening for calls
-        logger.info("Workers are no longer listening for calls.")
-
-        # MPI Barrier
-        self._comm.Barrier()
+        # Initialize WorkerMode object and return it
+        return(WorkerMode(self))
 
     # Pipeline details
     @property
@@ -759,78 +734,15 @@ class Pipeline(Projection, object):
         return(self._impl_sam)
 
     # %% GENERAL CLASS METHODS
-    # Function that locks workers into listening for controller calls
-    def _listen_for_calls(self):
-        """
-        All worker ranks in the :attr:`~comm` communicator start listening for
-        calls from the corresponding controller rank and will attempt to
-        execute the received message. Listening for calls continues until
-        :attr:`~_worker_mode` is set to *False*.
-
-        This method is automatically initialized and finalized when using the
-        :attr:`~worker_mode` context manager.
-
-        """
-
-        # Set worker_mode to 1
-        self._worker_mode = 1
-
-        # All workers start listening for calls
-        if self._is_worker:
-            while self._worker_mode:
-                exec_fn, args, kwargs = self._comm.bcast([], 0)
-                if exec_fn is None:
-                    self._worker_mode = 0
-                elif isinstance(exec_fn, str):
-                    attrs = exec_fn.split('.')
-                    obj = self
-                    for attr in attrs:
-                        obj = getattr(obj, attr)
-                    obj(*args, **kwargs)
-                else:
-                    exec_fn(*args, **kwargs)
-
     # Function that sends a code string to all workers and executes it
+    @docstring_append(make_call_doc_a)
     def _make_call(self, exec_fn, *args, **kwargs):
-        """
-        Send the provided `exec_fn` to all worker ranks, if they are
-        listening for calls, and tell them to execute it using the provided
-        `args` and `kwargs`. All ranks that call this function will execute
-        `exec_fn` as well.
+        return(WorkerMode.make_call(self, exec_fn, *args, **kwargs))
 
-        If used within the :attr:`~worker_mode` context manager, this function
-        should only be called by the controller. If not, it should be called by
-        all ranks that must execute `exec_fn`.
-
-        Parameters
-        ----------
-        exec_fn : str, callable or None
-            If string, a callable attribute of this :obj:`~Pipeline` instance
-            or a callable object that the workers should execute if not.
-            If *None*, the workers stop listening for calls instead (disables
-            worker mode).
-        args : tuple
-            Positional arguments that need to be provided to `exec_fn`.
-        kwargs : dict
-            Keyword arguments that need to be provided to `exec_fn`.
-
-        """
-
-        # Send received exec_code to all workers if they are listening
-        if self._worker_mode and self._is_controller:
-            self._comm.bcast([exec_fn, args, kwargs], 0)
-
-        # Execute exec_fn as well
-        if exec_fn is None:
-            self._worker_mode = 0
-        elif isinstance(exec_fn, str):
-            attrs = exec_fn.split('.')
-            obj = self
-            for attr in attrs:
-                obj = getattr(obj, attr)
-            return(obj(*args, **kwargs))
-        else:
-            return(exec_fn(*args, **kwargs))
+    # Function that sends a code string to all workers (does not execute it)
+    @docstring_append(make_call_doc_w)
+    def _make_call_workers(self, exec_fn, *args, **kwargs):
+        return(WorkerMode.make_call_workers(self, exec_fn, *args, **kwargs))
 
     # This function evaluates the model for a given set of evaluation samples
     # TODO: If not MPI_call, all ranks evaluate part of sam_set simultaneously?
@@ -857,6 +769,8 @@ class Pipeline(Projection, object):
 
         Returns
         -------
+        sam_set : 2D :obj:`~numpy.ndarray` object of shape ``(n_sam, n_par)``
+            Array containing the sample set used to evaluate the model.
         mod_set : 2D :obj:`~numpy.ndarray` object of shape ``(n_sam, n_data)``
             Array containing the data values corresponding to the requested
             data points.
@@ -867,8 +781,9 @@ class Pipeline(Projection, object):
         logger = getCLogger('MODEL')
         logger.info("Evaluating model samples.")
 
-        # Make sure that sam_set is at least 2D and a NumPy array
+        # Make sure that sam_set is at least 2D, a NumPy array and sorted
         sam_set = np_array(sam_set, ndmin=2)
+        sam_set = sort2D(sam_set, order=list(range(self._modellink._n_par)))
 
         # Check who needs to call the model
         if self._is_controller or self._modellink._MPI_call:
@@ -894,7 +809,7 @@ class Pipeline(Projection, object):
 
         # Log that evaluation is completed and return mod_set
         logger.info("Finished evaluating model samples.")
-        return(mod_set)
+        return(sam_set, mod_set)
 
     # Function obtaining the model output for a given set of parameter values
     @docstring_append(call_model_doc_s)
@@ -1044,10 +959,10 @@ class Pipeline(Projection, object):
 
         # GENERAL
         # Set number of starting samples
-        self.n_sam_init = convert_str_seq(par_dict['n_sam_init'])[0]
+        self.n_sam_init = split_seq(par_dict['n_sam_init'])[0]
 
         # Set base number of emulator evaluation samples
-        self.base_eval_sam = convert_str_seq(par_dict['base_eval_sam'])[0]
+        self.base_eval_sam = split_seq(par_dict['base_eval_sam'])[0]
 
         # Convert criterion to a string
         criterion = str(par_dict['criterion'])
@@ -1058,7 +973,7 @@ class Pipeline(Projection, object):
 
         # If anything else is given, it must be an int, float or string
         else:
-            self.criterion = convert_str_seq(criterion)[0]
+            self.criterion = split_seq(criterion)[0]
 
         # Set the bool determining whether to do an active parameters analysis
         self.do_active_anal = par_dict['do_active_anal']
@@ -1297,9 +1212,8 @@ class Pipeline(Projection, object):
 
         Generates
         ---------
-        Overwrites the corresponding
-        :class:`~prism.modellink.ModelLink` class properties with the
-        generated values.
+        Overwrites the corresponding :class:`~prism.modellink.ModelLink` class
+        properties with the generated values.
 
         """
 
@@ -1325,8 +1239,8 @@ class Pipeline(Projection, object):
                                                     0)
 
         # Obtain non-default model data values
-        data_val = self._evaluate_model(0, self._modellink._par_est,
-                                        self._modellink._data_idx)
+        _, data_val = self._evaluate_model(0, self._modellink._par_est,
+                                           self._modellink._data_idx)
 
         # Controller only
         if self._is_controller:
@@ -1387,8 +1301,8 @@ class Pipeline(Projection, object):
         Loads in all the important pipeline data into memory for the controller
         rank.
         If it is detected that the last emulator iteration has not been
-        analyzed yet, the implausibility analysis parameters are read in from
-        the *PRISM* parameters file and temporarily stored in memory.
+        analyzed yet, the implausibility analysis parameters are taken from the
+        *PRISM* parameters dict and temporarily stored in memory.
 
         Generates
         ---------
@@ -1593,14 +1507,21 @@ class Pipeline(Projection, object):
         # Obtain number of samples
         n_sam = np.shape(sam_set)[0]
 
-        # Flatten the corresponding data_idx_to_core on the controller
+        # Do some preparations on the controller
         if self._is_controller:
+            # Flatten the corresponding data_idx_to_core
             data_idx_flat = []
             n_data = []
             for data_idx_rank in self._emulator._data_idx_to_core[emul_i]:
                 data_idx_rank = delist(data_idx_rank)
                 data_idx_flat.extend(data_idx_rank)
                 n_data.append(len(data_idx_rank))
+
+            # Sort ext_mod_set accordingly to data_idx_flat if provided
+            if ext_mod_set.shape[0]:
+                sort_idx = [self._modellink._data_idx.index(idx)
+                            for idx in data_idx_flat]
+                ext_mod_set = ext_mod_set[sort_idx]
 
         # Use dummy data_idx_flat on workers
         else:
@@ -1611,7 +1532,8 @@ class Pipeline(Projection, object):
 
         # If there are any samples in sam_set, evaluate them in the model
         if n_sam:
-            mod_set = self._evaluate_model(emul_i, sam_set, data_idx_flat)
+            sam_set, mod_set =\
+                self._evaluate_model(emul_i, sam_set, data_idx_flat)
 
             # Transpose obtained mod_set on controller
             if self._is_controller:
@@ -1947,7 +1869,7 @@ class Pipeline(Projection, object):
             par_dict.update(self._prism_dict)
 
             # Remove auxiliary characters from impl_cut
-            impl_cut = convert_str_seq(par_dict['impl_cut'])
+            impl_cut = split_seq(par_dict['impl_cut'])
 
         # Set the impl_par
         self.impl_cut = impl_cut
@@ -2023,6 +1945,14 @@ class Pipeline(Projection, object):
         else:
             err_msg = "Input argument 'ext_real_set' is invalid!"
             raise_error(err_msg, InputError, logger)
+
+        # Check that ext_sam_set and ext_mod_set are dicts
+        if not isinstance(ext_sam_set, dict):
+            err_msg = "Input argument 'ext_sam_set' is not of type 'dict'!"
+            raise_error(err_msg, TypeError, logger)
+        if not isinstance(ext_mod_set, dict):
+            err_msg = "Input argument 'ext_mod_set' is not of type 'dict'!"
+            raise_error(err_msg, TypeError, logger)
 
         # Check ext_sam_set and ext_mod_set
         ext_sam_set = self._modellink._check_sam_set(ext_sam_set,
@@ -2359,7 +2289,7 @@ class Pipeline(Projection, object):
         """
 
         # Get last emul_i
-        emul_i = self._emulator._get_emul_i(None, True)
+        emul_i = self._emulator._get_emul_i(None)
 
         # Begin logging
         logger = getCLogger('ANALYZE')
@@ -2520,7 +2450,7 @@ class Pipeline(Projection, object):
         entire emulator.
 
         If no implausibility analysis is requested, then the implausibility
-        parameters are read in from the *PRISM* parameters file and temporarily
+        parameters are taken from the *PRISM* parameters dict and temporarily
         stored in memory in order to enable the usage of the :meth:`~evaluate`
         and :meth:`~project` methods.
 
@@ -2590,8 +2520,14 @@ class Pipeline(Projection, object):
 
         # If iteration is already finished, analyze or show the details
         if c_from_start is None:
+            # Controller broadcasts to workers if analysis has been done yet
+            if self._is_controller:
+                n_eval_sam = self._comm.bcast(self._n_eval_sam[emul_i], 0)
+            else:
+                n_eval_sam = self._comm.bcast(None, 0)
+
             # If analyze was requested and has not been done yet, do analysis
-            if analyze and not self._n_eval_sam[emul_i]:
+            if analyze and not n_eval_sam:
                 self.analyze()
             # Else, show details
             else:
@@ -2721,7 +2657,6 @@ class Pipeline(Projection, object):
             self.details(emul_i)
 
     # This function allows one to view the pipeline details/properties
-    # TODO: Allow the viewing of the entire polynomial function in SymPy
     @docstring_substitute(emul_i=user_emul_i_doc)
     def details(self, emul_i=None):
         """
@@ -2849,16 +2784,15 @@ class Pipeline(Projection, object):
                                           ccheck_rank):
                     ccheck_flat[emul_s] = ccheck
 
+            # Generate function for getting string lengths of floats
+            def f(x):
+                return(len("{:,.5f}".format(x)) if x is not None else 0)
+
             # Get max lengths of various strings for parameter space section
-            name_len =\
-                max([len(par_name) for par_name in self._modellink._par_name])
-            lower_len =\
-                max([len(str(i)) for i in self._modellink._par_rng[:, 0]])
-            upper_len =\
-                max([len(str(i)) for i in self._modellink._par_rng[:, 1]])
-            est_lengths = [len('%.5f' % (i)) for i in self._modellink._par_est
-                           if i is not None]
-            est_len = max(est_lengths) if len(est_lengths) else 0
+            name_len = max(map(len, self._modellink._par_name))
+            lower_len = max(map(f, self._modellink._par_rng[:, 0]))
+            upper_len = max(map(f, self._modellink._par_rng[:, 1]))
+            est_len = max(map(f, self._modellink._par_est))
 
             # Open hdf5-file
             with self._File('r', None) as file:
@@ -2926,9 +2860,9 @@ class Pipeline(Projection, object):
             print("-"*width)
 
             # General details about loaded emulator
-            print("{0: <{1}}\t'{2}'".format("Working directory", width,
+            print("{0: <{1}}\t{2!r}".format("Working directory", width,
                                             working_dir_rel_path))
-            print("{0: <{1}}\t'{2}'".format("Emulator type", width,
+            print("{0: <{1}}\t{2!r}".format("Emulator type", width,
                                             self._emulator._emul_type))
             print("{0: <{1}}\t{2}".format("ModelLink subclass", width,
                                           self._modellink._name))
@@ -2984,7 +2918,7 @@ class Pipeline(Projection, object):
 
                 # Number details
                 if(self._emulator._emul_type == 'default'):
-                    print("{0: <{1}}\t{2} ({3})".format(
+                    print("{0: <{1}}\t{2:,} ({3})".format(
                         "# of model evaluation samples", width,
                         sum(self._emulator._n_sam[1:emul_i+1]),
                         self._emulator._n_sam[1:emul_i+1]))
@@ -2996,13 +2930,13 @@ class Pipeline(Projection, object):
                     print("{0: <{1}}\t{2}".format(
                         "% of parameter space remaining", width, "-"))
                 else:
-                    print("{0: <{1}}\t{2}/{3}".format(
+                    print("{0: <{1}}\t{2:,}/{3:,}".format(
                         "# of plausible/analyzed samples", width,
                         self._n_impl_sam[emul_i], self._n_eval_sam[emul_i]))
-                    print("{0: <{1}}\t{2:#.3g}%".format(
+                    print("{0: <{1}}\t{2:#.3%}".format(
                         "% of parameter space remaining", width,
                         (self._n_impl_sam[emul_i] /
-                         self._n_eval_sam[emul_i])*100))
+                         self._n_eval_sam[emul_i])))
                 print("{0: <{1}}\t{2}/{3}".format(
                     "# of active/total parameters", width,
                     n_active_par, n_par))
@@ -3054,13 +2988,15 @@ class Pipeline(Projection, object):
             print("-"*width)
 
             # Define string format if no par_ests are provided
-            str_format1 = "{6}{0: <{1}}: [{2: >{3}}, {4: >{5}}]"
+            str_format1 = "{6}{0: <{1}}: [{2: >{3},.5f}, {4: >{5},.5f}]"
 
             # Define string format if this par_est was provided
-            str_format2 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6: >{7}.5f})"
+            str_format2 = ("{8}{0: <{1}}: [{2: >{3},.5f}, {4: >{5},.5f}] "
+                           "({6: >{7},.5f})")
 
             # Define string format if this par_est was not provided
-            str_format3 = "{8}{0: <{1}}: [{2: >{3}}, {4: >{5}}] ({6:->{7}})"
+            str_format3 = ("{8}{0: <{1}}: [{2: >{3},.5f}, {4: >{5},.5f}] "
+                           "({6:->{7}})")
 
             # Print details about every model parameter in parameter space
             for i in range(n_par):
@@ -3163,7 +3099,7 @@ class Pipeline(Projection, object):
         """
 
         # Get emulator iteration
-        emul_i = self._emulator._get_emul_i(emul_i, True)
+        emul_i = self._emulator._get_emul_i(emul_i)
 
         # Do some logging
         logger = getCLogger('EVALUATE')
@@ -3248,3 +3184,253 @@ class Pipeline(Projection, object):
     @docstring_copy(__call__)
     def run(self, emul_i=None, *, force=False):
         self(emul_i, force=force)
+
+
+# %% SUPPORT CLASSES
+# Define a worker mode context manager
+class WorkerMode(object):
+    # Initialize the WorkerMode class
+    def __init__(self, pipeline_obj):
+        """
+        Initialize the :class:`~WorkerMode` class using the MPI ranks defined
+        in the provided `pipeline_obj`.
+        This class should solely be initialized and finalized through the
+        :class:`~prism.Pipeline` class.
+
+        .. versionadded:: 1.2.0
+
+        Parameters
+        ----------
+        pipeline_obj : :obj:`~prism.Pipeline` object
+            The instance of the :class:`~prism.Pipeline` class that is enabling
+            this worker mode.
+
+        """
+
+        # Save provided Pipeline object
+        self.pipe = pipeline_obj
+
+    # This function enters/enables the worker mode
+    def __enter__(self):
+        """
+        The provided :obj:`~prism.Pipeline` object enters worker mode, making
+        all worker ranks start listening for calls from the controller rank
+        until this context manager exits.
+
+        """
+
+        # MPI Barrier
+        self.pipe._comm.Barrier()
+
+        # Save whether worker mode is already active
+        self.was_active = bool(self.pipe._worker_mode)
+
+        # Get the key required for disabling this worker mode on the controller
+        if self.pipe._is_controller:
+            # Generate a random 32-bit integer
+            key = randint(0, 2**31-1)
+
+            # Broadcast this key to all workers
+            self.__key = self.pipe._comm.bcast(key, 0)
+
+        # Obtain disable-key from the controller
+        else:
+            self.__key = self.pipe._comm.bcast(None, 0)
+
+        # All workers start listening for calls
+        self.listen_for_calls()
+
+    # This function exits/disables the worker mode
+    def __exit__(self, *args, **kwargs):
+        """
+        The provided :obj:`~prism.Pipeline` objects exits worker mode, making
+        all worker ranks stop listening for calls from the controller rank and
+        resume normal code execution.
+
+        """
+
+        # Disable this worker mode
+        if self.pipe._is_controller:
+            self.pipe._comm.bcast(self.__key, 0)
+
+        # If this is the final worker mode, tell this to the Pipeline
+        if not self.was_active:
+            self.pipe._worker_mode = 0
+            self.pipe._comm.Barrier()
+
+    # Function that locks workers into listening for controller calls
+    def listen_for_calls(self):
+        """
+        All worker ranks in the :attr:`~prism.Pipeline.comm` communicator start
+        listening for calls from the corresponding controller rank and will
+        attempt to execute the received message. Listening for calls continues
+        until this context manager exits (:meth:`~__exit__` is called).
+
+        This method is automatically initialized and finalized when using the
+        :attr:`~prism.Pipeline.worker_mode` context manager.
+
+        """
+
+        # Tell the Pipeline that at least 1 worker mode is being used right now
+        self.pipe._worker_mode = 1
+
+        # All workers start listening for calls and process calls received
+        if self.pipe._is_worker:
+            while self.pipe._worker_mode:
+                # Receive the message from the controller
+                msg = self.pipe._comm.bcast([], 0)
+
+                # If this message is the disable-key, break the while-loop
+                if(msg == self.__key):
+                    break
+                # Else, process the received message
+                else:
+                    self._process_call(self.pipe, *msg)
+
+    # Function that sends a code string to all workers and executes it
+    @staticmethod
+    @docstring_append(make_call_doc_aw)
+    def make_call(pipeline_obj, exec_fn, *args, **kwargs):
+        # Make abbreviation for pipeline_obj
+        pipe = pipeline_obj
+
+        # If worker mode is active
+        if pipe._worker_mode:
+            # Then the controller sends received exec_fn to all workers
+            if pipe._is_controller:
+                pipe._comm.bcast([exec_fn, args, kwargs], 0)
+            # Make sure workers never call anything directly in worker mode
+            else:
+                return
+
+        # Execute exec_fn on all callers as well
+        return(WorkerMode._process_call(pipe, exec_fn, args, kwargs))
+
+    # Function that sends a code string to all workers (does not execute it)
+    @staticmethod
+    @docstring_append(make_call_doc_ww)
+    def make_call_workers(pipeline_obj, exec_fn, *args, **kwargs):
+        # Make abbreviation for pipeline_obj
+        pipe = pipeline_obj
+
+        # If worker mode is active
+        if pipe._worker_mode:
+            # Then the controller sends received exec_fn to all workers
+            if pipe._is_controller:
+                pipe._comm.bcast([exec_fn, args, kwargs], 0)
+            # Make sure workers never call anything directly in worker mode
+            else:
+                return
+
+        # Execute exec_fn on all workers
+        if pipe._is_worker:
+            return(WorkerMode._process_call(pipe, exec_fn, args, kwargs))
+
+    # This function processes a call made by _make_call
+    @staticmethod
+    @docstring_substitute(pipeline=make_call_pipeline_doc)
+    def _process_call(pipeline_obj, exec_fn, args, kwargs):
+        """
+        Processes a call that was made with the :meth:`~make_call` or
+        :meth:`~make_call_workers` method.
+
+        This function should solely be called through either of these methods
+        and never directly.
+
+        Parameters
+        ----------
+        %(pipeline)s
+        exec_fn : str or callable
+            If string, a callable attribute of this :obj:`~prism.Pipeline`
+            instance or a callable object that should be executed if not.
+        args : tuple
+            Positional arguments that need to be provided to `exec_fn`.
+        kwargs : dict
+            Keyword arguments that need to be provided to `exec_fn`.
+
+        Returns
+        -------
+        out : object
+            The object returned by executing `exec_fn`.
+
+        Note
+        ----
+        If any entry in `args` or `kwargs` is a string written as 'pipe.XXX',
+        it is assumed that 'XXX' refers to a :class:`~prism.Pipeline`
+        attribute of the MPI rank receiving the call. It will be replaced with
+        the corresponding attribute before `exec_fn` is called.
+
+        """
+
+        # Make abbreviation for pipeline_obj
+        pipe = pipeline_obj
+
+        # Process the input arguments
+        # EXEC_FN
+        # If exec_fn is given as a string, get corresponding Pipeline attribute
+        if isinstance(exec_fn, str):
+            exec_fn = "pipe.%s" % (exec_fn)
+            exec_fn = WorkerMode._process_call_str(pipe, exec_fn)
+
+        # If exec_fn is not _make_call(_workers), process args and kwargs
+        if exec_fn not in (pipe._make_call, pipe._make_call_workers):
+            # ARGS
+            # Make sure that args is a list, such that it can be edited
+            args = list(args)
+
+            # Loop over all args and process it further if it is a string
+            for i, arg in enumerate(args):
+                if isinstance(arg, str):
+                    args[i] = WorkerMode._process_call_str(pipe, arg)
+
+            # KWARGS
+            # Loop over all args and process it further if it is a string
+            for key, value in kwargs.items():
+                if isinstance(value, str):
+                    kwargs[key] = WorkerMode._process_call_str(pipe, value)
+
+        # Execute exec_fn with provided args and kwargs, and return the result
+        return(exec_fn(*args, **kwargs))
+
+    # This function converts a provided string into an attribute if possible
+    @staticmethod
+    @docstring_substitute(pipeline=make_call_pipeline_doc)
+    def _process_call_str(pipeline_obj, string):
+        """
+        Processes a provided `string` that was provided as an argument value to
+        :meth:`~_process_call`.
+
+        Parameters
+        ----------
+        %(pipeline)s
+        string : str
+            String value that must be processed.
+
+        Returns
+        -------
+        out : str or object
+            If `string` starts with 'pipe.', the corresponding
+            :class:`~prism.Pipeline` attribute will be returned. Else, `string`
+            is returned.
+
+        """
+
+        # Make abbreviation for pipeline_obj
+        pipe = pipeline_obj
+
+        # Split string up into individual elements
+        str_list = string.split('.')
+
+        # If the first element is 'pipe', it refers to a Pipeline attribute
+        if str_list.pop(0) == 'pipe':
+            # Remove 'pipe' again in case 'pipe.pipe.xxx' was provided
+            if len(str_list) and str_list[0] == 'pipe':
+                str_list.pop(0)
+
+            # Retrieve the attribute that string refers to
+            string = pipe
+            for attr in str_list:
+                string = getattr(string, attr)
+
+        # Return string
+        return(string)

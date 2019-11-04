@@ -5,6 +5,7 @@
 
 variables:
   python.arch: 'x64'
+  upload_coverage: false
 
 schedules:
 - cron: "0 0 * * 0"
@@ -25,9 +26,11 @@ strategy:
     linux-python37:
       imageName: 'ubuntu-16.04'
       python.version: '3.7'
+      upload_coverage: true
     mac-python37:
       imageName: 'macos-10.13'
       python.version: '3.7'
+      upload_coverage: true
     windows-x86-python35:
       imageName: 'windows-2019'
       python.version: '3.5'
@@ -40,18 +43,17 @@ strategy:
       imageName: 'windows-2019'
       python.version: '3.7'
       python.arch: 'x86'
+      upload_coverage: true
     windows-x64-python35:
       imageName: 'windows-2019'
       python.version: '3.5'
-      python.arch: 'x64'
     windows-x64-python36:
       imageName: 'windows-2019'
       python.version: '3.6'
-      python.arch: 'x64'
     windows-x64-python37:
       imageName: 'windows-2019'
       python.version: '3.7'
-      python.arch: 'x64'
+      upload_coverage: true
   maxParallel: 10
 
 pool:
@@ -64,6 +66,13 @@ steps:
     architecture: $(python.arch)
     addToPath: true
   displayName: Use Python $(python.version) $(python.arch)
+
+# Install missing libraries on Linux
+- bash: |
+    sudo apt-get install -y xvfb libdbus-1-3 libxkbcommon-x11-0
+    echo "##vso[task.setvariable variable=QT_QPA_PLATFORM]offscreen"
+  condition: eq(variables['Agent.OS'], 'Linux')
+  displayName: Install missing libraries required for Qt on Linux
 
 # Install dependencies and PRISM
 - script: |
@@ -84,43 +93,37 @@ steps:
     coverage run --rcfile=setup.cfg -m pytest
   displayName: Test package in serial
 
-# Install MPI, mpi4py and run MPI tests
+# Install MPI
 # Linux
 - bash: |
     sudo apt-get install -y -q openmpi-bin libopenmpi-dev
-    pip install --no-cache-dir mpi4py
-    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
   condition: eq(variables['Agent.OS'], 'Linux')
-  displayName: Install MPI distribution on Linux and run in MPI
+  displayName: Install MPI distribution on Linux
 # Mac OS-X
 - bash: |
     brew install openmpi
-    pip install --no-cache-dir mpi4py
-    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
   condition: eq(variables['Agent.OS'], 'Darwin')
-  displayName: Install MPI distribution on Mac OS-X and run in MPI
+  displayName: Install MPI distribution on Mac OS-X
 # Windows
 - powershell: |
     iwr -outf ..\MSMpiSDK.msi https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSDK.msi
     Start-Process ..\MSMpiSDK.msi -ArgumentList "/quiet /qn" -Wait
     iwr -outf ..\MSMpiSetup.exe https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSetup.exe
     Start-Process ..\MSMpiSetup.exe -ArgumentList "-unattend -force -verbose" -Wait
-    $Env:MSMPI_BIN = "C:\Program Files\Microsoft MPI\Bin"
-    $Env:Path += ";C:\Program Files\Microsoft MPI\Bin"
-    pip install --no-cache-dir mpi4py
-    cmd \c mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
+    echo "##vso[task.setvariable variable=MSMPI_BIN]C:\Program Files\Microsoft MPI\Bin"
+    echo "##vso[task.setvariable variable=Path]$Env:Path;C:\Program Files\Microsoft MPI\Bin"
   condition: eq(variables['Agent.OS'], 'Windows_NT')
-  displayName: Install MPI distribution on Windows and run in MPI
+  displayName: Install MPI distribution on Windows
 
 # Install mpi4py
-#- script: |
-#    pip install --no-cache-dir mpi4py
-#  displayName: Install mpi4py
+- script: |
+    pip install --no-cache-dir mpi4py
+  displayName: Install mpi4py
 
 # Test package in MPI
-#- script: |
-#    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
-#  displayName: Test package in MPI
+- script: |
+    mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
+  displayName: Test package in MPI
 
 # Report coverage
 - script: |
@@ -129,6 +132,7 @@ steps:
   displayName: Coverage report
 
 # Upload covarage report to CodeCov
-- script: |
-    codecov
-  displayName: Upload coverage report
+- bash: |
+    curl -s https://codecov.io/bash | bash
+  condition: and(succeeded(), eq(variables['upload_coverage'], true))
+  displayName: Upload coverage report if requested

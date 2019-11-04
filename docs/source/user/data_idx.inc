@@ -4,7 +4,7 @@ Data identifiers (`data_idx`)
 +++++++++++++++++++++++++++++
 The comparison data points that are given to the :class:`~prism.modellink.ModelLink` class each require a unique data point identifier, allowing *PRISM* to distinguish between them.
 This data identifier (called :attr:`~prism.modellink.ModelLink.data_idx`) can be used by the model wrapped in the :meth:`~prism.modellink.ModelLink.call_model` method as a description of how to calculate/extract the data point.
-It can be provided as a non-mutable sequence (a Python tuple) of a combination of integers, floats and strings, each element describing a part of the operations required.
+It can be provided as a non-mutable sequence (a Python tuple) of a combination of booleans; integers; floats; and strings, each element describing a part of the operations required.
 The data identifier sequence can be of any length, and the length can differ between data points.
 
 .. note::
@@ -13,7 +13,7 @@ The data identifier sequence can be of any length, and the length can differ bet
 
 
 In its simplest form, the data identifier is a single value that is given to a function :math:`f(x)`, which is a function that is defined for a given model parameter set and returns the function value belonging to the input :math:`x`.
-This is the way the data identifier works for the two standard :class:`~prism.modellink.ModelLink` subclasses, the :class:`~prism.modellink.SineWaveLink` and :class:`~prism.modellink.GaussianLink` classes.
+This is the way the data identifier works for the three standard :class:`~prism.modellink.ModelLink` subclasses; :class:`~prism.modellink.SineWaveLink`; :class:`~prism.modellink.GaussianLink`; and :class:`~prism.modellink.PolyLink`.
 It is also used in the :class:`~LineLink` class described in the `line_link.py`_ file above.
 
 For more sophisticated models, a single value/element is not enough to uniquely identify a data point.

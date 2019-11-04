@@ -19,14 +19,15 @@ from prism._pipeline import Pipeline
 from prism.modellink.tests.modellink import GaussianLink2D
 from prism.utils.mcmc import get_hybrid_lnpost_fn, get_walkers
 
-# Save the path to this directory
-dirpath = path.dirname(__file__)
-
 # Set the random seed of NumPy
 np.random.seed(0)
 
 # Set the current working directory to the temporary directory
 local.get_temproot().chdir()
+
+
+# %% GLOBALS
+DIR_PATH = path.dirname(__file__)           # Path to directory of this file
 
 
 # %% CUSTOM FUNCTIONS
@@ -36,7 +37,7 @@ def pipe(tmpdir_factory):
     tmpdir = tmpdir_factory.mktemp('test_mcmc')
     root_dir = path.dirname(tmpdir.strpath)
     working_dir = path.basename(tmpdir.strpath)
-    prism_file = path.join(dirpath, 'data/prism_default.txt')
+    prism_file = path.join(DIR_PATH, 'data/prism_default.txt')
     modellink_obj = GaussianLink2D()
     np.random.seed(0)
     pipeline_obj = Pipeline(modellink_obj, root_dir=root_dir,
@@ -163,6 +164,14 @@ class Test_get_walkers(object):
     # Try to provide a custom size of init_walkers
     def test_init_walkers_size(self, pipe):
         get_walkers(pipe, init_walkers=10)
+
+    # Try to request a specific number of walkers
+    def test_req_n_walkers(self, pipe):
+        if pipe._is_controller:
+            req_n_walkers = pipe._comm.bcast(pipe._n_impl_sam[-1]+1, 0)
+        else:
+            req_n_walkers = pipe._comm.bcast(None, 0)
+        get_walkers(pipe, req_n_walkers=req_n_walkers)
 
     # Try to provide a set of implausible init_walkers
     def test_no_plausible_init_walkers(self, pipe):

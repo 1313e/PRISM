@@ -48,12 +48,12 @@ setup(name='prism',
       long_description=long_description,
       download_url=("https://github.com/1313e/PRISM/archive/v%s.zip"
                     % (version)),
-      url="https://prism-tool.readthedocs.io/en/latest/",
+      url="https://prism-tool.readthedocs.io/en/latest",
       project_urls={
-          'Documentation': ("https://prism-tool.readthedocs.io/en/v%s/"
+          'Documentation': ("https://prism-tool.readthedocs.io/en/v%s"
                             % (version)),
           'Method Paper': "https://arxiv.org/abs/1901.08725",
-          'Source Code': "https://github.com/1313e/PRISM",
+          'Source Code': "https://github.com/1313e/PRISM/tree/v%s" % (version),
           'Travis CI': "https://travis-ci.com/1313e/PRISM"
           },
       license='BSD-3',
@@ -75,8 +75,7 @@ setup(name='prism',
           'Topic :: Scientific/Engineering',
           'Topic :: Software Development'
           ],
-      keywords=('PRISM prism model analysis emulator regression MCMC '
-                'optimization'),
+      keywords=('prism model analysis emulator regression mcmc optimization'),
       python_requires='>=3.5, <4',
       packages=find_packages(),
       package_dir={'prism': "prism"},

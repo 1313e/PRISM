@@ -88,9 +88,9 @@ ext_mod_set_doc =\
             provided model evaluation samples."""
 ext_real_set_doc =\
         """ext_real_set : list, dict or None{0}{1}
-            List of arrays containing an externally calculated set of model
+            List of dicts containing an externally calculated set of model
             evaluation samples and its data values, a dict with keys
-            ``['sam_set', 'mod_set']`` containing these arrays or *None* if no
+            ``['sam_set', 'mod_set']`` containing these dicts or *None* if no
             external set needs to be used."""
 ext_real_set_doc_s = ext_real_set_doc.format("", "")
 ext_real_set_doc_d = ext_real_set_doc.format(ds, "None")
@@ -98,6 +98,57 @@ ext_sam_set_doc =\
         """ext_sam_set : 1D or 2D :obj:`~numpy.ndarray` object
             Array containing the externally provided model evaluation
             samples."""
+
+# Docstrings for the _make_call methods
+make_call_doc =\
+        """Sends the provided `exec_fn` to all worker ranks, if they are
+        listening for calls, and tells them to execute it using the provided
+        `args` and `kwargs`.{0}
+
+        If used within the :class:`~prism._pipeline.WorkerMode` context
+        manager, this function should only be called by the controller. If not,
+        it should be called by all valid ranks that must execute `exec_fn`.
+
+        Parameters
+        ----------{1}
+        exec_fn : str or callable
+            If string, a callable attribute of this :obj:`~prism.Pipeline`
+            instance or a callable object that the workers should execute if
+            not.
+        args : positional arguments
+            Positional arguments that need to be provided to `exec_fn`.
+        kwargs : keyword arguments
+            Keyword arguments that need to be provided to `exec_fn`.
+
+        Returns
+        -------
+        out : object
+            The object returned by executing `exec_fn`. Note that only ranks
+            that directly call this function return, as workers in worker mode
+            cannot do so.
+
+        Note
+        ----
+        .. versionchanged:: 1.2.0
+            If any entry in `args` or `kwargs` is a string written as
+            'pipe.XXX', it is assumed that 'XXX' refers to a
+            :class:`~prism.Pipeline` attribute of the MPI rank receiving the
+            call. It will be replaced with the corresponding attribute before
+            `exec_fn` is called.
+
+        """
+make_call_pipeline_doc =\
+        """pipeline_obj : :obj:`~prism.Pipeline` object
+            The instance of the :class:`~prism.Pipeline` class that is making
+            this call."""
+
+make_call_doc_a = make_call_doc.format(
+    " All ranks that call this function will execute `exec_fn` as well.", "")
+make_call_doc_w = make_call_doc.format("", "")
+make_call_doc_aw = make_call_doc.format(
+    " All ranks that call this function will execute `exec_fn` as well.",
+    "\n\t"+make_call_pipeline_doc)
+make_call_doc_ww = make_call_doc.format("", "\n\t"+make_call_pipeline_doc)
 
 # Docstrings for the different paths parameters
 paths_doc =\
@@ -225,7 +276,7 @@ draw_proj_fig_doc =\
 
 # Description of hcube
 hcube_doc =\
-        """hcube : 1D array_like of int of length {1, 2}
+        """hcube : 1D array_like of int of length {2, 3}
             Array containing the internal integer identifiers of the main model
             parameters that require a projection hypercube."""
 
@@ -253,6 +304,77 @@ proj_par_doc =\
 proj_par_doc_s = proj_par_doc.format("", "")
 proj_par_doc_d = proj_par_doc.format(ds, "None")
 
+# Descriptions of proj_depth and proj_res
+proj_depth_doc = ("Number of emulator evaluations that will be used to "
+                  "generate the samples in every grid point for the projection"
+                  " figures.")
+proj_res_doc = ("Number of emulator evaluations that will be used to generate "
+                "the grid for the projection figures.")
+
+
+# %% PROJECTION GUI DOCSTRINGS
+# Docstring for the create_type_xxx methods in KwargsDictDialogPage
+create_type_doc = "Creates the '{}' entry and returns it."
+
+# Docstrings for the OverviewDockWidget class
+list_items_optional_doc =\
+        """Optional
+        --------
+        list_items : list of :obj:`~PyQt5.QtWidgets.QListWidgetItem` objects \
+            or None. Default: None
+            The list of items that contains the requested projection figures.
+            If *None*, all currently selected list items are used instead."""
+list_item_optional_doc =\
+        """Optional
+        --------
+        list_item : :obj:`~PyQt5.QtWidgets.QListWidgetItem` object or None. \
+            Default: None
+            The item that contains the requested projection figure.
+            If *None*, the currently selected list item is used instead."""
+
+# Docstring for mentioning that a function acts as a Qt slot
+qt_slot_doc = "This function acts as a Qt slot."
+
+# Docstrings for the start_gui() function/method
+GUI_APP_NAME = 'Crystal'
+start_gui_doc =\
+        """Creates an instance of :class:`~PyQt5.QtWidgets.QApplication` or
+        retrieves it if one already exists, and starts *{0}*, *PRISM*'s
+        Projection GUI.
+
+        *{0}* provides an interactive way of creating projection figures, as
+        opposed to the static and linear method provided by
+        :meth:`~prism.Pipeline.project`.
+        It is made to make it easier to create; view; compare; and analyze
+        large numbers of projection figures.
+        All options available in the :meth:`~prism.Pipeline.project` method
+        can also be accessed through *{0}*.
+
+        As with all :class:`~prism.Pipeline` user methods, this function must
+        be called by all MPI ranks.
+
+        .. versionadded:: 1.2.0""".format(GUI_APP_NAME)
+
+start_gui_doc_pars =\
+        """Parameters
+        ----------
+        pipeline_obj : :obj:`~prism.Pipeline` object
+            The instance of the :class:`~prism.Pipeline` class for which *{0}*
+            must be initialized.
+
+        Returns
+        -------
+        main_window_obj : :obj:`~prism._gui.widgets.MainViewerWindow` object
+            The instance of the :class:`~prism._gui.widgets.MainViewerWindow`
+            class that was created for drawing *{0}*.
+            Can be used for debugging purposes.
+
+        Note
+        ----
+        This function can also be accessed through the
+        :meth:`~prism.Pipeline.{1}` method.""".format(
+            GUI_APP_NAME, GUI_APP_NAME.lower())
+
 
 # %% GENERAL DOCSTRINGS
 # Docstrings for the various get_default_parameters methods
@@ -274,6 +396,17 @@ impl_cut_doc =\
             Index of the first impl_cut-off in the impl_cut list that is not
             0."""
 
+# Descriptions for the args/kwargs arguments of many classes
+kwargs_doc =\
+        """Optional
+        --------
+        args : positional arguments
+            The positional arguments that must be passed to the constructor of
+            the :class:`~{0}` class.
+        kwargs : keyword arguments
+            The keyword arguments that must be passed to the constructor of the
+            :class:`~{0}` class."""
+
 # Docstrings for the various set_parameters methods
 set_par_doc =\
         """Sets the {0} parameters from the :attr:`~prism.Pipeline.prism_dict`
@@ -283,13 +416,13 @@ set_par_doc =\
 save_data_doc =\
         """Parameters
         ----------
-        {0}{1}
+        {0}
         data_dict : dict
             Dict containing the data that needs to be saved to the HDF5-file.
 
         Dict variables
         --------------
-        keyword : {2}
+        keyword : {1}
             String specifying the type of data that needs to be saved.
         data : {{int, float, str, array_like}} or dict
             The actual data that needs to be saved at data keyword `keyword`.
@@ -299,9 +432,10 @@ save_data_doc =\
         ---------
         The specified data is saved to the HDF5-file."""
 save_data_doc_p = save_data_doc.format(
-    "", "", "{'impl_par', 'impl_sam', 'n_eval_sam'}")
+    "", "{'impl_par', 'impl_sam', 'n_eval_sam'}")
 save_data_doc_e = save_data_doc.format(
-    std_emul_i_doc+"\n\t", lemul_s_doc+"\n\t", "{'active_par', "
+    std_emul_i_doc+"\n\t"+lemul_s_doc+"\n\t", "{'active_par', "
     "'active_par_data', 'cov_mat', 'exp_dot_term', 'mod_real_set', "
     "'regression'}")
-save_data_doc_pr = save_data_doc.format("", "", "{'nD_proj_hcube'}")
+save_data_doc_pr = save_data_doc.format(std_emul_i_doc+"\n\t",
+                                        "{'nD_proj_hcube'}")

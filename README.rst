@@ -93,7 +93,7 @@ The `online docs`_ and `the tutorials`_ have several examples explaining the dif
 .. _repository: https://github.com/1313e/PRISM
 .. _PyPI: https://pypi.org/project/prism
 .. _online docs: https://prism-tool.readthedocs.io
-.. _the tutorials: ./tutorials
+.. _the tutorials: https://github.com/1313e/PRISM/tree/master/tutorials
 
 
 Running tests

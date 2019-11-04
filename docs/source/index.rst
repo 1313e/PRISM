@@ -39,10 +39,11 @@ The documentation of *PRISM* is spread out over several sections:
     :maxdepth: 4
     :caption: API Reference
    
-    api/prism.Pipeline
+    api/prism._pipeline
     api/prism.emulator
     api/prism.modellink
     api/prism.utils
+    api/prism._gui
     api/prism._internal
 
 .. role:: pycode(code)

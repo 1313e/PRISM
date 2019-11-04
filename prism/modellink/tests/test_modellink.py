@@ -16,20 +16,19 @@ from prism._internal import RequestWarning
 from prism.modellink import ModelLink
 from prism.modellink.tests.modellink import GaussianLink2D, GaussianLink3D
 
-
-# Save the path to this directory
-dirpath = path.dirname(__file__)
+# %% GLOBALS
+DIR_PATH = path.dirname(__file__)           # Path to directory of this file
 
 # Save paths to various files
-model_data_single = path.join(dirpath, 'data/data_gaussian_single.txt')
-model_data_double = path.join(dirpath, 'data/data_gaussian_double.txt')
-model_data_types = path.join(dirpath, 'data/data_gaussian_types.txt')
-model_parameters_3D = path.join(dirpath, 'data/parameters_gaussian_3D.txt')
-model_parameters_invalid_rng = path.join(dirpath,
+model_data_single = path.join(DIR_PATH, 'data/data_gaussian_single.txt')
+model_data_double = path.join(DIR_PATH, 'data/data_gaussian_double.txt')
+model_data_types = path.join(DIR_PATH, 'data/data_gaussian_types.txt')
+model_parameters_3D = path.join(DIR_PATH, 'data/parameters_gaussian_3D.txt')
+model_parameters_invalid_rng = path.join(DIR_PATH,
                                          'data/parameters_invalid_rng.txt')
-model_parameters_invalid_est = path.join(dirpath,
+model_parameters_invalid_est = path.join(DIR_PATH,
                                          'data/parameters_invalid_est.txt')
-model_parameters_outside_est = path.join(dirpath,
+model_parameters_outside_est = path.join(DIR_PATH,
                                          'data/parameters_outside_est.txt')
 
 
@@ -187,6 +186,12 @@ class Test_ModelLink_Check_Methods(object):
         with pytest.raises(ValueError):
             modellink_obj._check_sam_set(np.zeros([1, modellink_obj._n_par]),
                                          'sam_set')
+
+    # Test a mod_dict with incorrect data_idx
+    def test_mod_dict_invalid_data_idx(self, modellink_obj):
+        mod_dict = dict(zip(['test'], np.ones([1, modellink_obj._n_data]).T))
+        with pytest.raises(KeyError):
+            modellink_obj._check_mod_set(mod_dict, 'mod_dict')
 
     # Test an md_var with wrong n_Data
     def test_md_var_n_data(self, modellink_obj):

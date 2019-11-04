@@ -1,5 +1,4 @@
 # %% REMOVED IN v0.4.12
-
 # This function extracts the set of active parameters
 # TODO: Perform exhaustive backward stepwise regression on order > 1
 @docstring_substitute(emul_i=std_emul_i_doc)
@@ -102,7 +101,6 @@ def _retrieve_parameters(self):
 
 
 # %% REMOVED IN v0.4.22
-
 # Open hdf5-file
 def _open_hdf5(self, mode, filename=None, **kwargs):
     """
@@ -179,7 +177,6 @@ def _close_hdf5(self, file):
 
 
 # %% REMOVED IN v1.0.0rc5
-
 @property
 def worker_mode(self):
     """

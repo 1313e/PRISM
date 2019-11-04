@@ -18,8 +18,8 @@ import warnings
 
 # Package imports
 from e13tools import InputError, ShapeError
-from e13tools.utils import (convert_str_seq, docstring_substitute,
-                            get_outer_frame, raise_error)
+from e13tools.utils import (
+    split_seq, docstring_substitute, get_outer_frame, raise_error)
 import h5py
 import hickle
 import numpy as np
@@ -28,8 +28,8 @@ from sortedcontainers import SortedDict as sdict, SortedSet as sset
 # PRISM imports
 from prism import __version__
 from prism._docstrings import std_emul_i_doc
-from prism._internal import (FeatureWarning, RequestWarning, check_vals,
-                             getCLogger, np_array)
+from prism._internal import (
+    FeatureWarning, RequestWarning, check_vals, getCLogger, np_array)
 from prism.modellink.utils import convert_data, convert_parameters
 
 # All declaration
@@ -160,9 +160,9 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         (linear, log, ln) the data values are. It defaults to 'lin' if it is
         not provided.
 
-        The data identifier is a sequence of ints, floats and strings that is
-        unique for every data point. *PRISM* uses it to identify a data point
-        with, which is required in some cases (like MPI), while the model
+        The data identifier is a sequence of bools, ints, floats and strings
+        that is unique for every data point. *PRISM* uses it to identify a data
+        point with, which is required in some cases (like MPI), while the model
         itself can use it as a description of the operations required to
         extract the data point from the model output. It can be provided as any
         sequence of any length for any data point. If any sequence contains a
@@ -533,7 +533,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         logger.info("Converting sequence of model parameter names/indices.")
 
         # Remove all unwanted characters from the string and split it up
-        par_seq = convert_str_seq(par_seq)
+        par_seq = split_seq(par_seq)
 
         # Check elements if they are ints or strings, and if they are valid
         for i, par_idx in enumerate(par_seq):
@@ -585,7 +585,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         mod_set : 1D or 2D :obj:`~numpy.ndarray` object
             The provided `mod_set` if the validation was successful. If
             `mod_set` was a dict, it will be converted to a
-            :obj:`~numpy.ndarray` object.
+            :obj:`~numpy.ndarray` object (sorted on :attr:`~data_idx`).
 
         """
 
@@ -593,9 +593,14 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         logger = getCLogger('CHECK')
         logger.info("Validating provided set of model outputs %r." % (name))
 
-        # If mod_set is a dict, convert it to a NumPy array
+        # If mod_set is a dict, try to convert it to a NumPy array
         if isinstance(mod_set, dict):
-            mod_set = np_array([mod_set[idx] for idx in mod_set.keys()]).T
+            try:
+                mod_set = np_array([mod_set[idx] for idx in self._data_idx]).T
+            except KeyError as error:
+                err_msg = ("Input argument %r is missing data identifier '%r'!"
+                           % (name, error.args[0]))
+                raise_error(err_msg, KeyError, logger)
 
         # Make sure that mod_set is a NumPy array
         mod_set = np_array(mod_set)
@@ -868,9 +873,9 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        args : tuple
+        args : positional arguments
             All positional arguments that must be stored in the backup file.
-        kwargs : dict
+        kwargs : keyword arguments
             All keyword arguments that must be stored in the backup file.
 
         Notes
@@ -1199,6 +1204,12 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             model is multi-called, `data_val` is of shape ``(n_sam, n_data)``.
             If dict, it has the identifiers in `data_idx` as its keys with
             either scalars or 1D array_likes as its values.
+
+        Note
+        ----
+        If this model is multi-called, then the parameter sets in the provided
+        `par_set` dict will be sorted in order of parameter name (e.g., sort on
+        first parameter first, then on second parameter, etc.).
 
         """
 

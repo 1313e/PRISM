@@ -16,8 +16,8 @@ Provides the definition of the :class:`~GaussianLink` class.
 import numpy as np
 
 # PRISM imports
-from prism._internal import check_vals, np_array
-from prism.modellink import ModelLink
+from prism._internal import check_vals
+from prism.modellink._modellink import ModelLink
 
 # All declaration
 __all__ = ['GaussianLink']
@@ -99,14 +99,14 @@ class GaussianLink(ModelLink):
 
     def call_model(self, emul_i, par_set, data_idx):
         par = par_set
-        mod_set = [0]*len(data_idx)
+        mod_set = np.zeros([len(data_idx), *np.shape(par['A1'])])
         for i, idx in enumerate(data_idx):
             for j in range(1, self._n_gaussians+1):
                 mod_set[i] +=\
                     par['A%i' % (j)]*np.exp(-1*((idx-par['B%i' % (j)])**2 /
                                                 (2*par['C%i' % (j)]**2)))
 
-        return(np_array(mod_set).T)
+        return(mod_set.T)
 
     def get_md_var(self, emul_i, par_set, data_idx):
         return(pow(0.1*np.ones_like(data_idx), 2))

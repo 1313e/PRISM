@@ -2,7 +2,7 @@
 
 """
 Emulator
-=========
+========
 Contains the definition of *PRISM*'s :class:`~Emulator` base class and various
 specialized :class:`~Emulator` subclasses.
 
