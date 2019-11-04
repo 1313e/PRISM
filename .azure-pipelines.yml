@@ -7,6 +7,14 @@ variables:
   python.arch: 'x64'
   upload_coverage: false
 
+schedules:
+- cron: "0 0 * * 0"
+  displayName: Weekly Sunday build
+  branches:
+    include:
+    - master
+  always: true
+
 strategy:
   matrix:
     linux-python35:
