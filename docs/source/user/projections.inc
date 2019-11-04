@@ -133,3 +133,10 @@ The `impl_kwargs_2D` and `los_kwargs_2D` dicts are passed to the :func:`~matplot
 Similarly, the `impl_kwargs_3D` and `los_kwargs_3D` dicts are passed to the :func:`~matplotlib.pyplot.hexbin` function for 3D projections.
 And, finally, the `line_kwargs_est` and `line_kwargs_cut` dicts are passed to the :func:`~matplotlib.pyplot.draw` function for drawing the parameter estimate and implausibility cut-off lines.
 
+Crystal (GUI)
+#############
+.. versionadded:: 1.2.0
+
+*PRISM* also has an internal GUI (graphical user-interface) for creating; viewing; comparing; and analyzing projection figures, called *Crystal*.
+*Crystal* can be started from any :obj:`~prism.Pipeline` object by using the :meth:`~prism.Pipeline.crystal` method.
+

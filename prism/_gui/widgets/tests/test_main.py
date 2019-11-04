@@ -6,7 +6,7 @@ from os import path
 
 # Package imports
 from mpi4pyd import MPI
-from PyQt5 import QtWidgets as QW
+from PyQt5 import QtGui as QG, QtWidgets as QW
 import pytest
 
 # PRISM imports
@@ -91,6 +91,17 @@ class TestMenus_Help(object):
 
         # Show the details window by triggering its action
         menu_actions['Help']['Details'].trigger()
+
+    # Test the API reference action
+    def test_api_reference(self, monkeypatch, menu_actions):
+        # Check if the 'API reference' action is in the proper menu
+        assert 'API reference' in menu_actions['Help']
+
+        # Monkey patch the QG.QDesktopServices.openUrl function
+        monkeypatch.setattr(QG.QDesktopServices, 'openUrl', lambda *args: None)
+
+        # Show the API reference by triggering its action
+        menu_actions['Help']['API reference'].trigger()
 
 
 # Test if an implausible iteration is automatically skipped

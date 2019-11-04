@@ -38,7 +38,6 @@ __all__ = ['MainViewerWindow']
 
 # %% CLASS DEFINITIONS
 # Define class for main viewer window
-# TODO: Write documentation (docs and docstrings) for the GUI
 class MainViewerWindow(QW.QMainWindow):
     """
     Defines the :class:`~MainViewerWindow` class for the Projection GUI.
@@ -259,6 +258,17 @@ class MainViewerWindow(QW.QMainWindow):
         # Add a separator
         help_menu.addSeparator()
 
+        # Add API reference action to help menu
+        apiref_act = QW_QAction(
+            self, 'API reference',
+            statustip="Open %s's API reference in a webbrowser" % (APP_NAME),
+            triggered=self.api_reference,
+            role=QW_QAction.ApplicationSpecificRole)
+        help_menu.addAction(apiref_act)
+
+        # Add a separator
+        help_menu.addSeparator()
+
         # Add about action to help menu
         about_act = QW_QAction(
             self, '&About...',
@@ -297,12 +307,36 @@ class MainViewerWindow(QW.QMainWindow):
 
         """
 
+        # Make shortcuts for certain links
+        github_repo = "https://github.com/1313e/PRISM"
+
+        # Create the text for the 'about' dialog
+        text = dedent(r"""
+            <b>{name} | <a href="{github}">PRISM</a> v{version}</b><br>
+            Copyright &copy; 2019 Ellert van der Velden<br>
+            Distributed under the
+            <a href="{github}/raw/master/LICENSE">BSD-3 License</a>.
+            """.format(name=APP_NAME,
+                       version=__version__,
+                       github=github_repo))
+
         # Create the 'about' dialog
-        QW.QMessageBox.about(
-            self, "About %s" % (APP_NAME), dedent(r"""
-                <b>%s | PRISM v%s</b><br>
-                Copyright (C) 2019 Ellert van der Velden
-                """ % (APP_NAME, __version__)))
+        QW.QMessageBox.about(self, "About %s" % (APP_NAME), text)
+
+    # This function opens the RTD API reference documentation in a webbrowser
+    @QC.pyqtSlot()
+    @docstring_substitute(qt_slot=qt_slot_doc)
+    def api_reference(self):
+        """
+        Opens the API reference documentation of the GUI in a webbrowser.
+
+        %(qt_slot)s
+
+        """
+
+        # Open webbrowser
+        QG.QDesktopServices.openUrl(QC.QUrl(
+            "https://prism-tool.readthedocs.io/en/master/api/prism._gui.html"))
 
     # This function is called when the viewer is closed
     def closeEvent(self, *args, **kwargs):
