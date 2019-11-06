@@ -26,7 +26,7 @@ from prism._gui.widgets import (
 from prism._gui.widgets.preferences.kwargs_dicts import KwargsDictBoxLayout
 
 # All declaration
-__all__ = ['OptionsDialog']
+__all__ = ['OptionsDialog', 'OptionsEntry']
 
 
 # %% CLASS DEFINITIONS

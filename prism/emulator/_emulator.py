@@ -21,8 +21,8 @@ from struct import calcsize
 from e13tools import InputError
 from e13tools.math import diff, nearest_PD
 from e13tools.utils import (
-    check_instance, split_seq, delist, docstring_append,
-    docstring_substitute, raise_error, raise_warning)
+    check_instance, delist, docstring_append, docstring_substitute,
+    raise_error, raise_warning, split_seq)
 import h5py
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 from mpi4pyd import MPI
