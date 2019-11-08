@@ -22,8 +22,8 @@ from e13tools import InputError
 from e13tools.pyplot import draw_textline
 from e13tools.sampling import lhd
 from e13tools.utils import (
-    split_seq, docstring_append, docstring_copy, docstring_substitute,
-    raise_error, raise_warning)
+    docstring_append, docstring_copy, docstring_substitute, raise_error,
+    raise_warning, split_seq)
 from matplotlib import cm
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt

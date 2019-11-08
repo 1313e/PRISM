@@ -25,8 +25,8 @@ from e13tools import InputError, ShapeError
 from e13tools.math import nCr, sort2D
 from e13tools.sampling import lhd
 from e13tools.utils import (
-    split_seq, delist, docstring_append, docstring_copy,
-    docstring_substitute, get_outer_frame, raise_error, raise_warning)
+    delist, docstring_append, docstring_copy, docstring_substitute,
+    get_outer_frame, raise_error, raise_warning, split_seq)
 from mpi4pyd import MPI
 from mpi4pyd.MPI import get_HybridComm_obj
 import numpy as np

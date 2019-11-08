@@ -1115,8 +1115,9 @@ class OverviewDockWidget(QW.QDockWidget):
         requested `func` using the provided `iterables`.
 
         Depending on the current settings, this function will either create a
-        threaded progress dialog that allows the user to abort the operation
-        (but is slower), or a static dialog that cannot be interrupted.
+        :obj:`~prism._gui.widgets.helpers.ThreadedProgressDialog` object that
+        allows the user to abort the operation (but is slower), or a static
+        dialog that cannot be interrupted.
 
         Parameters
         ----------

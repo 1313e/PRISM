@@ -23,7 +23,7 @@ from e13tools.utils import docstring_substitute
 from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
-from prism.__version__ import __version__
+from prism import __version__
 from prism._docstrings import kwargs_doc, qt_slot_doc
 from prism._internal import RequestError, RequestWarning
 from prism._gui import APP_ICON_PATH, APP_NAME
@@ -38,6 +38,7 @@ __all__ = ['MainViewerWindow']
 
 # %% CLASS DEFINITIONS
 # Define class for main viewer window
+# TODO: Refactor entire GUI to account for functionalities ported to GuiPy
 class MainViewerWindow(QW.QMainWindow):
     """
     Defines the :class:`~MainViewerWindow` class for the Projection GUI.
@@ -336,7 +337,7 @@ class MainViewerWindow(QW.QMainWindow):
 
         # Open webbrowser
         QG.QDesktopServices.openUrl(QC.QUrl(
-            "https://prism-tool.readthedocs.io/en/master/api/prism._gui.html"))
+            "https://prism-tool.readthedocs.io/en/latest/api/prism._gui.html"))
 
     # This function is called when the viewer is closed
     def closeEvent(self, *args, **kwargs):

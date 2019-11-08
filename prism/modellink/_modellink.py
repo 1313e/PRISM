@@ -19,7 +19,7 @@ import warnings
 # Package imports
 from e13tools import InputError, ShapeError
 from e13tools.utils import (
-    split_seq, docstring_substitute, get_outer_frame, raise_error)
+    docstring_substitute, get_outer_frame, raise_error, split_seq)
 import h5py
 import hickle
 import numpy as np
