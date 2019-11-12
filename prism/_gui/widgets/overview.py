@@ -1172,6 +1172,9 @@ class OverviewDockWidget(QW.QDockWidget):
             # Show the dialog
             dialog.show()
 
+            # Make cursor show that it is busy
+            QW.QApplication.setOverrideCursor(QG.QCursor(QC.Qt.WaitCursor))
+
             # Wait for 0.1 seconds and then process events to update dialog
             time.sleep(0.1)
             QW.QApplication.instance().processEvents()
@@ -1186,8 +1189,9 @@ class OverviewDockWidget(QW.QDockWidget):
                 else:
                     result = True
 
-            # Close dialog
+            # Restore mouse cursor and close dialog
             finally:
+                QW.QApplication.restoreOverrideCursor()
                 dialog.close()
 
         # Return result

@@ -597,8 +597,9 @@ class KwargsDictDialogPage(BaseBox):
     @docstring_append(create_type_doc.format('cmap'))
     def create_type_cmap(self):
         # Obtain a list with default colormaps that should be at the top
-        std_cmaps = sset(['cividis', 'dusk', 'freeze', 'heat', 'inferno',
-                          'magma', 'plasma', 'rainforest', 'viridis'])
+        std_cmaps = sset(['cividis', 'dusk', 'freeze', 'gothic', 'heat',
+                          'inferno', 'magma', 'plasma', 'rainforest',
+                          'sunburst', 'viridis'])
         std_cmaps_r = sset([cmap+'_r' for cmap in std_cmaps])
 
         # Obtain a list with all colormaps and their reverses

@@ -10,7 +10,6 @@ import pytest
 
 # PRISM imports
 from prism import Pipeline
-from prism._gui.widgets.core import set_box_value
 from prism._gui.widgets.main import MainViewerWindow
 from prism.modellink.tests.modellink import GaussianLink3D
 

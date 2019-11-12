@@ -46,7 +46,7 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
 
 :attr:`~prism.Pipeline.criterion` (Default: None)
     The criterion to use for determining the quality of the LHDs that are used, represented by an integer, float, string or :pycode:`None`.
-    This parameter is the only non-*PRISM* parameter. Instead, it is used in the lhd()-function of the `e13Tools`_ package.
+    This parameter is the only non-*PRISM* parameter. Instead, it is used in the :func:`~e13tools.sampling.lhd`-function of the `e13Tools`_ package.
     By default, :pycode:`None` is used.
 
 :attr:`~prism.emulator.Emulator.method` (Default: 'full')
