@@ -174,7 +174,7 @@ class OptionsDialog(QW.QDialog):
         """
 
         # Create new options entry
-        entry = OptionsEntry(name, box, default)
+        entry = OptionsEntry(self, name, box, default)
 
         # Connect box signals
         get_modified_box_signal(box).connect(self.enable_save_button)
@@ -785,12 +785,14 @@ class OptionsEntry(QC.QObject):
     """
 
     # Initialize options entry
-    def __init__(self, name, box, default):
+    def __init__(self, parent, name, box, default):
         """
         Initialize an instance of the :class:`~OptionsEntry` class.
 
         Parameters
         ----------
+        parent : :obj:`~PyQt5.QtWidgets.QWidget` object
+            The widget to use as the parent of this entry.
         name : str
             The name of this options entry.
         box : :obj:`~PyQt5.QtWidgets.QWidget` object
@@ -806,7 +808,7 @@ class OptionsEntry(QC.QObject):
         self._default = default
 
         # Call super constructor
-        super().__init__()
+        super().__init__(parent)
 
         # Initialize the options entry
         self.init()

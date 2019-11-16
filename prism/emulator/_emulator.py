@@ -1399,7 +1399,7 @@ class Emulator(object):
         adj_var_val = self._get_adj_var(emul_i, emul_s_seq, par_set, cov_vec)
 
         # Make sure that adj_var_val cannot drop below zero
-        adj_var_val[adj_var_val < 0] = 0
+        np.maximum(0, adj_var_val, out=adj_var_val)
 
         # Return adj_exp_val and adj_var_val
         return(adj_exp_val, adj_var_val)
@@ -2829,7 +2829,7 @@ class Emulator(object):
 
         # If not, it must be an array of mock parameter values
         else:
-            mock_par = self._modellink._check_sam_set(use_mock, 'use_mock')
+            mock_par = self._modellink._check_sam_set(use_mock, 'mock_par')
             use_mock = True
 
         # If a currently loaded emulator used mock data and use_mock is False
