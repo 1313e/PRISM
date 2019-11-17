@@ -11,7 +11,7 @@ import pytest
 # PRISM imports
 from prism._gui.widgets.core import get_box_value, set_box_value
 from prism._gui.widgets.preferences.custom_boxes import (
-    ColorBox, DefaultBox, FigSizeBox)
+    ColorBox, ColorMapBox, DefaultBox, FigSizeBox)
 from prism._gui.widgets.preferences.kwargs_dicts import (
     KwargsDictBoxLayout, KwargsDictDialog, KwargsDictDialogPage)
 
@@ -253,7 +253,7 @@ class TestKwargsDictDialog_EntryTypes(object):
     @pytest.mark.parametrize(
         "page_name, entry_type, field_type, field_value",
         [('impl_kwargs_2D', 'alpha', QW.QDoubleSpinBox, 0.5),
-         ('impl_kwargs_3D', 'cmap', QW.QComboBox, 'rainforest'),
+         ('impl_kwargs_3D', 'cmap', ColorMapBox, 'rainforest'),
          ('los_kwargs_2D', 'color', ColorBox, 'cyan'),
          ('fig_kwargs', 'dpi', QW.QSpinBox, 175),
          ('fig_kwargs', 'figsize', FigSizeBox, (13, 13)),
@@ -282,24 +282,3 @@ class TestKwargsDictDialog_EntryTypes(object):
 
         # Set the value of this box
         set_box_value(field_box, field_value)
-
-    # Test if an error message is given if a bad colormap is chosen
-    def test_set_bad_cmap(self, monkeypatch, option_entries, kwargs_dicts):
-        # Obtain the los_kwargs_3D page
-        page = option_entries['los_kwargs_3D'].box
-
-        # Add a new entry to this page
-        page.add_but.click()
-
-        # Set the kwargs_box to 'cmap'
-        row = page.kwargs_grid.count()//3-1
-        kwargs_box = page.kwargs_grid.itemAtPosition(row, 1).widget()
-        set_box_value(kwargs_box, 'cmap')
-
-        # Monkey patch the QMessagebox.warning function
-        monkeypatch.setattr(QW.QMessageBox, 'warning',
-                            lambda *args: QW.QMessageBox.Ok)
-
-        # Set the value of the field_box
-        field_box = page.kwargs_grid.itemAtPosition(row, 2).widget()
-        set_box_value(field_box, 'jet')
