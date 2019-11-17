@@ -590,9 +590,9 @@ class Projection(object):
         # Check if z_min is requested to be smoothed
         if self.__smooth:
             # Calculate the highest z_los that corresponds to 0 in color
-            # Matplotlib uses 256 segments in every colormap
-            # Therefore, max(z_los)/256 gives the color for 0
-            min_los = min(1, np.max(z_los))/256
+            # Matplotlib uses N segments in a specific colormap
+            # Therefore, max(z_los)/N gives the color for 0
+            min_los = min(1, np.max(z_los))/self.__los_kwargs_3D['cmap'].N
 
             # Loop over all grid points
             z_min[z_los <= min_los] = impl_cut
