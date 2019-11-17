@@ -5,6 +5,7 @@
 from os import path
 
 # Package imports
+from matplotlib import cm
 from PyQt5 import QtCore as QC, QtWidgets as QW
 import pytest
 
@@ -253,7 +254,7 @@ class TestKwargsDictDialog_EntryTypes(object):
     @pytest.mark.parametrize(
         "page_name, entry_type, field_type, field_value",
         [('impl_kwargs_2D', 'alpha', QW.QDoubleSpinBox, 0.5),
-         ('impl_kwargs_3D', 'cmap', ColorMapBox, 'rainforest'),
+         ('impl_kwargs_3D', 'cmap', ColorMapBox, cm.get_cmap('rainforest')),
          ('los_kwargs_2D', 'color', ColorBox, 'cyan'),
          ('fig_kwargs', 'dpi', QW.QSpinBox, 175),
          ('fig_kwargs', 'figsize', FigSizeBox, (13, 13)),
