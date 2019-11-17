@@ -1348,11 +1348,6 @@ class Projection(object):
                 err_msg = ("Input argument 'impl_kwargs_3D/cmap' is invalid! "
                            "(%s)" % (error))
                 raise_error(err_msg, InputError, logger)
-            else:
-                # Save colormap by its name if its registered (Projection GUI)
-                name = impl_kwargs_3D['cmap'].name
-                if name in cm.cmap_d:
-                    impl_kwargs_3D['cmap'] = name
 
             # Check if any forbidden kwargs are given and remove them
             impl_keys = list(impl_kwargs_2D.keys())
@@ -1372,11 +1367,6 @@ class Projection(object):
                 err_msg = ("Input argument 'los_kwargs_3D/cmap' is invalid! "
                            "(%s)" % (error))
                 raise_error(err_msg, InputError, logger)
-            else:
-                # Save colormap by its name if its registered (Projection GUI)
-                name = los_kwargs_3D['cmap'].name
-                if name in cm.cmap_d:
-                    los_kwargs_3D['cmap'] = name
 
             # Check if any forbidden kwargs are given and remove them
             los_keys = list(los_kwargs_2D.keys())
