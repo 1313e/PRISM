@@ -6,8 +6,8 @@ from os import path
 
 # Package imports
 from mpi4pyd import MPI
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 import pytest
+from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
 from prism._gui import APP_ICON_PATH

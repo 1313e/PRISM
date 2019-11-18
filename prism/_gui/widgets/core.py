@@ -11,7 +11,7 @@ definition, which are core to the functioning of all GUI widgets.
 
 # %% IMPORTS
 # Package imports
-from PyQt5 import QtCore as QC, QtWidgets as QW
+from qtpy import QtCore as QC, QtWidgets as QW
 
 # All declaration
 __all__ = ['BaseBox', 'get_box_value', 'get_modified_box_signal',
@@ -32,7 +32,7 @@ class BaseBox(QW.QWidget):
     """
 
     # Define modified signal
-    modified = QC.pyqtSignal()
+    modified = QC.Signal()
 
     # Override childEvent to connect signals if child has a modified signal
     def childEvent(self, event):

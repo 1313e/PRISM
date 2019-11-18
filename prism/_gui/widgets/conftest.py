@@ -5,7 +5,7 @@
 from os import path
 
 # Package imports
-from PyQt5 import QtWidgets as QW
+from qtpy import QtWidgets as QW
 import pytest
 
 # PRISM imports

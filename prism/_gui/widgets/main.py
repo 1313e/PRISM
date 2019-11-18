@@ -20,7 +20,7 @@ import warnings
 
 # Package imports
 from e13tools.utils import docstring_substitute
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
+from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
 from prism import __version__
@@ -49,7 +49,7 @@ class MainViewerWindow(QW.QMainWindow):
     """
 
     # Create signal for exception that are raised
-    exception = QC.pyqtSignal()
+    exception = QC.Signal()
 
     # Initialize MainViewerWindow class
     @docstring_substitute(optional=kwargs_doc.format(
@@ -298,7 +298,7 @@ class MainViewerWindow(QW.QMainWindow):
         self.statusbar = self.statusBar()
 
     # This function creates a message box with the 'about' information
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def about(self):
         """
@@ -325,7 +325,7 @@ class MainViewerWindow(QW.QMainWindow):
         QW.QMessageBox.about(self, "About %s" % (APP_NAME), text)
 
     # This function opens the RTD API reference documentation in a webbrowser
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def api_reference(self):
         """
@@ -440,7 +440,7 @@ class MainViewerWindow(QW.QMainWindow):
         return(default_pos)
 
     # This function sets dock widgets and toolbars to their default position
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def set_default_dock_positions(self):
         """
@@ -464,7 +464,7 @@ class MainViewerWindow(QW.QMainWindow):
         self.area_dock.set_default_dock_positions()
 
     # This function shows the details() overview of a given emulator iteration
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def show_pipeline_details_overview(self):
         """

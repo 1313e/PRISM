@@ -14,7 +14,7 @@ The window used for the kwargs dicts is defined in
 # %% IMPORTS
 # Package imports
 from e13tools.utils import docstring_substitute
-from PyQt5 import QtCore as QC, QtWidgets as QW
+from qtpy import QtCore as QC, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
@@ -41,9 +41,9 @@ class OptionsDialog(QW.QDialog):
     """
 
     # Create saving, resetting and discarding signals
-    saving = QC.pyqtSignal()
-    resetting = QC.pyqtSignal()
-    discarding = QC.pyqtSignal()
+    saving = QC.Signal()
+    resetting = QC.Signal()
+    discarding = QC.Signal()
 
     @docstring_substitute(optional=kwargs_doc.format(
         'PyQt5.QtWidgets.QDialog'))
@@ -78,7 +78,7 @@ class OptionsDialog(QW.QDialog):
         self.init()
 
     # This function shows the options window
-    @QC.pyqtSlot()
+    @QC.Slot()
     def __call__(self):
         """
         Qt slot that shows the options dialog in the center of the main window.
@@ -681,7 +681,7 @@ class OptionsDialog(QW.QDialog):
         self.close_but = close_but
 
     # This function saves the new options values
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def save_options(self):
         """
@@ -712,7 +712,7 @@ class OptionsDialog(QW.QDialog):
         self.disable_save_button()
 
     # This function enables the save button
-    @QC.pyqtSlot()
+    @QC.Slot()
     def enable_save_button(self):
         """
         Qt slot that enables the save button at the bottom of the options
@@ -725,7 +725,7 @@ class OptionsDialog(QW.QDialog):
         self.save_but.setEnabled(True)
 
     # This function disables the save button
-    @QC.pyqtSlot()
+    @QC.Slot()
     def disable_save_button(self):
         """
         Qt slot that disables the save button at the bottom of the options
@@ -738,7 +738,7 @@ class OptionsDialog(QW.QDialog):
         self.save_but.setEnabled(False)
 
     # This function resets the options to default
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def reset_options(self):
         """
@@ -756,7 +756,7 @@ class OptionsDialog(QW.QDialog):
         self.save_options()
 
     # This function discards all changes to the options
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def discard_options(self):
         """
@@ -874,7 +874,7 @@ class OptionsEntry(QC.QObject):
         return(self._value)
 
     # This function saves the value of this entry's box
-    @QC.pyqtSlot()
+    @QC.Slot()
     def save_value(self):
         """
         Qt slot that saves the current value of this options entry.
@@ -884,7 +884,7 @@ class OptionsEntry(QC.QObject):
         self._value = get_box_value(self._box)
 
     # This function resets the value of this entry's box to the default value
-    @QC.pyqtSlot()
+    @QC.Slot()
     def reset_value(self):
         """
         Qt slot that resets the current value of this options entry to its
@@ -895,7 +895,7 @@ class OptionsEntry(QC.QObject):
         set_box_value(self._box, self._default)
 
     # This function sets the value of this entry's box to the saved value
-    @QC.pyqtSlot()
+    @QC.Slot()
     def discard_value(self):
         """
         Qt slot that discards the current value and sets it back to its saved

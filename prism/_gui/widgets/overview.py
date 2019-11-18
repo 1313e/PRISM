@@ -18,7 +18,7 @@ import time
 # Package imports
 from e13tools.utils import docstring_substitute
 import matplotlib.pyplot as plt
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
+from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
@@ -223,7 +223,7 @@ class OverviewDockWidget(QW.QDockWidget):
         self.context_menu_d = menu
 
     # This function shows the context menu for drawn projections
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def show_drawn_context_menu(self):
         """
@@ -297,7 +297,7 @@ class OverviewDockWidget(QW.QDockWidget):
         self.context_menu_a = menu
 
     # This function shows the context menu for available projections
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def show_available_context_menu(self):
         """
@@ -358,7 +358,7 @@ class OverviewDockWidget(QW.QDockWidget):
         self.context_menu_u = menu
 
     # This function shows the context menu for unavailable projections
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def show_unavailable_context_menu(self):
         """
@@ -374,8 +374,8 @@ class OverviewDockWidget(QW.QDockWidget):
             self.context_menu_u.popup(QG.QCursor.pos())
 
     # This function shows a list of projection figures in the viewing area
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(list)
+    @QC.Slot()
+    @QC.Slot(list)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_items_optional_doc)
     def show_projection_figures(self, list_items=None):
@@ -435,8 +435,8 @@ class OverviewDockWidget(QW.QDockWidget):
             self.main.area_dock.proj_area.tileSubWindows()
 
     # This function closes a list of projection figures permanently
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(list)
+    @QC.Slot()
+    @QC.Slot(list)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_items_optional_doc)
     def close_projection_figures(self, list_items=None):
@@ -475,8 +475,8 @@ class OverviewDockWidget(QW.QDockWidget):
     # OPTIMIZE: Reshaping a 3D projection figure takes up to 15 seconds
     # TODO: Figure out if there is a way to make a figure static, and only
     # resize when explicitly told to do so
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(list)
+    @QC.Slot()
+    @QC.Slot(list)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_items_optional_doc)
     def draw_projection_figures(self, list_items=None):
@@ -551,8 +551,8 @@ class OverviewDockWidget(QW.QDockWidget):
 
     # This function deletes a list of projection figures
     # TODO: Avoid reimplementing the __get_req_hcubes() logic here
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(list)
+    @QC.Slot()
+    @QC.Slot(list)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_items_optional_doc)
     def delete_projection_figures(self, list_items=None, *,
@@ -616,8 +616,8 @@ class OverviewDockWidget(QW.QDockWidget):
                 self.proj_list_u.addItem(item)
 
     # This function creates a list of projection figures
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(list)
+    @QC.Slot()
+    @QC.Slot(list)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_items_optional_doc)
     def create_projection_figures(self, list_items=None):
@@ -671,8 +671,8 @@ class OverviewDockWidget(QW.QDockWidget):
         self.proj_list_a.addItem(item)
 
     # This function saves a list of projection figures to file
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(list)
+    @QC.Slot()
+    @QC.Slot(list)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_items_optional_doc)
     def save_projection_figures(self, list_items=None, *, choose=False):
@@ -772,8 +772,8 @@ class OverviewDockWidget(QW.QDockWidget):
                 fig.savefig(fig_path)
 
     # This function saves a list of projection figures to file
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(list)
+    @QC.Slot()
+    @QC.Slot(list)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_items_optional_doc)
     def save_as_projection_figures(self, list_items=None):
@@ -794,8 +794,8 @@ class OverviewDockWidget(QW.QDockWidget):
         self.save_projection_figures(list_items, choose=True)
 
     # This function redraws a list of projection figures
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(list)
+    @QC.Slot()
+    @QC.Slot(list)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_items_optional_doc)
     def redraw_projection_figures(self, list_items=None):
@@ -822,8 +822,8 @@ class OverviewDockWidget(QW.QDockWidget):
         self.draw_projection_figures(list_items)
 
     # This function draws and saves a list of projection figures
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(list)
+    @QC.Slot()
+    @QC.Slot(list)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_items_optional_doc)
     def draw_save_projection_figures(self, list_items=None):
@@ -850,8 +850,8 @@ class OverviewDockWidget(QW.QDockWidget):
             self.save_projection_figures(list_items)
 
     # This function recreates a list of projection figures
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(list)
+    @QC.Slot()
+    @QC.Slot(list)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_items_optional_doc)
     def recreate_projection_figures(self, list_items=None):
@@ -887,8 +887,8 @@ class OverviewDockWidget(QW.QDockWidget):
             self.create_projection_figures(list_items)
 
     # This function creates and draws a list of projection figures
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(list)
+    @QC.Slot()
+    @QC.Slot(list)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_items_optional_doc)
     def create_draw_projection_figures(self, list_items=None):
@@ -916,8 +916,8 @@ class OverviewDockWidget(QW.QDockWidget):
             self.draw_projection_figures(list_items)
 
     # This function creates, draws and saves a list of projection figures
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(list)
+    @QC.Slot()
+    @QC.Slot(list)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_items_optional_doc)
     def create_draw_save_projection_figures(self, list_items=None):
@@ -946,8 +946,8 @@ class OverviewDockWidget(QW.QDockWidget):
                 self.save_projection_figures(list_items)
 
     # This function shows a details overview of a drawn projection figure
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(QW.QListWidgetItem)
+    @QC.Slot()
+    @QC.Slot(QW.QListWidgetItem)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_item_optional_doc)
     def details_drawn_projection_figure(self, list_item=None):
@@ -971,8 +971,8 @@ class OverviewDockWidget(QW.QDockWidget):
         self._details_projection_figure(list_item)
 
     # This function shows a details overview of an available projection figure
-    @QC.pyqtSlot()
-    @QC.pyqtSlot(QW.QListWidgetItem)
+    @QC.Slot()
+    @QC.Slot(QW.QListWidgetItem)
     @docstring_substitute(qt_slot=qt_slot_doc,
                           optional=list_item_optional_doc)
     def details_available_projection_figure(self, list_item=None):

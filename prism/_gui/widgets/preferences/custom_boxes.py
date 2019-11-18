@@ -20,7 +20,7 @@ from e13tools.utils import docstring_substitute
 from matplotlib import cm, rcParams
 from matplotlib.colors import BASE_COLORS, CSS4_COLORS, to_rgba
 import numpy as np
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
+from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
@@ -261,7 +261,7 @@ class ColorBox(BaseBox):
         return(pixmap)
 
     # This function shows the custom color picker dialog
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def show_colorpicker(self):
         """
@@ -285,7 +285,7 @@ class ColorBox(BaseBox):
             self.set_color(self.convert_to_mpl_color(color))
 
     # This function sets a given color as the current color
-    @QC.pyqtSlot(str)
+    @QC.Slot(str)
     @docstring_substitute(qt_slot=qt_slot_doc)
     def set_color(self, color):
         """
@@ -323,7 +323,7 @@ class ColorBox(BaseBox):
             set_box_value(self.color_combobox, color)
 
     # This function sets the color of the colorlabel
-    @QC.pyqtSlot(str)
+    @QC.Slot(str)
     @docstring_substitute(qt_slot=qt_slot_doc)
     def set_color_label(self, color):
         """
@@ -542,7 +542,7 @@ class ColorMapBox(BaseBox):
         return(icon)
 
     # This function checks a selected cmap
-    @QC.pyqtSlot(str)
+    @QC.Slot(str)
     def cmap_selected(self, cmap):
         """
         Qt slot that checks a provided `cmap` and shows an error message if
@@ -565,8 +565,7 @@ class ColorMapBox(BaseBox):
                        "this list.<br><br>"
                        "See <a href=\"%s\">here</a> for more information on "
                        "this subject."
-                       % (cmap, ("https://e13tools.readthedocs.io/en/latest/"
-                                 "user/colormaps.html#background")))
+                       % (cmap, ("https://cmasher.readthedocs.io/en/latest")))
 
             # Show error window
             QW.QMessageBox.warning(
@@ -681,7 +680,7 @@ class DefaultBox(BaseBox):
         box_layout.addWidget(val_box)
 
     # This function creates a field_box depending on the type that was selected
-    @QC.pyqtSlot(str)
+    @QC.Slot(str)
     @docstring_substitute(qt_slot=qt_slot_doc)
     def create_field_box(self, value_type):
         """

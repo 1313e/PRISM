@@ -15,7 +15,7 @@ from sys import platform
 
 # Package imports
 from e13tools.utils import docstring_substitute
-from PyQt5 import QtCore as QC, QtWidgets as QW
+from qtpy import QtCore as QC, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
@@ -107,7 +107,7 @@ class ViewingAreaDockWidget(QW.QDockWidget):
 
     # This function saves the current state of the viewer to file
     # TODO: See if the window frames can be removed from the saved image
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def save_view(self):
         """
@@ -205,7 +205,7 @@ class ViewingAreaDockWidget(QW.QDockWidget):
         return(default_pos)
 
     # This function sets dock widgets and toolbars to their default position
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def set_default_dock_positions(self):
         """

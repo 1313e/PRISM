@@ -15,7 +15,7 @@ GUI preferences.
 from e13tools.utils import docstring_append, docstring_substitute
 from matplotlib import rcParams
 from matplotlib.lines import lineMarkers, lineStyles
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
+from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
@@ -142,7 +142,7 @@ class KwargsDictDialog(QW.QDialog):
         self.init()
 
     # This function shows an editable window with the entries in the dict
-    @QC.pyqtSlot()
+    @QC.Slot()
     def __call__(self):
         """
         Qt slot that shows the kwargs dict dialog in the center of the
@@ -455,7 +455,7 @@ class KwargsDictDialogPage(BaseBox):
                           field_value)
 
     # This function creates an editable entry
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def add_editable_entry(self):
         """
@@ -499,7 +499,7 @@ class KwargsDictDialogPage(BaseBox):
         self.kwargs_grid.addWidget(QW.QLabel(''), n_rows, 2)
 
     # This function deletes an editable entry
-    @QC.pyqtSlot(QW.QComboBox)
+    @QC.Slot(QW.QComboBox)
     @docstring_substitute(qt_slot=qt_slot_doc)
     def remove_editable_entry(self, kwargs_box):
         """
@@ -529,7 +529,7 @@ class KwargsDictDialogPage(BaseBox):
 
     # This function is called when an item in the combobox is selected
     # TODO: Make sure that two fields cannot have the same name
-    @QC.pyqtSlot(str, QW.QComboBox)
+    @QC.Slot(str, QW.QComboBox)
     def entry_type_selected(self, entry_type, kwargs_box):
         """
         Qt slot that modifies the field box associated with the provided

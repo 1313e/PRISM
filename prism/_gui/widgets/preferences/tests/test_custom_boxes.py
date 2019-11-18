@@ -8,8 +8,8 @@ from os import path
 from matplotlib import cm
 from mpi4pyd import MPI
 from numpy.random import randint
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 import pytest
+from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
 from prism._gui.widgets.core import get_box_value, set_box_value

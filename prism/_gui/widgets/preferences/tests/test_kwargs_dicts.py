@@ -6,8 +6,8 @@ from os import path
 
 # Package imports
 from matplotlib import cm
-from PyQt5 import QtCore as QC, QtWidgets as QW
 import pytest
+from qtpy import QtCore as QC, QtWidgets as QW
 
 # PRISM imports
 from prism._gui.widgets.core import get_box_value, set_box_value

@@ -16,7 +16,7 @@ import signal
 from e13tools.utils import docstring_append, raise_error
 import matplotlib as mpl
 from matplotlib.pyplot import switch_backend
-from PyQt5 import QtCore as QC, QtWidgets as QW
+from qtpy import QtCore as QC, QtWidgets as QW
 
 # PRISM imports
 from prism._docstrings import start_gui_doc, start_gui_doc_pars
