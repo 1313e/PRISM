@@ -57,6 +57,7 @@ __all__ = ['Pipeline']
 # This could be done with a DummyLink, but md_var is then uncallable.
 # OPTIMIZE: Use the Numba package to speed up certain calculations?
 # TODO: Figure out how to do log-values properly for parameters as well.
+# TODO: Implement system tracer for catching errors and adding emulator system
 class Pipeline(Projection, object):
     """
     Defines the :class:`~Pipeline` class of the *PRISM* package.
