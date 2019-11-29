@@ -93,23 +93,20 @@ class MainViewerWindow(QW.QMainWindow):
         # Determine the last emulator iteration
         emul_i = self.pipe._make_call('_emulator._get_emul_i', None)
 
-        # Prepare projections to be made for all iterations
-        for i in range(1, emul_i+1):
-            # Try to prepare this iteration
-            try:
-                self.all_call_proj_attr('prepare_projections',
-                                        i, None, force=False, figure=True)
+        # Try to prepare projections for all iterations
+        try:
+            self.all_call_proj_attr('prepare_projections',
+                                    emul_i, None, force=False, figure=True)
 
-            # If this iteration raises a RequestError, it cannot be prepared
-            except RequestError as error:
-                # If that happens, emit a warning about it
-                warnings.warn("%s. Falling back to previous iteration."
-                              % (error), RequestWarning, stacklevel=2)
+        # If this raises a RequestError, the last iteration cannot be prepared
+        except RequestError as error:
+            # If that happens, emit a warning about it
+            warnings.warn("%s. Falling back to previous iteration."
+                          % (error), RequestWarning, stacklevel=2)
 
-                # Reprepare the previous iteration and break
-                self.all_call_proj_attr('prepare_projections',
-                                        i-1, None, force=False, figure=True)
-                break
+            # Reprepare up to the previous iteration
+            self.all_call_proj_attr('prepare_projections',
+                                    emul_i-1, None, force=False, figure=True)
 
         # Save some statistics about pipeline and modellink
         self.n_par = self.pipe._modellink._n_par
