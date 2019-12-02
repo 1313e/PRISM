@@ -1246,6 +1246,7 @@ class Pipeline(Projection, object):
         # Controller only
         if self._is_controller:
             # Set non-default model data values
+            self._modellink._data_val = data_val[0].tolist()
             self._emulator._data_val[0] = data_val[0].tolist()
 
             # Use model discrepancy variance as model data errors
