@@ -11,16 +11,11 @@ GUI preferences.
 
 
 # %% IMPORTS
-# Built-in imports
-from itertools import chain
-
 # Package imports
 from e13tools.utils import docstring_append, docstring_substitute
-from matplotlib import cm
-from matplotlib import rcParamsDefault as rcParams
+from matplotlib import rcParams
 from matplotlib.lines import lineMarkers, lineStyles
-import numpy as np
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
+from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
@@ -29,7 +24,7 @@ from prism._gui.widgets import (
     BaseBox, QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox, QW_QLabel,
     QW_QSpinBox, get_box_value, set_box_value)
 from prism._gui.widgets.preferences.custom_boxes import (
-    ColorBox, DefaultBox, FigSizeBox)
+    ColorBox, ColorMapBox, DefaultBox, FigSizeBox)
 
 # All declaration
 __all__ = ['KwargsDictBoxLayout', 'KwargsDictDialog', 'KwargsDictDialogPage']
@@ -147,7 +142,7 @@ class KwargsDictDialog(QW.QDialog):
         self.init()
 
     # This function shows an editable window with the entries in the dict
-    @QC.pyqtSlot()
+    @QC.Slot()
     def __call__(self):
         """
         Qt slot that shows the kwargs dict dialog in the center of the
@@ -460,7 +455,7 @@ class KwargsDictDialogPage(BaseBox):
                           field_value)
 
     # This function creates an editable entry
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def add_editable_entry(self):
         """
@@ -504,7 +499,7 @@ class KwargsDictDialogPage(BaseBox):
         self.kwargs_grid.addWidget(QW.QLabel(''), n_rows, 2)
 
     # This function deletes an editable entry
-    @QC.pyqtSlot(QW.QComboBox)
+    @QC.Slot(QW.QComboBox)
     @docstring_substitute(qt_slot=qt_slot_doc)
     def remove_editable_entry(self, kwargs_box):
         """
@@ -534,7 +529,7 @@ class KwargsDictDialogPage(BaseBox):
 
     # This function is called when an item in the combobox is selected
     # TODO: Make sure that two fields cannot have the same name
-    @QC.pyqtSlot(str, QW.QComboBox)
+    @QC.Slot(str, QW.QComboBox)
     def entry_type_selected(self, entry_type, kwargs_box):
         """
         Qt slot that modifies the field box associated with the provided
@@ -596,138 +591,7 @@ class KwargsDictDialogPage(BaseBox):
     # This function creates a cmap box
     @docstring_append(create_type_doc.format('cmap'))
     def create_type_cmap(self):
-        # Obtain a list with default colormaps that should be at the top
-        std_cmaps = sset(['cividis', 'dusk', 'freeze', 'heat', 'inferno',
-                          'magma', 'plasma', 'rainforest', 'viridis'])
-        std_cmaps_r = sset([cmap+'_r' for cmap in std_cmaps])
-
-        # Obtain a list with all colormaps and their reverses
-        all_cmaps = sset([cmap for cmap in cm.cmap_d
-                          if not cmap.endswith('_r')])
-        all_cmaps_r = sset([cmap for cmap in cm.cmap_d if cmap.endswith('_r')])
-
-        # Gather all sets together
-        cmaps = (std_cmaps, std_cmaps_r, all_cmaps, all_cmaps_r)
-
-        # Determine the cumulative lengths of all four sets
-        cum_len = np.cumsum(list(map(len, cmaps)))
-
-        # Set the size for the colormap previews
-        cmap_size = (100, 15)
-
-        # If the colormap icons have not been created yet, do that now
-        if not hasattr(self, 'cmap_icons'):
-            cmap_icons = sdict()
-            for cmap in chain(all_cmaps, all_cmaps_r):
-                cmap_icons[cmap] = self.create_cmap_icon(cmap, cmap_size)
-            self.cmap_icons = cmap_icons
-
-        # Create a combobox for cmaps
-        cmaps_box = QW_QComboBox()
-        for cmap in chain(*cmaps):
-            cmap_icon = self.cmap_icons[cmap]
-            cmaps_box.addItem(cmap_icon, cmap)
-
-        # Add some separators
-        for i in reversed(cum_len[:-1]):
-            cmaps_box.insertSeparator(i)
-        cmaps_box.insertSeparator(cum_len[1]+1)
-
-        # Set remaining properties
-        set_box_value(cmaps_box, rcParams['image.cmap'])
-        cmaps_box.setIconSize(QC.QSize(*cmap_size))
-        cmaps_box.setToolTip("Colormap to be used for the corresponding plot "
-                             "type")
-        cmaps_box.currentTextChanged.connect(self.cmap_selected)
-        return(cmaps_box)
-
-    # This function creates an icon of a colormap
-    @staticmethod
-    def create_cmap_icon(cmap, size):
-        """
-        Creates a :obj:`~PyQt5.QtGui.QIcon` object of the given `cmap` with the
-        provided `size`.
-
-        Parameters
-        ----------
-        cmap : :obj:`~matplotlib.colors.Colormap` object or str
-            The colormap for which an icon needs to be created.
-        size : tuple
-            A tuple containing the width and height dimension values of the
-            icon to be created.
-
-        Returns
-        -------
-        icon : :obj:`~PyQt5.QtGui.QIcon` object
-            The instance of the :class:`~PyQt5.QtGui.QIcon` class that was
-            created from the provided `cmap` and `size`.
-
-        """
-
-        # Obtain the cmap
-        cmap = cm.get_cmap(cmap)
-
-        # Obtain the RGBA values of the colormap
-        x = np.linspace(0, 1, 256)
-        rgba = cmap(x)
-
-        # Convert to Qt RGBA values
-        rgba = [QG.QColor(
-            int(r*255),
-            int(g*255),
-            int(b*255),
-            int(a*255)).rgba() for r, g, b, a in rgba]
-
-        # Create an image object
-        image = QG.QImage(256, 1, QG.QImage.Format_Indexed8)
-
-        # Set the value of every pixel in this image
-        image.setColorTable(rgba)
-        for i in range(256):
-            image.setPixel(i, 0, i)
-
-        # Scale the image to its proper size
-        image = image.scaled(*size)
-
-        # Convert the image to a pixmap
-        pixmap = QG.QPixmap.fromImage(image)
-
-        # Convert the pixmap to an icon
-        icon = QG.QIcon(pixmap)
-
-        # Return the icon
-        return(icon)
-
-    # This function checks a selected cmap
-    @QC.pyqtSlot(str)
-    def cmap_selected(self, cmap):
-        """
-        Qt slot that checks a provided `cmap` and shows an error message if
-        `cmap` is a terrible colormap.
-
-        """
-
-        # Make a tuple with terrible colormaps
-        bad_cmaps = ('gist_ncar', 'gist_rainbow', 'gist_stern', 'jet',
-                     'nipy_spectral')
-
-        # If a terrible colormap is selected, show error message
-        if cmap.startswith(bad_cmaps):
-            # Create error message
-            err_msg = ("The selected <b><i>%s</i></b> cmap is terrible for "
-                       "drawing PRISM's projection figures. To avoid "
-                       "introducing fake perceptual features, it is "
-                       "recommended to pick a <i>perceptually uniform "
-                       "sequential</i> colormap, like the ones at the top of "
-                       "this list.<br><br>"
-                       "See <a href=\"%s\">here</a> for more information on "
-                       "this subject."
-                       % (cmap, ("https://e13tools.readthedocs.io/en/latest/"
-                                 "user/colormaps.html#background")))
-
-            # Show error window
-            QW.QMessageBox.warning(
-                self, "%s WARNING" % (cmap.upper()), err_msg)
+        return(ColorMapBox())
 
     # This function creates a color picker box
     @docstring_append(create_type_doc.format('color'))

@@ -17,10 +17,11 @@ from itertools import chain
 
 # Package imports
 from e13tools.utils import docstring_substitute
-from matplotlib import rcParams
+from matplotlib import cm, rcParams
 from matplotlib.colors import BASE_COLORS, CSS4_COLORS, to_rgba
 import numpy as np
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
+from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
+from sortedcontainers import SortedDict as sdict, SortedSet as sset
 
 # PRISM imports
 from prism._docstrings import kwargs_doc, qt_slot_doc
@@ -29,7 +30,7 @@ from prism._gui.widgets import (
     QW_QSpinBox, get_box_value, set_box_value)
 
 # All declaration
-__all__ = ['ColorBox', 'DefaultBox', 'FigSizeBox']
+__all__ = ['ColorBox', 'ColorMapBox', 'DefaultBox', 'FigSizeBox']
 
 
 # %% CLASS DEFINITIONS
@@ -260,7 +261,7 @@ class ColorBox(BaseBox):
         return(pixmap)
 
     # This function shows the custom color picker dialog
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def show_colorpicker(self):
         """
@@ -284,7 +285,7 @@ class ColorBox(BaseBox):
             self.set_color(self.convert_to_mpl_color(color))
 
     # This function sets a given color as the current color
-    @QC.pyqtSlot(str)
+    @QC.Slot(str)
     @docstring_substitute(qt_slot=qt_slot_doc)
     def set_color(self, color):
         """
@@ -322,7 +323,7 @@ class ColorBox(BaseBox):
             set_box_value(self.color_combobox, color)
 
     # This function sets the color of the colorlabel
-    @QC.pyqtSlot(str)
+    @QC.Slot(str)
     @docstring_substitute(qt_slot=qt_slot_doc)
     def set_color_label(self, color):
         """
@@ -408,10 +409,212 @@ class ColorBox(BaseBox):
         self.color_combobox.lineEdit().setPlaceholderText(value)
 
 
+# Make class with a special box for setting the colormap of a plotted hexbin
+class ColorMapBox(BaseBox):
+    """
+    Defines the :class:`~ColorMapBox` class.
+
+    This class is used for making the 'cmap' entry in the
+    :class:`~prism._gui.widgets.preferences.KwargsDictDialogPage` class.
+
+    """
+
+    @docstring_substitute(optional=kwargs_doc.format(
+        'prism._gui.widgets.core.BaseBox'))
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize an instance of the :class:`~ColorMapBox` class.
+
+        %(optional)s
+
+        """
+
+        # Call super constructor
+        super().__init__(*args, **kwargs)
+
+        # Create the colormap box
+        self.init()
+
+    # This function creates a combobox with colormaps
+    def init(self):
+        # Obtain a list with default colormaps that should be at the top
+        std_cmaps = sset(['cividis', 'dusk', 'freeze', 'gothic', 'heat',
+                          'inferno', 'magma', 'plasma', 'rainforest',
+                          'sunburst', 'viridis'])
+        std_cmaps_r = sset([cmap+'_r' for cmap in std_cmaps])
+
+        # Obtain a list with all colormaps and their reverses
+        all_cmaps = sset([cmap for cmap in cm.cmap_d
+                          if not cmap.endswith('_r')])
+        all_cmaps_r = sset([cmap for cmap in cm.cmap_d if cmap.endswith('_r')])
+
+        # Gather all sets together
+        cmaps = (std_cmaps, std_cmaps_r, all_cmaps, all_cmaps_r)
+
+        # Determine the cumulative lengths of all four sets
+        cum_len = np.cumsum(list(map(len, cmaps)))
+
+        # Set the size for the colormap previews
+        cmap_size = (100, 15)
+
+        # If the colormap icons have not been created yet, do that now
+        if not hasattr(self, 'cmap_icons'):
+            cmap_icons = sdict()
+            for cmap in chain(all_cmaps, all_cmaps_r):
+                cmap_icons[cmap] = self.create_cmap_icon(cmap, cmap_size)
+            ColorMapBox.cmap_icons = cmap_icons
+
+        # Create a combobox for cmaps
+        cmaps_box = QW_QComboBox(self)
+        for cmap in chain(*cmaps):
+            cmap_icon = self.cmap_icons[cmap]
+            cmaps_box.addItem(cmap_icon, cmap)
+
+        # Add some separators
+        for i in reversed(cum_len[:-1]):
+            cmaps_box.insertSeparator(i)
+        cmaps_box.insertSeparator(cum_len[1]+1)
+
+        # Set remaining properties
+        set_box_value(cmaps_box, rcParams['image.cmap'])
+        cmaps_box.setIconSize(QC.QSize(*cmap_size))
+        cmaps_box.setToolTip("Colormap to be used for the corresponding plot "
+                             "type")
+        cmaps_box.currentTextChanged.connect(self.cmap_selected)
+        self.cmaps_box = cmaps_box
+
+    # This function creates an icon of a colormap
+    @staticmethod
+    def create_cmap_icon(cmap, size):
+        """
+        Creates a :obj:`~PyQt5.QtGui.QIcon` object of the given `cmap` with the
+        provided `size`.
+
+        Parameters
+        ----------
+        cmap : :obj:`~matplotlib.colors.Colormap` object or str
+            The colormap for which an icon needs to be created.
+        size : tuple
+            A tuple containing the width and height dimension values of the
+            icon to be created.
+
+        Returns
+        -------
+        icon : :obj:`~PyQt5.QtGui.QIcon` object
+            The instance of the :class:`~PyQt5.QtGui.QIcon` class that was
+            created from the provided `cmap` and `size`.
+
+        """
+
+        # Obtain the cmap
+        cmap = cm.get_cmap(cmap)
+
+        # Obtain the RGBA values of the colormap
+        # TODO: Figure out why setting 256 to cmap.N does not work for N > 256
+        x = np.linspace(0, 1, 256)
+        rgba = cmap(x)
+
+        # Convert to Qt RGBA values
+        rgba = [QG.QColor(
+            int(r*255),
+            int(g*255),
+            int(b*255),
+            int(a*255)).rgba() for r, g, b, a in rgba]
+
+        # Create an image object
+        image = QG.QImage(256, 1, QG.QImage.Format_Indexed8)
+
+        # Set the value of every pixel in this image
+        image.setColorTable(rgba)
+        for i in range(256):
+            image.setPixel(i, 0, i)
+
+        # Scale the image to its proper size
+        image = image.scaled(*size)
+
+        # Convert the image to a pixmap
+        pixmap = QG.QPixmap.fromImage(image)
+
+        # Convert the pixmap to an icon
+        icon = QG.QIcon(pixmap)
+
+        # Return the icon
+        return(icon)
+
+    # This function checks a selected cmap
+    @QC.Slot(str)
+    def cmap_selected(self, cmap):
+        """
+        Qt slot that checks a provided `cmap` and shows an error message if
+        `cmap` is a terrible colormap.
+
+        """
+
+        # Make a tuple with terrible colormaps
+        bad_cmaps = ('gist_ncar', 'gist_rainbow', 'gist_stern', 'jet',
+                     'nipy_spectral')
+
+        # If a terrible colormap is selected, show error message
+        if cmap.startswith(bad_cmaps):
+            # Create error message
+            err_msg = ("The selected <b><i>%s</i></b> cmap is terrible for "
+                       "drawing PRISM's projection figures. To avoid "
+                       "introducing fake perceptual features, it is "
+                       "recommended to pick a <i>perceptually uniform "
+                       "sequential</i> colormap, like the ones at the top of "
+                       "this list.<br><br>"
+                       "See <a href=\"%s\">here</a> for more information on "
+                       "this subject."
+                       % (cmap, ("https://cmasher.readthedocs.io/en/latest")))
+
+            # Show error window
+            QW.QMessageBox.warning(
+                self, "%s WARNING" % (cmap.upper()), err_msg)
+
+    # This function retrieves a value of this special box
+    def get_box_value(self):
+        """
+        Returns the current colormap of the colormap box.
+
+        Returns
+        -------
+        cmap : :obj:`~matplotlib.colors.Colormap` object
+            The currently selected colormap.
+
+        """
+
+        # Obtain the value
+        colormap = get_box_value(self.cmaps_box)
+
+        # Convert to matplotlib colormap
+        cmap = cm.get_cmap(colormap)
+
+        # Return it
+        return(cmap)
+
+    # This function sets the value of this special box
+    def set_box_value(self, cmap):
+        """
+        Sets the current colormap to `cmap`.
+
+        Parameters
+        ----------
+        cmap : :obj:`~matplotlib.colors.Colormap` object
+            The colormap that must be used for this colormap box.
+
+        """
+
+        # Obtain the name of the provided colormap
+        name = cmap.name
+
+        # Set this as the current colormap
+        set_box_value(self.cmaps_box, name)
+
+
 # Make class for the default non-standard box that allows type to be selected
 class DefaultBox(BaseBox):
     """
-    Defines the :class:`~ColorBox` class.
+    Defines the :class:`~DefaultBox` class.
 
     This class is used for making a non-standard entry in the
     :class:`~prism._gui.widgets.preferences.KwargsDictDialogPage` class.
@@ -477,7 +680,7 @@ class DefaultBox(BaseBox):
         box_layout.addWidget(val_box)
 
     # This function creates a field_box depending on the type that was selected
-    @QC.pyqtSlot(str)
+    @QC.Slot(str)
     @docstring_substitute(qt_slot=qt_slot_doc)
     def create_field_box(self, value_type):
         """

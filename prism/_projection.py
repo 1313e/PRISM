@@ -405,7 +405,7 @@ class Projection(object):
 
         # Check if y_min is requested to be smoothed
         if self.__smooth:
-            # Loop over all grid points
+            # Set all y_min to impl_cut if its corresponding y_los is 0
             y_min[y_los <= 0] = impl_cut
 
         # Create plotted parameter value array
@@ -590,11 +590,11 @@ class Projection(object):
         # Check if z_min is requested to be smoothed
         if self.__smooth:
             # Calculate the highest z_los that corresponds to 0 in color
-            # Matplotlib uses 256 segments in every colormap
-            # Therefore, max(z_los)/256 gives the color for 0
-            min_los = min(1, np.max(z_los))/256
+            # Matplotlib uses N segments in a specific colormap
+            # Therefore, values up to max(z_los)/N has the color for 0
+            min_los = min(1, np.max(z_los))/self.__los_kwargs_3D['cmap'].N
 
-            # Loop over all grid points
+            # Set all z_min to impl_cut if its corresponding z_los <= min_los
             z_min[z_los <= min_los] = impl_cut
 
         # Create plotted parameter value grid
@@ -829,7 +829,7 @@ class Projection(object):
 
             # Open hdf5-file
             logger.info("Checking if projection data already exists.")
-            with self._File('r+', None) as file:
+            with self._File('r+' if self.__force else 'r', None) as file:
                 # Check if data is already there and act accordingly
                 for hcube in hcubes:
                     # Obtain name of this hypercube
@@ -1348,11 +1348,6 @@ class Projection(object):
                 err_msg = ("Input argument 'impl_kwargs_3D/cmap' is invalid! "
                            "(%s)" % (error))
                 raise_error(err_msg, InputError, logger)
-            else:
-                # Save colormap by its name if its registered (Projection GUI)
-                name = impl_kwargs_3D['cmap'].name
-                if name in cm.cmap_d:
-                    impl_kwargs_3D['cmap'] = name
 
             # Check if any forbidden kwargs are given and remove them
             impl_keys = list(impl_kwargs_2D.keys())
@@ -1372,11 +1367,6 @@ class Projection(object):
                 err_msg = ("Input argument 'los_kwargs_3D/cmap' is invalid! "
                            "(%s)" % (error))
                 raise_error(err_msg, InputError, logger)
-            else:
-                # Save colormap by its name if its registered (Projection GUI)
-                name = los_kwargs_3D['cmap'].name
-                if name in cm.cmap_d:
-                    los_kwargs_3D['cmap'] = name
 
             # Check if any forbidden kwargs are given and remove them
             los_keys = list(los_kwargs_2D.keys())
@@ -1444,10 +1434,14 @@ class Projection(object):
 
             # Check if projection has been created before
             with self._File('r+', None) as file:
-                try:
-                    file.create_group('%i/proj_hcube' % (self.__emul_i))
-                except ValueError:
-                    pass
+                # If the Projection GUI is used, check for all iterations
+                # Otherwise, solely check for this iteration
+                for i in range(1 if self.__use_GUI else self.__emul_i,
+                               self.__emul_i+1):
+                    try:
+                        file.create_group('%i/proj_hcube' % (i))
+                    except ValueError:
+                        pass
 
             # If projection data has been requested, initialize dict
             if not self.__figure:
@@ -1470,13 +1464,11 @@ class Projection(object):
         self.__create_hcubes = []
 
         # Obtain requested projection hypercubes
-        if self.__use_GUI:
-            # If the Projection GUI is used, request hcubes for all iterations
-            for i in range(1, self.__emul_i+1):
-                self.__get_req_hcubes(i, proj_par)
-        else:
-            # Else, request solely hcubes for this iteration
-            self.__get_req_hcubes(self.__emul_i, proj_par)
+        # If the Projection GUI is used, request hcubes for all iterations
+        # Otherwise, request solely hcubes for this iteration
+        for i in range(1 if self.__use_GUI else self.__emul_i,
+                       self.__emul_i+1):
+            self.__get_req_hcubes(i, proj_par)
 
     # This function saves projection data to hdf5
     @docstring_substitute(save_data=save_data_doc_pr)

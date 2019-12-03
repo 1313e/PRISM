@@ -5,8 +5,8 @@
 from os import path
 
 # Package imports
-from PyQt5 import QtCore as QC
 import pytest
+from qtpy import QtCore as QC
 
 # PRISM imports
 from prism._gui.widgets.core import get_box_value

@@ -14,7 +14,7 @@ that allow for certain widgets to be standardized.
 from sys import platform
 
 # Package imports
-from PyQt5 import QtCore as QC, QtWidgets as QW
+from qtpy import QtCore as QC, QtWidgets as QW
 
 # All declaration
 __all__ = ['QW_QAction', 'QW_QComboBox', 'QW_QDoubleSpinBox',
@@ -166,8 +166,8 @@ class QW_QComboBox(QW.QComboBox):
 
     """
 
-    popup_shown = QC.pyqtSignal([int], [str])
-    popup_hidden = QC.pyqtSignal([int], [str])
+    popup_shown = QC.Signal([int], [str])
+    popup_hidden = QC.Signal([int], [str])
 
     # Override the showPopup to emit a signal whenever it is triggered
     def showPopup(self, *args, **kwargs):
@@ -242,7 +242,7 @@ class QW_QLabel(QW.QLabel):
 
     """
 
-    mousePressed = QC.pyqtSignal()
+    mousePressed = QC.Signal()
 
     # Override the mousePressEvent to emit a signal whenever it is triggered
     def mousePressEvent(self, event):

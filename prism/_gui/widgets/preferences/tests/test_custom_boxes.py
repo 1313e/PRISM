@@ -5,15 +5,16 @@
 from os import path
 
 # Package imports
+from matplotlib import cm
 from mpi4pyd import MPI
 from numpy.random import randint
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
 import pytest
+from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
 from prism._gui.widgets.core import get_box_value, set_box_value
 from prism._gui.widgets.preferences.custom_boxes import (
-    ColorBox, DefaultBox, FigSizeBox)
+    ColorBox, ColorMapBox, DefaultBox, FigSizeBox)
 
 
 # Skip this entire module for any rank that is not the controller
@@ -98,6 +99,38 @@ class TestColorBox(object):
     def test_set_invalid_color_label(self, box):
         # Try setting the color label to something invalid
         assert box.set_color_label("1.5")
+
+
+# Pytest for ColorMapBox
+class TestColorMapBox(object):
+    # Test a colormap box
+    @pytest.fixture(scope='function')
+    def box(self, qtbot):
+        # Create a ColorMapBox instance
+        box = ColorMapBox()
+        qtbot.addWidget(box)
+
+        # Return box
+        return(box)
+
+    # Test if the proper box is present
+    def test_box(self, box):
+        # Test if there is a colormap combobox
+        assert hasattr(box, 'cmaps_box')
+        assert isinstance(box.cmaps_box, QW.QComboBox)
+
+        # Test if the ColorMapBox has an attribute called cmap_icons
+        assert hasattr(ColorMapBox, 'cmap_icons')
+        assert isinstance(ColorMapBox.cmap_icons, dict)
+
+    # Test if an error message is given if a bad colormap is chosen
+    def test_set_bad_cmap(self, monkeypatch, box):
+        # Monkey patch the QMessagebox.warning function
+        monkeypatch.setattr(QW.QMessageBox, 'warning',
+                            lambda *args: QW.QMessageBox.Ok)
+
+        # Set the value of the box
+        set_box_value(box, cm.get_cmap('jet'))
 
 
 # Pytest for DefaultBox

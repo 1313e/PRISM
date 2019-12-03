@@ -6,7 +6,7 @@ from os import path
 import sys
 
 # Package imports
-from PyQt5 import QtCore as QC
+from qtpy import QtCore as QC
 
 # PRISM imports
 from prism._gui.widgets.helpers import (

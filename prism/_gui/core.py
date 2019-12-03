@@ -16,7 +16,7 @@ import signal
 from e13tools.utils import docstring_append, raise_error
 import matplotlib as mpl
 from matplotlib.pyplot import switch_backend
-from PyQt5 import QtCore as QC, QtWidgets as QW
+from qtpy import QtCore as QC, QtWidgets as QW
 
 # PRISM imports
 from prism._docstrings import start_gui_doc, start_gui_doc_pars
@@ -89,6 +89,9 @@ def start_gui(pipeline_obj):  # pragma: no cover
 
             # Switch back to previous backend
             switch_backend(cur_backend)
+
+            # Log that GUI has been closed
+            logger.info("Exited %s." % (APP_NAME))
 
             # Return the main window instance
             return(main_window)

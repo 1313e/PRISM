@@ -1186,7 +1186,7 @@ class Emulator(object):
                 diff_flag = 0
 
             # Gather the diff_flags on the controller
-            diff_flag = np.any(self._comm.gather(diff_flag, 0))
+            diff_flag = self._comm.reduce(diff_flag, MPI.MAX, 0)
 
             # If all diff_flags were 0 and no n_data diff, give out a warning
             if(self._is_controller and not diff_flag and
@@ -1399,7 +1399,7 @@ class Emulator(object):
         adj_var_val = self._get_adj_var(emul_i, emul_s_seq, par_set, cov_vec)
 
         # Make sure that adj_var_val cannot drop below zero
-        adj_var_val[adj_var_val < 0] = 0
+        np.maximum(0, adj_var_val, out=adj_var_val)
 
         # Return adj_exp_val and adj_var_val
         return(adj_exp_val, adj_var_val)
@@ -1594,8 +1594,16 @@ class Emulator(object):
             active_sam_set = self._sam_set[emul_i][
                 :, self._active_par_data[emul_i][emul_s]]
 
-            # Perform regression for this emulator system
-            pipe.fit(active_sam_set, self._mod_set[emul_i][emul_s])
+            # Wrap in try-statement to add additional info if error is raised
+            # TODO: Sometimes, regression can fail with "SVD did not converge"
+            # Find out why and check if it can be avoided
+            try:
+                # Perform regression for this emulator system
+                pipe.fit(active_sam_set, self._mod_set[emul_i][emul_s])
+            except Exception as error:      # pragma: no cover
+                # If an error is raised, add which emulator system that was
+                raise_error(str(error)+" [emul_%i]" % (self._emul_s[emul_s]),
+                            type(error), logger, error.__traceback__)
 
             # Obtain the corresponding polynomial indices
             poly_idx = np_array(pipe.named_steps['SFS'].k_feature_idx_)
@@ -2829,7 +2837,7 @@ class Emulator(object):
 
         # If not, it must be an array of mock parameter values
         else:
-            mock_par = self._modellink._check_sam_set(use_mock, 'use_mock')
+            mock_par = self._modellink._check_sam_set(use_mock, 'mock_par')
             use_mock = True
 
         # If a currently loaded emulator used mock data and use_mock is False

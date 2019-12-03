@@ -19,7 +19,7 @@ from traceback import format_exception_only, format_tb
 # Package imports
 from e13tools.utils import docstring_substitute
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
+from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
 from prism._docstrings import qt_slot_doc
@@ -203,7 +203,7 @@ class ExceptionDialog(QW.QDialog):
         return(traceback_box)
 
     # This function shows or hides the traceback box
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def toggle_traceback_box(self):
         """
@@ -351,7 +351,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
     """
 
     # Make a signal that is emitted whenever the progress dialog finishes
-    finished = QC.pyqtSignal()
+    finished = QC.Signal()
 
     def __init__(self, main_window_obj, *args, **kwargs):
         """
@@ -482,7 +482,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
         return(self.successful)
 
     # This function sets an attribute and serves as a slot
-    @QC.pyqtSlot()
+    @QC.Slot()
     def set_successful_finish(self):
         """
         Qt slot that marks the operation as 'successful'.
@@ -492,7 +492,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
         self.successful = True
 
     # This function raises an exception caught in the controller thread
-    @QC.pyqtSlot(Exception)
+    @QC.Slot(Exception)
     def raise_exception(self, exception):
         """
         Qt slot that raises a provided exception.
@@ -502,7 +502,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
         raise exception
 
     # This function kills all worker threads and then the controller thread
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def kill_threads(self):
         """
@@ -581,13 +581,13 @@ class TracedControllerThread(QC.QObject, TracedThread):
     """
 
     # Define a signal that sends out the number of finished iterations
-    n_finished = QC.pyqtSignal(int)
+    n_finished = QC.Signal(int)
 
     # Define a signal that is emitted when the thread finishes executing
-    finished = QC.pyqtSignal()
+    finished = QC.Signal()
 
     # Define a signal that is emitted whenever an exception occurs
-    exception = QC.pyqtSignal(Exception)
+    exception = QC.Signal(Exception)
 
     def __init__(self, parent, run_map):
         """

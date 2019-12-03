@@ -20,7 +20,7 @@ import warnings
 
 # Package imports
 from e13tools.utils import docstring_substitute
-from PyQt5 import QtCore as QC, QtGui as QG, QtWidgets as QW
+from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
 from prism import __version__
@@ -49,7 +49,7 @@ class MainViewerWindow(QW.QMainWindow):
     """
 
     # Create signal for exception that are raised
-    exception = QC.pyqtSignal()
+    exception = QC.Signal()
 
     # Initialize MainViewerWindow class
     @docstring_substitute(optional=kwargs_doc.format(
@@ -93,23 +93,20 @@ class MainViewerWindow(QW.QMainWindow):
         # Determine the last emulator iteration
         emul_i = self.pipe._make_call('_emulator._get_emul_i', None)
 
-        # Prepare projections to be made for all iterations
-        for i in range(1, emul_i+1):
-            # Try to prepare this iteration
-            try:
-                self.all_call_proj_attr('prepare_projections',
-                                        i, None, force=False, figure=True)
+        # Try to prepare projections for all iterations
+        try:
+            self.all_call_proj_attr('prepare_projections',
+                                    emul_i, None, force=False, figure=True)
 
-            # If this iteration raises a RequestError, it cannot be prepared
-            except RequestError as error:
-                # If that happens, emit a warning about it
-                warnings.warn("%s. Falling back to previous iteration."
-                              % (error), RequestWarning, stacklevel=2)
+        # If this raises a RequestError, the last iteration cannot be prepared
+        except RequestError as error:
+            # If that happens, emit a warning about it
+            warnings.warn("%s. Falling back to previous iteration."
+                          % (error), RequestWarning, stacklevel=2)
 
-                # Reprepare the previous iteration and break
-                self.all_call_proj_attr('prepare_projections',
-                                        i-1, None, force=False, figure=True)
-                break
+            # Reprepare up to the previous iteration
+            self.all_call_proj_attr('prepare_projections',
+                                    emul_i-1, None, force=False, figure=True)
 
         # Save some statistics about pipeline and modellink
         self.n_par = self.pipe._modellink._n_par
@@ -298,7 +295,7 @@ class MainViewerWindow(QW.QMainWindow):
         self.statusbar = self.statusBar()
 
     # This function creates a message box with the 'about' information
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def about(self):
         """
@@ -325,7 +322,7 @@ class MainViewerWindow(QW.QMainWindow):
         QW.QMessageBox.about(self, "About %s" % (APP_NAME), text)
 
     # This function opens the RTD API reference documentation in a webbrowser
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def api_reference(self):
         """
@@ -440,7 +437,7 @@ class MainViewerWindow(QW.QMainWindow):
         return(default_pos)
 
     # This function sets dock widgets and toolbars to their default position
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def set_default_dock_positions(self):
         """
@@ -464,7 +461,7 @@ class MainViewerWindow(QW.QMainWindow):
         self.area_dock.set_default_dock_positions()
 
     # This function shows the details() overview of a given emulator iteration
-    @QC.pyqtSlot()
+    @QC.Slot()
     @docstring_substitute(qt_slot=qt_slot_doc)
     def show_pipeline_details_overview(self):
         """
