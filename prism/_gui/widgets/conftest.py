@@ -98,7 +98,7 @@ def close_main_window(main_window_obj):
 
 
 def exit_worker_mode(worker_mode_obj):
-    worker_mode_obj.__exit__()
+    worker_mode_obj.__exit__(None, None, None)
 
 
 @pytest.fixture(scope='module')
