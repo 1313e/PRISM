@@ -2,9 +2,15 @@ language: python
 os: linux
 dist: xenial
 
+env:
+  global:
+    - TWINE_USERNAME=1313e
+    - secure: "b2AT80ISvAu1zr88zr/g7SrTqiynOXmrN3D8XBjs4+OlsNI5oBL079jQFztq2WaX/v6tYr8WKN13GZgGm07FH5xNDX/ezsbqh0aYOrKsmGiLPXxF+ZPiG15+KKHzvj3khb/1t4RoD+0cI/rn54+g+hQyeLLYohQcbgsmdChygdjsdBIdQWE7/mU/hV4Qy6RtxgcP/pJEeuUlh5KtDVta1c3YodVK/sL0SGQx3neVOA8UWFl3F1LUd/lcP0ikG24A/MeBx5U/EtQtl5OiVqaS7AEOHUHYvNBr7Ge/g9opMCUUtPk4nazOxEL5T+uRhrSFEil5B1YzC+EufMZzN3DyjyRJFepIZrqtqlUDh46zFEXyxKP3xzgSFL3+XcooX15QQcDVlaasVdQMuryg2fvsi5AoSpJNpTioR6epGXWeSP7FcZ+dw14oWmNoievS2zGD0rVqkHiTI8bj/m2fvdpISmSjtcyYp45NSBjl+bEjmlIpquZLTIZcHgDUzA76FPTmpDYv6vBq+gNOfdV0PflWgNact48Xk2Z/M7U7fCTIdYvhSy7uGuDVLzkmTjKp7+gjXyRtaokVlYkW6QLIOb7afl9Md4y+l0EhewnG2jtx5Aq0hRLZ3yyundHCyZV6k/YpwSFdKxSO7xPgdSCl+BT3WAvLCGjTxQzfsauSN/mQ8tw="
+
 jobs:
   include:
-    - osx_image: xcode11.2
+    - os: osx
+      osx_image: xcode11.2
       language: generic
       env: PY=3
     - python: 3.5
@@ -43,23 +49,9 @@ script:
     coverage report -m
 after_success:
   - |
-    if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_BRANCH" == "$TRAVIS_TAG" ]]; then
+    if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_BRANCH" == "dev" ]]; then
       echo "Hello"
     fi
-before_deploy:
-  - rm -r dist
-  - rm -r build
-deploy:
-  provider: pypi
-  user: 1313e
-  password:
-    secure: "AgsDI+wasX+Msg2rfH4I/WZpx+8uWmx3zCKRc5m+PgTWgtT2oieTX1pqINsVYQPSp58SRfCa7DEsmDMjYQGVjM58bpM3AELGGoiQ3NXv5HGJVlGA5FWMPxh7SE+E6/zqCkwxaTKFNTATtHbr01s0DQYGQBSrt0hhYt5gXTSD7j+iugrEnpBdfAVMD67V4QNfN5u73RgbUEpFPa4DoZkCt5Dm2uIt3rmI6dpojc04RrUXCow2QBBswikoW3l7p6/xXlLGRc/WY5eTTwMV5pxkYyCMT6Of3C2RSyfJ9A0DlmGlyxh5aurSA8Z8ZHNoDIJXiTprlW+66tuAiXr+uoqBK0EC9BnFTEPoqOG/g77zzMSZpVx4nvOS86lCzePygwxZob8XpG6GYazPvUom9Tc9Mn7/COs2a5/TgksABXM8xEo03RvGA/TVIrdNoGug5HDl83t1HjQAwZlIXwgDltr/DmV8u9Jyrq0gRyyZ4rfIGLXt2tqGi2vXQv4XBfluoLoZWXo3wKegMrhTtBESS77M9bAA+2JwQDdrFitkFWZWxAAJ9nc0SEGTDqpdRVkdT+TgNEt0RK/sEjyXBiydZYGS6G92kiWxBlgKFe1TsSOuuVHcxxKkMSdubjpGcV5NxSWYY57gf2udU7v82Wb8PMym2cyPSB1n6BS2LbPNrD1c6t4="
-  distributions: "sdist bdist_wheel"
-  skip_existing: true
-  on:
-    branch: master
-    condition: $TRAVIS_OS_NAME == linux
-    tags: true
     
 notifications:
   webhooks:
@@ -69,6 +61,6 @@ notifications:
     on_failure: always
   email:
     recipients:
-      - evandervelden@swin.edu.au
+      - secure: "s4U/OU0NPFvJkbvdVTBsaSu45TFD27bIOuowv4cvaV28KR1K3ma9ho3mv9+j6+T9hWR95BI+/nAfLA9QAm8T05ePYSKaNCdLwiCbihsLoNo8isa+14xdHZAj/txGpYQQX7ayL8/uJxi6bSiRxuJBKshpZKswdLL3tS4fXAH0RvoaJVSlQqLpiFhiXZogn+Uk23MawdlYB/swPNX/97BXd8xcMpj/UzjBKjOhPGWr9JcCY0ec9mgtgrQjWr8XsgQdjda1c0++HrBfZcHb5M0Y5JECkpMgQr/d42CdQCO+XgG/RAMUE/WWmsYq8YWrbZinLWs21JRNWemDa9I15Vvio8ZgAjCIAj92ij9tOyYfG9Hx5cIkc4fupn3ImwA/naw+yk1n7qT1YjHbFHkAHfWd8dqNCGCF1EB1+O5hlAWj2K7bzZEX9T/Bwxja3jchBM2/ENmZ5qmvhxSpQ/YnhTOMrZiEUBU1cQLPs3mpcOQiVcG4+3vZeFNKOOWJciRSutBr4xzkORNwBfkRatyDufLBgtaSFe++1wjQ36QDaMC+kwiZGs56Jo94fA05X9rOw31cS9RsY2vUMW4BwyiAQMg8RdvaDRh1nPCsomd3nPyvwrvvKb/KGecr76OMRlYWwreAOah5kz6QcXEQ3CtFo/FMm1S50L6gKtgFQergL3fpgPc="
     on_success: change
     on_failure: always
