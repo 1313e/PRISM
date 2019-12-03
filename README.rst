@@ -4,7 +4,7 @@
     :target: https://prism-tool.readthedocs.io/en/latest
     :alt: PRISM Logo
 
-|PyPI| |Python| |Travis| |AppVeyor| |Azure| |Coverage| |Gitter|
+|PyPI| |Python| |Azure| |ReadTheDocs| |Coverage| |Gitter|
 
 Model dispersion with *PRISM*; an alternative to MCMC for rapid analysis of models
 ==================================================================================
@@ -187,15 +187,12 @@ Huge thanks to James Josephides for making the *PRISM* logo.
 .. |Python| image:: https://img.shields.io/pypi/pyversions/prism.svg?logo=python&logoColor=white&label=Python
     :target: https://pypi.python.org/pypi/prism
     :alt: PyPI - Python Versions
-.. |Travis| image:: https://img.shields.io/travis/com/1313e/PRISM/master.svg?logo=travis%20ci&logoColor=white&label=Travis%20CI
-    :target: https://travis-ci.com/1313e/PRISM
-    :alt: Travis CI - Build Status
-.. |AppVeyor| image:: https://img.shields.io/appveyor/ci/1313e/PRISM/master.svg?logo=appveyor&logoColor=white&label=AppVeyor
-    :target: https://ci.appveyor.com/project/1313e/PRISM/branch/master
-    :alt: AppVeyor - Build Status
 .. |Azure| image:: https://img.shields.io/azure-devops/build/1313e/2f7c67c7-61eb-4e70-9ff3-7f54f8e39987/1?logo=azure-pipelines&logoColor=white&label=Azure
     :target: https://dev.azure.com/1313e/PRISM/_build/latest?definitionId=1
     :alt: Azure Pipelines - Build Status
+.. |ReadTheDocs| image:: https://img.shields.io/readthedocs/e13tools/latest.svg?logo=read%20the%20docs&logoColor=white&label=Docs
+    :target: https://e13tools.readthedocs.io/en/latest
+    :alt: ReadTheDocs - Build Status
 .. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/master.svg?logo=codecov&logoColor=white&label=Coverage
     :target: https://codecov.io/gh/1313e/PRISM/branches/master
     :alt: CodeCov - Coverage Status
