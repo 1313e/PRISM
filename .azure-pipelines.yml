@@ -6,6 +6,9 @@
 variables:
   python.arch: 'x64'
   upload_coverage: false
+  deploy: false
+  twine_username: '1313e'
+  twine_password: $(twine_password)
 
 schedules:
 - cron: "0 0 * * 0"
@@ -54,6 +57,7 @@ strategy:
       imageName: 'windows-2019'
       python.version: '3.7'
       upload_coverage: true
+      deploy: true
   maxParallel: 10
 
 pool:
@@ -136,3 +140,9 @@ steps:
     curl -s https://codecov.io/bash | bash
   condition: and(succeeded(), eq(variables['upload_coverage'], true))
   displayName: Upload coverage report if requested
+
+# Deploy on PyPI if this is a release
+- script: |
+    twine upload --skip-existing dist/*
+  condition: and(succeeded(), eq(variables['deploy'], true))
+  displayName: Deploy on PyPI if this is a release
