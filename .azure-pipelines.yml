@@ -7,8 +7,6 @@ variables:
   python.arch: 'x64'
   upload_coverage: false
   deploy: false
-  twine_username: '1313e'
-  twine_password: $(twine_password)
 
 schedules:
 - cron: "0 0 * * 0"
@@ -72,20 +70,20 @@ steps:
   displayName: Use Python $(python.version) $(python.arch)
 
 # Install missing libraries on Linux
-- bash: |
+- bash:
     sudo apt-get install -y xvfb libdbus-1-3 libxkbcommon-x11-0
     echo "##vso[task.setvariable variable=QT_QPA_PLATFORM]offscreen"
   condition: eq(variables['Agent.OS'], 'Linux')
   displayName: Install missing libraries required for Qt on Linux
 
 # Install dependencies and PRISM
-- script: |
+- script:
     python -m pip install --upgrade pip setuptools wheel
     pip install -r requirements_dev.txt
   displayName: Install testing dependencies
 
 # Test deployability
-- script: |
+- script:
     check-manifest
     python setup.py sdist bdist_wheel
     twine check dist/*
@@ -93,23 +91,23 @@ steps:
   displayName: Test deployability
 
 # Test package in serial
-- script: |
+- script:
     coverage run --rcfile=setup.cfg -m pytest
   displayName: Test package in serial
 
 # Install MPI
 # Linux
-- bash: |
+- bash:
     sudo apt-get install -y -q openmpi-bin libopenmpi-dev
   condition: eq(variables['Agent.OS'], 'Linux')
   displayName: Install MPI distribution on Linux
 # Mac OS-X
-- bash: |
+- bash:
     brew install openmpi
   condition: eq(variables['Agent.OS'], 'Darwin')
   displayName: Install MPI distribution on Mac OS-X
 # Windows
-- powershell: |
+- powershell:
     iwr -outf ..\MSMpiSDK.msi https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSDK.msi
     Start-Process ..\MSMpiSDK.msi -ArgumentList "/quiet /qn" -Wait
     iwr -outf ..\MSMpiSetup.exe https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/MSMpiSetup.exe
@@ -120,29 +118,32 @@ steps:
   displayName: Install MPI distribution on Windows
 
 # Install mpi4py
-- script: |
+- script:
     pip install --no-cache-dir mpi4py
   displayName: Install mpi4py
 
 # Test package in MPI
-- script: |
+- script:
     mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
   displayName: Test package in MPI
 
 # Report coverage
-- script: |
+- script:
     coverage combine
     coverage report -m
   displayName: Coverage report
 
 # Upload covarage report to CodeCov
-- bash: |
+- bash:
     curl -s https://codecov.io/bash | bash
   condition: and(succeeded(), eq(variables['upload_coverage'], true))
   displayName: Upload coverage report if requested
 
 # Deploy on PyPI if this is a release
-- script: |
+- script:
     twine upload --skip-existing dist/*
+  env:
+    TWINE_USERNAME: '1313e'
+    TWINE_PASSWORD: $(twine_password)
   condition: and(succeeded(), eq(variables['deploy'], true))
   displayName: Deploy on PyPI if this is a release
