@@ -1186,7 +1186,7 @@ class Emulator(object):
                 diff_flag = 0
 
             # Gather the diff_flags on the controller
-            diff_flag = np.any(self._comm.gather(diff_flag, 0))
+            diff_flag = self._comm.reduce(diff_flag, MPI.MAX, 0)
 
             # If all diff_flags were 0 and no n_data diff, give out a warning
             if(self._is_controller and not diff_flag and

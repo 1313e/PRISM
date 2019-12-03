@@ -54,6 +54,16 @@ def get_prism_dict(prism_dict_custom):
     return(prism_dict)
 
 
+# Function that raises an error in a very specific way for worker mode testing
+def raise_worker_mode_error(pipe):
+    # Raise error on controller
+    if pipe._is_controller:
+        raise Exception("Error is raised in worker mode!")
+
+    # Use a broadcast to attempt to intercept the key for disabling worker mode
+    pipe._comm.bcast(None, 0)
+
+
 # Set the random seed of NumPy for this test module
 @pytest.fixture(scope='class', autouse=True)
 def set_numpy_random_seed():
@@ -306,6 +316,24 @@ class Test_Pipeline_Gaussian2D(object):
         rank = pipe._make_call_workers('_comm.__getattribute__', 'rank')
         if pipe._is_worker:
             assert (rank == pipe._comm.rank)
+
+    # Test if raising an error in worker mode disables it properly
+    def test_worker_mode_error(self, pipe):
+        # Initialize worker mode separately on controller and worker
+        if pipe._is_controller:
+            with pytest.raises(Exception,
+                               match="Error is raised in worker mode!"):
+                with pipe.worker_mode as wmode:
+                    pipe._make_call(raise_worker_mode_error, 'pipe')
+
+            # Broadcast something to pass the worker's bcast
+            pipe._comm.bcast(None, 0)
+        else:
+            wmode = pipe.worker_mode
+            wmode.__enter__()
+
+        # Manually exit worker mode
+        wmode.__exit__(None, None, None)
 
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model

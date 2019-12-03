@@ -2494,7 +2494,6 @@ class Pipeline(Projection, object):
                            "constructed. Skipping construction process."
                            % (emul_i))
                     logger.info(msg)
-                    print(msg)
                     c_from_start = None
 
                 # If interrupted midway, do not reconstruct full iteration
@@ -3242,14 +3241,21 @@ class WorkerMode(object):
         # All workers start listening for calls
         self.listen_for_calls()
 
+        # Return self
+        return(self)
+
     # This function exits/disables the worker mode
-    def __exit__(self, *args, **kwargs):
+    def __exit__(self, etype, value, tb):
         """
         The provided :obj:`~prism.Pipeline` objects exits worker mode, making
         all worker ranks stop listening for calls from the controller rank and
         resume normal code execution.
 
         """
+
+        # If there is currently an active exception, reraise immediately
+        if etype is not None:
+            raise
 
         # Disable this worker mode
         if self.pipe._is_controller:
