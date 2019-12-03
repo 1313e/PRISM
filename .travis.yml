@@ -42,8 +42,10 @@ script:
     coverage combine
     coverage report -m
 after_success:
-  if: branch = tag AND os = linux
-  - echo "Hello"
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_BRANCH" == "$TRAVIS_TAG" ]]; then
+      echo "Hello"
+    fi
 before_deploy:
   - rm -r dist
   - rm -r build
