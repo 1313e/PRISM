@@ -3,6 +3,15 @@
 # Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/languages/python
 
+trigger:
+  batch: true
+  branches:
+    include:
+    - '*'
+  tags:
+    include:
+    - v*
+
 variables:
   python.arch: 'x64'
   upload_coverage: false
@@ -145,5 +154,5 @@ steps:
   env:
     TWINE_USERNAME: '1313e'
     TWINE_PASSWORD: $(twine_password)
-  condition: and(succeeded(), eq(variables['deploy'], true))
+  condition: and(succeeded(), eq(variables['deploy'], true), startsWith(variables['build.sourceBranch'], 'refs/tags/'))
   displayName: Deploy on PyPI if this is a release
