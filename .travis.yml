@@ -8,12 +8,12 @@ env:
     - secure: "b2AT80ISvAu1zr88zr/g7SrTqiynOXmrN3D8XBjs4+OlsNI5oBL079jQFztq2WaX/v6tYr8WKN13GZgGm07FH5xNDX/ezsbqh0aYOrKsmGiLPXxF+ZPiG15+KKHzvj3khb/1t4RoD+0cI/rn54+g+hQyeLLYohQcbgsmdChygdjsdBIdQWE7/mU/hV4Qy6RtxgcP/pJEeuUlh5KtDVta1c3YodVK/sL0SGQx3neVOA8UWFl3F1LUd/lcP0ikG24A/MeBx5U/EtQtl5OiVqaS7AEOHUHYvNBr7Ge/g9opMCUUtPk4nazOxEL5T+uRhrSFEil5B1YzC+EufMZzN3DyjyRJFepIZrqtqlUDh46zFEXyxKP3xzgSFL3+XcooX15QQcDVlaasVdQMuryg2fvsi5AoSpJNpTioR6epGXWeSP7FcZ+dw14oWmNoievS2zGD0rVqkHiTI8bj/m2fvdpISmSjtcyYp45NSBjl+bEjmlIpquZLTIZcHgDUzA76FPTmpDYv6vBq+gNOfdV0PflWgNact48Xk2Z/M7U7fCTIdYvhSy7uGuDVLzkmTjKp7+gjXyRtaokVlYkW6QLIOb7afl9Md4y+l0EhewnG2jtx5Aq0hRLZ3yyundHCyZV6k/YpwSFdKxSO7xPgdSCl+BT3WAvLCGjTxQzfsauSN/mQ8tw="
 
 jobs:
+  fast_finish: true
   include:
     - os: osx
       osx_image: xcode11.2
       language: generic
       env: PY=3
-      sudo: true
     - python: 3.5
     - python: 3.6
     - python: 3.7
@@ -29,7 +29,7 @@ before_install:
       export QT_QPA_PLATFORM=offscreen
     fi
   - python$PY -m pip install --upgrade pip setuptools wheel
-  - pip$PY install -r requirements_dev.txt
+  - python$PY -m pip install -r requirements_dev.txt
 install:
   - check-manifest
   - python$PY setup.py sdist bdist_wheel
@@ -43,14 +43,14 @@ script:
     else
       brew install openmpi
     fi
-  - pip$PY --no-cache-dir install mpi4py
+  - python$PY -m pip --no-cache-dir install mpi4py
   - |
     mpiexec -n 2 coverage run --rcfile=setup.cfg -m mpi4py -m pytest
     coverage combine
     coverage report -m
 after_success:
   - |
-    if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_BRANCH" == "dev" ]]; then
+    if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_BRANCH" == "$TRAVIS_TAG" ]]; then
       echo "Hello"
     fi
     
