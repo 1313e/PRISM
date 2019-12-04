@@ -370,7 +370,7 @@ class OverviewDockWidget(QW.QDockWidget):
         """
 
         # If there is currently at least one item selected, show context menu
-        if len(self.proj_list_u.selectedItems()):
+        if self.proj_list_u.selectedItems():
             self.context_menu_u.popup(QG.QCursor.pos())
 
     # This function shows a list of projection figures in the viewing area
@@ -761,7 +761,7 @@ class OverviewDockWidget(QW.QDockWidget):
                     **options)
 
                 # If filename was provided, save image
-                if(filename != ''):
+                if filename:
                     fig.savefig(filename)
                 # Else, break the loop
                 else:

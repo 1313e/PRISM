@@ -818,7 +818,7 @@ class Projection(object):
                 hcubes.extend(proj_par[np_array(hcube_idx)].tolist())
             if self.__proj_3D:
                 hcube_idx = list(combinations(range(len(proj_par)), 2))
-                if len(hcube_idx):
+                if hcube_idx:
                     hcubes.extend(proj_par[np_array(hcube_idx)].tolist())
 
             # Add the emulator iteration in front of all hcubes

@@ -167,7 +167,7 @@ class ViewingAreaDockWidget(QW.QDockWidget):
             **options)
 
         # If filename was provided, save image
-        if(filename != ''):
+        if filename:
             # Grab the current state of the projection area as a Pixmap
             pixmap = self.proj_area.grab()
 

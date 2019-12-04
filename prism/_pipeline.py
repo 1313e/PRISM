@@ -246,7 +246,6 @@ class Pipeline(Projection, object):
 
             # Add the default parameter dicts to it
             default_dict.update(self._get_default_parameters())
-            default_dict.update(self._emulator._get_default_parameters())
             default_dict.update(self._Projection__get_default_parameters())
 
             # Loop over all items in prism_dict and check if it is default
@@ -263,7 +262,9 @@ class Pipeline(Projection, object):
                         par_repr.append("%r: %r" % (key, val))
 
             # Convert par_repr from list to dict and add it to str_repr
-            str_repr.append("prism_par={%s}" % (", ".join(map(str, par_repr))))
+            if par_repr:
+                str_repr.append("prism_par={%s}"
+                                % (", ".join(map(str, par_repr))))
 
         # Add the emul_type representation if it is not default
         emul_repr = "%s.%s" % (self._emulator.__class__.__module__,
@@ -1106,7 +1107,7 @@ class Pipeline(Projection, object):
                 emul_dirs.sort(key=lambda x: x[1], reverse=True)
 
                 # If no working directory exists, create a new one
-                if not len(emul_dirs):
+                if not emul_dirs:
                     working_dir = ''.join([prefix_new, '0'])
                     self._working_dir = path.join(self._root_dir, working_dir)
                     os.mkdir(self._working_dir)
@@ -1118,6 +1119,19 @@ class Pipeline(Projection, object):
                     self._working_dir = emul_dirs[0][0]
                     logger.info("Working directories found, set to %r."
                                 % (path.basename(self._working_dir)))
+
+            # If one specified a working directory, use it
+            elif isinstance(working_dir, str):
+                self._working_dir = path.join(self._root_dir, working_dir)
+                logger.info("Working directory set to %r." % (working_dir))
+
+                # Check if this directory already exists and create it if not
+                try:
+                    os.mkdir(self._working_dir)
+                except OSError:
+                    pass
+                else:
+                    logger.info("Working directory did not exist, created it.")
 
             # If one requested a new working directory
             elif working_dir is True:
@@ -1151,25 +1165,6 @@ class Pipeline(Projection, object):
                 self._working_dir = working_dir
                 logger.info("New working directory requested, created %r."
                             % (path.basename(working_dir)))
-
-            # If one specified a working directory, use it
-            elif isinstance(working_dir, str):
-                self._working_dir = path.join(self._root_dir, working_dir)
-                logger.info("Working directory set to %r." % (working_dir))
-
-                # Check if this directory already exists and create it if not
-                try:
-                    os.mkdir(self._working_dir)
-                except OSError:
-                    pass
-                else:
-                    logger.info("Working directory did not exist, created it.")
-
-            # If one provided an integer, raise warning about it
-            elif isinstance(working_dir, int):
-                err_msg = ("Input argument 'working_dir' cannot be of type "
-                           "int!")
-                raise_error(err_msg, TypeError, logger)
 
             # If anything else is given, it is invalid
             else:
@@ -2235,7 +2230,7 @@ class Pipeline(Projection, object):
                 sam_idx = self._comm.bcast(sam_idx, 0)
 
                 # Check that sam_idx is still holding plausible samples
-                if not len(sam_idx):
+                if not sam_idx.size:
                     # If not, stop analysis
                     break
                 else:
@@ -2327,9 +2322,9 @@ class Pipeline(Projection, object):
 
             # Save impl_par to hdf5
             self._save_data({
-                    'impl_par': {
-                        'impl_cut': self._impl_cut[emul_i],
-                        'cut_idx': self._cut_idx[emul_i]}})
+                'impl_par': {
+                    'impl_cut': self._impl_cut[emul_i],
+                    'cut_idx': self._cut_idx[emul_i]}})
 
             # Create an emulator evaluation sample set
             eval_sam_set = self._get_eval_sam_set(emul_i)
@@ -2959,7 +2954,7 @@ class Pipeline(Projection, object):
                             'active_par_data' in ccheck_flat[i]]
                 print("  - {0: <{1}}\t{2}".format(
                     "'active_par_data'?", width-4, "No (%s)" % (ccheck_i) if
-                    len(ccheck_i) else "Yes"))
+                    ccheck_i else "Yes"))
 
                 # Check if all regression processes have been done if requested
                 if self._emulator._method in ('regression', 'full'):
@@ -2967,21 +2962,21 @@ class Pipeline(Projection, object):
                                 'regression' in ccheck_flat[i]]
                     print("  - {0: <{1}}\t{2}".format(
                         "'regression'?", width-4, "No (%s)" % (ccheck_i) if
-                        len(ccheck_i) else "Yes"))
+                        ccheck_i else "Yes"))
 
                 # Check if all covariance matrices have been determined
                 ccheck_i = [i for i in range(n_emul_s) if
                             'cov_mat' in ccheck_flat[i]]
                 print("  - {0: <{1}}\t{2}".format(
                     "'cov_mat'?", width-4, "No (%s)" % (ccheck_i) if
-                    len(ccheck_i) else "Yes"))
+                    ccheck_i else "Yes"))
 
                 # Check if all exp_dot_terms have been determined
                 ccheck_i = [i for i in range(n_emul_s) if
                             'exp_dot_term' in ccheck_flat[i]]
                 print("  - {0: <{1}}\t{2}".format(
                     "'exp_dot_term'?", width-4, "No (%s)" % (ccheck_i) if
-                    len(ccheck_i) else "Yes"))
+                    ccheck_i else "Yes"))
             print("-"*width)
 
             # PARAMETER SPACE
@@ -3430,9 +3425,9 @@ class WorkerMode(object):
         str_list = string.split('.')
 
         # If the first element is 'pipe', it refers to a Pipeline attribute
-        if str_list.pop(0) == 'pipe':
+        if(str_list.pop(0) == 'pipe'):
             # Remove 'pipe' again in case 'pipe.pipe.xxx' was provided
-            if len(str_list) and str_list[0] == 'pipe':
+            if str_list and (str_list[0] == 'pipe'):
                 str_list.pop(0)
 
             # Retrieve the attribute that string refers to

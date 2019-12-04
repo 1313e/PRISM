@@ -550,13 +550,6 @@ class Test_Pipeline_Init_Exceptions(object):
             Pipeline(modellink_obj, root_dir=root_dir, working_dir=1.0,
                      prism_par=prism_dict_def)
 
-    # Create a Pipeline object using an integer working dir
-    def test_int_working_dir(self, tmpdir, modellink_obj):
-        root_dir = path.dirname(tmpdir.strpath)
-        with pytest.raises(TypeError):
-            Pipeline(modellink_obj, root_dir=root_dir, working_dir=1,
-                     prism_par=prism_dict_def)
-
     # Create a Pipeline object using an invalid PRISM file
     def test_invalid_prism_file(self, root_working_dir, modellink_obj):
         with pytest.raises(TypeError):

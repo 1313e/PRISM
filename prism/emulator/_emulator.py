@@ -343,7 +343,7 @@ class Emulator(object):
     @property
     def rsdl_var(self):
         """
-        dict of float: The residual variances for every emulator system on this
+        dict of float: The residual variance of every emulator system on this
         MPI rank.
         Obtained from regression process and replaces the Gaussian sigma.
         Empty if :attr:`~method` == 'gaussian'.
@@ -371,14 +371,15 @@ class Emulator(object):
         poly_terms_list = []
 
         # Loop over all emulator iterations
-        for data_idx, poly_powers, poly_coefs in zip(self._data_idx,
-                                                     self._poly_powers,
-                                                     self._poly_coef):
+        iterator = zip(self._data_idx, self._active_par_data,
+                       self._poly_powers, self._poly_coef)
+        for args in iterator:
             # Convert all poly_powers to their string representations
             poly_terms_dict = {}
-            for idx, powers, coefs in zip(data_idx, poly_powers, poly_coefs):
-                poly_terms_dict[idx] = {self._get_poly_term_str(poly): coef
-                                        for poly, coef in zip(powers, coefs)}
+            for idx, active_par, powers, coefs in zip(*args):
+                poly_terms_dict[idx] = {
+                    self._get_poly_term_str(active_par, power): coef
+                    for power, coef in zip(powers, coefs)}
 
             # Add poly_terms_dict to poly_terms_list
             poly_terms_list.append(poly_terms_dict)
@@ -389,7 +390,7 @@ class Emulator(object):
     @property
     def poly_coef(self):
         """
-        list of :obj:`~numpy.ndarray`: The non-zero coefficients for the
+        list of :obj:`~numpy.ndarray`: The non-zero coefficients of the
         polynomial terms in the regression function for every emulator system
         on this MPI rank.
         Empty if :attr:`~method` == 'gaussian'.
@@ -401,7 +402,7 @@ class Emulator(object):
     @property
     def poly_coef_cov(self):
         """
-        list of :obj:`~numpy.ndarray`: The covariances for all coefficients in
+        list of :obj:`~numpy.ndarray`: The covariances of all coefficients in
         :attr:`~poly_coef` for every emulator system on this MPI rank.
         Empty if :attr:`~method` == 'gaussian' or :attr:`~use_regr_cov` is
         *False*.
@@ -413,7 +414,7 @@ class Emulator(object):
     @property
     def poly_powers(self):
         """
-        list of :obj:`~numpy.ndarray`: The powers for all polynomial terms with
+        list of :obj:`~numpy.ndarray`: The powers of all polynomial terms with
         non-zero coefficients in the regression function for every emulator
         system on this MPI rank.
         Empty if :attr:`~method` == 'gaussian'.
@@ -425,9 +426,9 @@ class Emulator(object):
     @property
     def poly_idx(self):
         """
-        list of :obj:`~numpy.ndarray`: The indices for all polynomial terms
-        with non-zero coefficients in the regression function for every
-        emulator system on this MPI rank.
+        list of :obj:`~numpy.ndarray`: The indices of all polynomial terms with
+        non-zero coefficients in the regression function for every emulator
+        system on this MPI rank.
         Empty if :attr:`~method` == 'gaussian'.
 
         """
@@ -1076,7 +1077,7 @@ class Emulator(object):
                     num == min_count)]
 
                 # If no core has this minimum size, increase it by 1
-                if(len(min_cores) == 0):
+                if not min_cores:
                     min_count += 1
 
                 # If one core has this number, assign system with lowest
@@ -1292,7 +1293,7 @@ class Emulator(object):
         # Determine active parameters
         ccheck_active_par = [emul_s for emul_s in emul_s_seq if
                              'active_par_data' in self._ccheck[emul_i][emul_s]]
-        if len(ccheck_active_par):
+        if ccheck_active_par:
             self._get_active_par(emul_i, ccheck_active_par)
 
         # Check if regression is required
@@ -1300,7 +1301,7 @@ class Emulator(object):
             # Perform regression
             ccheck_regression = [emul_s for emul_s in emul_s_seq if
                                  'regression' in self._ccheck[emul_i][emul_s]]
-            if len(ccheck_regression):
+            if ccheck_regression:
                 self._do_regression(emul_i, ccheck_regression)
 
         # Calculate the covariance matrices of sam_set
@@ -1308,13 +1309,13 @@ class Emulator(object):
         # This is to avoid requiring massive amounts of RAM during calculation
         ccheck_cov_mat = [emul_s for emul_s in emul_s_seq if
                           'cov_mat' in self._ccheck[emul_i][emul_s]]
-        if len(ccheck_cov_mat):
+        if ccheck_cov_mat:
             self._get_cov_matrix(emul_i, ccheck_cov_mat)
 
         # Calculate the second dot-term for the adjusted expectation
         ccheck_exp_dot_term = [emul_s for emul_s in emul_s_seq if
                                'exp_dot_term' in self._ccheck[emul_i][emul_s]]
-        if len(ccheck_exp_dot_term):
+        if ccheck_exp_dot_term:
             self._get_exp_dot_term(emul_i, ccheck_exp_dot_term)
 
         # If a worker is finished, set current emul_i to constructed emul_i
@@ -1463,7 +1464,7 @@ class Emulator(object):
                 non_frz_idx = [frz_pot_par.index(par) for par in non_frz_par]
 
                 # If non_frz_par has at least 1 element, carry out analysis
-                if len(non_frz_par):
+                if non_frz_par:
                     # Create SequentialFeatureSelector object
                     sfs_obj = SFS(LR(), k_features='parsimonious',
                                   forward=False, floating=False, scoring='r2',
@@ -2934,10 +2935,23 @@ class Emulator(object):
         logger.info("Loaded mock data.")
 
     # This function returns the string representation of a polynomial term
-    def _get_poly_term_str(self, poly_power):
+    def _get_poly_term_str(self, active_par, poly_power):
         """
         Returns the string representation of a polynomial term given by the
-        provided `poly_power`.
+        provided `active_par` and `poly_power`.
+
+        Parameters
+        ----------
+        active_par : list of int
+            List containing the indices of the parameters whose polynomial
+            powers are given in `poly_power`.
+        poly_power : list of int
+            List with the powers of the requested polynomial term.
+
+        Returns
+        -------
+        poly_term : str
+            String representation of the requested polynomial term.
 
         """
 
@@ -2945,21 +2959,24 @@ class Emulator(object):
         poly_term = ''
 
         # Loop over all parameters in this polynomial term
-        for par, power in zip(self._modellink._par_name, poly_power):
+        for par, power in zip(active_par, poly_power):
             # If this parameter has a power of zero, skip it
-            if(power == 0):
+            if not power:
                 continue
-            # If not, process this parameters
+            # If not, process this parameter
             else:
+                # Determine name of this parameter
+                name = self._modellink._par_name[par]
+
                 # Add an asterisk if this is not the first parameter in term
-                poly_term += "*" if(poly_term != '') else ''
+                poly_term += " * " if poly_term else ''
 
                 # If the power is unity, just add it
                 if(power == 1):
-                    poly_term += par
+                    poly_term += name
                 # Else, add it with a power
                 else:
-                    poly_term += "%s**%i" % (par, power)
+                    poly_term += "%s**%i" % (name, power)
 
         # Return the string representation
         return(poly_term)
