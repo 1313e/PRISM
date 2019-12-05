@@ -16,7 +16,7 @@ HDF5-files can be viewed freely by the user using the `HDFView`_ application mad
 ----
 
 The general file contains:
-    - Attributes (9/10): Describe the general non-changeable properties of the emulator, which include:
+    - Attributes (10/11): Describe the general non-changeable properties of the emulator, which include:
 
         - Emulator type and method;
         - Gaussian parameters;

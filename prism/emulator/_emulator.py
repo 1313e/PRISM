@@ -14,12 +14,12 @@ package, the :class:`~Emulator` class.
 from collections import Counter
 import os
 from os import path
-from time import time
 from struct import calcsize
+from time import time
 
 # Package imports
-from e13tools import InputError
-from e13tools.math import diff, nearest_PD
+from e13tools import InputError, compare_versions
+from e13tools.math import diff
 from e13tools.utils import (
     check_instance, delist, docstring_append, docstring_substitute,
     raise_error, raise_warning, split_seq)
@@ -501,6 +501,47 @@ class Emulator(object):
 
         return(self._l_corr)
 
+    @property
+    def f_infl(self):
+        """
+        float: The residual variance inflation factor. The prior variance of
+        all known samples is inflated by this factor multiplied with
+        :attr:`~rsdl_var` (regression) or :attr:`~sigma` (Gaussian).
+        If this value is zero, no variance inflation is performed.
+
+        """
+
+        return(self._f_infl)
+
+    @property
+    def act_rsdl_var(self):
+        """
+        dict of float: The active portion of the residual variance of every
+        emulator system on this MPI rank.
+        Obtained from either :attr:`~rsdl_var` (regression) or :attr:`~sigma`
+        (Gaussian).
+
+        """
+
+        return([dict(zip(data_idx, act_rsdl_var)) for
+                data_idx, act_rsdl_var in
+                zip(self._data_idx, self._act_rsdl_var)])
+
+    @property
+    def pas_rsdl_var(self):
+        """
+        dict of float: The passive portion of the residual variance of every
+        emulator system on this MPI rank. If :attr:`~f_infl` is not zero, this
+        also includes the inflated residual variance value.
+        Obtained from either :attr:`~rsdl_var` (regression) or :attr:`~sigma`
+        (Gaussian).
+
+        """
+
+        return([dict(zip(data_idx, pas_rsdl_var)) for
+                data_idx, pas_rsdl_var in
+                zip(self._data_idx, self._pas_rsdl_var)])
+
     # %% GENERAL CLASS METHODS
     # This function checks if provided emul_i can be requested
     @docstring_substitute(emul_i=get_emul_i_doc)
@@ -603,6 +644,7 @@ class Emulator(object):
                 # Save all relevant emulator parameters to hdf5
                 file.attrs['sigma'] = self._sigma
                 file.attrs['l_corr'] = self._l_corr
+                file.attrs['f_infl'] = self._f_infl
                 file.attrs['method'] = self._method.encode('ascii', 'ignore')
                 file.attrs['use_regr_cov'] = bool(self._use_regr_cov)
                 file.attrs['poly_order'] = self._poly_order
@@ -1310,6 +1352,9 @@ class Emulator(object):
         ccheck_cov_mat = [emul_s for emul_s in emul_s_seq if
                           'cov_mat' in self._ccheck[emul_i][emul_s]]
         if ccheck_cov_mat:
+            act_rsdl_var, pas_rsdl_var = self._get_rsdl_vars(emul_i)
+            self._act_rsdl_var[-1] = act_rsdl_var
+            self._pas_rsdl_var[-1] = pas_rsdl_var
             self._get_cov_matrix(emul_i, ccheck_cov_mat)
 
         # Calculate the second dot-term for the adjusted expectation
@@ -1796,7 +1841,7 @@ class Emulator(object):
                     "values.")
 
     # This function calculates the covariance between parameter sets
-    # This is function 'Cov(f(x), f(x'))' or 'c(x,x')
+    # This is function 'Cov(f(x), f(x'))' or 'c(x,x')'
     # TODO: Improve Gaussian-only method by making sigma data point dependent
     @docstring_substitute(full_cov=full_cov_doc)
     def _get_cov(self, emul_i, emul_s_seq, par_set1, par_set2):
@@ -1809,16 +1854,6 @@ class Emulator(object):
         %(full_cov)s
 
         """
-
-        # Value for fraction of residual variance for variety in passive pars
-        weight = [1-len(active_par)/self._modellink._n_par
-                  for active_par in self._active_par_data[emul_i]]
-
-        # Determine which residual variance should be used
-        if self._method in ('regression', 'full'):
-            rsdl_var = self._rsdl_var[emul_i]
-        elif(self._method == 'gaussian'):
-            rsdl_var = [self._sigma**2]*len(emul_s_seq)
 
         # If cov of sam_set with sam_set is requested (cov_mat)
         if par_set1 is None:
@@ -1833,18 +1868,19 @@ class Emulator(object):
 
                 # If Gaussian needs to be taken into account
                 for i, emul_s in enumerate(emul_s_seq):
-                    # Get active_par
+                    # Get active_par and rsdl_var portions
                     active_par = self._active_par_data[emul_i][emul_s]
+                    act_rsdl_var = self._act_rsdl_var[emul_i][emul_s]
+                    pas_rsdl_var = self._pas_rsdl_var[emul_i][emul_s]
 
                     # Gaussian variance
-                    cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
+                    cov[i] += act_rsdl_var *\
                         np.exp(-1*np.sum(diff_sam_set[:, :, active_par]**2,
                                          axis=-1) /
                                np.sum(self._l_corr[active_par]**2))
 
-                    # Passive parameter variety
-                    cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
-                        np.eye(self._n_sam[emul_i])
+                    # Passive parameter variety plus inflation term
+                    cov[i] += pas_rsdl_var*np.eye(self._n_sam[emul_i])
 
             if(self._method in ('regression', 'full') and self._use_regr_cov):
                 # If regression needs to be taken into account
@@ -1862,18 +1898,20 @@ class Emulator(object):
 
                 # If Gaussian needs to be taken into account
                 for i, emul_s in enumerate(emul_s_seq):
-                    # Get active_par
+                    # Get active_par and rsdl_var portions
                     active_par = self._active_par_data[emul_i][emul_s]
+                    act_rsdl_var = self._act_rsdl_var[emul_i][emul_s]
+                    pas_rsdl_var = self._pas_rsdl_var[emul_i][emul_s]
 
                     # Gaussian variance
-                    cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
+                    cov[i] += act_rsdl_var *\
                         np.exp(-1*np.sum(diff_sam_set[:, active_par]**2,
                                          axis=-1) /
                                np.sum(self._l_corr[active_par]**2))
 
-                    # Passive parameter variety
-                    cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
-                        (par_set1 == self._sam_set[emul_i]).all(axis=-1)
+                    # Passive parameter variety plus inflation term
+                    cov[i] += pas_rsdl_var*(par_set1 ==
+                                            self._sam_set[emul_i]).all(axis=-1)
 
             if(self._method in ('regression', 'full') and self._use_regr_cov):
                 # If regression needs to be taken into account
@@ -1891,18 +1929,19 @@ class Emulator(object):
 
                 # If Gaussian needs to be taken into account
                 for i, emul_s in enumerate(emul_s_seq):
-                    # Get active_par
+                    # Get active_par and rsdl_var portions
                     active_par = self._active_par_data[emul_i][emul_s]
+                    act_rsdl_var = self._act_rsdl_var[emul_i][emul_s]
+                    pas_rsdl_var = self._pas_rsdl_var[emul_i][emul_s]
 
                     # Gaussian variance
-                    cov[i] += (1-weight[emul_s])*rsdl_var[emul_s] *\
+                    cov[i] += act_rsdl_var *\
                         np.exp(-1*np.sum(diff_sam_set[active_par]**2,
                                          axis=-1) /
                                np.sum(self._l_corr[active_par]**2))
 
-                    # Passive parameter variety
-                    cov[i] += weight[emul_s]*rsdl_var[emul_s] *\
-                        (par_set1 == par_set2).all()
+                    # Passive parameter variety plus inflation term
+                    cov[i] += pas_rsdl_var*(par_set1 == par_set2).all()
             if(self._method in ('regression', 'full') and self._use_regr_cov):
                 # If regression needs to be taken into account
                 cov += self._get_regr_cov(emul_i, emul_s_seq, par_set1,
@@ -2057,10 +2096,6 @@ class Emulator(object):
 
         # Loop over all emulator systems
         for i, emul_s in enumerate(emul_s_seq):
-            # Make sure that cov_mat is symmetric positive-definite by
-            # finding the nearest one
-            cov_mat[i] = nearest_PD(cov_mat[i])
-
             # Calculate the inverse of the covariance matrix
             logger.info("Calculating inverse of covariance matrix %i."
                         % (self._emul_s[emul_s]))
@@ -2273,6 +2308,8 @@ class Emulator(object):
         self._mod_set = [[]]
         self._active_par_data = [[]]
         self._rsdl_var = [[]]
+        self._act_rsdl_var = [[]]
+        self._pas_rsdl_var = [[]]
         self._poly_coef = [[]]
         self._poly_coef_cov = [[]]
         self._poly_powers = [[]]
@@ -2517,6 +2554,11 @@ class Emulator(object):
                 self._data_spc.append(data_spc)
                 self._data_idx.append(data_idx)
 
+                # Set the active and passive residual variances
+                act_rsdl_var, pas_rsdl_var = self._get_rsdl_vars(i)
+                self._act_rsdl_var.append(act_rsdl_var)
+                self._pas_rsdl_var.append(pas_rsdl_var)
+
                 # Add ccheck for this iteration to global ccheck
                 self._ccheck.append(ccheck)
 
@@ -2734,6 +2776,15 @@ class Emulator(object):
             # Read in all the emulator parameters
             self._sigma = file.attrs['sigma']
             self._l_corr = file.attrs['l_corr']
+            if compare_versions(emul_version, '1.2.2.dev0'):
+                self._f_infl = file.attrs['f_infl']
+            else:   # pragma: no cover
+                warn_msg = ("The provided emulator was constructed with a "
+                            "version earlier than v1.2.2 (v%s). Starting in "
+                            "v1.3.0, this emulator will no longer be "
+                            "compatible." % (emul_version))
+                raise_warning(warn_msg, FutureWarning, logger, 3)
+                self._f_infl = 0.0
             self._method = file.attrs['method'].decode('utf-8')
             self._use_regr_cov = int(file.attrs['use_regr_cov'])
             self._poly_order = file.attrs['poly_order']
@@ -2754,6 +2805,7 @@ class Emulator(object):
         # Create parameter dict with default parameters
         par_dict = {'sigma': '0.8',
                     'l_corr': '0.3',
+                    'f_infl': '0.2',
                     'method': "'full'",
                     'use_regr_cov': 'False',
                     'poly_order': '3',
@@ -2789,6 +2841,10 @@ class Emulator(object):
                             'float', 'pos', 'normal')
         self._l_corr = l_corr*abs(self._modellink._par_rng[:, 1] -
                                   self._modellink._par_rng[:, 0])
+
+        # Residual variance inflation factor
+        self._f_infl = check_vals(split_seq(par_dict['f_infl'])[0],
+                                  'f_infl', 'float', 'pos')
 
         # Method used to calculate emulator functions
         # Future will include 'gaussian', 'regression', 'auto' and 'full'
@@ -2980,3 +3036,51 @@ class Emulator(object):
 
         # Return the string representation
         return(poly_term)
+
+    # This function returns the active and passive residual variance portions
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _get_rsdl_vars(self, emul_i):
+        """
+        Splits up the calculated residual variances for the provided emulator
+        iteration `emul_i` into active and passive portions, and returns them.
+
+        This function is used for setting :attr:`~act_rsdl_var` and
+        :attr:`~pas_rsdl_var`.
+
+        Parameters
+        ----------
+        %(emul_i)s
+
+        Returns
+        -------
+        act_rsdl_var : list of float
+            List containing the active portions of the residual variances.
+        pas_rsdl_var : list of float
+            List containing the passive portions of the residual variances.
+            If :attr:`~f_infl` is not zero, this also includes the inflated
+            residual variance values.
+
+        """
+
+        # Check if regression is used and act accordingly
+        if self._method in ('regression', 'full'):
+            rsdl_var = delist(self._rsdl_var[emul_i])
+        elif(self._method == 'gaussian'):
+            rsdl_var = [self._sigma**2]*len(self._active_emul_s[emul_i])
+
+        # Initialize active and passive portions of residual variance
+        act_rsdl_var = [[] for _ in range(len(self._emul_s))]
+        pas_rsdl_var = [[] for _ in range(len(self._emul_s))]
+
+        # Loop over all active emulator systems
+        for emul_s, rsdl_var_i in zip(self._active_emul_s[emul_i], rsdl_var):
+            # Calculate the weight
+            weight = 1-(len(self._active_par_data[emul_i][emul_s]) /
+                        self._modellink._n_par)
+
+            # Set the active and passive portions of the residual variance
+            act_rsdl_var[emul_s] = (1-weight)*rsdl_var_i
+            pas_rsdl_var[emul_s] = (weight+self._f_infl)*rsdl_var_i
+
+        # Return them
+        return(act_rsdl_var, pas_rsdl_var)

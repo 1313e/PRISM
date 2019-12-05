@@ -38,6 +38,15 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
     This number is multiplied by the difference between the upper and lower value boundaries of the model parameters to obtain the Gaussian correlation length for every model parameter.
     This value must be positive, normalized and either a scalar or a list of :attr:`~prism.modellink.ModelLink.n_par` scalars (where the values correspond to the sorted list of model parameters).
 
+:attr:`~prism.emulator.Emulator.f_infl` (Default: 0.2)
+    .. versionadded:: 1.2.2
+
+    The residual variance inflation factor.
+    The variance values for all known samples in an emulator iteration are inflated by this number multiplied by :attr:`~prism.emulator.Emulator.rsdl_var`.
+    This can be used to adjust for the underestimation of the emulator variance.
+    Setting this to zero causes no variance inflation to be performed.
+    This value must be non-negative.
+
 :attr:`~prism.Pipeline.impl_cut` (Default: [0.0, 4.0, 3.8, 3.5])
     A list of implausibility cut-off values that specifies the maximum implausibility values a parameter set is allowed to have to be considered 'plausible'.
     A zero can be used as a filler value, either taking on the preceding value or acting as a wildcard if the preceding value is a wildcard or non-existent.
