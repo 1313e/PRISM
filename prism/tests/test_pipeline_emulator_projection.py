@@ -439,7 +439,7 @@ class Test_Pipeline_Gaussian3D_1_data(object):
     # Test a 3D Gaussian model
     @pytest.fixture(scope='class')
     def pipe(self, tmpdir_factory):
-        tmpdir = tmpdir_factory.mktemp('test3D')
+        tmpdir = tmpdir_factory.mktemp('test3D_1')
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
         modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
@@ -513,13 +513,12 @@ class Test_Pipeline_ExtremeLink(object):
     # Test an extreme outliers model
     @pytest.fixture(scope='class')
     def pipe(self, tmpdir_factory):
-        tmpdir = tmpdir_factory.mktemp('test3D')
+        tmpdir = tmpdir_factory.mktemp('test_extreme')
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
-        prism_dict = get_prism_dict({'base_eval_sam': 800})
         modellink_obj = ExtremeLink()
         return(Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict))
+                        working_dir=working_dir))
 
     # Check if first iteration can be constructed
     def test_construct(self, pipe):
