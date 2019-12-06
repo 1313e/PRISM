@@ -254,7 +254,7 @@ class TestKwargsDictDialog_EntryTypes(object):
     @pytest.mark.parametrize(
         "page_name, entry_type, field_type, field_value",
         [('impl_kwargs_2D', 'alpha', QW.QDoubleSpinBox, 0.5),
-         ('impl_kwargs_3D', 'cmap', ColorMapBox, cm.get_cmap('rainforest')),
+         ('impl_kwargs_3D', 'cmap', ColorMapBox, cm.get_cmap('cmr.freeze')),
          ('los_kwargs_2D', 'color', ColorBox, 'cyan'),
          ('fig_kwargs', 'dpi', QW.QSpinBox, 175),
          ('fig_kwargs', 'figsize', FigSizeBox, (13, 13)),
