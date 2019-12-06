@@ -138,7 +138,7 @@ class Projection(object):
             implausibility (top/left) plot in the 2D projection figures. It
             takes all arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
-        impl_kwargs_3D : dict. Default: {'cmap': 'rainforest_r'}
+        impl_kwargs_3D : dict. Default: {'cmap': 'cmr.rainforest_r'}
             Dict of keyword arguments to be used for making the minimum
             implausibility (top/left) plot in the 3D projection figures. It
             takes all arguments that can be provided to the
@@ -148,7 +148,7 @@ class Projection(object):
             (bottom/right) plot in the 2D projection figures. It takes all
             arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
-        los_kwargs_3D : dict. Default: {'cmap': 'freeze'}
+        los_kwargs_3D : dict. Default: {'cmap': 'cmr.freeze'}
             Dict of keyword arguments to be used for making the line-of-sight
             (bottom/right) plot in the 3D projection figures. It takes all
             arguments that can be provided to the
@@ -984,9 +984,9 @@ class Projection(object):
         # Create input argument dicts with default figure parameters
         fig_kwargs = {'dpi': 100}
         impl_kwargs_2D = {}
-        impl_kwargs_3D = {'cmap': 'rainforest_r'}
+        impl_kwargs_3D = {'cmap': 'cmr.rainforest_r'}
         los_kwargs_2D = {}
-        los_kwargs_3D = {'cmap': 'freeze'}
+        los_kwargs_3D = {'cmap': 'cmr.freeze'}
         line_kwargs_est = {'linestyle': '--',
                            'color': 'grey'}
         line_kwargs_cut = {'color': 'r'}
