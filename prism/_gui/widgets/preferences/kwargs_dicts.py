@@ -376,7 +376,7 @@ class KwargsDictDialogPage(BaseBox):
             entry_type = get_box_value(entry_type_item.widget())
 
             # If the entry_type is empty or banned, skip this row
-            if(entry_type == '' or entry_type in self.banned_entries):
+            if not entry_type or entry_type in self.banned_entries:
                 continue
 
             # Obtain the value of the corresponding field box
@@ -419,7 +419,7 @@ class KwargsDictDialogPage(BaseBox):
             entry_type = get_box_value(entry_type_item.widget())
 
             # Delete this entry if not in page_dict or if it is not allowed
-            if(entry_type not in page_dict or (entry_type == '') or
+            if(entry_type not in page_dict or not entry_type or
                entry_type in self.banned_entries):
                 self.remove_editable_entry(entry_type_item.widget())
                 continue
@@ -552,7 +552,7 @@ class KwargsDictDialogPage(BaseBox):
         cur_box = self.kwargs_grid.itemAt(index+1).widget()
 
         # Check what entry_type is given and act accordingly
-        if(entry_type == ''):
+        if not entry_type:
             # If '' is selected, use an empty label widget
             field_box = QW.QLabel('')
         elif entry_type in self.banned_entries:

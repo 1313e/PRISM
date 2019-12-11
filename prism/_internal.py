@@ -274,7 +274,7 @@ def check_vals(values, name, *args):
         raise_error(err_msg, InputError, logger)
 
     # Loop over all criteria
-    while len(args):
+    while args:
         # Check for bool
         if 'bool' in args:
             # Convert values to str

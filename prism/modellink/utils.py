@@ -92,7 +92,7 @@ def convert_data(model_data):
         idx = split_seq(key)
 
         # Check if tmp_idx is not empty
-        if not len(idx):
+        if not idx:
             raise InputError("Model data contains a data point with no "
                              "identifier!")
 
@@ -208,7 +208,7 @@ def convert_parameters(model_parameters):
     par_dict = sdict()
 
     # Loop over all items in model_parameters
-    for i, (name, values_str) in enumerate(model_parameters.items()):
+    for name, values_str in model_parameters.items():
         # Convert values_str to values
         values = split_seq(values_str)
 

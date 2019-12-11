@@ -18,15 +18,15 @@ __all__ = ['GaussianLink2D', 'GaussianLink3D']
 # %% CLASS DEFINITION
 class GaussianLink2D(ModelLink):
     """
-    :class:`~ModelLink` class wrapper for a simple Gaussian model, used for
-    testing the functionality of the *PRISM* pipeline in unittests.
+    :class:`~prism.modellink.ModelLink` class wrapper for a simple Gaussian
+    model, used for testing the functionality of the *PRISM* pipeline in tests.
 
     Formatting data_idx
     -------------------
     x : int
         The value that needs to be used for :math:`x` in the function
-        :math:`A\\exp\\left(-\\frac{(x-B)^2}{2}\\right)` to
-        obtain the data value.
+        :math:`A\\exp\\left(-\\frac{(x-B)^2}{2}\\right)` to obtain the data
+        value.
 
     """
 
@@ -67,15 +67,15 @@ class GaussianLink2D(ModelLink):
 
 class GaussianLink3D(ModelLink):
     """
-    :class:`~ModelLink` class wrapper for a simple Gaussian model, used for
-    testing the functionality of the *PRISM* pipeline in unittests.
+    :class:`~prism.modellink.ModelLink` class wrapper for a simple Gaussian
+    model, used for testing the functionality of the *PRISM* pipeline in tests.
 
     Formatting data_idx
     -------------------
     x : int
         The value that needs to be used for :math:`x` in the function
-        :math:`A\\exp\\left(-\\frac{(x-B)^2}{2C^2}\\right)` to
-        obtain the data value.
+        :math:`A\\exp\\left(-\\frac{(x-B)^2}{2C^2}\\right)` to obtain the data
+        value.
 
     """
 

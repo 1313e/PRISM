@@ -16,13 +16,13 @@ HDF5-files can be viewed freely by the user using the `HDFView`_ application mad
 ----
 
 The general file contains:
-    - Attributes (9/10): Describe the general non-changeable properties of the emulator, which include:
+    - Attributes (11/12): Describe the general non-changeable properties of the emulator, which include:
 
         - Emulator type and method;
         - Gaussian parameters;
         - Name of used :class:`~prism.modellink.ModelLink` subclass;
         - Used *PRISM* version;
-        - Polynomial order;
+        - Regression parameters;
         - Bools for using mock data or regression covariance;
         - Mock data parameters if mock data was used.
 

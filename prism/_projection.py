@@ -138,7 +138,7 @@ class Projection(object):
             implausibility (top/left) plot in the 2D projection figures. It
             takes all arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
-        impl_kwargs_3D : dict. Default: {'cmap': 'rainforest_r'}
+        impl_kwargs_3D : dict. Default: {'cmap': 'cmr.rainforest_r'}
             Dict of keyword arguments to be used for making the minimum
             implausibility (top/left) plot in the 3D projection figures. It
             takes all arguments that can be provided to the
@@ -148,7 +148,7 @@ class Projection(object):
             (bottom/right) plot in the 2D projection figures. It takes all
             arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
-        los_kwargs_3D : dict. Default: {'cmap': 'freeze'}
+        los_kwargs_3D : dict. Default: {'cmap': 'cmr.freeze'}
             Dict of keyword arguments to be used for making the line-of-sight
             (bottom/right) plot in the 3D projection figures. It takes all
             arguments that can be provided to the
@@ -594,8 +594,8 @@ class Projection(object):
             # Therefore, values up to max(z_los)/N has the color for 0
             min_los = min(1, np.max(z_los))/self.__los_kwargs_3D['cmap'].N
 
-            # Set all z_min to impl_cut if its corresponding z_los <= min_los
-            z_min[z_los <= min_los] = impl_cut
+            # Set all z_min to impl_cut if its corresponding z_los < min_los
+            z_min[z_los < min_los] = impl_cut
 
         # Create plotted parameter value grid
         x = np.linspace(*self._modellink._par_rng[par1], gridsize[0])
@@ -818,7 +818,7 @@ class Projection(object):
                 hcubes.extend(proj_par[np_array(hcube_idx)].tolist())
             if self.__proj_3D:
                 hcube_idx = list(combinations(range(len(proj_par)), 2))
-                if len(hcube_idx):
+                if hcube_idx:
                     hcubes.extend(proj_par[np_array(hcube_idx)].tolist())
 
             # Add the emulator iteration in front of all hcubes
@@ -984,9 +984,9 @@ class Projection(object):
         # Create input argument dicts with default figure parameters
         fig_kwargs = {'dpi': 100}
         impl_kwargs_2D = {}
-        impl_kwargs_3D = {'cmap': 'rainforest_r'}
+        impl_kwargs_3D = {'cmap': 'cmr.rainforest_r'}
         los_kwargs_2D = {}
-        los_kwargs_3D = {'cmap': 'freeze'}
+        los_kwargs_3D = {'cmap': 'cmr.freeze'}
         line_kwargs_est = {'linestyle': '--',
                            'color': 'grey'}
         line_kwargs_cut = {'color': 'r'}

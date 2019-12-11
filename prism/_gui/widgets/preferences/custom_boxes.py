@@ -16,6 +16,7 @@ used as custom option entry boxes in the
 from itertools import chain
 
 # Package imports
+import cmasher as cmr
 from e13tools.utils import docstring_substitute
 from matplotlib import cm, rcParams
 from matplotlib.colors import BASE_COLORS, CSS4_COLORS, to_rgba
@@ -437,10 +438,20 @@ class ColorMapBox(BaseBox):
 
     # This function creates a combobox with colormaps
     def init(self):
-        # Obtain a list with default colormaps that should be at the top
-        std_cmaps = sset(['cividis', 'dusk', 'freeze', 'gothic', 'heat',
-                          'inferno', 'magma', 'plasma', 'rainforest',
-                          'sunburst', 'viridis'])
+        # Define set of CMasher colormaps that should be at the top
+        cmr_cmaps = sset(['dusk', 'freeze', 'gothic', 'heat', 'rainforest',
+                          'sunburst'])
+
+        # Check that all of those colormaps are available in CMasher
+        cmr_cmaps.intersection_update(cmr.cm.cmap_d)
+
+        # Obtain a set with default MPL colormaps that should be at the top
+        std_cmaps = sset(['cividis', 'inferno', 'magma', 'plasma', 'viridis'])
+
+        # Add CMasher colormaps to it
+        std_cmaps.update(['cmr.'+cmap for cmap in cmr_cmaps])
+
+        # Obtain reversed set of recommended colormaps
         std_cmaps_r = sset([cmap+'_r' for cmap in std_cmaps])
 
         # Obtain a list with all colormaps and their reverses
@@ -464,8 +475,13 @@ class ColorMapBox(BaseBox):
                 cmap_icons[cmap] = self.create_cmap_icon(cmap, cmap_size)
             ColorMapBox.cmap_icons = cmap_icons
 
+        # Create a layout for this widget
+        box_layout = QW.QHBoxLayout(self)
+        box_layout.setContentsMargins(0, 0, 0, 0)
+        self.setToolTip("Colormap to be used for the corresponding plot type")
+
         # Create a combobox for cmaps
-        cmaps_box = QW_QComboBox(self)
+        cmaps_box = QW_QComboBox()
         for cmap in chain(*cmaps):
             cmap_icon = self.cmap_icons[cmap]
             cmaps_box.addItem(cmap_icon, cmap)
@@ -478,9 +494,10 @@ class ColorMapBox(BaseBox):
         # Set remaining properties
         set_box_value(cmaps_box, rcParams['image.cmap'])
         cmaps_box.setIconSize(QC.QSize(*cmap_size))
-        cmaps_box.setToolTip("Colormap to be used for the corresponding plot "
-                             "type")
         cmaps_box.currentTextChanged.connect(self.cmap_selected)
+
+        # Add cmaps_box to layout
+        box_layout.addWidget(cmaps_box)
         self.cmaps_box = cmaps_box
 
     # This function creates an icon of a colormap

@@ -553,7 +553,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         # If everything went without exceptions, check if list is not empty and
         # remove duplicates
-        if len(par_seq):
+        if par_seq:
             par_seq = list(sset(par_seq))
         else:
             err_msg = "Input argument %r is empty!" % (name)
@@ -807,7 +807,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         # If suffix is a string, determine the path
         elif isinstance(suffix, str):
             # If the string is empty, find the last created backup file
-            if(suffix == ''):
+            if not suffix:
                 # Make list of all files in current directory
                 filenames = next(os.walk('.'))[2]
 
@@ -829,7 +829,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
                 backup_files.sort(key=lambda x: x[1], reverse=True)
 
                 # If backup_files is not empty, return last one created
-                if len(backup_files):
+                if backup_files:
                     return(backup_files[0][0])
                 # Else, raise error
                 else:
@@ -841,7 +841,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             else:
                 # Obtain full filepath
                 filepath = path.abspath(path.join(
-                        '.', ''.join([prefix, suffix, ').hdf5'])))
+                    '.', ''.join([prefix, suffix, ').hdf5'])))
 
                 # If filepath exists, return it
                 if path.exists(filepath):
@@ -959,6 +959,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
     # This function reads in a backup made by _make_backup
     # TODO: Allow for absolute path to backup file to be given?
+    # TODO: Convert to static method to read backups without subclass object?
     def _read_backup(self, emul_i, *, suffix=None):
         """
         Reads in a backup HDF5-file created by the :meth:`~_make_backup`

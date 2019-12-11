@@ -23,7 +23,8 @@ from prism._internal import RequestError, RequestWarning
 from prism._projection import Projection
 from prism.emulator import Emulator
 from prism.modellink import ModelLink
-from prism.modellink.tests.modellink import GaussianLink2D, GaussianLink3D
+from prism.modellink.tests.modellink import (
+    ExtremeLink, GaussianLink2D, GaussianLink3D)
 
 
 # %% GLOBALS
@@ -155,6 +156,18 @@ class Test_Pipeline_Gaussian2D(object):
     def test_construct(self, pipe):
         pipe.construct(1, analyze=0)
 
+    # Check if the adjustment terms are correct
+    # This tests that 'Cov(D_i, D) @ inv(Var(D)) = e_i' for all known samples
+    def test_adj_terms(self, pipe):
+        for i, par_set in enumerate(pipe._emulator._sam_set[1]):
+            cov_vecs = pipe._emulator._get_cov(
+                1, pipe._emulator._active_emul_s[1], par_set, None)
+            exp_out = np.zeros_like(cov_vecs[0])
+            exp_out[i] = 1
+            for cov_vec, cov_mat_inv in zip(cov_vecs,
+                                            pipe._emulator._cov_mat_inv[1]):
+                assert np.allclose(cov_vec @ cov_mat_inv, exp_out)
+
     # Check if first iteration can be reconstructed unforced
     def test_reconstruct_no_force(self, pipe):
         pipe.construct(1, analyze=0, force=0)
@@ -203,6 +216,18 @@ class Test_Pipeline_Gaussian2D(object):
     def test_run(self, pipe):
         with switch_backend('Agg'):
             pipe.run(2)
+
+    # Check if the adjustment terms are correct for second iteration
+    # This tests that 'Cov(D_i, D) @ inv(Var(D)) = e_i' for all known samples
+    def test_adj_terms2(self, pipe):
+        for i, par_set in enumerate(pipe._emulator._sam_set[2]):
+            cov_vecs = pipe._emulator._get_cov(
+                2, pipe._emulator._active_emul_s[2], par_set, None)
+            exp_out = np.zeros_like(cov_vecs[0])
+            exp_out[i] = 1
+            for cov_vec, cov_mat_inv in zip(cov_vecs,
+                                            pipe._emulator._cov_mat_inv[2]):
+                assert np.allclose(cov_vec @ cov_mat_inv, exp_out)
 
     # Try to access all Pipeline properties
     def test_access_pipe_props(self, pipe):
@@ -359,6 +384,18 @@ class Test_Pipeline_Gaussian3D(object):
     def test_construct(self, pipe):
         pipe.construct(1, analyze=0)
 
+    # Check if the adjustment terms are correct
+    # This tests that 'Cov(D_i, D) @ inv(Var(D)) = e_i' for all known samples
+    def test_adj_terms(self, pipe):
+        for i, par_set in enumerate(pipe._emulator._sam_set[1]):
+            cov_vecs = pipe._emulator._get_cov(
+                1, pipe._emulator._active_emul_s[1], par_set, None)
+            exp_out = np.zeros_like(cov_vecs[0])
+            exp_out[i] = 1
+            for cov_vec, cov_mat_inv in zip(cov_vecs,
+                                            pipe._emulator._cov_mat_inv[1]):
+                assert np.allclose(cov_vec @ cov_mat_inv, exp_out)
+
     # Check if first iteration can be analyzed
     def test_analyze(self, pipe):
         pipe.analyze()
@@ -398,12 +435,11 @@ class Test_Pipeline_Gaussian3D(object):
 
 
 # Pytest for standard Pipeline class for 3D model with a single data point
-@pytest.mark.incremental
 class Test_Pipeline_Gaussian3D_1_data(object):
     # Test a 3D Gaussian model
     @pytest.fixture(scope='class')
     def pipe(self, tmpdir_factory):
-        tmpdir = tmpdir_factory.mktemp('test3D')
+        tmpdir = tmpdir_factory.mktemp('test3D_1')
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
         modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
@@ -419,6 +455,20 @@ class Test_Pipeline_Gaussian3D_1_data(object):
     # Check if first iteration can be constructed
     def test_construct(self, pipe):
         pipe.construct(1, analyze=0)
+
+    # Check if the adjustment terms are correct
+    # This tests that 'Cov(D_i, D) @ inv(Var(D)) = e_i' for all known samples
+    @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                        reason="Cannot be pytested in MPI")
+    def test_adj_terms(self, pipe):
+        for i, par_set in enumerate(pipe._emulator._sam_set[1]):
+            cov_vecs = pipe._emulator._get_cov(
+                1, pipe._emulator._active_emul_s[1], par_set, None)
+            exp_out = np.zeros_like(cov_vecs[0])
+            exp_out[i] = 1
+            for cov_vec, cov_mat_inv in zip(cov_vecs,
+                                            pipe._emulator._cov_mat_inv[1]):
+                assert np.allclose(cov_vec @ cov_mat_inv, exp_out)
 
     # Check if first iteration can be analyzed
     def test_analyze(self, pipe):
@@ -456,6 +506,71 @@ class Test_Pipeline_Gaussian3D_1_data(object):
     def test_repr2(self, pipe):
         pipe2 = eval(repr(pipe))
         assert pipe2._hdf5_file == pipe._hdf5_file
+
+
+# Pytest for standard Pipeline class handling extreme outliers in model
+class Test_Pipeline_ExtremeLink(object):
+    # Test an extreme outliers model
+    @pytest.fixture(scope='class')
+    def pipe(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test_extreme')
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        modellink_obj = ExtremeLink()
+        return(Pipeline(modellink_obj, root_dir=root_dir,
+                        working_dir=working_dir))
+
+    # Check if first iteration can be constructed
+    def test_construct(self, pipe):
+        pipe.construct(1, analyze=0)
+
+    # Check if the adjustment terms are correct
+    # This tests that 'Cov(D_i, D) @ inv(Var(D)) = e_i' for all known samples
+    def test_adj_terms(self, pipe):
+        for i, par_set in enumerate(pipe._emulator._sam_set[1]):
+            cov_vecs = pipe._emulator._get_cov(
+                1, pipe._emulator._active_emul_s[1], par_set, None)
+            exp_out = np.zeros_like(cov_vecs[0])
+            exp_out[i] = 1
+            for cov_vec, cov_mat_inv in zip(cov_vecs,
+                                            pipe._emulator._cov_mat_inv[1]):
+                assert np.allclose(cov_vec @ cov_mat_inv, exp_out)
+
+    # Check if first iteration can be analyzed
+    def test_analyze(self, pipe):
+        pipe.analyze()
+
+    # Check if first iteration can be properly evaluated
+    @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                        reason="Cannot be pytested in MPI")
+    def test_evaluate(self, pipe):
+        assert np.allclose(
+            pipe.evaluate(pipe._emulator._sam_set[1], 1)['adj_exp_val'],
+            np.array(pipe._emulator._mod_set[1]).T)
+
+    # Check if second iteration can be constructed
+    def test_construct2(self, pipe):
+        pipe.construct(2, analyze=0)
+
+        # Check if the emulator system with data_idx = 0 now has 2 active par
+        try:
+            emul_s = pipe._emulator._data_idx[2].index(0)
+        except ValueError:
+            pass
+        else:
+            assert (len(pipe._emulator._active_par_data[2][emul_s]) == 2)
+
+    # Check if the adjustment terms are correct for second iteration
+    # This tests that 'Cov(D_i, D) @ inv(Var(D)) = e_i' for all known samples
+    def test_adj_terms2(self, pipe):
+        for i, par_set in enumerate(pipe._emulator._sam_set[2]):
+            cov_vecs = pipe._emulator._get_cov(
+                2, pipe._emulator._active_emul_s[2], par_set, None)
+            exp_out = np.zeros_like(cov_vecs[0])
+            exp_out[i] = 1
+            for cov_vec, cov_mat_inv in zip(cov_vecs,
+                                            pipe._emulator._cov_mat_inv[2]):
+                assert np.allclose(cov_vec @ cov_mat_inv, exp_out)
 
 
 # Pytest for Pipeline class exception handling during initialization
@@ -548,13 +663,6 @@ class Test_Pipeline_Init_Exceptions(object):
         root_dir = path.dirname(tmpdir.strpath)
         with pytest.raises(InputError):
             Pipeline(modellink_obj, root_dir=root_dir, working_dir=1.0,
-                     prism_par=prism_dict_def)
-
-    # Create a Pipeline object using an integer working dir
-    def test_int_working_dir(self, tmpdir, modellink_obj):
-        root_dir = path.dirname(tmpdir.strpath)
-        with pytest.raises(TypeError):
-            Pipeline(modellink_obj, root_dir=root_dir, working_dir=1,
                      prism_par=prism_dict_def)
 
     # Create a Pipeline object using an invalid PRISM file
