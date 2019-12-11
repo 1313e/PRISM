@@ -594,8 +594,8 @@ class Projection(object):
             # Therefore, values up to max(z_los)/N has the color for 0
             min_los = min(1, np.max(z_los))/self.__los_kwargs_3D['cmap'].N
 
-            # Set all z_min to impl_cut if its corresponding z_los <= min_los
-            z_min[z_los <= min_los] = impl_cut
+            # Set all z_min to impl_cut if its corresponding z_los < min_los
+            z_min[z_los < min_los] = impl_cut
 
         # Create plotted parameter value grid
         x = np.linspace(*self._modellink._par_rng[par1], gridsize[0])

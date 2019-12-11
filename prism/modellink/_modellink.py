@@ -959,6 +959,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
     # This function reads in a backup made by _make_backup
     # TODO: Allow for absolute path to backup file to be given?
+    # TODO: Convert to static method to read backups without subclass object?
     def _read_backup(self, emul_i, *, suffix=None):
         """
         Reads in a backup HDF5-file created by the :meth:`~_make_backup`
