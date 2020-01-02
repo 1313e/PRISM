@@ -594,8 +594,7 @@ def get_bibtex():
             archivePrefix = {arXiv},
             eprint = {1901.08725},
             primaryClass = {astro-ph.IM},
-            adsurl = {http://adsabs.harvard.edu/abs/2019ApJS..242...22V},
-            adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+            adsurl = {http://adsabs.harvard.edu/abs/2019ApJS..242...22V}
         }
         """)
 

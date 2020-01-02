@@ -1613,6 +1613,7 @@ class Pipeline(Projection, object):
 
     # This function generates a large Latin Hypercube sample set to analyze
     # the emulator at
+    # TODO: Use min/max of current sam_set to determine parameter ranges?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_eval_sam_set(self, emul_i):
         """
@@ -2929,10 +2930,10 @@ class Pipeline(Projection, object):
                     print("{0: <{1}}\t{2:,}/{3:,}".format(
                         "# of plausible/analyzed samples", width,
                         self._n_impl_sam[emul_i], self._n_eval_sam[emul_i]))
-                    print("{0: <{1}}\t{2:#.3%}".format(
+                    print("{0: <{1}}\t{2:#.3g}%".format(
                         "% of parameter space remaining", width,
                         (self._n_impl_sam[emul_i] /
-                         self._n_eval_sam[emul_i])))
+                         self._n_eval_sam[emul_i])*100))
                 print("{0: <{1}}\t{2}/{3}".format(
                     "# of active/total parameters", width,
                     n_active_par, n_par))

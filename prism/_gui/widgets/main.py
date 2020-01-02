@@ -311,7 +311,7 @@ class MainViewerWindow(QW.QMainWindow):
         # Create the text for the 'about' dialog
         text = dedent(r"""
             <b>{name} | <a href="{github}">PRISM</a> v{version}</b><br>
-            Copyright &copy; 2019 Ellert van der Velden<br>
+            Copyright &copy; 2019-2020 Ellert van der Velden<br>
             Distributed under the
             <a href="{github}/raw/master/LICENSE">BSD-3 License</a>.
             """.format(name=APP_NAME,

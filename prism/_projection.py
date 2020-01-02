@@ -71,6 +71,7 @@ class Projection(object):
 
     # Function that creates all projection figures
     # TODO: Allow for projection figures to be zoomed? (Cut off all black)
+    # TODO: Use min/max of impl_sam or sam_set to define parameter space?
     @docstring_substitute(emul_i=user_emul_i_doc, proj_par=proj_par_doc_d)
     def project(self, emul_i=None, proj_par=None, **kwargs):
         """
@@ -544,6 +545,7 @@ class Projection(object):
         # grid point
         # TODO: Allow user to set smooth parameter for Rbf function
         # This probably means that smoothed figures have to be renamed
+        # TODO: Should a KDE be used here instead?
         f_min = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_min)
         f_los = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_los)
 
