@@ -1034,11 +1034,10 @@ class OverviewDockWidget(QW.QDockWidget):
 
         # Get the percentage of plausible space remaining
         if self.pipe._n_eval_sam[emul_i]:
-            pl_space_rem = "{0:#.3%}".format(
-                (self.pipe._n_impl_sam[emul_i] /
-                 self.pipe._n_eval_sam[emul_i]))
+            pl_space_rem = "{0:#.3g}%".format(
+                self.pipe._get_f_impl(emul_i)*100)
         else:
-            pl_space_rem = "N/A"
+            pl_space_rem = "-"
         pl_space_rem = QW.QLabel(pl_space_rem)
 
         # Obtain QLabel instances of all details

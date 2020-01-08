@@ -587,9 +587,8 @@ class Pipeline(Projection, object):
     def base_eval_sam(self):
         """
         int: Base number of emulator evaluations used to analyze the emulator
-        systems. This number is scaled up by the number of model parameters and
-        the current emulator iteration to generate the true number of emulator
-        evaluations (:attr:`~n_eval_sam`).
+        systems. This number is scaled up by the number of model parameters to
+        generate the true number of emulator evaluations (:attr:`~n_eval_sam`).
 
         """
 
@@ -1017,7 +1016,7 @@ class Pipeline(Projection, object):
         """
 
         # Calculate n_eval_sam and return it
-        return(emul_i*self._base_eval_sam*self._modellink._n_par)
+        return(self._base_eval_sam*self._modellink._n_par)
 
     # Obtains the paths for the root directory, working directory, pipeline
     # hdf5-file and prism parameters file
@@ -1613,7 +1612,6 @@ class Pipeline(Projection, object):
 
     # This function generates a large Latin Hypercube sample set to analyze
     # the emulator at
-    # TODO: Use min/max of current sam_set to determine parameter ranges?
     @docstring_substitute(emul_i=std_emul_i_doc)
     def _get_eval_sam_set(self, emul_i):
         """
@@ -1642,13 +1640,44 @@ class Pipeline(Projection, object):
         logger.info("Creating emulator evaluation sample set with size %i."
                     % (n_eval_sam))
         eval_sam_set = lhd(n_eval_sam, self._modellink._n_par,
-                           self._modellink._par_rng, 'center',
+                           self._emulator._get_emul_space(emul_i), 'center',
                            self._criterion, 100,
                            constraints=self._emulator._sam_set[emul_i])
         logger.info("Finished creating sample set.")
 
         # Return it
         return(eval_sam_set)
+
+    # This function calculates the fraction of parameter space remaining
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _get_f_impl(self, emul_i):
+        """
+        Returns the fraction of parameter space that passed the implausibility
+        checks during the analysis of the provided emulator iteration `emul_i`.
+
+        Parameters
+        ----------
+        %(emul_i)s
+
+        Returns
+        -------
+        f_impl : float
+            The fraction of parameter space that is still plausible.
+
+        """
+
+        # Determine the fraction of plausible samples in total evaluated
+        f_impl_sam = self._n_impl_sam[emul_i]/self._n_eval_sam[emul_i]
+
+        # Determine size of each dimension in both par_space and emul_space
+        par_spc_size = np.diff(self._modellink._par_rng, axis=1)
+        emul_spc_size = np.diff(self._emulator._get_emul_space(emul_i), axis=1)
+
+        # Determine fraction of parameter space that makes up emulator space
+        f_spc = np.product(emul_spc_size/par_spc_size)
+
+        # Multiply both fractions to obtain f_impl and return it
+        return(f_impl_sam*f_spc)
 
     # This function performs an implausibility cut-off check on a given sample
     # TODO: Implement dynamic impl_cut
@@ -2271,12 +2300,10 @@ class Pipeline(Projection, object):
         Optional
         --------
         impl_cut : list of float or None. Default: None
-            Incomplete, shortened impl_cut-offs list to be used during the
-            analysis of this emulator iteration.
+            Incomplete, shortened implausibility cut-offs list to be used
+            during the analysis of this emulator iteration.
             If *None*, the currently set implausibility cut-off values
-            (:attr:`~impl_cut`) will be used if this is the first analysis or
-            the 'impl_cut' value in :attr:`~prism_dict` is used if this is a
-            reanalysis.
+            (:attr:`~impl_cut`) will be used.
 
         Generates
         ---------
@@ -2316,9 +2343,8 @@ class Pipeline(Projection, object):
             # Save current time
             start_time1 = time()
 
-            # Set the impl_cut list if analyzed before or impl_cut is not None
-            # This is to keep the impl_par set by the user if initial analyze
-            if impl_cut is not None or self._n_eval_sam[emul_i]:
+            # Set the impl_cut list if impl_cut is not None
+            if impl_cut is not None:
                 self._set_impl_par(impl_cut)
 
             # Save impl_par to hdf5
@@ -2385,7 +2411,7 @@ class Pipeline(Projection, object):
 
             # Save statistics about analyze time, evaluation rate, par_space
             avg_eval_rate = n_eval_sam/time_diff_eval
-            par_space_rem = (n_impl_sam/n_eval_sam)*100
+            par_space_rem = self._get_f_impl(emul_i)*100
             self._save_statistics(emul_i, {
                 'tot_analyze_time': ['%.2f' % (time_diff_total), 's'],
                 'avg_emul_eval_rate': ['%.2f' % (avg_eval_rate), '1/s'],
@@ -2760,7 +2786,7 @@ class Pipeline(Projection, object):
         logger.info("Collecting details about current pipeline instance.")
 
         # Check if last emulator iteration is finished constructing
-        ccheck_flag = (delist(self._emulator._ccheck[-1]) == [])
+        ccheck_flag = (not delist(self._emulator._ccheck[-1]))
 
         # Gather the ccheck_flags on all ranks to see if all are finished
         ccheck_flag = self._comm.allreduce(ccheck_flag, op=MPI.MIN)
@@ -2834,7 +2860,7 @@ class Pipeline(Projection, object):
             n_emul_s = self._emulator._n_emul_s_tot
 
             # Update ccheck_flag with requested emulator iteration
-            ccheck_flag = (delist(ccheck_flat) == [])
+            ccheck_flag = (not delist(ccheck_flat))
 
             # Determine the relative path to the working directory
             pwd = os.getcwd()
@@ -2932,8 +2958,7 @@ class Pipeline(Projection, object):
                         self._n_impl_sam[emul_i], self._n_eval_sam[emul_i]))
                     print("{0: <{1}}\t{2:#.3g}%".format(
                         "% of parameter space remaining", width,
-                        (self._n_impl_sam[emul_i] /
-                         self._n_eval_sam[emul_i])*100))
+                        self._get_f_impl(emul_i)*100))
                 print("{0: <{1}}\t{2}/{3}".format(
                     "# of active/total parameters", width,
                     n_active_par, n_par))

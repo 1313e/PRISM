@@ -149,6 +149,16 @@ class Emulator(object):
         return(bool(self._emul_load))
 
     @property
+    def prism_version(self):
+        """
+        str: The version of *PRISM* that was used to construct the emulator
+        that is currently loaded.
+
+        """
+
+        return(self._prism_version)
+
+    @property
     def emul_i(self):
         """
         int: The last emulator iteration that is fully constructed for all
@@ -607,6 +617,64 @@ class Emulator(object):
         # Return correct emul_i
         return(emul_i)
 
+    # Returns the hypercube that encloses defined emulator space
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _get_emul_space(self, emul_i):
+        """
+        Returns the boundaries of the hypercube that encloses the parameter
+        space in which the provided emulator iteration `emul_i` is defined.
+
+        Parameters
+        ----------
+        %(emul_i)s
+
+        Returns
+        -------
+        emul_space : 2D :obj:`~numpy.ndarray` object
+            The requested hypercube boundaries. If `emul_i` == 1, this is equal
+            to the defined model parameter space.
+
+        Note
+        ----
+        The parameter space over which an emulator iteration is defined is
+        always equal to the plausible space of the previous iteration.
+
+        """
+
+        # If emul_i is 1, the defined emulator space is model parameter space
+        # This is true for all emul_i if emulator was made before v1.2.3.dev1
+        if emul_i == 1 or compare_versions('v1.2.3.dev0', self._prism_version):
+            return(self._modellink._par_rng.copy())
+
+        # Else, it is defined as the plausible space of the previous iteration
+        else:
+            # Obtain the sam_set of this emulator iteration
+            sam_set = self._sam_set[emul_i]
+
+            # Determine the maximum difference between consecutive samples
+            emul_diff = np.apply_along_axis(
+                lambda x: np.max(np.diff(np.sort(x))), axis=0, arr=sam_set)
+
+            # Determine the min/max values of all samples in this iteration
+            emul_min = np.min(sam_set, axis=0)
+            emul_max = np.max(sam_set, axis=0)
+
+            # Add emul_diff as extra spacing to emul_min and emul_max
+            # This is to make sure that the entire emulator space is included
+            emul_min -= emul_diff
+            emul_max += emul_diff
+
+            # Combine emul_min and emul_max to form emul_space
+            emul_space = np.stack([emul_min, emul_max], axis=1)
+
+            # Make sure that emul_space is within par_space
+            emul_space = np.apply_along_axis(
+                lambda x: np.clip(x, *self._modellink._par_rng.T), axis=0,
+                arr=emul_space)
+
+            # Return emul_space
+            return(emul_space)
+
     # Creates a new emulator file and writes all information to it
     def _create_new_emulator(self):
         """
@@ -652,7 +720,7 @@ class Emulator(object):
                 file.attrs['modellink_name'] =\
                     self._modellink._name.encode('ascii', 'ignore')
                 file.attrs['prism_version'] =\
-                    __version__.encode('ascii', 'ignore')
+                    self._prism_version.encode('ascii', 'ignore')
                 file.attrs['emul_type'] = self._emul_type.encode('ascii',
                                                                  'ignore')
                 file.attrs['use_mock'] = bool(self._use_mock)
@@ -982,7 +1050,7 @@ class Emulator(object):
             emul_s_counter.update(active_emul_s)
 
         # Create empty data_to_emul_s list
-        data_to_emul_s = [[] for _ in range(self._modellink._n_data)]
+        data_to_emul_s = [None]*self._modellink._n_data
 
         # Assign all recurring data points to the correct emulator systems
         for i, data_idx in enumerate(self._modellink._data_idx):
@@ -1001,7 +1069,7 @@ class Emulator(object):
         # Assign all 'new' data points to the empty emulator systems
         for i in range(self._modellink._n_data):
             # Check if this data point has already been assigned
-            if(data_to_emul_s[i] == []):
+            if data_to_emul_s[i] is None:
                 # If not, check which emulator system is the least common
                 emul_s = emul_s_counter.most_common()[-1][0]
 
@@ -1346,15 +1414,18 @@ class Emulator(object):
             if ccheck_regression:
                 self._do_regression(emul_i, ccheck_regression)
 
+        # Make sure that the residual variances are calculated
+        if not delist(self._act_rsdl_var[emul_i]):
+            act_rsdl_var, pas_rsdl_var = self._get_rsdl_vars(emul_i)
+            self._act_rsdl_var[emul_i] = act_rsdl_var
+            self._pas_rsdl_var[emul_i] = pas_rsdl_var
+
         # Calculate the covariance matrices of sam_set
         # TODO: Implement system that, if needed, calculates cov_mat in seq
         # This is to avoid requiring massive amounts of RAM during calculation
         ccheck_cov_mat = [emul_s for emul_s in emul_s_seq if
                           'cov_mat' in self._ccheck[emul_i][emul_s]]
         if ccheck_cov_mat:
-            act_rsdl_var, pas_rsdl_var = self._get_rsdl_vars(emul_i)
-            self._act_rsdl_var[-1] = act_rsdl_var
-            self._pas_rsdl_var[-1] = pas_rsdl_var
             self._get_cov_matrix(emul_i, ccheck_cov_mat)
 
         # Calculate the second dot-term for the adjusted expectation
@@ -2770,19 +2841,20 @@ class Emulator(object):
                 raise_error(err_msg, RequestError, logger)
 
             # Obtain used PRISM version and check its compatibility
-            emul_version = file.attrs['prism_version'].decode('utf-8')
-            check_compatibility(emul_version)
+            prism_version = file.attrs['prism_version'].decode('utf-8')
+            check_compatibility(prism_version)
 
             # Read in all the emulator parameters
+            self._prism_version = prism_version
             self._sigma = file.attrs['sigma']
             self._l_corr = file.attrs['l_corr']
-            if compare_versions(emul_version, '1.2.2.dev0'):
+            if compare_versions(prism_version, '1.2.2.dev0'):
                 self._f_infl = file.attrs['f_infl']
             else:   # pragma: no cover
                 warn_msg = ("The provided emulator was constructed with a "
                             "version earlier than v1.2.2 (v%s). Starting in "
                             "v1.3.0, this emulator will no longer be "
-                            "compatible." % (emul_version))
+                            "compatible." % (prism_version))
                 raise_warning(warn_msg, FutureWarning, logger, 3)
                 self._f_infl = 0.0
             self._method = file.attrs['method'].decode('utf-8')
@@ -2832,6 +2904,9 @@ class Emulator(object):
         logger.info("Checking compatibility of provided emulator parameters.")
 
         # GENERAL
+        # PRISM version
+        self._prism_version = str(__version__)
+
         # Gaussian sigma
         self._sigma = check_vals(split_seq(par_dict['sigma'])[0],
                                  'sigma', 'float', 'nzero')
