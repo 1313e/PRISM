@@ -156,6 +156,12 @@ class Test_Pipeline_Gaussian2D(object):
     def test_construct(self, pipe):
         pipe.construct(1, analyze=0)
 
+    # Check if this emulator is (in)compatible with certain versions
+    def test_future_compat(self, pipe):
+        assert pipe._emulator._check_future_compat('1.1.0', '13.13.0')
+        with pytest.warns(FutureWarning):
+            assert not pipe._emulator._check_future_compat('99.0.0', '13.13.0')
+
     # Check if the adjustment terms are correct
     # This tests that 'Cov(D_i, D) @ inv(Var(D)) = e_i' for all known samples
     def test_adj_terms(self, pipe):

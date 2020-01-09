@@ -87,4 +87,5 @@ A projections data group (``'i/proj_hcube'``) contains individual projection dat
         - Projection depth and resolution.
 
     - ``'impl_los'``: The calculated line-of-sight depth for all grid points in this projection;
-    - ``'impl_min'``: The calculated minimum implausibility values for all grid points in this projection.
+    - ``'impl_min'``: The calculated minimum implausibility values for all grid points in this projection;
+    - ``'proj_space'``: The boundaries of the hypercube that encloses the defined parameter space of this projection.

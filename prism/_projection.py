@@ -235,10 +235,6 @@ class Projection(object):
         else:
             hcubes_bar = self.__hcubes
         for hcube in hcubes_bar:
-            # Initialize impl_min and impl_los
-            impl_min = None
-            impl_los = None
-
             # Obtain name of this hypercube
             hcube_name = self.__get_hcube_name(hcube)
 
@@ -249,7 +245,7 @@ class Projection(object):
                 logger.info("Calculating projection data %r." % (hcube_name))
 
                 # Analyze this proj_hcube
-                impl_min, impl_los = self.__analyze_proj_hcube(hcube)
+                self.__analyze_proj_hcube(hcube)
 
             # PLOTTING (CONTROLLER ONLY)
             # Create projection figure
@@ -262,21 +258,9 @@ class Projection(object):
                     self._comm.Barrier()
                     continue
 
-                # If projection data is not already loaded, load it
-                if impl_min is None and impl_los is None:
-                    impl_min, impl_los, proj_res, _ =\
-                        self.__get_proj_data(hcube)
-                # Otherwise, the used resolution is the current resolution
-                else:
-                    proj_res = self.__proj_res
-
                 # Draw projection figure
-                if(len(hcube) == 2):
-                    self.__draw_2D_proj_fig(hcube, impl_min, impl_los,
-                                            proj_res)
-                else:
-                    self.__draw_3D_proj_fig(hcube, impl_min, impl_los,
-                                            proj_res)
+                getattr(self, '_Projection__draw_%iD_proj_fig'
+                        % (len(hcube)))(hcube)
 
             # MPI Barrier
             self._comm.Barrier()
@@ -349,10 +333,14 @@ class Projection(object):
     # %% HIDDEN CLASS METHODS
     # This function draws the 2D projection figure
     @docstring_append(draw_proj_fig_doc.format("2D", "2"))
-    def __draw_2D_proj_fig(self, hcube, impl_min, impl_los, proj_res):
+    def __draw_2D_proj_fig(self, hcube):
         # Obtain emul_i and name of this projection hypercube
         emul_i = hcube[0]
         hcube_name = self.__get_hcube_name(hcube)
+
+        # Obtain the projection data of this hcube
+        impl_min, impl_los, proj_res, _, proj_space =\
+            self.__get_proj_data(hcube)
 
         # Make abbreviation for implausibility cut-off values
         impl_cut = self._impl_cut[emul_i][0]
@@ -513,10 +501,14 @@ class Projection(object):
     # This function draws the 3D projection figure
     @docstring_append(draw_proj_fig_doc.format("3D", "3"))
     # OPTIMIZE: (Re)Drawing a 3D projection figure takes up to 15 seconds
-    def __draw_3D_proj_fig(self, hcube, impl_min, impl_los, proj_res):
+    def __draw_3D_proj_fig(self, hcube):
         # Obtain emul_i and name of this projection hypercube
         emul_i = hcube[0]
         hcube_name = self.__get_hcube_name(hcube)
+
+        # Obtain the projection data of this hcube
+        impl_min, impl_los, proj_res, _, proj_space =\
+            self.__get_proj_data(hcube)
 
         # Make abbreviation for first implausibility cut-off value
         impl_cut = self._impl_cut[emul_i][0]
@@ -728,6 +720,9 @@ class Projection(object):
         proj_depth : int
             Number of emulator evaluations used to generate the samples in
             every grid point for the given hypercube.
+        proj_space : 2D :obj:`~numpy.ndarray` object
+            The boundaries of the hypercube that encloses the parameter space
+            in which the specified projection is defined.
 
         """
 
@@ -747,6 +742,13 @@ class Projection(object):
             data_set = file['%i/proj_hcube/%s' % (emul_i, hcube_name)]
             impl_min_hcube = data_set['impl_min'][()]
             impl_los_hcube = data_set['impl_los'][()]
+            # FIXME: Remove in v1.3.0
+            if self._emulator._check_future_compat('1.2.3.dev1', '1.3.0'):
+                proj_space = data_set['proj_space'][()]
+                proj_space.dtype = float
+                proj_space = proj_space.T.copy()
+            else:   # pragma: no cover
+                proj_space = self.__proj_space.copy()
             res_hcube = data_set.attrs['proj_res']
             depth_hcube = data_set.attrs['proj_depth']
 
@@ -755,7 +757,8 @@ class Projection(object):
                         % (hcube_name))
 
         # Return it
-        return(impl_min_hcube, impl_los_hcube, res_hcube, depth_hcube)
+        return(impl_min_hcube, impl_los_hcube, res_hcube, depth_hcube,
+               proj_space)
 
     # This function determines the projection hypercubes to be analyzed
     @docstring_substitute(emul_i=std_emul_i_doc, proj_par=proj_par_doc_s)
@@ -1089,12 +1092,12 @@ class Projection(object):
             par_hid = list(chain(range(0, par), range(par+1, self.__n_par)))
 
             # Generate list with values for projected parameter
-            proj_sam_set = np.linspace(*self._modellink._par_rng[par],
+            proj_sam_set = np.linspace(*self.__proj_space[par],
                                        self.__proj_res)
 
             # Generate latin hypercube of the remaining parameters
             hidden_sam_set = lhd(depth, self.__n_par-1,
-                                 self._modellink._par_rng[par_hid], 'fixed',
+                                 self.__proj_space[par_hid], 'fixed',
                                  self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
@@ -1117,23 +1120,22 @@ class Projection(object):
                                  range(par2+1, self.__n_par)))
 
             # Generate list with values for projected parameters
-            proj_sam_set1 = np.linspace(*self._modellink._par_rng[par1],
+            proj_sam_set1 = np.linspace(*self.__proj_space[par1],
                                         self.__proj_res)
-            proj_sam_set2 = np.linspace(*self._modellink._par_rng[par2],
+            proj_sam_set2 = np.linspace(*self.__proj_space[par2],
                                         self.__proj_res)
 
             # Generate Latin Hypercube of the remaining parameters
             hidden_sam_set = lhd(self.__proj_depth, self.__n_par-2,
-                                 self._modellink._par_rng[par_hid], 'fixed',
+                                 self.__proj_space[par_hid], 'fixed',
                                  self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
-            for i in range(self.__proj_res):
-                for j in range(self.__proj_res):
-                    proj_hcube[i*self.__proj_res+j, :, par1] = proj_sam_set1[i]
-                    proj_hcube[i*self.__proj_res+j, :, par2] = proj_sam_set2[j]
-                    proj_hcube[i*self.__proj_res+j, :, par_hid] =\
-                        hidden_sam_set.T
+            for i, (j, k) in enumerate(np.ndindex(self.__proj_res,
+                                                  self.__proj_res)):
+                proj_hcube[i, :, par1] = proj_sam_set1[j]
+                proj_hcube[i, :, par2] = proj_sam_set2[k]
+                proj_hcube[i, :, par_hid] = hidden_sam_set.T
 
         # Workers get dummy proj_hcube
         else:
@@ -1285,6 +1287,9 @@ class Projection(object):
         # Get emul_i
         self.__emul_i = self._emulator._get_emul_i(emul_i)
 
+        # Get proj_space
+        self.__proj_space = self._emulator._emul_space[self.__emul_i]
+
         # Controller checking all other kwargs
         if self._is_controller:
             # Check if several parameters are bools
@@ -1303,7 +1308,7 @@ class Projection(object):
             elif proj_type.lower() in ('3d', '2', 'two'):
                 self.__proj_2D = 0
                 self.__proj_3D = 1
-            elif proj_type.lower() in ('2d+3d', 'nd', 'both'):
+            elif proj_type.lower() in ('2d+3d', 'nd', '1+2', 'both'):
                 self.__proj_2D = 1
                 self.__proj_3D = 1
             else:
@@ -1503,9 +1508,17 @@ class Projection(object):
                     # Get the data set of this projection hypercube
                     data_set = group.create_group(data['hcube_name'])
 
+                    # Determine dtype-list for compound dataset
+                    dtype = [(n, float) for n in self._modellink._par_name]
+
+                    # Convert proj_space to a compound dataset
+                    proj_space_c = self.__proj_space.T.copy()
+                    proj_space_c.dtype = dtype
+
                     # Save the projection data to file
                     data_set.create_dataset('impl_min', data=data['impl_min'])
                     data_set.create_dataset('impl_los', data=data['impl_los'])
+                    data_set.create_dataset('proj_space', data=proj_space_c)
                     data_set.attrs['impl_cut'] = self._impl_cut[emul_i]
                     data_set.attrs['cut_idx'] = self._cut_idx[emul_i]
                     data_set.attrs['proj_res'] = self.__proj_res

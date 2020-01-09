@@ -529,17 +529,8 @@ class OverviewDockWidget(QW.QDockWidget):
         hcube_name = list_item.text()
         hcube = self.hcubes[self.names.index(hcube_name)]
 
-        # Load in the data corresponding to the requested figure
-        impl_min, impl_los, proj_res, _ =\
-            self.call_proj_attr('get_proj_data', hcube)
-
         # Call the proper function for drawing the projection figure
-        if(len(hcube) == 2):
-            fig = self.call_proj_attr('draw_2D_proj_fig',
-                                      hcube, impl_min, impl_los, proj_res)
-        else:
-            fig = self.call_proj_attr('draw_3D_proj_fig',
-                                      hcube, impl_min, impl_los, proj_res)
+        fig = self.call_proj_attr('draw_%iD_proj_fig' % (len(hcube)), hcube)
 
         # Register figure in the registry
         self.proj_fig_registry[hcube_name] = [fig, None]

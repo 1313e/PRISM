@@ -28,6 +28,7 @@ from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 from mpi4pyd import MPI
 import numpy as np
 from numpy.linalg import pinv
+from pkg_resources import parse_version
 from sklearn.linear_model import LinearRegression as LR
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.pipeline import Pipeline as Pipeline_sk
@@ -628,6 +629,41 @@ class Emulator(object):
 
         # Return correct emul_i
         return(emul_i)
+
+    # Checks the compatibility with a specific version and warns if it fails
+    def _check_future_compat(self, req_version, dep_version):
+        """
+        Checks if the version of this emulator is compatible with the provided
+        `req_version`.
+        If not, raises a :class:`~FutureWarning`, indicating that the given
+        `dep_version` will no longer support this emulator.
+
+        Parameters
+        ----------
+        req_version : str
+            The version in which an incompatible change was introduced.
+        dep_version : str
+            The version in which the backward compatibility for this change
+            will be removed.
+
+        """
+
+        # Make logger
+        logger = getCLogger('FUTURE')
+
+        # Check if this emulator's version is compatible with req_version
+        if compare_versions(self._prism_version, req_version):
+            # If so, return True
+            return(True)
+        else:
+            # Else, raise warning and return False
+            warn_msg = ("The provided emulator was constructed with a version "
+                        "earlier than v%s (v%s). Starting in v%s, this "
+                        "emulator will no longer be compatible."
+                        % (parse_version(req_version).base_version,
+                           self._prism_version, dep_version))
+            raise_warning(warn_msg, FutureWarning, logger, 4)
+            return(False)
 
     # Returns the hypercube that encloses defined emulator space
     @docstring_substitute(emul_i=std_emul_i_doc)
@@ -1495,7 +1531,6 @@ class Emulator(object):
 
     # This is function 'Var_D(f(x'))'
     # This function gives the adjusted emulator variance value back
-    # TODO: Find out why many adj_var have a very low value for GaussianLink
     @docstring_append(adj_var_doc)
     def _get_adj_var(self, emul_i, emul_s_seq, par_set, cov_vec):
         # Obtain prior variance value of par_set
@@ -2490,9 +2525,13 @@ class Emulator(object):
                     self._n_sam.append(group.attrs['n_sam'])
                     self._sam_set.append(group['sam_set'][()])
                     self._sam_set[-1].dtype = float
-                    emul_space = group['emul_space'][()]
-                    emul_space.dtype = float
-                    self._emul_space.append(emul_space.T)
+                    # FIXME: Remove in v1.3.0
+                    if self._check_future_compat('1.2.3.dev1', '1.3.0'):
+                        emul_space = group['emul_space'][()]
+                        emul_space.dtype = float
+                        self._emul_space.append(emul_space.T.copy())
+                    else:   # pragma: no cover
+                        self._emul_space.append(self._get_emul_space(i))
                 except KeyError:
                     self._n_sam.append(0)
                     self._sam_set.append([])
@@ -2585,8 +2624,7 @@ class Emulator(object):
                         rsdl_var.append(data_set.attrs['rsdl_var'])
                         poly_coef.append(data_set['poly_coef'][()])
                         if self._use_regr_cov:
-                            poly_coef_cov.append(
-                                data_set['poly_coef_cov'][()])
+                            poly_coef_cov.append(data_set['poly_coef_cov'][()])
                         else:
                             poly_coef_cov.append([])
                         poly_powers.append(data_set['poly_powers'][()])
@@ -2619,8 +2657,7 @@ class Emulator(object):
 
                     # Check if exp_dot_term is available
                     try:
-                        exp_dot_term.append(
-                            data_set['exp_dot_term'][()])
+                        exp_dot_term.append(data_set['exp_dot_term'][()])
                     except KeyError:
                         exp_dot_term.append([])
                         ccheck_s.append('exp_dot_term')
@@ -2628,14 +2665,16 @@ class Emulator(object):
                     # Read in data values, errors and spaces
                     data_val.append(data_set.attrs['data_val'])
                     data_err.append(data_set.attrs['data_err'].tolist())
-                    data_spc.append(
-                        data_set.attrs['data_spc'].decode('utf-8'))
+                    data_spc.append(data_set.attrs['data_spc'].decode('utf-8'))
 
                     # Read in all data_idx parts and combine them
                     data_idx.append(self._read_data_idx(data_set))
 
                     # Add ccheck_s to ccheck
                     ccheck.insert(j, ccheck_s)
+
+                    # Make sure that data_set is closed
+                    del data_set
 
                 # Determine the number of data points on this MPI rank
                 self._n_data.append(len(self._active_emul_s[-1]))
@@ -2660,16 +2699,22 @@ class Emulator(object):
                 # Add ccheck for this iteration to global ccheck
                 self._ccheck.append(ccheck)
 
-                # If ccheck has no solely empty lists, decrease emul_i by 1
-                if(delist(ccheck) != []):
-                    self._emul_i -= 1
-
                 # Gather the data_idx from all MPI ranks on the controller
                 data_idx_list = self._comm.gather(data_idx, 0)
 
                 # Controller saving the received data_idx_list
                 if self._is_controller:
                     self._data_idx_to_core.append(data_idx_list)
+
+        # FIXME: Remove in v1.3.0
+        # If solely rsdl_vars are missing, add them silently
+        for i in range(1, emul_i+1):
+            if(delist(self._ccheck[i]) == [['rsdl_var']]*self._n_data[i]):
+                self._get_rsdl_var(i, self._active_emul_s[i])
+
+        # If ccheck has no solely empty lists, decrease emul_i by 1
+        if delist(self._ccheck[-1]):
+            self._emul_i -= 1
 
         # Log that loading is finished
         logger.info("Finished loading relevant emulator data.")
@@ -2913,14 +2958,10 @@ class Emulator(object):
             self._prism_version = prism_version
             self._sigma = file.attrs['sigma']
             self._l_corr = file.attrs['l_corr']
-            if compare_versions(prism_version, '1.2.2.dev0'):
+            # FIXME: Remove in v1.3.0
+            if self._check_future_compat('1.2.2.dev0', '1.3.0'):
                 self._f_infl = file.attrs['f_infl']
             else:   # pragma: no cover
-                warn_msg = ("The provided emulator was constructed with a "
-                            "version earlier than v1.2.2 (v%s). Starting in "
-                            "v1.3.0, this emulator will no longer be "
-                            "compatible." % (prism_version))
-                raise_warning(warn_msg, FutureWarning, logger, 3)
                 self._f_infl = 0.0
             self._method = file.attrs['method'].decode('utf-8')
             self._use_regr_cov = int(file.attrs['use_regr_cov'])
