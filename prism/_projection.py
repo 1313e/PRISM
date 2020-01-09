@@ -121,6 +121,10 @@ class Projection(object):
             from the projection figure. Doing this may also remove interesting
             features. This does not affect the projection data saved to HDF5.
             Smoothed figures have an '_s' string appended to their filenames.
+        use_par_space : bool. Default: False
+            Controls whether to use the model parameter space (*True*) or the
+            parameter space in which emulator iteration `emul_i` is defined
+            (*False*) as the axes limits in the projection figure.
         force : bool. Default: False
             Controls what to do if a projection hypercube has been calculated
             at the emulator iteration `emul_i` before.
@@ -397,7 +401,13 @@ class Projection(object):
             y_min[y_los <= 0] = impl_cut
 
         # Create plotted parameter value array
-        x = np.linspace(*self._modellink._par_rng[par], gridsize[0])
+        x = np.linspace(*proj_space[par], gridsize[0])
+
+        # Determine axis range
+        if self.__use_par_space:
+            axis_rng = self._modellink._par_rng[par]
+        else:
+            axis_rng = proj_space[par]
 
         # Create figure object if the figure is requested
         if self.__figure:
@@ -429,7 +439,7 @@ class Projection(object):
             # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
             ax0.plot(x, y_min, **self.__impl_kwargs_2D)
-            ax0_rng = [*self._modellink._par_rng[par], 0, 1.5*impl_cut]
+            ax0_rng = [*axis_rng, 0, 1.5*impl_cut]
             ax0.axis(ax0_rng)
 
             # Draw parameter estimate line
@@ -455,8 +465,7 @@ class Projection(object):
             # LINE-OF-SIGHT DEPTH PLOT
             # Plot line-of-sight depth
             ax1.plot(x, y_los, **self.__los_kwargs_2D)
-            ax1_rng = [*self._modellink._par_rng[par],
-                       0, 1.05*min(1, np.max(y_los))]
+            ax1_rng = [*axis_rng, 0, 1.05*min(1, np.max(y_los))]
             ax1.axis(ax1_rng)
 
             # Draw parameter estimate line
@@ -591,11 +600,18 @@ class Projection(object):
             z_min[z_los < min_los] = impl_cut
 
         # Create plotted parameter value grid
-        x = np.linspace(*self._modellink._par_rng[par1], gridsize[0])
-        y = np.linspace(*self._modellink._par_rng[par2], gridsize[1])
+        x = np.linspace(*proj_space[par1], gridsize[0])
+        y = np.linspace(*proj_space[par2], gridsize[1])
         X, Y = np.meshgrid(x, y, indexing='ij')
         x = X.ravel()
         y = Y.ravel()
+
+        # Determine axes range
+        if self.__use_par_space:
+            axes_rng = [*self._modellink._par_rng[par1],
+                        *self._modellink._par_rng[par2]]
+        else:
+            axes_rng = [*proj_space[par1], *proj_space[par2]]
 
         # Create figure object if the figure is requested
         if self.__figure:
@@ -639,8 +655,7 @@ class Projection(object):
                               line_kwargs=self.__line_kwargs_est)
 
             # Set axes and labels
-            ax0.axis([*self._modellink._par_rng[par1],
-                      *self._modellink._par_rng[par2]])
+            ax0.axis(axes_rng)
             plt.colorbar(fig1, ax=ax0, extend='max').set_label(
                 "Min. Implausibility", fontsize='large')
 
@@ -659,8 +674,7 @@ class Projection(object):
                               line_kwargs=self.__line_kwargs_est)
 
             # Set axes and label
-            ax1.axis([*self._modellink._par_rng[par1],
-                      *self._modellink._par_rng[par2]])
+            ax1.axis(axes_rng)
             plt.colorbar(fig2, ax=ax1).set_label("Line-of-Sight Depth",
                                                  fontsize='large')
 
@@ -748,7 +762,7 @@ class Projection(object):
                 proj_space.dtype = float
                 proj_space = proj_space.T.copy()
             else:   # pragma: no cover
-                proj_space = self.__proj_space.copy()
+                proj_space = self.__proj_space[emul_i].copy()
             res_hcube = data_set.attrs['proj_res']
             depth_hcube = data_set.attrs['proj_depth']
 
@@ -1002,6 +1016,7 @@ class Projection(object):
                        'align': 'col',
                        'show_cuts': 0,
                        'smooth': 0,
+                       'use_par_space': 0,
                        'force': 0,
                        'fig_kwargs': sdict(fig_kwargs),
                        'impl_kwargs_2D': sdict(impl_kwargs_2D),
@@ -1042,6 +1057,34 @@ class Projection(object):
         # Finish logging
         logger.info("Finished setting projection parameters.")
 
+    # This function returns the indices of all parameters in a grid point
+    @docstring_substitute(hcube=hcube_doc)
+    def __get_grid_idx(self, hcube):
+        """
+        Returns the indices of all parameters that are in the grid points of
+        the given projection hypercube `hcube`.
+
+        Parameters
+        ----------
+        %(hcube)s
+
+        Returns
+        -------
+        grid_idx : list of int
+            Indices of all grid point parameters.
+
+        """
+
+        # If hcube has 1 parameter
+        if(len(hcube) == 2):
+            par = hcube[1]
+            return(list(chain(range(0, par), range(par+1, self.__n_par))))
+        # If hcube has 2 parameters
+        else:
+            par1, par2 = hcube[1:]
+            return(list(chain(range(0, par1), range(par1+1, par2),
+                              range(par2+1, self.__n_par))))
+
     # This function generates a projection hypercube to be used for emulator
     # evaluations
     # TODO: Use min/max of impl_sam or sam_set to define parameter space?
@@ -1065,7 +1108,8 @@ class Projection(object):
 
         """
 
-        # Obtain name of this projection hypercube
+        # Obtain emul_i and name of this projection hypercube
+        emul_i = hcube[0]
         hcube_name = self.__get_hcube_name(hcube)
 
         # Log that projection hypercube is being created
@@ -1089,15 +1133,15 @@ class Projection(object):
             proj_hcube = np.zeros([self.__proj_res, depth, self.__n_par])
 
             # Create list that contains all the other parameters
-            par_hid = list(chain(range(0, par), range(par+1, self.__n_par)))
+            par_hid = self.__get_grid_idx(hcube)
 
             # Generate list with values for projected parameter
-            proj_sam_set = np.linspace(*self.__proj_space[par],
+            proj_sam_set = np.linspace(*self.__proj_space[emul_i][par],
                                        self.__proj_res)
 
             # Generate latin hypercube of the remaining parameters
             hidden_sam_set = lhd(depth, self.__n_par-1,
-                                 self.__proj_space[par_hid], 'fixed',
+                                 self.__proj_space[emul_i][par_hid], 'fixed',
                                  self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
@@ -1108,26 +1152,24 @@ class Projection(object):
         # If hcube has 2 parameters, make 3D projection hypercube on controller
         elif self._is_controller:
             # Identify projected parameters
-            par1 = hcube[1]
-            par2 = hcube[2]
+            par1, par2 = hcube[1:]
 
             # Create empty projection hypercube array
             proj_hcube = np.zeros([pow(self.__proj_res, 2), self.__proj_depth,
                                    self.__n_par])
 
             # Generate list that contains all the other parameters
-            par_hid = list(chain(range(0, par1), range(par1+1, par2),
-                                 range(par2+1, self.__n_par)))
+            par_hid = self.__get_grid_idx(hcube)
 
             # Generate list with values for projected parameters
-            proj_sam_set1 = np.linspace(*self.__proj_space[par1],
+            proj_sam_set1 = np.linspace(*self.__proj_space[emul_i][par1],
                                         self.__proj_res)
-            proj_sam_set2 = np.linspace(*self.__proj_space[par2],
+            proj_sam_set2 = np.linspace(*self.__proj_space[emul_i][par2],
                                         self.__proj_res)
 
             # Generate Latin Hypercube of the remaining parameters
             hidden_sam_set = lhd(self.__proj_depth, self.__n_par-2,
-                                 self.__proj_space[par_hid], 'fixed',
+                                 self.__proj_space[emul_i][par_hid], 'fixed',
                                  self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
@@ -1203,13 +1245,23 @@ class Projection(object):
             impl_check = impl_check.reshape(gridsize, depth)
             impl_cut = impl_cut.reshape(gridsize, depth)
 
+            # Obtain grid_idx
+            grid_idx = self.__get_grid_idx(hcube)
+
+            # Determine size of each dimension in both par_space and proj_space
+            par_spc_size = np.diff(self._modellink._par_rng[grid_idx], axis=1)
+            proj_spc_len = np.diff(self.__proj_space[emul_i][grid_idx], axis=1)
+
+            # Determine fraction of parameter space that makes up proj_space
+            f_spc = np.product(proj_spc_len/par_spc_size)
+
             # Loop over all grid point results and save lowest impl and los
             for check_grid, cut_grid in zip(impl_check, impl_cut):
                 # Calculate lowest impl in this grid point
                 impl_min_hcube.append(min(cut_grid))
 
                 # Calculate impl line-of-sight in this grid point
-                impl_los_hcube.append(sum(check_grid)/depth)
+                impl_los_hcube.append(sum(check_grid)*f_spc/depth)
 
             # Log that analysis has been finished
             time_diff = time()-start_time
@@ -1288,7 +1340,8 @@ class Projection(object):
         self.__emul_i = self._emulator._get_emul_i(emul_i)
 
         # Get proj_space
-        self.__proj_space = self._emulator._emul_space[self.__emul_i]
+        self.__proj_space = [emul_space.copy()
+                             for emul_space in self._emulator._emul_space]
 
         # Controller checking all other kwargs
         if self._is_controller:
@@ -1297,6 +1350,8 @@ class Projection(object):
             self.__show_cuts = check_vals(kwargs.pop('show_cuts'), 'show_cuts',
                                           'bool')
             self.__smooth = check_vals(kwargs.pop('smooth'), 'smooth', 'bool')
+            self.__use_par_space = check_vals(kwargs.pop('use_par_space'),
+                                              'use_par_space', 'bool')
             self.__force = check_vals(kwargs.pop('force'), 'force', 'bool')
 
             # Check if proj_type parameter is a valid string
@@ -1460,9 +1515,9 @@ class Projection(object):
             # Save all parameters and arguments in a dict (Projection GUI)
             kwarg_names = ['proj_res', 'proj_depth', 'emul_i', 'proj_2D',
                            'proj_3D', 'figure', 'align', 'show_cuts', 'smooth',
-                           'fig_kwargs', 'impl_kwargs_2D', 'impl_kwargs_3D',
-                           'los_kwargs_2D', 'los_kwargs_3D', 'line_kwargs_est',
-                           'line_kwargs_cut']
+                           'use_par_space', 'fig_kwargs', 'impl_kwargs_2D',
+                           'impl_kwargs_3D', 'los_kwargs_2D', 'los_kwargs_3D',
+                           'line_kwargs_est', 'line_kwargs_cut']
             self.__proj_kwargs = {n: getattr(self, '_Projection__%s' % (n))
                                   for n in kwarg_names}
 
@@ -1512,7 +1567,7 @@ class Projection(object):
                     dtype = [(n, float) for n in self._modellink._par_name]
 
                     # Convert proj_space to a compound dataset
-                    proj_space_c = self.__proj_space.T.copy()
+                    proj_space_c = self.__proj_space[emul_i].T.copy()
                     proj_space_c.dtype = dtype
 
                     # Save the projection data to file

@@ -1670,7 +1670,7 @@ class Pipeline(Projection, object):
 
         # Determine size of each dimension in both par_space and emul_space
         par_spc_size = np.diff(self._modellink._par_rng, axis=1)
-        emul_spc_size = np.diff(self._emulator._get_emul_space(emul_i), axis=1)
+        emul_spc_size = np.diff(self._emulator._emul_space[emul_i], axis=1)
 
         # Determine fraction of parameter space that makes up emulator space
         f_spc = np.product(emul_spc_size/par_spc_size)

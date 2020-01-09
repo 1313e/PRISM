@@ -203,7 +203,7 @@ class Test_Pipeline_Gaussian2D(object):
     # Check if first iteration can be reprojected (forced)
     def test_reproject_forced(self, pipe):
         with switch_backend('Agg'):
-            pipe.project(force=True, smooth=True)
+            pipe.project(force=True, smooth=True, use_par_space=True)
 
     # Check if figure data can be received
     def test_project_fig_data(self, pipe):
@@ -414,7 +414,7 @@ class Test_Pipeline_Gaussian3D(object):
     def test_project(self, pipe):
         with switch_backend('Agg'):
             pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
-                         fig_kwargs={'dpi': 10})
+                         fig_kwargs={'dpi': 10}, use_par_space=True)
             pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
                          figure=False)
             if pipe._is_controller:

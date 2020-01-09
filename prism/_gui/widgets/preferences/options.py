@@ -307,7 +307,7 @@ class OptionsDialog(QW.QDialog):
 
         return(self.create_group("Projection keywords",
                                  ['align', 'show_cuts', 'smooth',
-                                  'kwargs_dicts']))
+                                  'use_par_space', 'kwargs_dicts']))
 
     # INTERFACE GROUP
     def create_group_interface(self):
@@ -582,6 +582,25 @@ class OptionsDialog(QW.QDialog):
 
         # Return smooth box
         return('Smooth?', smooth_box)
+
+    # USE_PAR_SPACE OPTION
+    def create_option_use_par_space(self):
+        """
+        Creates the 'use_par_space' option and returns it.
+
+        This option sets the value of the 'use_par_space' projection parameter.
+
+        """
+
+        # Make check box for use_par_space
+        use_par_space_box = QW.QCheckBox()
+        use_par_space_box.setToolTip("Enable/disable using the model parameter"
+                                     " space as the axes limits.")
+        self.create_entry('use_par_space', use_par_space_box,
+                          self.proj_defaults['use_par_space'])
+
+        # Return use_par_space box
+        return('Use parameter space?', use_par_space_box)
 
     # KWARGS_DICTS OPTION
     def create_option_kwargs_dicts(self):

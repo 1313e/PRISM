@@ -123,6 +123,11 @@ However, since the first value is still the highest implausibility value, that v
 Smoothing figures usually allows for 3D projections (2D projections rarely show this) to become less crowded, but they do throw away information.
 It should therefore only be used when necessary.
 
+.. versionadded:: 1.2.3
+    The `use_par_space` argument is also a bool, which controls whether the axes limits should be given by the model parameter space limits (:pycode:`True`) or by the parameter space over which the emulator iteration is defined (:pycode:`False`, default).
+    If :pycode:`False`, only the parameter space in which the emulator is defined is shown, which more often than not allows for more details to be seen in the projection figure.
+    If :pycode:`True`, the full model parameter space is used for the axes limits, allowing projection figures from different iterations to be compared with each other more easily.
+
 The `force` argument is a bool, which controls what to do if a projection is requested for which data already exists.
 If :pycode:`False` (default), it will use the previously acquired projection data to create the projection figure if it does not exist, skip if it does or return the figure data if `figure` is :pycode:`False`.
 If :pycode:`True`, the projection data and all associated projection figures will be deleted, and the projection will be recalculated.
