@@ -63,9 +63,10 @@ def test_check_compatibility():
     with pytest.raises(RequestError):
         check_compatibility('999.999.999')
 
-    # Check if providing a v1.0.x version raises a warning
-    with pytest.warns(RequestWarning):
-        check_compatibility('1.0.0')
+    # Check if providing a v1.0.x version raises a warning (and error)
+    with pytest.raises(RequestError):
+        with pytest.warns(RequestWarning):
+            check_compatibility('1.0.0')
 
 
 # Pytest for check_val function

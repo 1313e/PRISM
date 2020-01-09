@@ -71,7 +71,6 @@ class Projection(object):
 
     # Function that creates all projection figures
     # TODO: Allow for projection figures to be zoomed? (Cut off all black)
-    # TODO: Use min/max of impl_sam or sam_set to define parameter space?
     @docstring_substitute(emul_i=user_emul_i_doc, proj_par=proj_par_doc_d)
     def project(self, emul_i=None, proj_par=None, **kwargs):
         """
@@ -1042,6 +1041,7 @@ class Projection(object):
 
     # This function generates a projection hypercube to be used for emulator
     # evaluations
+    # TODO: Use min/max of impl_sam or sam_set to define parameter space?
     @docstring_substitute(hcube=hcube_doc)
     def __get_proj_hcube(self, hcube):
         """

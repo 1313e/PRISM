@@ -436,6 +436,6 @@ save_data_doc_p = save_data_doc.format(
 save_data_doc_e = save_data_doc.format(
     std_emul_i_doc+"\n\t"+lemul_s_doc+"\n\t", "{'active_par'; "
     "'active_par_data'; 'cov_mat'; 'exp_dot_term'; 'mod_real_set'; "
-    "'regression'}")
+    "'regression', 'rsdl_var'}")
 save_data_doc_pr = save_data_doc.format(std_emul_i_doc+"\n\t",
                                         "{'nD_proj_hcube'}")

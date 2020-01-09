@@ -1579,16 +1579,15 @@ class Pipeline(Projection, object):
             sam_set = self._comm.bcast(None, 0)
             mod_set = self._comm.scatter(None, 0)
 
+            # Save sam_set data to memory
+            self._emulator._set_sam_set_data(emul_i, sam_set)
+
             # Save all the data to the specific hdf5-files
             for lemul_s, mod_out in zip(self._emulator._active_emul_s[emul_i],
                                         mod_set):
                 self._emulator._save_data(emul_i, lemul_s, {
                     'mod_real_set': {
                         'mod_set': mod_out}})
-
-            # Save sam_set data to memory
-            self._emulator._sam_set[emul_i] = sam_set
-            self._emulator._n_sam[emul_i] = np.shape(sam_set)[0]
 
             # MPI Barrier to let controller know data was saved
             self._comm.Barrier()
@@ -1640,7 +1639,7 @@ class Pipeline(Projection, object):
         logger.info("Creating emulator evaluation sample set with size %i."
                     % (n_eval_sam))
         eval_sam_set = lhd(n_eval_sam, self._modellink._n_par,
-                           self._emulator._get_emul_space(emul_i), 'center',
+                           self._emulator._emul_space[emul_i], 'center',
                            self._criterion, 100,
                            constraints=self._emulator._sam_set[emul_i])
         logger.info("Finished creating sample set.")
@@ -2989,6 +2988,13 @@ class Pipeline(Projection, object):
                     print("  - {0: <{1}}\t{2}".format(
                         "'regression'?", width-4, "No (%s)" % (ccheck_i) if
                         ccheck_i else "Yes"))
+
+                # Check if all residual variances have been determined
+                ccheck_i = [i for i in range(n_emul_s) if
+                            'rsdl_var' in ccheck_flat[i]]
+                print("  - {0: <{1}}\t{2}".format(
+                    "'rsdl_var'?", width-4, "No (%s)" % (ccheck_i) if
+                    ccheck_i else "Yes"))
 
                 # Check if all covariance matrices have been determined
                 ccheck_i = [i for i in range(n_emul_s) if

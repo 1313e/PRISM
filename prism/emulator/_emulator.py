@@ -457,6 +457,18 @@ class Emulator(object):
         return(self._sam_set)
 
     @property
+    def emul_space(self):
+        """
+        :obj:`~numpy.ndarray`: The boundaries of the hypercube that encloses
+        the parameter space in which the specified emulator iteration is
+        defined. This is always equal to the plausible space of the previous
+        iteration.
+
+        """
+
+        return(self._emul_space)
+
+    @property
     def mod_set(self):
         """
         list of :obj:`~numpy.ndarray`: The model outputs corresponding to the
@@ -526,8 +538,8 @@ class Emulator(object):
     @property
     def act_rsdl_var(self):
         """
-        dict of float: The active portion of the residual variance of every
-        emulator system on this MPI rank.
+        dict of float: The active contribution of the residual variance of
+        every emulator system on this MPI rank.
         Obtained from either :attr:`~rsdl_var` (regression) or :attr:`~sigma`
         (Gaussian).
 
@@ -540,9 +552,9 @@ class Emulator(object):
     @property
     def pas_rsdl_var(self):
         """
-        dict of float: The passive portion of the residual variance of every
-        emulator system on this MPI rank. If :attr:`~f_infl` is not zero, this
-        also includes the inflated residual variance value.
+        dict of float: The passive contribution of the residual variance of
+        every emulator system on this MPI rank. If :attr:`~f_infl` is not zero,
+        this also includes the inflated residual variance value.
         Obtained from either :attr:`~rsdl_var` (regression) or :attr:`~sigma`
         (Gaussian).
 
@@ -1032,7 +1044,7 @@ class Emulator(object):
                 # Obtain the active emulator systems for this iteration
                 active_emul_s_list.append(
                     [int(key[5:]) for key in file['%i' % (i)].keys() if
-                     key[:5] == 'emul_'])
+                     key[:5] == 'emul_' and key[5:] != 'space'])
 
             # Loop over all active emulator systems in the last iteration
             for emul_s in active_emul_s_list[-1]:
@@ -1131,7 +1143,7 @@ class Emulator(object):
             for i in range(1, emul_i+1):
                 active_emul_s_list.append(
                     [int(key[5:]) for key in file['%i' % (i)].keys() if
-                     key[:5] == 'emul_'])
+                     key[:5] == 'emul_' and key[5:] != 'space'])
 
         # Determine number of active emulator systems in each iteration
         n_active_emul_s = [[i, len(active_emul_s)] for i, active_emul_s in
@@ -1414,11 +1426,11 @@ class Emulator(object):
             if ccheck_regression:
                 self._do_regression(emul_i, ccheck_regression)
 
-        # Make sure that the residual variances are calculated
-        if not delist(self._act_rsdl_var[emul_i]):
-            act_rsdl_var, pas_rsdl_var = self._get_rsdl_vars(emul_i)
-            self._act_rsdl_var[emul_i] = act_rsdl_var
-            self._pas_rsdl_var[emul_i] = pas_rsdl_var
+        # Determine residual variance
+        ccheck_rsdl_var = [emul_s for emul_s in emul_s_seq if
+                           'rsdl_var' in self._ccheck[emul_i][emul_s]]
+        if ccheck_rsdl_var:
+            self._get_rsdl_var(emul_i, ccheck_rsdl_var)
 
         # Calculate the covariance matrices of sam_set
         # TODO: Implement system that, if needed, calculates cov_mat in seq
@@ -2376,6 +2388,7 @@ class Emulator(object):
         logger.info("Initializing emulator data sets.")
         self._n_sam = [[]]
         self._sam_set = [[]]
+        self._emul_space = [[]]
         self._mod_set = [[]]
         self._active_par_data = [[]]
         self._rsdl_var = [[]]
@@ -2477,9 +2490,13 @@ class Emulator(object):
                     self._n_sam.append(group.attrs['n_sam'])
                     self._sam_set.append(group['sam_set'][()])
                     self._sam_set[-1].dtype = float
+                    emul_space = group['emul_space'][()]
+                    emul_space.dtype = float
+                    self._emul_space.append(emul_space.T)
                 except KeyError:
                     self._n_sam.append(0)
                     self._sam_set.append([])
+                    self._emul_space.append([])
                     if self._is_controller:
                         ccheck.append('mod_real_set')
 
@@ -2501,6 +2518,8 @@ class Emulator(object):
                 mod_set = []
                 active_par_data = []
                 rsdl_var = []
+                act_rsdl_var = []
+                pas_rsdl_var = []
                 poly_coef = []
                 poly_coef_cov = []
                 poly_powers = []
@@ -2527,6 +2546,8 @@ class Emulator(object):
                         mod_set.append([])
                         active_par_data.append([])
                         rsdl_var.append([])
+                        act_rsdl_var.append([])
+                        pas_rsdl_var.append([])
                         poly_coef.append([])
                         poly_coef_cov.append([])
                         poly_powers.append([])
@@ -2580,6 +2601,15 @@ class Emulator(object):
                         if self._method in ('regression', 'full'):
                             ccheck_s.append('regression')
 
+                    # Check if rsdl_var is available
+                    try:
+                        act_rsdl_var.append(data_set.attrs['act_rsdl_var'])
+                        pas_rsdl_var.append(data_set.attrs['pas_rsdl_var'])
+                    except KeyError:
+                        act_rsdl_var.append([])
+                        pas_rsdl_var.append([])
+                        ccheck_s.append('rsdl_var')
+
                     # Check if cov_mat is available
                     try:
                         cov_mat_inv.append(data_set['cov_mat_inv'][()])
@@ -2614,6 +2644,8 @@ class Emulator(object):
                 self._mod_set.append(mod_set)
                 self._active_par_data.append(active_par_data)
                 self._rsdl_var.append(rsdl_var)
+                self._act_rsdl_var.append(act_rsdl_var)
+                self._pas_rsdl_var.append(pas_rsdl_var)
                 self._poly_coef.append(poly_coef)
                 self._poly_coef_cov.append(poly_coef_cov)
                 self._poly_powers.append(poly_powers)
@@ -2624,11 +2656,6 @@ class Emulator(object):
                 self._data_err.append(data_err)
                 self._data_spc.append(data_spc)
                 self._data_idx.append(data_idx)
-
-                # Set the active and passive residual variances
-                act_rsdl_var, pas_rsdl_var = self._get_rsdl_vars(i)
-                self._act_rsdl_var.append(act_rsdl_var)
-                self._pas_rsdl_var.append(pas_rsdl_var)
 
                 # Add ccheck for this iteration to global ccheck
                 self._ccheck.append(ccheck)
@@ -2740,11 +2767,17 @@ class Emulator(object):
                     data_c = data['sam_set'].copy()
                     data_c.dtype = dtype
 
-                    # Save sam_set data to file and memory
+                    # Save sam_set data to file
                     data_set.create_dataset('sam_set', data=data_c)
                     data_set.attrs['n_sam'] = np.shape(data['sam_set'])[0]
-                    self._sam_set[emul_i] = data['sam_set']
-                    self._n_sam[emul_i] = np.shape(data['sam_set'])[0]
+
+                    # Save sam_set data to memory
+                    self._set_sam_set_data(emul_i, data['sam_set'])
+
+                    # Determine emul_space and save to file
+                    emul_space_c = self._get_emul_space(emul_i).T.copy()
+                    emul_space_c.dtype = dtype
+                    data_set.create_dataset('emul_space', data=emul_space_c)
 
                     # Loop over all received mod_sets
                     for lemul_s, mod_out in zip(self._active_emul_s[emul_i],
@@ -2809,6 +2842,17 @@ class Emulator(object):
                     # Remove regression from respective ccheck
                     self._ccheck[emul_i][lemul_s].remove('regression')
 
+                # RSDL_VAR
+                elif(keyword == 'rsdl_var'):
+                    # Save rsdl_var data to file and memory
+                    data_set.attrs['act_rsdl_var'] = data['act_rsdl_var']
+                    data_set.attrs['pas_rsdl_var'] = data['pas_rsdl_var']
+                    self._act_rsdl_var[emul_i][lemul_s] = data['act_rsdl_var']
+                    self._pas_rsdl_var[emul_i][lemul_s] = data['pas_rsdl_var']
+
+                    # Remove rsdl_var from respective ccheck
+                    self._ccheck[emul_i][lemul_s].remove('rsdl_var')
+
                 # INVALID KEYWORD
                 else:
                     err_msg = "Invalid keyword argument provided!"
@@ -2816,6 +2860,27 @@ class Emulator(object):
 
         # More logging
         logger.info("Finished saving data to HDF5.")
+
+    # Sets the sam_set data for the specified iteration
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _set_sam_set_data(self, emul_i, sam_set):
+        """
+        Sets the provided `sam_set` as the iteration data at the given emulator
+        iteration `emul_i`.
+
+        Parameters
+        ----------
+        %(emul_i)s
+        sam_set : 2D :obj:`~numpy.ndarray` object
+            Array containing the model evaluation samples for emulator
+            iteration `emul_i`.
+
+        """
+
+        # Save the provided sam_set, the enclosing emul_space and its length
+        self._sam_set[emul_i] = sam_set
+        self._emul_space[emul_i] = self._get_emul_space(emul_i)
+        self._n_sam[emul_i] = np.shape(sam_set)[0]
 
     # Read in the emulator attributes
     def _retrieve_parameters(self):
@@ -3112,22 +3177,21 @@ class Emulator(object):
         # Return the string representation
         return(poly_term)
 
-    # This function returns the active and passive residual variance portions
-    @docstring_substitute(emul_i=std_emul_i_doc)
-    def _get_rsdl_vars(self, emul_i):
+    # This function calculates active and passive residual variance portions
+    @docstring_substitute(emul_i=std_emul_i_doc, emul_s_seq=emul_s_seq_doc)
+    def _get_rsdl_var(self, emul_i, emul_s_seq):
         """
-        Splits up the calculated residual variances for the provided emulator
-        iteration `emul_i` into active and passive portions, and returns them.
-
-        This function is used for setting :attr:`~act_rsdl_var` and
-        :attr:`~pas_rsdl_var`.
+        Splits up the calculated residual variances for requested emulator
+        systems `emul_s_seq` at emulator iteration `emul_i` into active and
+        passive contributions.
 
         Parameters
         ----------
         %(emul_i)s
+        %(emul_s_seq)s
 
-        Returns
-        -------
+        Generates
+        ---------
         act_rsdl_var : list of float
             List containing the active portions of the residual variances.
         pas_rsdl_var : list of float
@@ -3137,25 +3201,33 @@ class Emulator(object):
 
         """
 
+        # Log the calculation of residual variance portions
+        logger = getRLogger('RSDL_VAR')
+        logger.info("Determining active and passive residual variance "
+                    "contributions for emulator iteration %i." % (emul_i))
+
         # Check if regression is used and act accordingly
         if self._method in ('regression', 'full'):
-            rsdl_var = delist(self._rsdl_var[emul_i])
+            rsdl_var = self._rsdl_var[emul_i]
         elif(self._method == 'gaussian'):
-            rsdl_var = [self._sigma**2]*len(self._active_emul_s[emul_i])
+            rsdl_var = [self._sigma**2]*len(emul_s_seq)
 
-        # Initialize active and passive portions of residual variance
-        act_rsdl_var = [[] for _ in range(len(self._emul_s))]
-        pas_rsdl_var = [[] for _ in range(len(self._emul_s))]
-
-        # Loop over all active emulator systems
-        for emul_s, rsdl_var_i in zip(self._active_emul_s[emul_i], rsdl_var):
+        # Loop over all emulator systems
+        for i, (emul_s, rsdl_var_s) in enumerate(zip(emul_s_seq, rsdl_var)):
             # Calculate the weight
             weight = 1-(len(self._active_par_data[emul_i][emul_s]) /
                         self._modellink._n_par)
 
             # Set the active and passive portions of the residual variance
-            act_rsdl_var[emul_s] = (1-weight)*rsdl_var_i
-            pas_rsdl_var[emul_s] = (weight+self._f_infl)*rsdl_var_i
+            act_rsdl_var = (1-weight)*rsdl_var_s
+            pas_rsdl_var = (weight+self._f_infl)*rsdl_var_s
 
-        # Return them
-        return(act_rsdl_var, pas_rsdl_var)
+            # Save the residual variance contributions to hdf5
+            self._save_data(emul_i, emul_s, {
+                'rsdl_var': {
+                    'act_rsdl_var': act_rsdl_var,
+                    'pas_rsdl_var': pas_rsdl_var}})
+
+        # Log that calculation has been finished
+        logger.info("Finished determining active and passive residual variance"
+                    " contributions.")

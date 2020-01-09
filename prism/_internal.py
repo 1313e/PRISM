@@ -171,6 +171,14 @@ def check_compatibility(emul_version):
     logger = getCLogger('COMP_CHECK')
     logger.info("Performing version compatibility check.")
 
+    # Check if emul_version is 1.0.x and raise warning if so
+    if not compare_versions(emul_version, '1.1.0'):
+        warn_msg = ("The provided emulator was constructed with an "
+                    "unmaintained version of PRISM (v%s). Compatibility with "
+                    "the current version of PRISM cannot be guaranteed."
+                    % (emul_version))
+        raise_warning(warn_msg, RequestWarning, logger, 2)
+
     # Loop over all compatibility versions
     for version in compat_version:
         # If a compat_version is the same or newer than the emul_version
@@ -180,14 +188,6 @@ def check_compatibility(emul_version):
                        " version of PRISM (v%s). The last compatible version "
                        "is v%s." % (__version__, version))
             raise_error(err_msg, RequestError, logger)
-
-    # Check if emul_version is 1.0.x and raise warning if so
-    if not compare_versions(emul_version, '1.1.0'):
-        warn_msg = ("The provided emulator was constructed with an "
-                    "unmaintained version of PRISM (v%s). Compatibility with "
-                    "the current version of PRISM cannot be guaranteed."
-                    % (emul_version))
-        raise_warning(warn_msg, RequestWarning, logger, 2)
 
     # Check if emul_version is not newer than prism_version
     if not compare_versions(__version__, emul_version):
