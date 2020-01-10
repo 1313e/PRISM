@@ -691,6 +691,7 @@ class Emulator(object):
 
         # If emul_i is 1, the defined emulator space is model parameter space
         # This is true for all emul_i if emulator was made before v1.2.3.dev1
+        # FIXME: Change in v1.3.0
         if emul_i == 1 or compare_versions('v1.2.3.dev0', self._prism_version):
             return(self._modellink._par_rng.copy())
 
@@ -699,26 +700,8 @@ class Emulator(object):
             # Obtain the sam_set of this emulator iteration
             sam_set = self._sam_set[emul_i]
 
-            # Determine the maximum difference between consecutive samples
-            emul_diff = np.apply_along_axis(
-                lambda x: np.max(np.diff(np.sort(x))), axis=0, arr=sam_set)
-
-            # Determine the min/max values of all samples in this iteration
-            emul_min = np.min(sam_set, axis=0)
-            emul_max = np.max(sam_set, axis=0)
-
-            # Add emul_diff as extra spacing to emul_min and emul_max
-            # This is to make sure that the entire emulator space is included
-            emul_min -= emul_diff
-            emul_max += emul_diff
-
-            # Combine emul_min and emul_max to form emul_space
-            emul_space = np.stack([emul_min, emul_max], axis=1)
-
-            # Make sure that emul_space is within par_space
-            emul_space = np.apply_along_axis(
-                lambda x: np.clip(x, *self._modellink._par_rng.T), axis=0,
-                arr=emul_space)
+            # Determine emul_space
+            emul_space = self._modellink._get_sam_space(sam_set)
 
             # Return emul_space
             return(emul_space)

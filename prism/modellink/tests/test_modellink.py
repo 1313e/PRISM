@@ -226,10 +226,19 @@ class Test_ModelLink_Versatility(object):
     # Create a GaussianLink2D object and test the value conversions
     def test_convert_to_space(self):
         modellink_obj = GaussianLink2D()
-        assert np.isclose(modellink_obj._to_par_space([0.2, 0.7]),
-                          [1.8, 2.4]).all()
-        assert np.isclose(modellink_obj._to_unit_space([1.8, 2.4]),
-                          [0.2, 0.7]).all()
+        assert np.allclose(modellink_obj._to_par_space([0.2, 0.7]),
+                           [1.8, 2.4])
+        assert np.allclose(modellink_obj._to_unit_space([1.8, 2.4]),
+                           [0.2, 0.7])
+
+    # Create a GaussianLink2D object and test the sample space hypercubes
+    def test_sam_space(self):
+        modellink_obj = GaussianLink2D()
+        assert np.allclose(modellink_obj._get_sam_space([[1, 2], [1.5, 2.5]]),
+                           [[1, 2], [1.5, 3]])
+        assert np.allclose(modellink_obj._get_sam_space({
+            'A': [1, 2],
+            'B': [2, 3]}), [[1, 3], [1, 3]])
 
     # Create a GaussianLink3D object with externally defined mod_data dict
     def test_ext_mod_data_dict(self):

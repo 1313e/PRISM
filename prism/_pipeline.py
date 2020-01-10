@@ -21,7 +21,7 @@ from textwrap import dedent
 from time import time
 
 # Package imports
-from e13tools import InputError, ShapeError
+from e13tools import InputError, ShapeError, compare_versions
 from e13tools.math import nCr, sort2D
 from e13tools.sampling import lhd
 from e13tools.utils import (
@@ -1677,6 +1677,45 @@ class Pipeline(Projection, object):
 
         # Multiply both fractions to obtain f_impl and return it
         return(f_impl_sam*f_spc)
+
+    # Returns the hypercube that encloses plausible space
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def _get_impl_space(self, emul_i):
+        """
+        Returns the boundaries of the hypercube that encloses the parameter
+        space in which the plausible space of the provided emulator iteration
+        `emul_i` is defined.
+
+        Parameters
+        ----------
+        %(emul_i)s
+
+        Returns
+        -------
+        impl_space : 2D :obj:`~numpy.ndarray` object
+            The requested hypercube boundaries.
+
+        Note
+        ----
+        The parameter space over which plausible space is defined is always
+        equal to the emulator space of the next iteration. This means that
+        reanalyzing an iteration can change the result of this function.
+
+        """
+
+        # If emul_i is not the latest iteration, return proper emul_space
+        # FIXME: Change in v1.3.0
+        if((emul_i < self._emulator._emul_i) and
+           not compare_versions('v1.2.3.dev0', self._emulator._prism_version)):
+            return(self._emulator._emul_space[emul_i+1].copy())
+        # Else, check if this iteration has been analyzed already
+        else:
+            # If this iteration has been analyzed, return sam_space of it
+            if self._n_eval_sam[emul_i]:
+                return(self._modellink._get_sam_space(self._impl_sam))
+            # Else, return None
+            else:
+                return(None)
 
     # This function performs an implausibility cut-off check on a given sample
     # TODO: Implement dynamic impl_cut

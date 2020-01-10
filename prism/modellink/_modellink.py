@@ -566,6 +566,59 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         # Return it
         return(par_seq)
 
+    # Returns the hypercube that encloses provided sam_set
+    def _get_sam_space(self, sam_set):
+        """
+        Returns the boundaries of the hypercube that encloses the parameter
+        space in which the provided `sam_set` is defined.
+
+        The main use for this function is to determine what part of model
+        parameter space was likely sampled from in order to obtain the provided
+        `sam_set`. Because of this, extra spacing is added to the boundaries to
+        reduce the effect of the used sampling method.
+
+        Parameters
+        ----------
+        sam_set : 1D or 2D array_like or dict
+            Parameter/sample set for which an enclosing hypercube is requested.
+
+        Returns
+        -------
+        sam_space : 2D :obj:`~numpy.ndarray` object
+            The requested hypercube boundaries.
+
+        """
+
+        # If sam_set is a dict, convert it to a NumPy array
+        if isinstance(sam_set, dict):
+            sam_set = np_array(sdict(sam_set).values()).T
+
+        # Make sure that sam_set is a 2D NumPy array
+        sam_set = np_array(sam_set, ndmin=2)
+
+        # Determine the maximum difference between consecutive samples
+        sam_diff = np.apply_along_axis(
+            lambda x: np.max(np.diff(np.sort(x))), axis=0, arr=sam_set)
+
+        # Determine the min/max values of all samples
+        sam_min = np.min(sam_set, axis=0)
+        sam_max = np.max(sam_set, axis=0)
+
+        # Add sam_diff as extra spacing to sam_min and sam_max
+        # This reduces the effect of the used sampling method and randomness
+        sam_min -= sam_diff
+        sam_max += sam_diff
+
+        # Combine sam_min and sam_max to form sam_space
+        sam_space = np.stack([sam_min, sam_max], axis=1)
+
+        # Make sure that sam_space is within par_space
+        sam_space = np.apply_along_axis(
+            lambda x: np.clip(x, *self._par_rng.T), axis=0, arr=sam_space)
+
+        # Return sam_space
+        return(sam_space)
+
     # This function checks if a provided mod_set is valid
     def _check_mod_set(self, mod_set, name):
         """

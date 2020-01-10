@@ -407,7 +407,7 @@ class Projection(object):
         if self.__use_par_space:
             axis_rng = self._modellink._par_rng[par]
         else:
-            axis_rng = proj_space[par]
+            axis_rng = self._emulator._emul_space[emul_i][par]
 
         # Create figure object if the figure is requested
         if self.__figure:
@@ -611,7 +611,8 @@ class Projection(object):
             axes_rng = [*self._modellink._par_rng[par1],
                         *self._modellink._par_rng[par2]]
         else:
-            axes_rng = [*proj_space[par1], *proj_space[par2]]
+            axes_rng = [*self._emulator._emul_space[emul_i][par1],
+                        *self._emulator._emul_space[emul_i][par2]]
 
         # Create figure object if the figure is requested
         if self.__figure:
@@ -1329,7 +1330,6 @@ class Projection(object):
                     raise_error(err_msg, TypeError, logger)
                 else:
                     kwargs_dict[key].update(value)
-
             elif(self.__n_par == 2 and key == 'proj_type'):
                 pass
             else:
@@ -1342,6 +1342,7 @@ class Projection(object):
         # Get proj_space
         self.__proj_space = [emul_space.copy()
                              for emul_space in self._emulator._emul_space]
+#        self.__proj_space = [self._get_impl_space(i) for i in range(emul_i+1)]
 
         # Controller checking all other kwargs
         if self._is_controller:

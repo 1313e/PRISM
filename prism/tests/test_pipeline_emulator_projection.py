@@ -156,6 +156,12 @@ class Test_Pipeline_Gaussian2D(object):
     def test_construct(self, pipe):
         pipe.construct(1, analyze=0)
 
+    # Check if impl_space does not exist yet
+    @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                        reason="Cannot be pytested in MPI")
+    def test_impl_space_pre_anal(self, pipe):
+        assert pipe._get_impl_space(1) is None
+
     # Check if this emulator is (in)compatible with certain versions
     def test_future_compat(self, pipe):
         assert pipe._emulator._check_future_compat('1.1.0', '13.13.0')
@@ -200,6 +206,12 @@ class Test_Pipeline_Gaussian2D(object):
     def test_construct_analyze(self, pipe):
         pipe.construct(1)
 
+    # Check if impl_space exists after analysis
+    @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                        reason="Cannot be pytested in MPI")
+    def test_impl_space_post_anal(self, pipe):
+        assert pipe._get_impl_space(1) is not None
+
     # Check if first iteration can be reprojected (forced)
     def test_reproject_forced(self, pipe):
         with switch_backend('Agg'):
@@ -234,6 +246,13 @@ class Test_Pipeline_Gaussian2D(object):
             for cov_vec, cov_mat_inv in zip(cov_vecs,
                                             pipe._emulator._cov_mat_inv[2]):
                 assert np.allclose(cov_vec @ cov_mat_inv, exp_out)
+
+    # Test if impl_space of iteration 1 is emul_space of iteration 2
+    @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                        reason="Cannot be pytested in MPI")
+    def test_impl_space_emul(self, pipe):
+        assert np.allclose(pipe._get_impl_space(1),
+                           pipe._emulator._emul_space[2])
 
     # Try to access all Pipeline properties
     def test_access_pipe_props(self, pipe):
@@ -441,6 +460,7 @@ class Test_Pipeline_Gaussian3D(object):
 
 
 # Pytest for standard Pipeline class for 3D model with a single data point
+@pytest.mark.incremental
 class Test_Pipeline_Gaussian3D_1_data(object):
     # Test a 3D Gaussian model
     @pytest.fixture(scope='class')
@@ -515,6 +535,7 @@ class Test_Pipeline_Gaussian3D_1_data(object):
 
 
 # Pytest for standard Pipeline class handling extreme outliers in model
+@pytest.mark.incremental
 class Test_Pipeline_ExtremeLink(object):
     # Test an extreme outliers model
     @pytest.fixture(scope='class')
