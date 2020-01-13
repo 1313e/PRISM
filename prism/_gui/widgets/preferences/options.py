@@ -621,46 +621,61 @@ class OptionsDialog(QW.QDialog):
 
         # Add all kwargs_dicts to it
         # FIG_KWARGS
+        tooltip = ("Keyword arguments used when creating the subplots figure "
+                   "(<i>plt.figure</i> kwargs)")
         kwargs_dict_box.add_dict(
-            "Figure", 'fig_kwargs',
+            "Figure", 'fig_kwargs', tooltip,
             std_entries=['dpi', 'figsize'],
             banned_entries=self.get_proj_attr('pop_fig_kwargs'))
 
         # IMPL_KWARGS_2D
+        tooltip = ("Keyword arguments used for making the 2D minimum "
+                   "implausibility plot (<i>plt.plot</i> kwargs)")
         kwargs_dict_box.add_dict(
-            "2D implausibility", 'impl_kwargs_2D',
+            "2D implausibility", 'impl_kwargs_2D', tooltip,
             std_entries=['linestyle', 'linewidth', 'marker', 'markersize',
                          'color', 'alpha'],
             banned_entries=[*self.get_proj_attr('pop_plt_kwargs'), 'cmap'])
 
         # IMPL_KWARGS_3D
+        tooltip = ("Keyword arguments used for making the 3D minimum "
+                   "implausibility plot (<i>plt.hexbin</i> kwargs)")
         kwargs_dict_box.add_dict(
-            "3D implausibility", 'impl_kwargs_3D',
+            "3D implausibility", 'impl_kwargs_3D', tooltip,
             std_entries=['cmap', 'alpha', 'xscale', 'yscale'],
             banned_entries=self.get_proj_attr('pop_plt_kwargs'))
 
         # LOS_KWARGS_2D
+        tooltip = ("Keyword arguments used for making the 2D line-of-sight "
+                   "plot (<i>plt.plot</i> kwargs)")
         kwargs_dict_box.add_dict(
-            "2D line-of-sight", 'los_kwargs_2D',
+            "2D line-of-sight", 'los_kwargs_2D', tooltip,
             std_entries=['linestyle', 'linewidth', 'marker', 'markersize',
                          'color', 'alpha'],
             banned_entries=[*self.get_proj_attr('pop_plt_kwargs'), 'cmap'])
 
         # LOS_KWARGS_3D
+        tooltip = ("Keyword arguments used for making the 3D line-of-sight "
+                   "plot (<i>plt.hexbin</i> kwargs)")
         kwargs_dict_box.add_dict(
-            "3D line-of-sight", 'los_kwargs_3D',
+            "3D line-of-sight", 'los_kwargs_3D', tooltip,
             std_entries=['cmap', 'alpha', 'xscale', 'yscale'],
             banned_entries=self.get_proj_attr('pop_plt_kwargs'))
 
         # LINE_KWARGS_EST
+        tooltip = ("Keyword arguments used for drawing the parameter estimate "
+                   "lines (<i>plt.plot</i> kwargs)")
         kwargs_dict_box.add_dict(
-            "Estimate lines", 'line_kwargs_est',
+            "Estimate lines", 'line_kwargs_est', tooltip,
             std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
             banned_entries=[])
 
         # LINE_KWARGS_CUT
+        tooltip = ("Keyword arguments used for drawing the implausibility "
+                   "cut-off line(s) in 2D projections (<i>plt.plot</i> kwargs)"
+                   )
         kwargs_dict_box.add_dict(
-            "Cut-off lines", 'line_kwargs_cut',
+            "Cut-off lines", 'line_kwargs_cut', tooltip,
             std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
             banned_entries=[])
 

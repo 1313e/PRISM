@@ -203,7 +203,7 @@ class KwargsDictDialog(QW.QDialog):
     # This function creates a new page
     @docstring_substitute(optional=kwargs_doc.format(
         'prism._gui.widgets.preferences.KwargsDictDialogPage'))
-    def add_page(self, name, option_key, *args, **kwargs):
+    def add_page(self, name, option_key, tooltip, *args, **kwargs):
         """
         Initializes a new :obj:`~KwargsDictDialogPage` object with name `name`
         and adds it to this dialog.
@@ -216,6 +216,8 @@ class KwargsDictDialog(QW.QDialog):
             The name of the options entry that this page will create.
             The value of `option_key` must correspond to the name the
             associated dict has in the :meth:`~prism.Pipeline.project` method.
+        tooltip : str
+            The tooltip that must be used for this kwargs dict page.
 
         %(optional)s
 
@@ -234,7 +236,9 @@ class KwargsDictDialog(QW.QDialog):
         scrollarea.setWidget(kwargs_page)
 
         # Add it to the contents and pages widgets
+        n_contents = self.contents.count()
         self.contents.addItem(name)
+        self.contents.item(n_contents).setData(QC.Qt.ToolTipRole, tooltip)
         self.contents.setFixedWidth(1.1*self.contents.sizeHintForColumn(0))
         self.pages.addWidget(scrollarea)
 

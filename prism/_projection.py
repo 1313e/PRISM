@@ -70,7 +70,6 @@ class Projection(object):
         raise_error(err_msg, RequestError, logger)
 
     # Function that creates all projection figures
-    # TODO: Allow for projection figures to be zoomed? (Cut off all black)
     @docstring_substitute(emul_i=user_emul_i_doc, proj_par=proj_par_doc_d)
     def project(self, emul_i=None, proj_par=None, **kwargs):
         """
@@ -647,6 +646,7 @@ class Projection(object):
                               **self.__impl_kwargs_3D)
 
             # Draw parameter estimate lines
+            ax0.axis(axes_rng)
             if self._modellink._par_est[par1] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par1], ax=ax0,
                               line_kwargs=self.__line_kwargs_est)
@@ -666,6 +666,7 @@ class Projection(object):
                               **self.__los_kwargs_3D)
 
             # Draw parameter estimate lines
+            ax1.axis(axes_rng)
             if self._modellink._par_est[par1] is not None:
                 draw_textline(r"", x=self._modellink._par_est[par1], ax=ax1,
                               line_kwargs=self.__line_kwargs_est)
@@ -1087,7 +1088,6 @@ class Projection(object):
 
     # This function generates a projection hypercube to be used for emulator
     # evaluations
-    # TODO: Use min/max of impl_sam or sam_set to define parameter space?
     @docstring_substitute(hcube=hcube_doc)
     def __get_proj_hcube(self, hcube):
         """
