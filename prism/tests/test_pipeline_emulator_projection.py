@@ -14,7 +14,6 @@ import h5py
 from mpi4pyd import MPI
 import numpy as np
 import pytest
-from pytest_mpl.plugin import switch_backend
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
@@ -186,27 +185,24 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if first iteration can be projected before analysis
     def test_project_pre_anal(self, pipe):
-        with switch_backend('Agg'):
-            if pipe._is_controller:
-                with pytest.warns(RequestWarning):
-                    pipe.project(proj_par=(0), figure=False)
-                    assert pipe._n_eval_sam[1]
-            else:
+        if pipe._is_controller:
+            with pytest.warns(RequestWarning):
                 pipe.project(proj_par=(0), figure=False)
-            pipe.project(proj_par=(0), figure=True, proj_type='both',
-                         show_cuts=True)
-            pipe.project(proj_par=(1), figure=True, align='row',
-                         smooth=True)
+                assert pipe._n_eval_sam[1]
+        else:
+            pipe.project(proj_par=(0), figure=False)
+        pipe.project(proj_par=(0), figure=True, proj_type='both',
+                     show_cuts=True)
+        pipe.project(proj_par=(1), figure=True, align='row',
+                     smooth=True)
 
     # Check if first iteration can be projected again (unforced)
     def test_reproject_unforced(self, pipe):
-        with switch_backend('Agg'):
-            pipe.project()
+        pipe.project()
 
     # Check if first iteration can be reprojected (forced)
     def test_reproject_forced(self, pipe):
-        with switch_backend('Agg'):
-            pipe.project(force=True, smooth=True, use_par_space=True)
+        pipe.project(force=True, smooth=True, use_par_space=True)
 
     # Check if first iteration can be reconstructed forced
     def test_reconstruct_force(self, pipe):
@@ -229,8 +225,7 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if figure data can be received
     def test_project_fig_data(self, pipe):
-        with switch_backend('Agg'):
-            pipe.project(smooth=True, figure=False)
+        pipe.project(smooth=True, figure=False)
 
     # Check if details overview of first iteration can be given
     def test_details(self, pipe):
@@ -242,12 +237,11 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if entire second iteration can be created
     def test_run(self, pipe):
-        with switch_backend('Agg'):
-            if pipe._is_controller:
-                with pytest.warns(RequestWarning):
-                    pipe.run(2)
-            else:
+        if pipe._is_controller:
+            with pytest.warns(RequestWarning):
                 pipe.run(2)
+        else:
+            pipe.run(2)
 
     # Check if the adjustment terms are correct for second iteration
     # This tests that 'Cov(D_i, D) @ inv(Var(D)) = e_i' for all known samples
@@ -445,15 +439,14 @@ class Test_Pipeline_Gaussian3D(object):
 
     # Check if first iteration can be projected
     def test_project(self, pipe):
-        with switch_backend('Agg'):
-            pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
-                         fig_kwargs={'dpi': 10}, use_par_space=True)
-            pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
-                         figure=False)
-            if pipe._is_controller:
-                os.remove(pipe._Projection__get_fig_path((1, 0, 1))[1])
-            pipe._comm.Barrier()
-            pipe.project(1, (0, 1), align='col', fig_kwargs={'dpi': 10})
+        pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
+                     fig_kwargs={'dpi': 10}, use_par_space=True)
+        pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
+                     figure=False)
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0, 1))[1])
+        pipe._comm.Barrier()
+        pipe.project(1, (0, 1), align='col', fig_kwargs={'dpi': 10})
 
     # Check if details overview of first iteration can be given
     def test_details(self, pipe):
@@ -520,15 +513,14 @@ class Test_Pipeline_Gaussian3D_1_data(object):
 
     # Check if first iteration can be projected
     def test_project(self, pipe):
-        with switch_backend('Agg'):
-            pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
-                         fig_kwargs={'dpi': 10})
-            pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
-                         figure=False)
-            if pipe._is_controller:
-                os.remove(pipe._Projection__get_fig_path((1, 0, 1))[1])
-            pipe._comm.Barrier()
-            pipe.project(1, (0, 1), align='col', fig_kwargs={'dpi': 10})
+        pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
+                     fig_kwargs={'dpi': 10})
+        pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
+                     figure=False)
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0, 1))[1])
+        pipe._comm.Barrier()
+        pipe.project(1, (0, 1), align='col', fig_kwargs={'dpi': 10})
 
     # Check if details overview of first iteration can be given
     def test_details(self, pipe):

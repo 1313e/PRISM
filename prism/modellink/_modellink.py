@@ -604,10 +604,10 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         sam_min = np.min(sam_set, axis=0)
         sam_max = np.max(sam_set, axis=0)
 
-        # Add sam_diff as extra spacing to sam_min and sam_max
+        # Add 3*sam_diff as extra spacing to sam_min and sam_max
         # This reduces the effect of the used sampling method and randomness
-        sam_min -= sam_diff
-        sam_max += sam_diff
+        sam_min -= 3*sam_diff
+        sam_max += 3*sam_diff
 
         # Combine sam_min and sam_max to form sam_space
         sam_space = np.stack([sam_min, sam_max], axis=1)

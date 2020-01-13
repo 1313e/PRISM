@@ -21,7 +21,7 @@ from textwrap import dedent
 from time import time
 
 # Package imports
-from e13tools import InputError, ShapeError, compare_versions
+from e13tools import InputError, ShapeError
 from e13tools.math import nCr, sort2D
 from e13tools.sampling import lhd
 from e13tools.utils import (
@@ -1704,18 +1704,19 @@ class Pipeline(Projection, object):
         """
 
         # If emul_i is not the latest iteration, return proper emul_space
-        # FIXME: Change in v1.3.0
-        if((emul_i < self._emulator._emul_i) and
-           not compare_versions('v1.2.3.dev0', self._emulator._prism_version)):
+        if(emul_i < self._emulator._emul_i):
             return(self._emulator._emul_space[emul_i+1].copy())
         # Else, check if this iteration has been analyzed already
         else:
-            # If this iteration has been analyzed, return sam_space of it
-            if self._n_eval_sam[emul_i]:
-                return(self._modellink._get_sam_space(self._impl_sam))
-            # Else, return None
-            else:
+            # If this iteration has not been analyzed, return None
+            if not self._n_eval_sam[emul_i]:
                 return(None)
+            # Else, if iteration has no plausible regions, return np.nan
+            elif not self._n_impl_sam[emul_i]:
+                return(np.ones_like(self._modellink._par_rng)*np.nan)
+            # Else, return proper plausible space boundaries
+            else:
+                return(self._modellink._get_sam_space(self._impl_sam))
 
     # This function performs an implausibility cut-off check on a given sample
     # TODO: Implement dynamic impl_cut
@@ -2418,6 +2419,11 @@ class Pipeline(Projection, object):
             # Calculate the number of plausible samples left
             n_impl_sam = len(impl_sam)
 
+            # If only a single sample is plausible, remove it
+            if(n_impl_sam == 1):
+                n_impl_sam = 0
+                impl_sam = impl_sam[[]]
+
             # Raise warning if no plausible samples were found
             if not n_impl_sam:
                 warn_msg = ("No plausible regions were found. Constructing the"
@@ -2769,7 +2775,7 @@ class Pipeline(Projection, object):
         Projections available?
             Whether or not projections have been created for this emulator
             iteration. If projections are available and analysis has been done,
-            but with different implausibility cut-offs, a "desync" note is
+            but with different implausibility cut-offs, a "desynced" note is
             added. Also prints number of available projections versus maximum
             number of projections in parentheses.
 
@@ -2870,14 +2876,19 @@ class Pipeline(Projection, object):
                     # Get the number of projections and used impl_cut-offs
                     proj = 0
                     n_proj = len(data_set.keys())
+                    proj_space = self._Projection__get_proj_space(emul_i)
+
+                    # Loop over all available projections
                     for hcube in data_set.values():
                         p_impl_cut = hcube.attrs['impl_cut']
                         p_cut_idx = hcube.attrs['cut_idx']
+                        p_proj_space = self._Projection__read_proj_space(hcube)
 
                         # Check if projections were made with the same impl_cut
                         if(len(p_impl_cut) == len(self._impl_cut[emul_i]) and
                            (p_impl_cut == self._impl_cut[emul_i]).all() and
-                           p_cut_idx == self._cut_idx[emul_i]):
+                           p_cut_idx == self._cut_idx[emul_i] and
+                           np.allclose(p_proj_space, proj_space)):
                             # If it was, projections are synced
                             proj = 1
                         else:

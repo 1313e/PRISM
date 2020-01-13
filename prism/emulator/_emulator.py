@@ -692,7 +692,8 @@ class Emulator(object):
         # If emul_i is 1, the defined emulator space is model parameter space
         # This is true for all emul_i if emulator was made before v1.2.3.dev1
         # FIXME: Change in v1.3.0
-        if emul_i == 1 or compare_versions('v1.2.3.dev0', self._prism_version):
+        if((emul_i == 1) or
+           not self._check_future_compat('1.2.3.dev1', '1.3.0')):
             return(self._modellink._par_rng.copy())
 
         # Else, it is defined as the plausible space of the previous iteration

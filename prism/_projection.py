@@ -757,13 +757,7 @@ class Projection(object):
             data_set = file['%i/proj_hcube/%s' % (emul_i, hcube_name)]
             impl_min_hcube = data_set['impl_min'][()]
             impl_los_hcube = data_set['impl_los'][()]
-            # FIXME: Remove in v1.3.0
-            if self._emulator._check_future_compat('1.2.3.dev1', '1.3.0'):
-                proj_space = data_set['proj_space'][()]
-                proj_space.dtype = float
-                proj_space = proj_space.T.copy()
-            else:   # pragma: no cover
-                proj_space = self.__proj_space[emul_i].copy()
+            proj_space = self.__read_proj_space(data_set)
             res_hcube = data_set.attrs['proj_res']
             depth_hcube = data_set.attrs['proj_depth']
 
@@ -774,6 +768,35 @@ class Projection(object):
         # Return it
         return(impl_min_hcube, impl_los_hcube, res_hcube, depth_hcube,
                proj_space)
+
+    # This function reads in and transforms the proj_space of a proj_hcube
+    def __read_proj_space(self, hcube_group):
+        """
+        Reads in and transforms the projection parameter space hypercube that
+        is stored in the provided `hcube_group`.
+
+        Parameters
+        ----------
+        hcube_group : :obj:`~h5py.Group` object
+            The HDF5-group from which the projection parameter space hypercube
+            needs to be read in.
+
+        Returns
+        -------
+        proj_space : 2D :obj:`~numpy.ndarray` object
+            The read-in hypercube boundaries.
+
+        """
+
+        # FIXME: Remove in v1.3.0
+        if self._emulator._check_future_compat('1.2.3.dev1', '1.3.0'):
+            proj_space = hcube_group['proj_space'][()]
+            proj_space.dtype = float
+            proj_space = proj_space.T.copy()
+        else:   # pragma: no cover
+            emul_i = int(hcube_group.name.split('/')[1])
+            proj_space = self.__get_proj_space(emul_i)
+        return(proj_space)
 
     # This function determines the projection hypercubes to be analyzed
     @docstring_substitute(emul_i=std_emul_i_doc, proj_par=proj_par_doc_s)
@@ -1358,7 +1381,7 @@ class Projection(object):
             elif proj_type.lower() in ('3d', '2', 'two'):
                 self.__proj_2D = 0
                 self.__proj_3D = 1
-            elif proj_type.lower() in ('2d+3d', 'nd', '1+2', 'both'):
+            elif proj_type.lower() in ('2d+3d', 'nd', '1+2', '3', 'both'):
                 self.__proj_2D = 1
                 self.__proj_3D = 1
             else:
@@ -1512,8 +1535,8 @@ class Projection(object):
             self.__set_parameters()
 
             # Get proj_space
-            self.__proj_space = list(map(self._get_impl_space,
-                                         range(self.__emul_i+1)))
+            self.__proj_space = [self.__get_proj_space(i)
+                                 for i in range(self.__emul_i+1)]
 
             # Save all parameters and arguments in a dict (Projection GUI)
             kwarg_names = ['proj_res', 'proj_depth', 'emul_i', 'proj_2D',
@@ -1541,6 +1564,31 @@ class Projection(object):
         for i in range(1 if self.__use_GUI else self.__emul_i,
                        self.__emul_i+1):
             self.__get_req_hcubes(i, proj_par)
+
+    # Returns the hypercube that encloses projection space
+    @docstring_substitute(emul_i=std_emul_i_doc)
+    def __get_proj_space(self, emul_i):
+        """
+        Returns the boundaries of the hypercube that encloses the parameter
+        space in which the projection space of the provided emulator iteration
+        `emul_i` is defined.
+
+        Parameters
+        ----------
+        %(emul_i)s
+
+        Returns
+        -------
+        proj_space : 2D :obj:`~numpy.ndarray` object
+            The requested hypercube boundaries.
+
+        """
+
+        # FIXME: Remove in v1.3.0
+        if self._emulator._check_future_compat('1.2.3.dev1', '1.3.0'):
+            return(self._get_impl_space(emul_i))
+        else:   # pragma: no cover
+            return(self._modellink._par_rng.copy())
 
     # This function saves projection data to hdf5
     @docstring_substitute(save_data=save_data_doc_pr)

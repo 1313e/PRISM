@@ -235,10 +235,10 @@ class Test_ModelLink_Versatility(object):
     def test_sam_space(self):
         modellink_obj = GaussianLink2D()
         assert np.allclose(modellink_obj._get_sam_space([[1, 2], [1.5, 2.5]]),
-                           [[1, 2], [1.5, 3]])
+                           [[1, 3], [1, 3]])
         assert np.allclose(modellink_obj._get_sam_space({
             'A': [1, 2],
-            'B': [2, 3]}), [[1, 3], [1, 3]])
+            'B': [2, 3]}), [[1, 5], [1, 3]])
 
     # Create a GaussianLink3D object with externally defined mod_data dict
     def test_ext_mod_data_dict(self):
