@@ -1024,11 +1024,7 @@ class OverviewDockWidget(QW.QDockWidget):
             depth = group.attrs['proj_depth']       # Projection depth
 
         # Get the percentage of plausible space remaining
-        if self.pipe._n_eval_sam[emul_i]:
-            pl_space_rem = "{0:#.3g}%".format(
-                self.pipe._get_f_impl(emul_i)*100)
-        else:
-            pl_space_rem = "-"
+        pl_space_rem = "{0:#.3g}%".format(self.pipe._get_f_impl(emul_i)*100)
         pl_space_rem = QW.QLabel(pl_space_rem)
 
         # Obtain QLabel instances of all details

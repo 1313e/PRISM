@@ -187,15 +187,30 @@ class Test_Pipeline_Gaussian2D(object):
     # Check if first iteration can be projected before analysis
     def test_project_pre_anal(self, pipe):
         with switch_backend('Agg'):
-            pipe.project(proj_par=(0), figure=False)
+            if pipe._is_controller:
+                with pytest.warns(RequestWarning):
+                    pipe.project(proj_par=(0), figure=False)
+                    assert pipe._n_eval_sam[1]
+            else:
+                pipe.project(proj_par=(0), figure=False)
             pipe.project(proj_par=(0), figure=True, proj_type='both',
                          show_cuts=True)
-            pipe.project(proj_par=(1), figure=True, align='row', smooth=True)
+            pipe.project(proj_par=(1), figure=True, align='row',
+                         smooth=True)
 
     # Check if first iteration can be projected again (unforced)
     def test_reproject_unforced(self, pipe):
         with switch_backend('Agg'):
             pipe.project()
+
+    # Check if first iteration can be reprojected (forced)
+    def test_reproject_forced(self, pipe):
+        with switch_backend('Agg'):
+            pipe.project(force=True, smooth=True, use_par_space=True)
+
+    # Check if first iteration can be reconstructed forced
+    def test_reconstruct_force(self, pipe):
+        pipe.construct(1, analyze=0, force=1)
 
     # Check if pipeline data can be reloaded before analysis
     def test_reload(self, pipe):
@@ -212,11 +227,6 @@ class Test_Pipeline_Gaussian2D(object):
     def test_impl_space_post_anal(self, pipe):
         assert pipe._get_impl_space(1) is not None
 
-    # Check if first iteration can be reprojected (forced)
-    def test_reproject_forced(self, pipe):
-        with switch_backend('Agg'):
-            pipe.project(force=True, smooth=True, use_par_space=True)
-
     # Check if figure data can be received
     def test_project_fig_data(self, pipe):
         with switch_backend('Agg'):
@@ -226,14 +236,18 @@ class Test_Pipeline_Gaussian2D(object):
     def test_details(self, pipe):
         pipe.details()
 
-    # Check if first iteration can be reconstructed forced
-    def test_reconstruct_force(self, pipe):
+    # Check if first iteration can be reconstructed forced again
+    def test_reconstruct_force_2(self, pipe):
         pipe.construct(1, analyze=0, force=1)
 
     # Check if entire second iteration can be created
     def test_run(self, pipe):
         with switch_backend('Agg'):
-            pipe.run(2)
+            if pipe._is_controller:
+                with pytest.warns(RequestWarning):
+                    pipe.run(2)
+            else:
+                pipe.run(2)
 
     # Check if the adjustment terms are correct for second iteration
     # This tests that 'Cov(D_i, D) @ inv(Var(D)) = e_i' for all known samples

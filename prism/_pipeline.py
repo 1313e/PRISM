@@ -2642,9 +2642,10 @@ class Pipeline(Projection, object):
                         # Check if last iteration was analyzed, do so if not
                         if not self._n_eval_sam[emul_i-1]:
                             # Analyze previous iteration
-                            logger.info("Previous emulator iteration has not "
+                            warn_msg = ("Previous emulator iteration has not "
                                         "been analyzed. Performing analysis "
                                         "first.")
+                            raise_warning(warn_msg, RequestWarning, logger, 2)
                             self._make_call('analyze')
 
                         # Check if a new emulator iteration can be constructed

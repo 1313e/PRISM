@@ -407,7 +407,7 @@ class Projection(object):
         if self.__use_par_space:
             axis_rng = self._modellink._par_rng[par]
         else:
-            axis_rng = self._emulator._emul_space[emul_i][par]
+            axis_rng = proj_space[par]
 
         # Create figure object if the figure is requested
         if self.__figure:
@@ -611,8 +611,7 @@ class Projection(object):
             axes_rng = [*self._modellink._par_rng[par1],
                         *self._modellink._par_rng[par2]]
         else:
-            axes_rng = [*self._emulator._emul_space[emul_i][par1],
-                        *self._emulator._emul_space[emul_i][par2]]
+            axes_rng = [*proj_space[par1], *proj_space[par2]]
 
         # Create figure object if the figure is requested
         if self.__figure:
@@ -1339,11 +1338,6 @@ class Projection(object):
         # Get emul_i
         self.__emul_i = self._emulator._get_emul_i(emul_i)
 
-        # Get proj_space
-        self.__proj_space = [emul_space.copy()
-                             for emul_space in self._emulator._emul_space]
-#        self.__proj_space = [self._get_impl_space(i) for i in range(emul_i+1)]
-
         # Controller checking all other kwargs
         if self._is_controller:
             # Check if several parameters are bools
@@ -1482,20 +1476,24 @@ class Projection(object):
 
         # Controller doing some preparations
         if self._is_controller:
-            # Check if it makes sense to create a projection
+            # If emul_i is current emul_i, check if projections can be made
             if(self.__emul_i == self._emulator._emul_i):
-                if not self._n_eval_sam[self.__emul_i]:
+                # If iteration has not been analyzed yet, do so first
+                if not self._comm.bcast(self._n_eval_sam[self.__emul_i], 0):
                     warn_msg = ("Requested emulator iteration %i has not been "
-                                "analyzed yet. Creating projections may not be"
-                                " useful." % (self.__emul_i))
+                                "analyzed yet. Performing analysis first."
+                                % (self.__emul_i))
                     raise_warning(warn_msg, RequestWarning, logger, 2)
+                    self.analyze()
+
+                # If iteration has no plausible regions, raise error
                 elif not self._n_impl_sam[self.__emul_i]:
                     err_msg = ("Requested emulator iteration %i has no "
                                "plausible regions. Creating projections has no"
                                " use." % (self.__emul_i))
                     raise_error(err_msg, RequestError, logger)
 
-            # Check if projection has been created before
+            # Check if projections have been created before
             with self._File('r+', None) as file:
                 # If the Projection GUI is used, check for all iterations
                 # Otherwise, solely check for this iteration
@@ -1513,6 +1511,10 @@ class Projection(object):
             # Set projection parameters
             self.__set_parameters()
 
+            # Get proj_space
+            self.__proj_space = list(map(self._get_impl_space,
+                                         range(self.__emul_i+1)))
+
             # Save all parameters and arguments in a dict (Projection GUI)
             kwarg_names = ['proj_res', 'proj_depth', 'emul_i', 'proj_2D',
                            'proj_3D', 'figure', 'align', 'show_cuts', 'smooth',
@@ -1521,6 +1523,13 @@ class Projection(object):
                            'line_kwargs_est', 'line_kwargs_cut']
             self.__proj_kwargs = {n: getattr(self, '_Projection__%s' % (n))
                                   for n in kwarg_names}
+
+        # Workers waiting for controller orders
+        else:
+            # If emul_i is current emul_i, controller might request analysis
+            if((self.__emul_i == self._emulator._emul_i) and
+               not self._comm.bcast(None, 0)):
+                self.analyze()
 
         # Initialize empty lists for hcubes and create_hcubes
         self.__hcubes = []

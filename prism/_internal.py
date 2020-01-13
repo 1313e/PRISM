@@ -481,6 +481,9 @@ def get_PRISM_File(prism_hdf5_file):
 
     """
 
+    # Split provided prism_hdf5_file up into parts
+    parts = path.splitext(prism_hdf5_file)
+
     # Override h5py's File.__init__() and __exit__() methods
     class PRISM_File(h5py.File):
         """
@@ -532,7 +535,6 @@ def get_PRISM_File(prism_hdf5_file):
                 logger = getRLogger('S-HDF5')
 
             # Add sub_str to filename
-            parts = path.splitext(prism_hdf5_file)
             filename = ''.join([parts[0], sub_str, parts[1]])
 
             # Update hdf5_kwargs with provided ones
