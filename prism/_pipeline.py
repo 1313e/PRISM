@@ -361,7 +361,7 @@ class Pipeline(Projection, object):
         """
         bool: Whether or not to save all logging messages. If *False*, all
         logging messages of level :attr:`~logging.INFO` and below are ignored.
-        It also enables/disables the progress bar for making projections.
+        It also enables/disables the progress bar when making projections.
 
         """
 
@@ -891,8 +891,8 @@ class Pipeline(Projection, object):
                 prism_par = path.join(self._root_dir, prism_par)
             # If not either, it is invalid
             else:
-                err_msg = ("Input argument 'prism_par' is a non-existing path"
-                           " (%r)!" % (prism_par))
+                err_msg = ("Input argument 'prism_par' is a non-existing path "
+                           "(%r)!" % (prism_par))
                 raise_error(err_msg, OSError, logger)
 
             # Read in the contents of the given prism_par file

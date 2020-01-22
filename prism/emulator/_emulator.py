@@ -1781,13 +1781,14 @@ class Emulator(object):
             # Check every polynomial coefficient if it is significant enough
             poly_sign = ~np.isclose(poly_coef, 0)
 
-            # Only include significant polynomial terms unless none are
-            poly_powers = poly_powers[poly_sign if sum(poly_sign) else ()]
-            poly_coef = poly_coef[poly_sign if sum(poly_sign) else ()]
+            # Only include significant polynomial terms unless none of the
+            # non-intercept terms are significant
+            # This is because every system must have at least one active par
+            # FIXME: Allow for no parameters to be active
+            poly_powers = poly_powers[poly_sign if sum(poly_sign[1:]) else ()]
+            poly_coef = poly_coef[poly_sign if sum(poly_sign[1:]) else ()]
 
             # Redetermine the active parameters, poly_powers and poly_idx
-            # TODO: If no parameters are active, this fails
-            # Should this be allowed (intercept only)?
             new_active_par_idx = [np.any(powers) for powers in poly_powers.T]
             poly_powers = poly_powers[:, new_active_par_idx]
             new_active_par =\
@@ -2266,7 +2267,7 @@ class Emulator(object):
             with self._File('r', None) as file:
                 # Log that an hdf5-file has been found
                 logger.info("Provided working directory contains a constructed"
-                            " emulator. Checking validity.")
+                            " emulator. Validating.")
 
                 # Obtain the number of emulator iterations constructed
                 emul_i = len(file.keys())
@@ -2274,12 +2275,12 @@ class Emulator(object):
                 # Check if the hdf5-file contains solely groups made by PRISM
                 req_keys = [str(i) for i in range(1, emul_i+1)]
                 if(req_keys != list(file.keys())):
-                    err_msg = ("Found master HDF5-file contains invalid data "
-                               "groups!")
+                    err_msg = ("Provided master HDF5-file contains invalid "
+                               "data groups!")
                     raise_error(err_msg, InputError, logger)
 
                 # Log that valid emulator was found
-                logger.info("Found master HDF5-file is valid.")
+                logger.info("Provided master HDF5-file is valid.")
                 self._emul_load = 1
 
                 # Save number of emulator iterations constructed
