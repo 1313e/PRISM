@@ -1356,7 +1356,7 @@ class Emulator(object):
             # Open hdf5-file
             with self._File('r+', None) as file:
                 # Make group for emulator iteration
-                group = file.create_group('%i' % (emul_i))
+                group = file.create_group(str(emul_i))
 
                 # Save the number of data points
                 group.attrs['n_data'] = self._modellink._n_data
@@ -1372,7 +1372,7 @@ class Emulator(object):
                 for i, emul_s in enumerate(data_to_emul_s):
                     with self._File('a', emul_s) as file_i:
                         # Make iteration group for this emulator system
-                        data_set = file_i.create_group('%i' % (emul_i))
+                        data_set = file_i.create_group(str(emul_i))
 
                         # Save data value, errors and space to this system
                         data_set.attrs['data_val'] =\
@@ -1389,7 +1389,7 @@ class Emulator(object):
 
                         # Create external link between file_i and master file
                         group['emul_%i' % (emul_s)] = h5py.ExternalLink(
-                            path.basename(file_i.filename), '%i' % (emul_i))
+                            path.basename(file_i.filename), str(emul_i))
 
         # MPI Barrier
         self._comm.Barrier()
@@ -2500,7 +2500,7 @@ class Emulator(object):
         with self._File('r', None) as file:
             # Read in the data
             for i in range(1, emul_i+1):
-                group = file['%i' % (i)]
+                group = file[str(i)]
 
                 # Create empty construct check list
                 ccheck = []
@@ -2730,7 +2730,7 @@ class Emulator(object):
         # Open hdf5-file
         with self._File('r+', emul_s) as file:
             # Obtain the dataset this data needs to be saved to
-            data_set = file['%i' % (emul_i)]
+            data_set = file[str(emul_i)]
 
             # Loop over entire provided data dict
             for keyword, data in data_dict.items():
@@ -3106,6 +3106,14 @@ class Emulator(object):
         # Log that mock_data is being loaded in
         logger.info("Loading previously used mock data into ModelLink object.")
 
+        # Create empty variables for all ModelLink properties
+        n_data = 0
+        par_est = []
+        data_val = []
+        data_err = []
+        data_spc = []
+        data_idx = []
+
         # Controller only
         if self._is_controller:
             # Open hdf5-file
@@ -3132,26 +3140,17 @@ class Emulator(object):
                     data_idx.append(self._read_data_idx(data_set))
 
                 # Overwrite ModelLink properties
-                self._modellink._par_est = file.attrs['mock_par'].tolist()
-                self._modellink._n_data = group.attrs['n_data']
-                self._modellink._data_val = data_val
-                self._modellink._data_err = data_err
-                self._modellink._data_spc = data_spc
-                self._modellink._data_idx = data_idx
+                par_est = file.attrs['mock_par'].tolist()
+                n_data = group.attrs['n_data']
 
         # Broadcast updated modellink properties to workers
         # TODO: Find a cleaner way to write this without bcasting ModelLink obj
-        self._modellink._par_est = self._comm.bcast(self._modellink._par_est,
-                                                    0)
-        self._modellink._n_data = self._comm.bcast(self._modellink._n_data, 0)
-        self._modellink._data_val = self._comm.bcast(self._modellink._data_val,
-                                                     0)
-        self._modellink._data_err = self._comm.bcast(self._modellink._data_err,
-                                                     0)
-        self._modellink._data_spc = self._comm.bcast(self._modellink._data_spc,
-                                                     0)
-        self._modellink._data_idx = self._comm.bcast(self._modellink._data_idx,
-                                                     0)
+        self._modellink._n_data = self._comm.bcast(n_data, 0)
+        self._modellink._par_est = self._comm.bcast(par_est, 0)
+        self._modellink._data_val = self._comm.bcast(data_val, 0)
+        self._modellink._data_err = self._comm.bcast(data_err, 0)
+        self._modellink._data_spc = self._comm.bcast(data_spc, 0)
+        self._modellink._data_idx = self._comm.bcast(data_idx, 0)
 
         # Log end
         logger.info("Loaded mock data.")

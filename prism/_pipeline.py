@@ -1218,20 +1218,24 @@ class Pipeline(Projection, object):
         # Log new mock_data being created
         logger.info("Generating mock data for new emulator.")
 
+        # Create empty variables for data_val, data_err and par_est
+        data_val = []
+        data_err = []
+        par_est = []
+
         # Controller only
         if self._is_controller:
             # If mock parameter estimates were provided, use them
             if mock_par is not None:
-                self._modellink._par_est = mock_par.tolist()
+                par_est = mock_par.tolist()
 
             # Else, generate mock parameter estimates
             else:
-                self._modellink._par_est = self._modellink._to_par_space(
+                par_est = self._modellink._to_par_space(
                     random(self._modellink._n_par)).tolist()
 
         # Controller broadcasting new parameter estimates to workers
-        self._modellink._par_est = self._comm.bcast(self._modellink._par_est,
-                                                    0)
+        self._modellink._par_est = self._comm.bcast(par_est, 0)
 
         # Obtain non-default model data values
         _, data_val = self._evaluate_model(0, self._modellink._par_est,
@@ -1246,7 +1250,7 @@ class Pipeline(Projection, object):
             # Use model discrepancy variance as model data errors
             md_var = self._get_md_var(0, self._modellink._par_est)
             err = np.sqrt(md_var).tolist()
-            self._modellink._data_err = err
+            data_err = err
 
             # Add model data errors as noise to model data values
             noise = normal(size=self._modellink._n_data)
@@ -1279,17 +1283,14 @@ class Pipeline(Projection, object):
                     raise NotImplementedError
 
             # Add noise to the data values
-            self._modellink._data_val =\
-                (self._emulator._data_val[0]+noise).tolist()
+            data_val = (self._emulator._data_val[0]+noise).tolist()
 
         # Logger
         logger.info("Generated mock data.")
 
         # Broadcast updated modellink properties to workers
-        self._modellink._data_val = self._comm.bcast(self._modellink._data_val,
-                                                     0)
-        self._modellink._data_err = self._comm.bcast(self._modellink._data_err,
-                                                     0)
+        self._modellink._data_val = self._comm.bcast(data_val, 0)
+        self._modellink._data_err = self._comm.bcast(data_err, 0)
 
     # This function loads pipeline data
     def _load_data(self):
@@ -1372,7 +1373,7 @@ class Pipeline(Projection, object):
         # Open hdf5-file
         with self._File('r+', None) as file:
             # Obtain the dataset this data needs to be saved to
-            data_set = file['%i' % (emul_i)]
+            data_set = file[str(emul_i)]
 
             # Loop over entire provided data dict
             for keyword, data in data_dict.items():
@@ -2066,8 +2067,7 @@ class Pipeline(Projection, object):
         pre_code = compile("", '<string>', 'exec')
         eval_code = compile("", '<string>', 'exec')
         anal_code = compile("", '<string>', 'exec')
-        post_code = compile("self.results = sam_set[sam_idx]", '<string>',
-                            'exec')
+        post_code = compile("results = sam_set[sam_idx]", '<string>', 'exec')
         exit_code = compile("", '<string>', 'exec')
 
         # Combine code snippets into a tuple and add to dict
@@ -2099,8 +2099,8 @@ class Pipeline(Projection, object):
             adj_exp_val = np.concatenate(adj_exp_val, axis=1)
             adj_var_val = np.concatenate(adj_var_val, axis=1)
             uni_impl_val = np.concatenate(uni_impl_val_list, axis=1)
-            self.results = (adj_exp_val, adj_var_val, uni_impl_val,
-                            emul_i_stop, impl_check)
+            results = (adj_exp_val, adj_var_val, uni_impl_val, emul_i_stop,
+                       impl_check)
             """), '<string>', 'exec')
 
         # Combine code snippets into a tuple and add to dict
@@ -2117,7 +2117,7 @@ class Pipeline(Projection, object):
             """), '<string>', 'exec')
         post_code = compile(dedent("""
             lnprior = self._comm.bcast(lnprior, 0)
-            self.results = (sam_set[sam_idx], lnprior)
+            results = (sam_set[sam_idx], lnprior)
             """), '<string>', 'exec')
         exit_code = compile("", '<string>', 'exec')
 
@@ -2132,8 +2132,8 @@ class Pipeline(Projection, object):
         anal_code = compile("impl_cut[sam_idx[j]] = impl_cut_val", '<string>',
                             'exec')
         post_code = compile("", '<string>', 'exec')
-        exit_code = compile("self.results = (impl_check, impl_cut)",
-                            '<string>', 'exec')
+        exit_code = compile("results = (impl_check, impl_cut)", '<string>',
+                            'exec')
 
         # Combine code snippets into a tuple
         code_objects['project'] = (pre_code, eval_code, anal_code, post_code,
@@ -2188,10 +2188,10 @@ class Pipeline(Projection, object):
         Returns
         -------
         results : object
-            The object that is assigned to :attr:`~results`, which is defaulted
-            to *None* if no code snippet changes it. Preferably, the execution
-            of `post_code` and/or `exit_code` modifies :attr:`~results`. All
-            MPI ranks return it.
+            The object that is assigned to a local variable called `results`,
+            which is defaulted to *None* if no code snippet sets it.
+            Preferably, the execution of `post_code` and/or `exit_code`
+            sets this variable. All MPI ranks return it.
 
         Notes
         -----
@@ -2237,9 +2237,6 @@ class Pipeline(Projection, object):
 
         # Mark all samples as plausible
         eval_sam_set = sam_set
-
-        # Set the results property to None
-        self.results = None
 
         # Execute the pre_code snippet
         exec(pre_code)
@@ -2320,12 +2317,8 @@ class Pipeline(Projection, object):
         if self._is_controller:
             exec(exit_code)
 
-        # Retrieve the results and delete the attribute
-        results = self.results
-        del self.results
-
-        # Return the results
-        return(results)
+        # Retrieve the results and return them
+        return(locals().get('results', None))
 
     # %% VISIBLE CLASS METHODS
     # This function analyzes the emulator and determines the plausible regions
@@ -2493,7 +2486,8 @@ class Pipeline(Projection, object):
         analyze : bool. Default: True
             Bool indicating whether or not to perform an analysis after the
             specified emulator iteration has been successfully constructed,
-            which is required for constructing the next iteration.
+            which is required for making projections (:meth:`~project`) and
+            constructing the next iteration.
         %(ext_set)s
         force : bool. Default: False
             Controls what to do if the specified emulator iteration `emul_i`
@@ -2520,7 +2514,7 @@ class Pipeline(Projection, object):
         If no implausibility analysis is requested, then the implausibility
         parameters are taken from the *PRISM* parameters dict and temporarily
         stored in memory in order to enable the usage of the :meth:`~evaluate`
-        and :meth:`~project` methods.
+        method.
 
         """
 
