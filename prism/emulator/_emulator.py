@@ -1743,8 +1743,6 @@ class Emulator(object):
                 :, self._active_par_data[emul_i][emul_s]]
 
             # Wrap in try-statement to add additional info if error is raised
-            # TODO: Sometimes, regression can fail with "SVD did not converge"
-            # Find out why and check if it can be avoided
             try:
                 # Perform regression for this emulator system
                 pipe.fit(active_sam_set, self._mod_set[emul_i][emul_s])

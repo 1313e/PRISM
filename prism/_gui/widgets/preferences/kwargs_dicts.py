@@ -239,7 +239,8 @@ class KwargsDictDialog(QW.QDialog):
         n_contents = self.contents.count()
         self.contents.addItem(name)
         self.contents.item(n_contents).setData(QC.Qt.ToolTipRole, tooltip)
-        self.contents.setFixedWidth(1.1*self.contents.sizeHintForColumn(0))
+        self.contents.setFixedWidth(
+            int(1.1*self.contents.sizeHintForColumn(0)))
         self.pages.addWidget(scrollarea)
 
 

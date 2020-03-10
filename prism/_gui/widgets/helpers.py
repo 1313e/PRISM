@@ -468,7 +468,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
         self.thread.start()
 
         # While the thread is running, keep processing user input events
-        while self.thread.isAlive():
+        while self.thread.is_alive():
             qapp.processEvents()
             self.thread.join(0.1)
 
