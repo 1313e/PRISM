@@ -656,13 +656,25 @@ class Emulator(object):
             # If so, return True
             return(True)
         else:
-            # Else, raise warning and return False
-            warn_msg = ("The provided emulator was constructed with a version "
-                        "earlier than v%s (v%s). Starting in v%s, this "
-                        "emulator will no longer be compatible."
-                        % (parse_version(req_version).base_version,
-                           self._prism_version, dep_version))
-            raise_warning(warn_msg, FutureWarning, logger, 4)
+            # Transform req_version into its base version
+            req_version = parse_version(req_version).base_version
+
+            # Make sure that a list of raised warnings exists
+            self._warn_list = getattr(self, '_warn_list', [])
+
+            # If this warning has not been raised before, raise it
+            if (req_version, dep_version) not in self._warn_list:
+                # Raise warning
+                warn_msg = ("The provided emulator was constructed with a "
+                            "version earlier than v%s (v%s). Starting in v%s, "
+                            "this emulator will no longer be compatible."
+                            % (req_version, self._prism_version, dep_version))
+                raise_warning(warn_msg, FutureWarning, logger, 4)
+
+                # Save that this warning has been raised before
+                self._warn_list.append((req_version, dep_version))
+
+            # Return False
             return(False)
 
     # Returns the hypercube that encloses defined emulator space
