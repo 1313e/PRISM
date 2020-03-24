@@ -96,8 +96,14 @@ steps:
   displayName: Install missing libraries required for Qt on Linux
 
 # Install dependencies and PRISM
-- script: |
+- bash: |
     python -m pip install --upgrade pip setuptools wheel
+    if [[ $Build.SourceBranch == refs/heads/* ]] && [[ $Build.SourceBranch != "refs/heads/master" ]]; then
+      git clone -b dev https://github.com/1313e/e13Tools ../e13Tools
+      cd ../e13Tools
+      pip install .
+      cd -
+    fi
     pip install -r requirements_dev.txt
   displayName: Install testing dependencies
 
