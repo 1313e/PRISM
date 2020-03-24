@@ -99,7 +99,7 @@ steps:
 - bash: |
     python -m pip install --upgrade pip setuptools wheel
     printenv
-    if [[ $Build.SourceBranch == refs/heads/* ]] && [[ $Build.SourceBranch != "refs/heads/master" ]]; then
+    if [[ $BUILD_SOURCEBRANCH == refs/heads/* ]] && [[ $BUILD_SOURCEBRANCH != "refs/heads/master" ]]; then
       git clone -b dev https://github.com/1313e/e13Tools ../e13Tools
       cd ../e13Tools
       pip install .
