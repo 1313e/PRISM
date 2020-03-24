@@ -98,6 +98,7 @@ steps:
 # Install dependencies and PRISM
 - bash: |
     python -m pip install --upgrade pip setuptools wheel
+    echo "Hallo"
     if [[ $Build.SourceBranch == refs/heads/* ]] && [[ $Build.SourceBranch != "refs/heads/master" ]]; then
       git clone -b dev https://github.com/1313e/e13Tools ../e13Tools
       cd ../e13Tools
