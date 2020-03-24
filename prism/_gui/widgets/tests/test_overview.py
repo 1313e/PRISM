@@ -500,9 +500,8 @@ class TestOverviewListWidget_Unavailable(object):
     # Test the create/draw action
     # TODO: Figure out why this test stalls forever on Linux, Travis CI in MPI
     @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1 and
-                        'TRAVIS' in os.environ and
                         platform.startswith('linux'),
-                        reason="Cannot be tested in MPI on Linux on Travis CI")
+                        reason="Cannot be tested in MPI on Linux")
     def test_create_draw_action(self, actions, proj_list, overview,
                                 main_window):
         # Make sure that this action is valid
