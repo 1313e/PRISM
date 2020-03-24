@@ -1498,10 +1498,11 @@ class Pipeline(Projection, object):
         start_time = time()
 
         # Obtain the set difference between sam_set and ext_sam_set
-        sam_set = e13.setdiff(sam_set, ext_sam_set, assume_unique=True)
+        if sam_set.shape[0]:
+            sam_set = e13.setdiff(sam_set, ext_sam_set, assume_unique=True)
 
         # Obtain number of samples
-        n_sam = np.shape(sam_set)[0]
+        n_sam = sam_set.shape[0]
 
         # Do some preparations on the controller
         if self._is_controller:
