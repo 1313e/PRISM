@@ -1322,139 +1322,152 @@ class Test_Pipeline_ModelLink_Versatility(object):
         pipe3D._emulator._create_new_emulator()
 
     # Test if an ext_real_set can be provided from a backup file
+    @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
     def test_ext_real_set_backup_args(self, tmpdir):
         # Initialize ModelLink class
         modellink_obj = BackupModelLinkArgs(
             model_parameters=model_parameters_3D,
             model_data=model_data_single)
 
-        # Create backup file
-        sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
-                          'center')
-        sam_dict = sdict(zip(modellink_obj._par_name,
-                             sam_set[0]))
-        mod_set = modellink_obj.call_model(emul_i=1, par_set=sam_dict,
-                                           data_idx=modellink_obj._data_idx)
-
-        # Read in the backup file to retrieve its filename
-        filename, _ = modellink_obj._read_backup(1)
-
         # Create pipeline
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
         pipe = Pipeline(modellink_obj, root_dir=root_dir,
                         working_dir=working_dir, prism_par=prism_dict_def)
 
-        # Try to use the backup file as the ext_real_set
-        ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, '')
-        assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
-        assert np.allclose(ext_mod_set, np.array(mod_set).T)
+        # Test on controller only
+        if not MPI.COMM_WORLD.Get_rank():
+            # Create backup file
+            sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
+                              'center')
+            sam_dict = sdict(zip(modellink_obj._par_name,
+                                 sam_set[0]))
+            mod_set = modellink_obj.call_model(
+                emul_i=1, par_set=sam_dict, data_idx=modellink_obj._data_idx)
 
-        # Try again using the suffix
-        suffix = filename.partition('%s(' % (modellink_obj._name))[2][:-6]
-        ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, suffix)
-        assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
-        assert np.allclose(ext_mod_set, np.array(mod_set).T)
+            # Read in the backup file to retrieve its filename
+            filename, _ = modellink_obj._read_backup(1)
+
+            # Try to use the backup file as the ext_real_set
+            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, '')
+            assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
+            assert np.allclose(ext_mod_set, np.array(mod_set).T)
+
+            # Try again using the suffix
+            suffix = filename.partition('%s(' % (modellink_obj._name))[2][:-6]
+            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, suffix)
+            assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
+            assert np.allclose(ext_mod_set, np.array(mod_set).T)
 
     # Test if an ext_real_set can be provided from a backup file
+    @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
     def test_ext_real_set_backup_kwargs(self, tmpdir):
         # Initialize ModelLink class
         modellink_obj = BackupModelLinkKwargs(
             model_parameters=model_parameters_3D,
             model_data=model_data_single)
 
-        # Create backup file
-        sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
-                          'center')
-        sam_dict = sdict(zip(modellink_obj._par_name,
-                             sam_set[0]))
-        mod_set = modellink_obj.call_model(emul_i=1, par_set=sam_dict,
-                                           data_idx=modellink_obj._data_idx)
-
-        # Read in the backup file to retrieve its filename
-        filename, _ = modellink_obj._read_backup(1)
-
         # Create pipeline
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
         pipe = Pipeline(modellink_obj, root_dir=root_dir,
                         working_dir=working_dir, prism_par=prism_dict_def)
 
-        # Try to use the backup file as the ext_real_set
-        ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, '')
-        assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
-        assert np.allclose(ext_mod_set, np.array(mod_set).T)
+        # Test on controller only
+        if not MPI.COMM_WORLD.Get_rank():
+            # Create backup file
+            sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
+                              'center')
+            sam_dict = sdict(zip(modellink_obj._par_name,
+                                 sam_set[0]))
+            mod_set = modellink_obj.call_model(
+                emul_i=1, par_set=sam_dict, data_idx=modellink_obj._data_idx)
 
-        # Try again using the suffix
-        suffix = filename.partition('%s(' % (modellink_obj._name))[2][:-6]
-        ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, suffix)
-        assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
-        assert np.allclose(ext_mod_set, np.array(mod_set).T)
+            # Read in the backup file to retrieve its filename
+            filename, _ = modellink_obj._read_backup(1)
+
+            # Try to use the backup file as the ext_real_set
+            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, '')
+            assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
+            assert np.allclose(ext_mod_set, np.array(mod_set).T)
+
+            # Try again using the suffix
+            suffix = filename.partition('%s(' % (modellink_obj._name))[2][:-6]
+            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, suffix)
+            assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
+            assert np.allclose(ext_mod_set, np.array(mod_set).T)
 
     # Test if an ext_real_set can be provided from a backup file
+    @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
     def test_ext_real_set_backup_dict(self, tmpdir):
         # Initialize ModelLink class
         modellink_obj = BackupModelLinkDict(
             model_parameters=model_parameters_3D,
             model_data=model_data_single)
 
-        # Create backup file
-        sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
-                          'center')
-        sam_dict = sdict(zip(modellink_obj._par_name,
-                             sam_set[0]))
-        mod_set = modellink_obj.call_model(emul_i=1, par_set=sam_dict,
-                                           data_idx=modellink_obj._data_idx)
-
-        # Read in the backup file to retrieve its filename
-        filename, _ = modellink_obj._read_backup(1)
-
         # Create pipeline
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
         pipe = Pipeline(modellink_obj, root_dir=root_dir,
                         working_dir=working_dir, prism_par=prism_dict_def)
 
-        # Try to use the backup file as the ext_real_set
-        ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, '')
-        assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
-        assert np.allclose(ext_mod_set, np.array(mod_set).T)
+        # Test on controller only
+        if not MPI.COMM_WORLD.Get_rank():
+            # Create backup file
+            sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
+                              'center')
+            sam_dict = sdict(zip(modellink_obj._par_name,
+                                 sam_set[0]))
+            mod_set = modellink_obj.call_model(
+                emul_i=1, par_set=sam_dict, data_idx=modellink_obj._data_idx)
 
-        # Try again using the suffix
-        suffix = filename.partition('%s(' % (modellink_obj._name))[2][:-6]
-        ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, suffix)
-        assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
-        assert np.allclose(ext_mod_set, np.array(mod_set).T)
+            # Read in the backup file to retrieve its filename
+            filename, _ = modellink_obj._read_backup(1)
+
+            # Try to use the backup file as the ext_real_set
+            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, '')
+            assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
+            assert np.allclose(ext_mod_set, np.array(mod_set).T)
+
+            # Try again using the suffix
+            suffix = filename.partition('%s(' % (modellink_obj._name))[2][:-6]
+            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, suffix)
+            assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
+            assert np.allclose(ext_mod_set, np.array(mod_set).T)
 
     # Test if an ext_real_set can be provided from a backup file
+    @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
     def test_ext_real_set_backup_key(self, tmpdir):
         # Initialize ModelLink class
         modellink_obj = BackupModelLinkInvalid(
             model_parameters=model_parameters_3D,
             model_data=model_data_single)
 
-        # Create backup file
-        sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
-                          'center')
-        sam_dict = sdict(zip(modellink_obj._par_name,
-                             sam_set[0]))
-        modellink_obj.call_model(emul_i=1, par_set=sam_dict,
-                                 data_idx=modellink_obj._data_idx)
-
-        # Read in the backup file to retrieve its filename
-        filename, _ = modellink_obj._read_backup(1)
-
         # Create pipeline
         root_dir = path.dirname(tmpdir.strpath)
         working_dir = path.basename(tmpdir.strpath)
         pipe = Pipeline(modellink_obj, root_dir=root_dir,
                         working_dir=working_dir, prism_par=prism_dict_def)
 
-        # Try to use the backup file as the ext_real_set
-        with pytest.raises(KeyError):
-            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, '')
+        # Test on controller only
+        if not MPI.COMM_WORLD.Get_rank():
+            # Create backup file
+            sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
+                              'center')
+            sam_dict = sdict(zip(modellink_obj._par_name,
+                                 sam_set[0]))
+            modellink_obj.call_model(emul_i=1, par_set=sam_dict,
+                                     data_idx=modellink_obj._data_idx)
+
+            # Read in the backup file to retrieve its filename
+            filename, _ = modellink_obj._read_backup(1)
+
+            # Try to use the backup file as the ext_real_set
+            with pytest.raises(KeyError):
+                ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, '')
 
     # Test if an ext_real_set can be provided from a backup file
+    @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
     def test_ext_real_set_backup_invalid(self, tmpdir):
         # Initialize ModelLink class
         modellink_obj = BackupModelLinkArgs(
@@ -1467,9 +1480,11 @@ class Test_Pipeline_ModelLink_Versatility(object):
         pipe = Pipeline(modellink_obj, root_dir=root_dir,
                         working_dir=working_dir, prism_par=prism_dict_def)
 
-        # Try to use the backup file as the ext_real_set
-        with pytest.raises(e13.InputError):
-            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, 'test')
+        # Test on controller only
+        if not MPI.COMM_WORLD.Get_rank():
+            # Try to use the backup file as the ext_real_set
+            with pytest.raises(e13.InputError):
+                ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, 'test')
 
     # Test if an ext_real_set bigger than n_sam_init can be provided
     def test_ext_real_set_large(self, pipe2D):
