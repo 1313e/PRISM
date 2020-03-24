@@ -5,8 +5,7 @@
 from os import path
 
 # Package imports
-from e13tools.core import InputError
-from e13tools.sampling import lhd
+import e13tools as e13
 from emcee import EnsembleSampler
 import numpy as np
 from py.path import local
@@ -82,7 +81,7 @@ class Test_get_hybrid_lnpost_fn(object):
 
     # Try to provide a non-callable function
     def test_non_callable(self, pipe):
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             get_hybrid_lnpost_fn(np.array(1), pipe)
 
     # Try to provide a non-Pipeline object
@@ -93,7 +92,7 @@ class Test_get_hybrid_lnpost_fn(object):
     # Try to provide a Pipeline object that uses a non-default emulator
     def test_invalid_emulator(self, pipe):
         pipe._emulator._emul_type = 'test'
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             get_hybrid_lnpost_fn(lnpost, pipe)
         pipe._emulator._emul_type = 'default'
 
@@ -137,25 +136,26 @@ class Test_get_walkers(object):
     # Try to provide a Pipeline object that uses a non-default emulator
     def test_invalid_emulator(self, pipe):
         pipe._emulator._emul_type = 'test'
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             get_walkers(pipe)
         pipe._emulator._emul_type = 'default'
 
     # Try to provide a non-callable function
     def test_non_callable(self, pipe):
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             get_walkers(pipe, lnpost_fn=np.array(1))
 
     # Try to provide a custom set of init_walkers
     def test_init_walkers_set(self, pipe):
-        get_walkers(pipe, init_walkers=lhd(10, pipe._modellink._n_par, None,
-                                           'center', pipe._criterion, 100),
+        get_walkers(pipe,
+                    init_walkers=e13.lhd(10, pipe._modellink._n_par, None,
+                                         'center', pipe._criterion, 100),
                     unit_space=True)
 
     # Try to provide a custom dict of init_walkers
     def test_init_walkers_dict(self, pipe):
-        sam_set = lhd(10, pipe._modellink._n_par, pipe._modellink._par_rng,
-                      'center', pipe._criterion, 100)
+        sam_set = e13.lhd(10, pipe._modellink._n_par, pipe._modellink._par_rng,
+                          'center', pipe._criterion, 100)
         sam_dict = sdict(zip(pipe._modellink._par_name, sam_set.T))
         p0_walkers = get_walkers(pipe, init_walkers=sam_dict)[1]
         if pipe._is_controller:
@@ -175,10 +175,11 @@ class Test_get_walkers(object):
 
     # Try to provide a set of implausible init_walkers
     def test_no_plausible_init_walkers(self, pipe):
-        with pytest.raises(InputError):
-            get_walkers(pipe, init_walkers=lhd(1, pipe._modellink._n_par,
-                                               pipe._modellink._par_rng,
-                                               'center', pipe._criterion, 100))
+        with pytest.raises(e13.InputError):
+            get_walkers(pipe,
+                        init_walkers=e13.lhd(1, pipe._modellink._n_par,
+                                             pipe._modellink._par_rng,
+                                             'center', pipe._criterion, 100))
 
     # Try to provide a custom lnpost function
     def test_custom_lnpost(self, pipe):

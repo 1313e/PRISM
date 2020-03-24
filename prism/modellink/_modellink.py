@@ -17,9 +17,7 @@ from tempfile import mktemp
 import warnings
 
 # Package imports
-from e13tools import InputError, ShapeError
-from e13tools.utils import (
-    docstring_substitute, get_outer_frame, raise_error, split_seq)
+import e13tools as e13
 import h5py
 import hickle
 import numpy as np
@@ -265,7 +263,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
     @name.setter
     def name(self, name):
         # If name is set outside of __init__, save current value
-        outer_frame = get_outer_frame(self.__init__)
+        outer_frame = e13.get_outer_frame(self.__init__)
         if outer_frame is None and not hasattr(self, '_init_name'):
             self._init_name = str(self._name)
 
@@ -320,7 +318,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
     @call_type.setter
     def call_type(self, call_type):
         # If call_type is set outside of __init__, save current value
-        outer_frame = get_outer_frame(self.__init__)
+        outer_frame = e13.get_outer_frame(self.__init__)
         if outer_frame is None and not hasattr(self, '_init_call_type'):
             self._init_call_type = str(self._call_type)
 
@@ -367,7 +365,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
     @MPI_call.setter
     def MPI_call(self, MPI_call):
         # If MPI_call is set outside of __init__, save current value
-        outer_frame = get_outer_frame(self.__init__)
+        outer_frame = e13.get_outer_frame(self.__init__)
         if outer_frame is None and not hasattr(self, '_init_MPI_call'):
             self._init_MPI_call = bool(self._MPI_call)
 
@@ -533,7 +531,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         logger.info("Converting sequence of model parameter names/indices.")
 
         # Remove all unwanted characters from the string and split it up
-        par_seq = split_seq(par_seq)
+        par_seq = e13.split_seq(par_seq)
 
         # Check elements if they are ints or strings, and if they are valid
         for i, par_idx in enumerate(par_seq):
@@ -549,7 +547,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             except Exception as error:
                 err_msg = ("Input argument %r[%i] is invalid! (%s)"
                            % (name, i, error))
-                raise_error(err_msg, InputError, logger)
+                e13.raise_error(err_msg, e13.InputError, logger)
 
         # If everything went without exceptions, check if list is not empty and
         # remove duplicates
@@ -557,7 +555,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             par_seq = list(sset(par_seq))
         else:
             err_msg = "Input argument %r is empty!" % (name)
-            raise_error(err_msg, ValueError, logger)
+            e13.raise_error(err_msg, ValueError, logger)
 
         # Log end
         logger.info("Finished converting sequence of model parameter "
@@ -653,7 +651,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             except KeyError as error:
                 err_msg = ("Input argument %r is missing data identifier '%r'!"
                            % (name, error.args[0]))
-                raise_error(err_msg, KeyError, logger)
+                e13.raise_error(err_msg, KeyError, logger)
 
         # Make sure that mod_set is a NumPy array
         mod_set = np_array(mod_set)
@@ -662,14 +660,14 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         if not(mod_set.ndim == 1 or mod_set.ndim == 2):
             err_msg = ("Input argument %r is not one-dimensional or "
                        "two-dimensional!" % (name))
-            raise_error(err_msg, ShapeError, logger)
+            e13.raise_error(err_msg, e13.ShapeError, logger)
 
         # Raise error if mod_set does not have n_data data values
         if not(mod_set.shape[-1] == self._n_data):
             err_msg = ("Input argument %r has incorrect number of data values "
                        "(%i != %i)!"
                        % (name, mod_set.shape[-1], self._n_data))
-            raise_error(err_msg, ShapeError, logger)
+            e13.raise_error(err_msg, e13.ShapeError, logger)
 
         # Check if mod_set solely consists out of floats
         mod_set = check_vals(mod_set, name, 'float')
@@ -719,14 +717,14 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         if not(sam_set.ndim == 1 or sam_set.ndim == 2):
             err_msg = ("Input argument %r is not one-dimensional or "
                        "two-dimensional!" % (name))
-            raise_error(err_msg, ShapeError, logger)
+            e13.raise_error(err_msg, e13.ShapeError, logger)
 
         # Raise error if sam_set does not have n_par parameter values
         if not(sam_set.shape[-1] == self._n_par):
             err_msg = ("Input argument %r has incorrect number of parameters "
                        "(%i != %i)!"
                        % (name, sam_set.shape[-1], self._n_par))
-            raise_error(err_msg, ShapeError, logger)
+            e13.raise_error(err_msg, e13.ShapeError, logger)
 
         # Check if sam_set solely consists out of floats
         sam_set = check_vals(sam_set, name, 'float')
@@ -745,7 +743,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         else:
             err_msg = ("Input argument '%s%s' is outside parameter space!"
                        % (name, index if sam_set.ndim != 1 else ''))
-            raise_error(err_msg, ValueError, logger)
+            e13.raise_error(err_msg, ValueError, logger)
 
         # Log again and return sam_set
         logger.info("Finished validating provided set of model parameter "
@@ -792,14 +790,14 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         if not(md_var.ndim == 1 or md_var.ndim == 2):
             err_msg = ("Input argument %r is not one-dimensional or "
                        "two-dimensional!" % (name))
-            raise_error(err_msg, ShapeError, logger)
+            e13.raise_error(err_msg, e13.ShapeError, logger)
 
         # Check if md_var contains n_data values
         if not(md_var.shape[0] == self._n_data):
             err_msg = ("Received array of model discrepancy variances %r has "
                        "incorrect number of data points (%i != %i)!"
                        % (name, md_var.shape[0], self._n_data))
-            raise ShapeError(err_msg)
+            raise e13.ShapeError(err_msg)
 
         # Check if single or dual values were given
         if(md_var.ndim == 1):
@@ -810,7 +808,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             err_msg = ("Received array of model discrepancy variances %r has "
                        "incorrect number of values (%i != 2)!"
                        % (name, md_var.shape[1]))
-            raise ShapeError(err_msg)
+            raise e13.ShapeError(err_msg)
 
         # Check if all values are non-negative floats
         md_var = check_vals(md_var, 'md_var', 'nneg', 'float')
@@ -960,7 +958,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
             return
 
         # Obtain the call_model frame
-        caller_frame = get_outer_frame(self.call_model)
+        caller_frame = e13.get_outer_frame(self.call_model)
 
         # If caller_frame is None, the call_model frame was not found
         if caller_frame is None:
@@ -1133,7 +1131,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         # Save number of model parameters
         n_par = len(model_parameters.keys())
         if(n_par == 1):
-            raise InputError("Number of model parameters must be at least 2!")
+            raise e13.InputError("Number of model parameters must be at least "
+                                 "2!")
         else:
             self._n_par = check_vals(n_par, 'n_par', 'pos')
 
@@ -1225,7 +1224,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
     # %% ABSTRACT USER METHODS
     @abc.abstractmethod
-    @docstring_substitute(emul_i=std_emul_i_doc)
+    @e13.docstring_substitute(emul_i=std_emul_i_doc)
     def call_model(self, emul_i, par_set, data_idx):
         """
         Calls the model wrapped in this :class:`~ModelLink` subclass at
@@ -1272,7 +1271,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
                                   "ModelLink subclass!")
 
     @abc.abstractmethod
-    @docstring_substitute(emul_i=std_emul_i_doc)
+    @e13.docstring_substitute(emul_i=std_emul_i_doc)
     def get_md_var(self, emul_i, par_set, data_idx):
         """
         Calculates the linear model discrepancy variance at a given emulator

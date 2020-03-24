@@ -17,7 +17,7 @@ from time import sleep
 from traceback import format_exception_only, format_tb
 
 # Package imports
-from e13tools.utils import docstring_substitute
+import e13tools as e13
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 
@@ -204,7 +204,7 @@ class ExceptionDialog(QW.QDialog):
 
     # This function shows or hides the traceback box
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def toggle_traceback_box(self):
         """
         Toggles the visibility of the traceback box and updates the dimensions
@@ -503,7 +503,7 @@ class ThreadedProgressDialog(QW.QProgressDialog):
 
     # This function kills all worker threads and then the controller thread
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def kill_threads(self):
         """
         Terminates all currently running threads besides the main thread (on

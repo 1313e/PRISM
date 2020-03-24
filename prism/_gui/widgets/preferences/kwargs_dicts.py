@@ -12,7 +12,7 @@ GUI preferences.
 
 # %% IMPORTS
 # Package imports
-from e13tools.utils import docstring_append, docstring_substitute
+import e13tools as e13
 from matplotlib import rcParams
 from matplotlib.lines import lineMarkers, lineStyles
 from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
@@ -42,7 +42,7 @@ class KwargsDictBoxLayout(QW.QHBoxLayout):
     """
 
     # This function creates an editable list of input boxes for the kwargs
-    @docstring_substitute(optional=kwargs_doc.format(
+    @e13.docstring_substitute(optional=kwargs_doc.format(
         'PyQt5.QtWidgets.QHBoxLayout'))
     def __init__(self, options_dialog_obj, *args, **kwargs):
         """
@@ -113,7 +113,7 @@ class KwargsDictDialog(QW.QDialog):
 
     """
 
-    @docstring_substitute(optional=kwargs_doc.format(
+    @e13.docstring_substitute(optional=kwargs_doc.format(
         'PyQt5.QtWidgets.QDialog'))
     def __init__(self, options_dialog_obj, *args, **kwargs):
         """
@@ -201,7 +201,7 @@ class KwargsDictDialog(QW.QDialog):
         self.entry_height = 24
 
     # This function creates a new page
-    @docstring_substitute(optional=kwargs_doc.format(
+    @e13.docstring_substitute(optional=kwargs_doc.format(
         'prism._gui.widgets.preferences.KwargsDictDialogPage'))
     def add_page(self, name, option_key, tooltip, *args, **kwargs):
         """
@@ -255,7 +255,7 @@ class KwargsDictDialogPage(BaseBox):
 
     """
 
-    @docstring_substitute(optional=kwargs_doc.format(
+    @e13.docstring_substitute(optional=kwargs_doc.format(
         'prism._gui.widgets.core.BaseBox'))
     def __init__(self, kwargs_dict_dialog_obj, name, std_entries,
                  banned_entries, *args, **kwargs):
@@ -461,7 +461,7 @@ class KwargsDictDialogPage(BaseBox):
 
     # This function creates an editable entry
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def add_editable_entry(self):
         """
         Adds a new editable entry to the kwargs dict page, which allows for the
@@ -505,7 +505,7 @@ class KwargsDictDialogPage(BaseBox):
 
     # This function deletes an editable entry
     @QC.Slot(QW.QComboBox)
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def remove_editable_entry(self, kwargs_box):
         """
         Removes the editable entry associated with the provided `kwargs_box`.
@@ -584,7 +584,7 @@ class KwargsDictDialogPage(BaseBox):
         del cur_item
 
     # This function creates an alpha box
-    @docstring_append(create_type_doc.format('alpha'))
+    @e13.docstring_append(create_type_doc.format('alpha'))
     def create_type_alpha(self):
         # Make double spinbox for alpha
         alpha_box = QW_QDoubleSpinBox()
@@ -594,17 +594,17 @@ class KwargsDictDialogPage(BaseBox):
         return(alpha_box)
 
     # This function creates a cmap box
-    @docstring_append(create_type_doc.format('cmap'))
+    @e13.docstring_append(create_type_doc.format('cmap'))
     def create_type_cmap(self):
         return(ColorMapBox())
 
     # This function creates a color picker box
-    @docstring_append(create_type_doc.format('color'))
+    @e13.docstring_append(create_type_doc.format('color'))
     def create_type_color(self):
         return(ColorBox())
 
     # This function creates a dpi box
-    @docstring_append(create_type_doc.format('dpi'))
+    @e13.docstring_append(create_type_doc.format('dpi'))
     def create_type_dpi(self):
         # Make spinbox for dpi
         dpi_box = QW_QSpinBox()
@@ -615,12 +615,12 @@ class KwargsDictDialogPage(BaseBox):
         return(dpi_box)
 
     # This function creates a figsize box
-    @docstring_append(create_type_doc.format('figsize'))
+    @e13.docstring_append(create_type_doc.format('figsize'))
     def create_type_figsize(self):
         return(FigSizeBox())
 
     # This function creates a linestyle box
-    @docstring_append(create_type_doc.format('linestyle'))
+    @e13.docstring_append(create_type_doc.format('linestyle'))
     def create_type_linestyle(self):
         # Obtain list with all supported linestyles
         linestyles_lst = [(key, value[6:]) for key, value in lineStyles.items()
@@ -638,7 +638,7 @@ class KwargsDictDialogPage(BaseBox):
         return(linestyle_box)
 
     # This function creates a linewidth box
-    @docstring_append(create_type_doc.format('linewidth'))
+    @e13.docstring_append(create_type_doc.format('linewidth'))
     def create_type_linewidth(self):
         # Make a double spinbox for linewidth
         linewidth_box = QW_QDoubleSpinBox()
@@ -649,7 +649,7 @@ class KwargsDictDialogPage(BaseBox):
         return(linewidth_box)
 
     # This function creates a marker box
-    @docstring_append(create_type_doc.format('marker'))
+    @e13.docstring_append(create_type_doc.format('marker'))
     def create_type_marker(self):
         # Obtain list with all supported markers
         markers_lst = [(key, value) for key, value in lineMarkers.items()
@@ -668,7 +668,7 @@ class KwargsDictDialogPage(BaseBox):
         return(marker_box)
 
     # This function creates a markersize box
-    @docstring_append(create_type_doc.format('markersize'))
+    @e13.docstring_append(create_type_doc.format('markersize'))
     def create_type_markersize(self):
         # Make a double spinbox for markersize
         markersize_box = QW_QDoubleSpinBox()
@@ -692,11 +692,11 @@ class KwargsDictDialogPage(BaseBox):
         return(scale_box)
 
     # This function creates a xscale box
-    @docstring_append(create_type_doc.format('xscale'))
+    @e13.docstring_append(create_type_doc.format('xscale'))
     def create_type_xscale(self):
         return(self.create_type_scale('x'))
 
     # This function creates a yscale box
-    @docstring_append(create_type_doc.format('yscale'))
+    @e13.docstring_append(create_type_doc.format('yscale'))
     def create_type_yscale(self):
         return(self.create_type_scale('y'))

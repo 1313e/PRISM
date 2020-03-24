@@ -5,7 +5,7 @@
 from os import path
 
 # Package imports
-from e13tools.core import InputError, ShapeError
+import e13tools as e13
 from mpi4pyd import MPI
 import numpy as np
 import pytest
@@ -49,7 +49,7 @@ class BackupModelLink(ModelLink):
 class Test_ModelLink_Exceptions(object):
     # Try to create a GaussianLink3D object with not enough model pars
     def test_n_model_par(self):
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             par_dict = {'A': [1, 5, 2.5]}
             GaussianLink3D(model_parameters=par_dict)
 
@@ -92,7 +92,7 @@ class Test_ModelLink_Exceptions(object):
 
     # Try to create a GaussianLink3D object with missing data_idx
     def test_missing_data_idx(self):
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             model_data = {(): [1, 0.05],
                           3: [2, 0.05],
                           4: [3, 0.05]}
@@ -156,28 +156,28 @@ class Test_ModelLink_Check_Methods(object):
 
     # Test a 3D sam_set
     def test_3D_sam_set(self, modellink_obj):
-        with pytest.raises(ShapeError):
+        with pytest.raises(e13.ShapeError):
             modellink_obj._check_sam_set(np.zeros([1, 1, 1]), 'sam_set')
 
     # Test a 3D mod_set
     def test_3D_mod_set(self, modellink_obj):
-        with pytest.raises(ShapeError):
+        with pytest.raises(e13.ShapeError):
             modellink_obj._check_mod_set(np.zeros([1, 1, 1]), 'mod_set')
 
     # Test a 3D md_var
     def test_3D_md_var(self, modellink_obj):
-        with pytest.raises(ShapeError):
+        with pytest.raises(e13.ShapeError):
             modellink_obj._check_md_var(np.zeros([1, 1, 1]), 'md_var')
 
     # Test a sam_set with wrong n_par
     def test_sam_set_n_par(self, modellink_obj):
-        with pytest.raises(ShapeError):
+        with pytest.raises(e13.ShapeError):
             modellink_obj._check_sam_set(np.ones([1, modellink_obj._n_par+1]),
                                          'sam_set')
 
     # Test a mod_set with wrong n_data
     def test_mod_set_n_data(self, modellink_obj):
-        with pytest.raises(ShapeError):
+        with pytest.raises(e13.ShapeError):
             modellink_obj._check_mod_set(np.ones([1, modellink_obj._n_data+1]),
                                          'mod_set')
 
@@ -195,12 +195,12 @@ class Test_ModelLink_Check_Methods(object):
 
     # Test an md_var with wrong n_Data
     def test_md_var_n_data(self, modellink_obj):
-        with pytest.raises(ShapeError):
+        with pytest.raises(e13.ShapeError):
             modellink_obj._check_md_var(np.ones([1]), 'md_var')
 
     # Test a md_var with three values
     def test_md_var_shape(self, modellink_obj):
-        with pytest.raises(ShapeError):
+        with pytest.raises(e13.ShapeError):
             modellink_obj._check_md_var(np.ones([modellink_obj._n_data, 3]),
                                         'md_var')
 

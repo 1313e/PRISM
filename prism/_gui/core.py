@@ -13,7 +13,7 @@ Contains all core definitions required to make the Projection GUI work.
 import signal
 
 # Package imports
-from e13tools.utils import docstring_append, raise_error
+import e13tools as e13
 import matplotlib as mpl
 from matplotlib.pyplot import switch_backend
 from qtpy import QtCore as QC, QtWidgets as QW
@@ -30,8 +30,8 @@ __all__ = ['start_gui']
 
 # %% FUNCTION DEFINITIONS
 # This function starts up the Projection GUI 'Crystal'
-@docstring_append(start_gui_doc_pars, '\n\t\n\t')
-@docstring_append(start_gui_doc)
+@e13.docstring_append(start_gui_doc_pars, '\n\t\n\t')
+@e13.docstring_append(start_gui_doc)
 def start_gui(pipeline_obj):  # pragma: no cover
     # Create a logger
     logger = getCLogger('GUI')
@@ -44,7 +44,7 @@ def start_gui(pipeline_obj):  # pragma: no cover
     if not isinstance(pipeline_obj, Pipeline):
         err_msg = ("Input argument 'pipeline_obj' must be an instance of the "
                    "Pipeline class!")
-        raise_error(err_msg, TypeError, logger)
+        e13.raise_error(err_msg, TypeError, logger)
 
     # Activate worker mode
     with pipeline_obj.worker_mode:

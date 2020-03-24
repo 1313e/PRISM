@@ -21,8 +21,7 @@ from tempfile import mkstemp
 from textwrap import dedent
 
 # Package imports
-from e13tools import InputError, compare_versions
-from e13tools.utils import raise_error, raise_warning
+import e13tools as e13
 import h5py
 from mpi4pyd import MPI
 import numpy as np
@@ -172,29 +171,29 @@ def check_compatibility(emul_version):
     logger.info("Performing version compatibility check.")
 
     # Check if emul_version is 1.0.x and raise warning if so
-    if not compare_versions(emul_version, '1.1.0'):
+    if not e13.compare_versions(emul_version, '1.1.0'):
         warn_msg = ("The provided emulator was constructed with an "
                     "unmaintained version of PRISM (v%s). Compatibility with "
                     "the current version of PRISM cannot be guaranteed."
                     % (emul_version))
-        raise_warning(warn_msg, RequestWarning, logger, 2)
+        e13.raise_warning(warn_msg, RequestWarning, logger, 2)
 
     # Loop over all compatibility versions
     for version in compat_version:
         # If a compat_version is the same or newer than the emul_version
         # then it is incompatible
-        if compare_versions(version, emul_version):
+        if e13.compare_versions(version, emul_version):
             err_msg = ("The provided emulator is incompatible with the current"
                        " version of PRISM (v%s). The last compatible version "
                        "is v%s." % (__version__, version))
-            raise_error(err_msg, RequestError, logger)
+            e13.raise_error(err_msg, RequestError, logger)
 
     # Check if emul_version is not newer than prism_version
-    if not compare_versions(__version__, emul_version):
+    if not e13.compare_versions(__version__, emul_version):
         err_msg = ("The provided emulator was constructed with a version later"
                    " than the current version of PRISM (v%s). Use v%s or later"
                    " to use this emulator." % (__version__, emul_version))
-        raise_error(err_msg, RequestError, logger)
+        e13.raise_error(err_msg, RequestError, logger)
     else:
         logger.info("Version compatibility check was successful.")
 
@@ -251,7 +250,7 @@ def check_vals(values, name, *args):
         arr_type = 'scalar'
     else:
         err_msg = "Input argument %r is not array_like!" % (name)
-        raise_error(err_msg, InputError, logger)
+        e13.raise_error(err_msg, e13.InputError, logger)
 
     # Convert values to a NumPy array
     try:
@@ -259,19 +258,19 @@ def check_vals(values, name, *args):
     except Exception as error:      # pragma: no cover
         err_msg = ("Input argument %r cannot be converted to a NumPy array! "
                    "(%s)" % (name, error))
-        raise_error(err_msg, InputError, logger)
+        e13.raise_error(err_msg, e13.InputError, logger)
     else:
         # Since NumPy v1.16.0, anything can be converted to NumPy arrays
         # So, check if the dtype is not np.object_
         if issubclass(values.dtype.type, np.object_):
             err_msg = ("Input argument %r cannot be converted to a NumPy "
                        "dtype!" % (name))
-            raise_error(err_msg, TypeError, logger)
+            e13.raise_error(err_msg, TypeError, logger)
 
     # Check if values is not empty and raise error if so
     if not values.size:
         err_msg = "Input argument %r is empty!" % (name)
-        raise_error(err_msg, InputError, logger)
+        e13.raise_error(err_msg, e13.InputError, logger)
 
     # Loop over all criteria
     while args:
@@ -295,7 +294,7 @@ def check_vals(values, name, *args):
                 index = np.unravel_index(np.argmin(check_list), values.shape)
                 err_msg = ("Input argument '%s%s' is not of type 'bool'!"
                            % (name, list(index) if values.ndim != 0 else ''))
-                raise_error(err_msg, TypeError, logger)
+                e13.raise_error(err_msg, TypeError, logger)
             else:
                 # If so, convert values to integers and break the loop
                 values = np.asanyarray(values, dtype=int)
@@ -308,7 +307,7 @@ def check_vals(values, name, *args):
                 break
             else:
                 err_msg = "Input argument %r is not of type 'str'!" % (name)
-                raise_error(err_msg, TypeError, logger)
+                e13.raise_error(err_msg, TypeError, logger)
 
         # Check for complex
         elif 'complex' in args:
@@ -322,7 +321,7 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument %r is not of type 'complex'!"
                            % (name))
-                raise_error(err_msg, TypeError, logger)
+                e13.raise_error(err_msg, TypeError, logger)
 
         # Check for float
         elif 'float' in args:
@@ -334,7 +333,7 @@ def check_vals(values, name, *args):
                 continue
             else:
                 err_msg = "Input argument %r is not of type 'float'!" % (name)
-                raise_error(err_msg, TypeError, logger)
+                e13.raise_error(err_msg, TypeError, logger)
 
         # Check for integer
         elif 'int' in args:
@@ -345,7 +344,7 @@ def check_vals(values, name, *args):
                 continue
             else:
                 err_msg = "Input argument %r is not of type 'int'!" % (name)
-                raise_error(err_msg, TypeError, logger)
+                e13.raise_error(err_msg, TypeError, logger)
 
         # Check for negative value
         elif 'neg' in args:
@@ -358,7 +357,7 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument '%s%s' is not negative!"
                            % (name, index if values.ndim != 0 else ''))
-                raise_error(err_msg, ValueError, logger)
+                e13.raise_error(err_msg, ValueError, logger)
 
         # Check for non-negative value
         elif 'nneg' in args:
@@ -371,7 +370,7 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument '%s%s' is not non-negative!"
                            % (name, index if values.ndim != 0 else ''))
-                raise_error(err_msg, ValueError, logger)
+                e13.raise_error(err_msg, ValueError, logger)
 
         # Check for normalized value [-1, 1]
         elif 'normal' in args:
@@ -384,7 +383,7 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument '%s%s' is not normalized!"
                            % (name, index if values.ndim != 0 else ''))
-                raise_error(err_msg, ValueError, logger)
+                e13.raise_error(err_msg, ValueError, logger)
 
         # Check for non-positive value
         elif 'npos' in args:
@@ -397,7 +396,7 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument '%s%s' is not non-positive!"
                            % (name, index if values.ndim != 0 else ''))
-                raise_error(err_msg, ValueError, logger)
+                e13.raise_error(err_msg, ValueError, logger)
 
         # Check for non-zero value
         elif 'nzero' in args:
@@ -410,7 +409,7 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument '%s%s' is not non-zero!"
                            % (name, index if values.ndim != 0 else ''))
-                raise_error(err_msg, ValueError, logger)
+                e13.raise_error(err_msg, ValueError, logger)
 
         # Check for positive value
         elif 'pos' in args:
@@ -423,13 +422,13 @@ def check_vals(values, name, *args):
             else:
                 err_msg = ("Input argument '%s%s' is not positive!"
                            % (name, index if values.ndim != 0 else ''))
-                raise_error(err_msg, ValueError, logger)
+                e13.raise_error(err_msg, ValueError, logger)
 
         # If none of the criteria is found, the criteria are invalid
         else:
             err_msg = ("Input argument 'args' contains invalid elements (%s)!"
                        % (args))
-            raise_error(err_msg, ValueError, logger)
+            e13.raise_error(err_msg, ValueError, logger)
 
     # If no criteria are left, it must be a finite value
     else:
@@ -441,11 +440,11 @@ def check_vals(values, name, *args):
         except TypeError:
             err_msg = ("Input argument '%s%s' is not of type 'int' or 'float'!"
                        % (name, index if values.ndim != 0 else ''))
-            raise_error(err_msg, TypeError, logger)
+            e13.raise_error(err_msg, TypeError, logger)
         else:
             err_msg = ("Input argument '%s%s' is not finite!"
                        % (name, index if values.ndim != 0 else ''))
-            raise_error(err_msg, ValueError, logger)
+            e13.raise_error(err_msg, ValueError, logger)
 
     # Convert values back to its original type
     if(arr_type == 'tuple'):

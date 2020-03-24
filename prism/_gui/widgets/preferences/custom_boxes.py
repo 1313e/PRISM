@@ -17,7 +17,7 @@ from itertools import chain
 
 # Package imports
 import cmasher as cmr
-from e13tools.utils import docstring_substitute
+import e13tools as e13
 from matplotlib import cm, rcParams
 from matplotlib.colors import BASE_COLORS, CSS4_COLORS, to_rgba
 import numpy as np
@@ -45,7 +45,7 @@ class ColorBox(BaseBox):
 
     """
 
-    @docstring_substitute(optional=kwargs_doc.format(
+    @e13.docstring_substitute(optional=kwargs_doc.format(
         'prism._gui.widgets.core.BaseBox'))
     def __init__(self, *args, **kwargs):
         """
@@ -263,7 +263,7 @@ class ColorBox(BaseBox):
 
     # This function shows the custom color picker dialog
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def show_colorpicker(self):
         """
         Shows the colorwheel picker dialog to the user, allowing for any color
@@ -287,7 +287,7 @@ class ColorBox(BaseBox):
 
     # This function sets a given color as the current color
     @QC.Slot(str)
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def set_color(self, color):
         """
         Sets the current color to the provided `color`, and updates the entry
@@ -325,7 +325,7 @@ class ColorBox(BaseBox):
 
     # This function sets the color of the colorlabel
     @QC.Slot(str)
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def set_color_label(self, color):
         """
         Sets the current color label to the provided `color`.
@@ -420,7 +420,7 @@ class ColorMapBox(BaseBox):
 
     """
 
-    @docstring_substitute(optional=kwargs_doc.format(
+    @e13.docstring_substitute(optional=kwargs_doc.format(
         'prism._gui.widgets.core.BaseBox'))
     def __init__(self, *args, **kwargs):
         """
@@ -639,7 +639,7 @@ class DefaultBox(BaseBox):
 
     """
 
-    @docstring_substitute(optional=kwargs_doc.format(
+    @e13.docstring_substitute(optional=kwargs_doc.format(
         'prism._gui.widgets.core.BaseBox'))
     def __init__(self, *args, **kwargs):
         """
@@ -698,7 +698,7 @@ class DefaultBox(BaseBox):
 
     # This function creates a field_box depending on the type that was selected
     @QC.Slot(str)
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def create_field_box(self, value_type):
         """
         Creates a field box for the provided type `value_type` and replaces the
@@ -816,7 +816,7 @@ class FigSizeBox(BaseBox):
 
     """
 
-    @docstring_substitute(optional=kwargs_doc.format(
+    @e13.docstring_substitute(optional=kwargs_doc.format(
         'prism._gui.widgets.core.BaseBox'))
     def __init__(self, *args, **kwargs):
         """

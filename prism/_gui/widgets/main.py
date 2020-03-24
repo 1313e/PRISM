@@ -19,7 +19,7 @@ from textwrap import dedent
 import warnings
 
 # Package imports
-from e13tools.utils import docstring_substitute
+import e13tools as e13
 from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 
 # PRISM imports
@@ -52,7 +52,7 @@ class MainViewerWindow(QW.QMainWindow):
     exception = QC.Signal()
 
     # Initialize MainViewerWindow class
-    @docstring_substitute(optional=kwargs_doc.format(
+    @e13.docstring_substitute(optional=kwargs_doc.format(
         'PyQt5.QtWidgets.QMainWindow'))
     def __init__(self, pipeline_obj, *args, **kwargs):
         """
@@ -296,7 +296,7 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function creates a message box with the 'about' information
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def about(self):
         """
         Displays a small section with information about the GUI.
@@ -323,7 +323,7 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function opens the RTD API reference documentation in a webbrowser
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def api_reference(self):
         """
         Opens the API reference documentation of the GUI in a webbrowser.
@@ -438,7 +438,7 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function sets dock widgets and toolbars to their default position
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def set_default_dock_positions(self):
         """
         Sets the positions of all dock widgets connected to the main window to
@@ -462,7 +462,7 @@ class MainViewerWindow(QW.QMainWindow):
 
     # This function shows the details() overview of a given emulator iteration
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def show_pipeline_details_overview(self):
         """
         Creates and shows a dialog containing the output of the

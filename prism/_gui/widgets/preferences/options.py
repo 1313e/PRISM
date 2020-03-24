@@ -13,7 +13,7 @@ The window used for the kwargs dicts is defined in
 
 # %% IMPORTS
 # Package imports
-from e13tools.utils import docstring_substitute
+import e13tools as e13
 from qtpy import QtCore as QC, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict
 
@@ -45,7 +45,7 @@ class OptionsDialog(QW.QDialog):
     resetting = QC.Signal()
     discarding = QC.Signal()
 
-    @docstring_substitute(optional=kwargs_doc.format(
+    @e13.docstring_substitute(optional=kwargs_doc.format(
         'PyQt5.QtWidgets.QDialog'))
     def __init__(self, main_window_obj, *args, **kwargs):
         """
@@ -716,7 +716,7 @@ class OptionsDialog(QW.QDialog):
 
     # This function saves the new options values
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def save_options(self):
         """
         Saves all current values of all option entries.
@@ -773,7 +773,7 @@ class OptionsDialog(QW.QDialog):
 
     # This function resets the options to default
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def reset_options(self):
         """
         Resets the saved and current values of all option entries back to their
@@ -791,7 +791,7 @@ class OptionsDialog(QW.QDialog):
 
     # This function discards all changes to the options
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def discard_options(self):
         """
         Discards the current values of all option entries and sets them back to

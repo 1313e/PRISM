@@ -7,7 +7,7 @@ from os import path
 from sys import platform
 
 # Package imports
-from e13tools.math import nCr
+import e13tools as e13
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 import matplotlib.pyplot as plt
@@ -46,7 +46,7 @@ class TestOverviewDockWidget_Main(object):
         # Calculate how many hcubes there should be
         emul_i = overview.pipe._Projection__emul_i
         n_hcubes = sum(
-            [nCr(n, 2)+n for n in map(
+            [e13.nCr(n, 2)+n for n in map(
                 len, pipe_GUI._emulator._active_par[:emul_i+1])])
 
         # Check if this many hcubes are currently in the GUI

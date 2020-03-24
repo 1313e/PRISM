@@ -16,8 +16,7 @@ from os import path
 import warnings
 
 # Package imports
-from e13tools import InputError
-from e13tools.utils import check_instance, split_seq
+import e13tools as e13
 from mpi4pyd.MPI import get_HybridComm_obj
 import numpy as np
 from numpy.random import rand
@@ -89,15 +88,15 @@ def convert_data(model_data):
     # Loop over all items in model_data
     for key, value in model_data.items():
         # Convert key to an actual data_idx
-        idx = split_seq(key)
+        idx = e13.split_seq(key)
 
         # Check if tmp_idx is not empty
         if not idx:
-            raise InputError("Model data contains a data point with no "
-                             "identifier!")
+            raise e13.InputError("Model data contains a data point with no "
+                                 "identifier!")
 
         # Convert value to an actual data point
-        data = split_seq(value)
+        data = e13.split_seq(value)
 
         # Check if provided data value is valid
         val = check_vals(data[0], 'data_val%s' % (idx), 'float')
@@ -210,7 +209,7 @@ def convert_parameters(model_parameters):
     # Loop over all items in model_parameters
     for name, values_str in model_parameters.items():
         # Convert values_str to values
-        values = split_seq(values_str)
+        values = e13.split_seq(values_str)
 
         # Check if provided name is a string
         name = check_vals(name, 'par_name[%s]' % (name), 'str')
@@ -290,7 +289,7 @@ def test_subclass(subclass, *args, **kwargs):
 
     # Check if provided subclass is a class
     if not isclass(subclass):
-        raise InputError("Input argument 'subclass' must be a class!")
+        raise e13.InputError("Input argument 'subclass' must be a class!")
 
     # Check if provided subclass is a subclass of ModelLink
     if not issubclass(subclass, ModelLink):
@@ -301,16 +300,16 @@ def test_subclass(subclass, *args, **kwargs):
     try:
         modellink_obj = subclass(*args, **kwargs)
     except Exception as error:
-        raise InputError("Input argument 'subclass' cannot be initialized! "
-                         "(%s)" % (error))
+        raise e13.InputError("Input argument 'subclass' cannot be initialized!"
+                             " (%s)" % (error))
 
     # Check if modellink_obj was initialized properly
-    if not check_instance(modellink_obj, ModelLink):
+    if not e13.check_instance(modellink_obj, ModelLink):
         obj_name = modellink_obj.__class__.__name__
-        raise InputError("Provided ModelLink subclass %r was not "
-                         "initialized properly! Make sure that %r calls "
-                         "the super constructor during initialization!"
-                         % (obj_name, obj_name))
+        raise e13.InputError("Provided ModelLink subclass %r was not "
+                             "initialized properly! Make sure that %r calls "
+                             "the super constructor during initialization!"
+                             % (obj_name, obj_name))
 
     # Obtain list of arguments call_model should take
     call_model_args = list(signature(ModelLink.call_model).parameters)
@@ -320,9 +319,10 @@ def test_subclass(subclass, *args, **kwargs):
     obj_call_model_args = dict(signature(modellink_obj.call_model).parameters)
     for arg in call_model_args:
         if arg not in obj_call_model_args.keys():
-            raise InputError("The 'call_model()'-method in provided ModelLink "
-                             "subclass %r does not take required input "
-                             "argument %r!" % (modellink_obj._name, arg))
+            raise e13.InputError("The 'call_model()'-method in provided "
+                                 "ModelLink subclass %r does not take required"
+                                 " input argument %r!"
+                                 % (modellink_obj._name, arg))
         else:
             obj_call_model_args.pop(arg)
 
@@ -332,9 +332,10 @@ def test_subclass(subclass, *args, **kwargs):
         if(par.default == _empty and par.kind != _VAR_POSITIONAL and
            par.kind != _VAR_KEYWORD):
             # Raise error
-            raise InputError("The 'call_model()'-method in provided ModelLink "
-                             "subclass %r takes an unknown non-optional input "
-                             "argument %r!" % (modellink_obj._name, arg))
+            raise e13.InputError("The 'call_model()'-method in provided "
+                                 "ModelLink subclass %r takes an unknown "
+                                 "non-optional input argument %r!"
+                                 % (modellink_obj._name, arg))
 
     # Obtain list of arguments get_md_var should take
     get_md_var_args = list(signature(ModelLink.get_md_var).parameters)
@@ -344,9 +345,10 @@ def test_subclass(subclass, *args, **kwargs):
     obj_get_md_var_args = dict(signature(modellink_obj.get_md_var).parameters)
     for arg in get_md_var_args:
         if arg not in obj_get_md_var_args.keys():
-            raise InputError("The 'get_md_var()'-method in provided ModelLink "
-                             "subclass %r does not take required input "
-                             "argument %r!" % (modellink_obj._name, arg))
+            raise e13.InputError("The 'get_md_var()'-method in provided "
+                                 "ModelLink subclass %r does not take required"
+                                 " input argument %r!"
+                                 % (modellink_obj._name, arg))
         else:
             obj_get_md_var_args.pop(arg)
 
@@ -356,9 +358,10 @@ def test_subclass(subclass, *args, **kwargs):
         if(par.default == _empty and par.kind != _VAR_POSITIONAL and
            par.kind != _VAR_KEYWORD):
             # Raise an error
-            raise InputError("The 'get_md_var()'-method in provided ModelLink "
-                             "subclass %r takes an unknown non-optional input "
-                             "argument %r!" % (modellink_obj._name, arg))
+            raise e13.InputError("The 'get_md_var()'-method in provided "
+                                 "ModelLink subclass %r takes an unknown "
+                                 "non-optional input argument %r!"
+                                 % (modellink_obj._name, arg))
 
     # Set MPI intra-communicator
     comm = get_HybridComm_obj()

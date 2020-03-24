@@ -18,12 +18,7 @@ from os import path
 from time import time
 
 # Package imports
-from e13tools import InputError
-from e13tools.pyplot import draw_textline
-from e13tools.sampling import lhd
-from e13tools.utils import (
-    docstring_append, docstring_copy, docstring_substitute, raise_error,
-    raise_warning, split_seq)
+import e13tools as e13
 from matplotlib import cm
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
@@ -67,10 +62,10 @@ class Projection(object):
         logger = getCLogger('PROJECTION')
         err_msg = ("The Projection class is a base class for the Pipeline "
                    "class and cannot be used on its own!")
-        raise_error(err_msg, RequestError, logger)
+        e13.raise_error(err_msg, RequestError, logger)
 
     # Function that creates all projection figures
-    @docstring_substitute(emul_i=user_emul_i_doc, proj_par=proj_par_doc_d)
+    @e13.docstring_substitute(emul_i=user_emul_i_doc, proj_par=proj_par_doc_d)
     def project(self, emul_i=None, proj_par=None, **kwargs):
         """
         Analyzes the emulator iteration `emul_i` and constructs a series of
@@ -288,23 +283,23 @@ class Projection(object):
 
     # Function that creates master projection figures
     # TODO: Write this function!
-#    @docstring_substitute(emul_i=user_emul_i_doc)
+#    @e13.docstring_substitute(emul_i=user_emul_i_doc)
     def project_master(self, emul_i=None, **kwargs):   # pragma: no cover
         raise NotImplementedError
 
     # Function that starts up the Projection GUI
-    @docstring_append(start_gui_doc)
+    @e13.docstring_append(start_gui_doc)
     def start_gui(self):                               # pragma: no cover
         _start_gui(self)
 
     # Function that starts up the Projection GUI
-    @docstring_copy(start_gui)
+    @e13.docstring_copy(start_gui)
     def crystal(self):                                 # pragma: no cover
         self.start_gui()
 
     # %% CLASS PROPERTIES
     @property
-    @docstring_substitute(proj_res=proj_res_doc)
+    @e13.docstring_substitute(proj_res=proj_res_doc)
     def proj_res(self):
         """
         int: %(proj_res)s
@@ -318,7 +313,7 @@ class Projection(object):
         self.__proj_res = check_vals(proj_res, 'proj_res', 'int', 'pos')
 
     @property
-    @docstring_substitute(proj_depth=proj_depth_doc)
+    @e13.docstring_substitute(proj_depth=proj_depth_doc)
     def proj_depth(self):
         """
         int: %(proj_depth)s
@@ -335,7 +330,7 @@ class Projection(object):
 
     # %% HIDDEN CLASS METHODS
     # This function draws the 2D projection figure
-    @docstring_append(draw_proj_fig_doc.format("2D", "2"))
+    @e13.docstring_append(draw_proj_fig_doc.format("2D", "2"))
     def __draw_2D_proj_fig(self, hcube):
         # Obtain emul_i and name of this projection hypercube
         emul_i = hcube[0]
@@ -443,19 +438,19 @@ class Projection(object):
 
             # Draw parameter estimate line
             if self._modellink._par_est[par] is not None:
-                draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
-                              line_kwargs=self.__line_kwargs_est)
+                e13.draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
+                                  line_kwargs=self.__line_kwargs_est)
 
             # Draw implausibility cut-off line(s)
             if self.__show_cuts:
                 # If all lines are requested, draw them
                 for cut in impl_cuts:
-                    draw_textline(r"", y=cut, ax=ax0,
-                                  line_kwargs=self.__line_kwargs_cut)
+                    e13.draw_textline(r"", y=cut, ax=ax0,
+                                      line_kwargs=self.__line_kwargs_cut)
             else:
                 # Else, draw the first cut-off line
-                draw_textline(r"", y=impl_cut, ax=ax0,
-                              line_kwargs=self.__line_kwargs_cut)
+                e13.draw_textline(r"", y=impl_cut, ax=ax0,
+                                  line_kwargs=self.__line_kwargs_cut)
 
             # Set axes and label
             ax0.axis(ax0_rng)
@@ -469,8 +464,8 @@ class Projection(object):
 
             # Draw parameter estimate line
             if self._modellink._par_est[par] is not None:
-                draw_textline(r"", x=self._modellink._par_est[par], ax=ax1,
-                              line_kwargs=self.__line_kwargs_est)
+                e13.draw_textline(r"", x=self._modellink._par_est[par], ax=ax1,
+                                  line_kwargs=self.__line_kwargs_est)
 
             # Set axes and label
             ax1.axis(ax1_rng)
@@ -507,7 +502,7 @@ class Projection(object):
                         % (hcube_name))
 
     # This function draws the 3D projection figure
-    @docstring_append(draw_proj_fig_doc.format("3D", "3"))
+    @e13.docstring_append(draw_proj_fig_doc.format("3D", "3"))
     # OPTIMIZE: (Re)Drawing a 3D projection figure takes up to 15 seconds
     def __draw_3D_proj_fig(self, hcube):
         # Obtain emul_i and name of this projection hypercube
@@ -648,11 +643,11 @@ class Projection(object):
             # Draw parameter estimate lines
             ax0.axis(axes_rng)
             if self._modellink._par_est[par1] is not None:
-                draw_textline(r"", x=self._modellink._par_est[par1], ax=ax0,
-                              line_kwargs=self.__line_kwargs_est)
+                e13.draw_textline(r"", x=self._modellink._par_est[par1],
+                                  ax=ax0, line_kwargs=self.__line_kwargs_est)
             if self._modellink._par_est[par2] is not None:
-                draw_textline(r"", y=self._modellink._par_est[par2], ax=ax0,
-                              line_kwargs=self.__line_kwargs_est)
+                e13.draw_textline(r"", y=self._modellink._par_est[par2],
+                                  ax=ax0, line_kwargs=self.__line_kwargs_est)
 
             # Set axes and labels
             ax0.axis(axes_rng)
@@ -668,11 +663,11 @@ class Projection(object):
             # Draw parameter estimate lines
             ax1.axis(axes_rng)
             if self._modellink._par_est[par1] is not None:
-                draw_textline(r"", x=self._modellink._par_est[par1], ax=ax1,
-                              line_kwargs=self.__line_kwargs_est)
+                e13.draw_textline(r"", x=self._modellink._par_est[par1],
+                                  ax=ax1, line_kwargs=self.__line_kwargs_est)
             if self._modellink._par_est[par2] is not None:
-                draw_textline(r"", y=self._modellink._par_est[par2], ax=ax1,
-                              line_kwargs=self.__line_kwargs_est)
+                e13.draw_textline(r"", y=self._modellink._par_est[par2],
+                                  ax=ax1, line_kwargs=self.__line_kwargs_est)
 
             # Set axes and label
             ax1.axis(axes_rng)
@@ -716,7 +711,7 @@ class Projection(object):
                         % (hcube_name))
 
     # This function returns the projection data belonging to a proj_hcube
-    @docstring_substitute(hcube=hcube_doc, proj_data=proj_data_doc)
+    @e13.docstring_substitute(hcube=hcube_doc, proj_data=proj_data_doc)
     def __get_proj_data(self, hcube):
         """
         Returns the projection data belonging to the provided hypercube
@@ -799,7 +794,7 @@ class Projection(object):
         return(proj_space)
 
     # This function determines the projection hypercubes to be analyzed
-    @docstring_substitute(emul_i=std_emul_i_doc, proj_par=proj_par_doc_s)
+    @e13.docstring_substitute(emul_i=std_emul_i_doc, proj_par=proj_par_doc_s)
     def __get_req_hcubes(self, emul_i, proj_par):
         """
         Determines which projection hypercubes have been requested by the user.
@@ -851,7 +846,7 @@ class Projection(object):
                 else:
                     err_msg = ("Not enough active model parameters have been "
                                "provided to make a projection figure!")
-                    raise_error(err_msg, RequestError, logger)
+                    e13.raise_error(err_msg, RequestError, logger)
 
             # Obtain list of hypercube names
             hcubes = []
@@ -927,7 +922,7 @@ class Projection(object):
         self.__create_hcubes.extend(self._comm.bcast(create_hcubes, 0))
 
     # This function returns the name of a proj_hcube when given a hcube
-    @docstring_substitute(hcube=hcube_doc)
+    @e13.docstring_substitute(hcube=hcube_doc)
     def __get_hcube_name(self, hcube):
         """
         Determines the name of a provided projection hypercube `hcube` and
@@ -998,7 +993,7 @@ class Projection(object):
         return(fig_path, fig_path_s)
 
     # This function returns default projection parameters
-    @docstring_append(def_par_doc.format('projection'))
+    @e13.docstring_append(def_par_doc.format('projection'))
     def __get_default_parameters(self):
         # Create parameter dict with default parameters
         par_dict = {'proj_res': '25',
@@ -1056,7 +1051,7 @@ class Projection(object):
         return(sdict(kwargs_dict))
 
     # Set the parameters that were read in from the provided parameter dict
-    @docstring_append(set_par_doc.format("Projection"))
+    @e13.docstring_append(set_par_doc.format("Projection"))
     def __set_parameters(self):
         # Log that the projection parameters are being set
         logger = getCLogger('INIT')
@@ -1074,15 +1069,15 @@ class Projection(object):
 
         # Number of samples used for implausibility evaluations
         if not hasattr(self, '_Projection__proj_res'):
-            self.proj_res = split_seq(par_dict['proj_res'])[0]
+            self.proj_res = e13.split_seq(par_dict['proj_res'])[0]
         if not hasattr(self, '_Projection__proj_depth'):
-            self.proj_depth = split_seq(par_dict['proj_depth'])[0]
+            self.proj_depth = e13.split_seq(par_dict['proj_depth'])[0]
 
         # Finish logging
         logger.info("Finished setting projection parameters.")
 
     # This function returns the indices of all parameters in a grid point
-    @docstring_substitute(hcube=hcube_doc)
+    @e13.docstring_substitute(hcube=hcube_doc)
     def __get_grid_idx(self, hcube):
         """
         Returns the indices of all parameters that are in the grid points of
@@ -1111,7 +1106,7 @@ class Projection(object):
 
     # This function generates a projection hypercube to be used for emulator
     # evaluations
-    @docstring_substitute(hcube=hcube_doc)
+    @e13.docstring_substitute(hcube=hcube_doc)
     def __get_proj_hcube(self, hcube):
         """
         Generates a projection hypercube `hcube` containing emulator evaluation
@@ -1163,9 +1158,9 @@ class Projection(object):
                                        self.__proj_res)
 
             # Generate latin hypercube of the remaining parameters
-            hidden_sam_set = lhd(depth, self.__n_par-1,
-                                 self.__proj_space[emul_i][par_hid], 'fixed',
-                                 self._criterion)
+            hidden_sam_set = e13.lhd(depth, self.__n_par-1,
+                                     self.__proj_space[emul_i][par_hid],
+                                     'fixed', self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
             for i in range(self.__proj_res):
@@ -1191,9 +1186,9 @@ class Projection(object):
                                         self.__proj_res)
 
             # Generate Latin Hypercube of the remaining parameters
-            hidden_sam_set = lhd(self.__proj_depth, self.__n_par-2,
-                                 self.__proj_space[emul_i][par_hid], 'fixed',
-                                 self._criterion)
+            hidden_sam_set = e13.lhd(self.__proj_depth, self.__n_par-2,
+                                     self.__proj_space[emul_i][par_hid],
+                                     'fixed', self._criterion)
 
             # Fill every cell in the projection hypercube accordingly
             for i, (j, k) in enumerate(np.ndindex(self.__proj_res,
@@ -1217,7 +1212,7 @@ class Projection(object):
         return(proj_hcube)
 
     # This function analyzes a projection hypercube
-    @docstring_substitute(hcube=hcube_doc, proj_data=proj_data_doc)
+    @e13.docstring_substitute(hcube=hcube_doc, proj_data=proj_data_doc)
     def __analyze_proj_hcube(self, hcube):
         """
         Analyzes an emulator projection hypercube `hcube`.
@@ -1309,7 +1304,7 @@ class Projection(object):
         return(np_array(impl_min_hcube), np_array(impl_los_hcube))
 
     # This function processes the input arguments of project
-    @docstring_substitute(emul_i=get_emul_i_doc)
+    @e13.docstring_substitute(emul_i=get_emul_i_doc)
     def __process_input_arguments(self, emul_i, **kwargs):
         """
         Processes the input arguments given to the :meth:`~project` method.
@@ -1349,7 +1344,7 @@ class Projection(object):
                 if not isinstance(value, dict):
                     err_msg = ("Input argument %r is not of type 'dict'!"
                                % (key))
-                    raise_error(err_msg, TypeError, logger)
+                    e13.raise_error(err_msg, TypeError, logger)
                 else:
                     kwargs_dict[key].update(value)
             elif(self.__n_par == 2 and key == 'proj_type'):
@@ -1387,7 +1382,7 @@ class Projection(object):
             else:
                 err_msg = ("Input argument 'proj_type' is invalid (%r)!"
                            % (proj_type))
-                raise_error(err_msg, ValueError, logger)
+                e13.raise_error(err_msg, ValueError, logger)
 
             # Check if align parameter is a valid string
             align = str(kwargs.pop('align')).replace("'", '').replace('"', '')
@@ -1402,7 +1397,7 @@ class Projection(object):
             else:
                 err_msg = ("Input argument 'align' is invalid (%r)!"
                            % (align))
-                raise_error(err_msg, ValueError, logger)
+                e13.raise_error(err_msg, ValueError, logger)
 
             # Pop all specific kwargs dicts from kwargs
             fig_kwargs = kwargs.pop('fig_kwargs')
@@ -1427,7 +1422,7 @@ class Projection(object):
             except Exception as error:
                 err_msg = ("Input argument 'impl_kwargs_3D/cmap' is invalid! "
                            "(%s)" % (error))
-                raise_error(err_msg, InputError, logger)
+                e13.raise_error(err_msg, e13.InputError, logger)
 
             # Check if any forbidden kwargs are given and remove them
             impl_keys = list(impl_kwargs_2D.keys())
@@ -1446,7 +1441,7 @@ class Projection(object):
             except Exception as error:
                 err_msg = ("Input argument 'los_kwargs_3D/cmap' is invalid! "
                            "(%s)" % (error))
-                raise_error(err_msg, InputError, logger)
+                e13.raise_error(err_msg, e13.InputError, logger)
 
             # Check if any forbidden kwargs are given and remove them
             los_keys = list(los_kwargs_2D.keys())
@@ -1474,7 +1469,7 @@ class Projection(object):
         logger.info("Finished processing input arguments.")
 
     # This function prepares for projections to be made
-    @docstring_substitute(emul_i=get_emul_i_doc, proj_par=proj_par_doc_s)
+    @e13.docstring_substitute(emul_i=get_emul_i_doc, proj_par=proj_par_doc_s)
     def __prepare_projections(self, emul_i, proj_par, **kwargs):
         """
         Prepares the pipeline for the creation of the requested projections.
@@ -1506,7 +1501,7 @@ class Projection(object):
                     warn_msg = ("Requested emulator iteration %i has not been "
                                 "analyzed yet. Performing analysis first."
                                 % (self.__emul_i))
-                    raise_warning(warn_msg, RequestWarning, logger, 2)
+                    e13.raise_warning(warn_msg, RequestWarning, logger, 2)
                     self.analyze()
 
                 # If iteration has no plausible regions, raise error
@@ -1514,7 +1509,7 @@ class Projection(object):
                     err_msg = ("Requested emulator iteration %i has no "
                                "plausible regions. Creating projections has no"
                                " use." % (self.__emul_i))
-                    raise_error(err_msg, RequestError, logger)
+                    e13.raise_error(err_msg, RequestError, logger)
 
             # Check if projections have been created before
             with self._File('r+', None) as file:
@@ -1566,7 +1561,7 @@ class Projection(object):
             self.__get_req_hcubes(i, proj_par)
 
     # Returns the hypercube that encloses projection space
-    @docstring_substitute(emul_i=std_emul_i_doc)
+    @e13.docstring_substitute(emul_i=std_emul_i_doc)
     def __get_proj_space(self, emul_i):
         """
         Returns the boundaries of the hypercube that encloses the parameter
@@ -1591,7 +1586,7 @@ class Projection(object):
             return(self._modellink._par_rng.copy())
 
     # This function saves projection data to hdf5
-    @docstring_substitute(save_data=save_data_doc_pr)
+    @e13.docstring_substitute(save_data=save_data_doc_pr)
     def __save_data(self, emul_i, data_dict):
         """
         Saves a given data dict ``{keyword: data}`` at the emulator iteration
@@ -1640,4 +1635,4 @@ class Projection(object):
                 # INVALID KEYWORD
                 else:
                     err_msg = "Invalid keyword argument provided!"
-                    raise_error(err_msg, ValueError, logger)
+                    e13.raise_error(err_msg, ValueError, logger)
