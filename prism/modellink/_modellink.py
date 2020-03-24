@@ -1026,7 +1026,8 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         --------
         suffix : str or None. Default: None
             The suffix of the backup file (everything between parentheses) that
-            needs to be read. If *None*, the last created backup will be read.
+            needs to be read. If *None* or empty, the last created backup will
+            be read.
 
         Returns
         -------

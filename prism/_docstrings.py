@@ -87,10 +87,11 @@ ext_mod_set_doc =\
             Array containing the model outputs of all specified externally
             provided model evaluation samples."""
 ext_real_set_doc =\
-        """ext_real_set : list, dict or None{0}{1}
-            List of dicts containing an externally calculated set of model
-            evaluation samples and its data values, a dict with keys
-            ``['sam_set', 'mod_set']`` containing these dicts or *None* if no
+        """ext_real_set : str, list, dict or None{0}{1}
+            String indicating the suffix of the backup file that needs to be
+            used; list of dicts containing an externally calculated set of
+            model evaluation samples and its data values; a dict with keys
+            ``['sam_set', 'mod_set']`` containing these dicts; or *None* if no
             external set needs to be used."""
 ext_real_set_doc_s = ext_real_set_doc.format("", "")
 ext_real_set_doc_d = ext_real_set_doc.format(ds, "None")

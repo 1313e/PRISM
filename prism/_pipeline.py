@@ -1497,6 +1497,9 @@ class Pipeline(Projection, object):
         # Save the current time
         start_time = time()
 
+        # Obtain the set difference between sam_set and ext_sam_set
+        sam_set = e13.setdiff(sam_set, ext_sam_set, assume_unique=True)
+
         # Obtain number of samples
         n_sam = np.shape(sam_set)[0]
 
@@ -1942,16 +1945,19 @@ class Pipeline(Projection, object):
 
     # This function processes an externally provided real_set
     # TODO: Additionally allow for an old PRISM master file to be provided
-    @e13.docstring_substitute(ext_set=ext_real_set_doc_s,
+    @e13.docstring_substitute(emul_i=std_emul_i_doc,
+                              ext_set=ext_real_set_doc_s,
                               ext_sam=ext_sam_set_doc,
                               ext_mod=ext_mod_set_doc)
-    def _get_ext_real_set(self, ext_real_set):
+    def _get_ext_real_set(self, emul_i, ext_real_set):
         """
         Processes an externally provided model realization set `ext_real_set`,
-        containing the used sample set and the corresponding data value set.
+        containing the used sample set and the corresponding data value set, to
+        be used for the provided `emul_i`.
 
         Parameters
         ----------
+        %(emul_i)s
         %(ext_set)s
 
         Returns
@@ -1969,8 +1975,47 @@ class Pipeline(Projection, object):
         logger = getCLogger('INIT')
         logger.info("Processing externally provided model realization set.")
 
+        # If a string is given
+        if isinstance(ext_real_set, str):
+            # Try to obtain the data corresponding to this backup file
+            try:
+                _, ext_real_set = self._modellink._read_backup(
+                    emul_i, suffix=ext_real_set)
+            except Exception as error:
+                err_msg = ("Input argument 'ext_real_set' is invalid! (%s)"
+                           % (error))
+                e13.raise_error(err_msg, e13.InputError, logger)
+
+            # Extract sam_set, args and kwargs
+            ext_sam_set = ext_real_set['par_set']
+            args = ext_real_set['args']
+            kwargs = ext_real_set['kwargs']
+
+            # If args contains a single element, assume it is mod_set
+            if(len(args) == 1):
+                ext_mod_set = args[0]
+
+            # Else, try to obtain mod_set from kwargs
+            else:
+                # Obtain mod_set
+                ext_mod_set = kwargs.get('mod_set')
+
+                # If ext_mod_set is None, raise error
+                if ext_mod_set is None:
+                    err_msg = ("Input argument 'ext_real_set' does not contain"
+                               " key 'mod_set' in indicated backup file!")
+                    e13.raise_error(err_msg, KeyError, logger)
+
+            # Modify ext_mod_set to be a dict if it is not one already
+            if not isinstance(ext_mod_set, dict):
+                # Extract data_idx
+                data_idx = ext_real_set['data_idx']
+
+                # Convert ext_mod_set to a dict
+                ext_mod_set = sdict(zip(data_idx, np_array(ext_mod_set).T))
+
         # If a list is given
-        if isinstance(ext_real_set, list):
+        elif isinstance(ext_real_set, list):
             # Check if ext_real_set contains 2 elements
             if(len(ext_real_set) != 2):
                 err_msg = "Input argument 'ext_real_set' is not of length 2!"
@@ -2469,6 +2514,7 @@ class Pipeline(Projection, object):
     # This function constructs a specified iteration of the emulator system
     # TODO: Make time and RAM cost plots
     # TODO: Fix the timers for interrupted constructs
+    # TODO: Allow for ModelLink backup files to be provided as ext_real_set
     @e13.docstring_substitute(emul_i=call_emul_i_doc,
                               ext_set=ext_real_set_doc_d)
     def construct(self, emul_i=None, *, analyze=True, ext_real_set=None,
@@ -2606,7 +2652,7 @@ class Pipeline(Projection, object):
                     if(emul_i == 1):
                         # Process ext_real_set
                         ext_sam_set, ext_mod_set =\
-                            self._get_ext_real_set(ext_real_set)
+                            self._get_ext_real_set(emul_i, ext_real_set)
 
                         # Obtain number of externally given model realizations
                         n_ext_sam = np.shape(ext_sam_set)[0]
@@ -2636,7 +2682,8 @@ class Pipeline(Projection, object):
                     # If this is any other iteration
                     else:
                         # Get dummy ext_real_set
-                        ext_sam_set, ext_mod_set = self._get_ext_real_set(None)
+                        ext_sam_set, ext_mod_set =\
+                            self._get_ext_real_set(emul_i, ext_real_set)
 
                         # Check if last iteration was analyzed, do so if not
                         if not self._n_eval_sam[emul_i-1]:
