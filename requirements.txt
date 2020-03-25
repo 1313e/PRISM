@@ -1,14 +1,14 @@
 cmasher>=1.0.5
-e13tools>=0.6.17
+e13tools>=0.9.1
 h5py>=2.8.0
 hickle>=3.4.0
 matplotlib>=2.2.4
-mlxtend>=0.9.1
+mlxtend>=0.16.0
 mpi4pyd>=0.2.4
 numpy>=1.12.0
 pyqt5==5.12.*
 qtpy>=1.9.0
-scikit-learn>=0.19.1
+scikit-learn>=0.22
 scipy>=1.0.0
 sortedcontainers>=1.5.9
 threadpoolctl>=1.0.0

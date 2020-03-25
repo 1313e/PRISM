@@ -7,14 +7,11 @@ from os import path
 import shutil
 
 # Package imports
-from e13tools import InputError, ShapeError
-from e13tools.sampling import lhd
-from e13tools.utils import check_instance
+import e13tools as e13
 import h5py
 from mpi4pyd import MPI
 import numpy as np
 import pytest
-from pytest_mpl.plugin import switch_backend
 from sortedcontainers import SortedDict as sdict
 
 # PRISM imports
@@ -116,6 +113,50 @@ class CustomModelLink(ModelLink):
         return([[1, 1]]*len(data_idx))
 
 
+# Custom ModelLink class that uses the backup system
+class BackupModelLinkArgs(ModelLink):
+    def call_model(self, data_idx, *args, **kwargs):
+        mod_set = [1]*len(data_idx)
+        self._make_backup(mod_set)
+        return(mod_set)
+
+    def get_md_var(self, *args, **kwargs):
+        super().get_md_var(*args, **kwargs)
+
+
+# Custom ModelLink class that uses the backup system
+class BackupModelLinkKwargs(ModelLink):
+    def call_model(self, data_idx, *args, **kwargs):
+        mod_set = [1]*len(data_idx)
+        self._make_backup(mod_set=mod_set)
+        return(mod_set)
+
+    def get_md_var(self, *args, **kwargs):
+        super().get_md_var(*args, **kwargs)
+
+
+# Custom ModelLink class that uses the backup system
+class BackupModelLinkDict(ModelLink):
+    def call_model(self, data_idx, *args, **kwargs):
+        mod_set = [1]*len(data_idx)
+        self._make_backup(dict(zip(data_idx, np.array(mod_set).T)))
+        return(mod_set)
+
+    def get_md_var(self, *args, **kwargs):
+        super().get_md_var(*args, **kwargs)
+
+
+# Custom ModelLink class that uses the backup system
+class BackupModelLinkInvalid(ModelLink):
+    def call_model(self, data_idx, *args, **kwargs):
+        mod_set = [1]*len(data_idx)
+        self._make_backup(test=mod_set)
+        return(mod_set)
+
+    def get_md_var(self, *args, **kwargs):
+        super().get_md_var(*args, **kwargs)
+
+
 # Custom List class that reports wrong length
 class InvalidLen2List(list):
     def __len__(self):
@@ -156,6 +197,18 @@ class Test_Pipeline_Gaussian2D(object):
     def test_construct(self, pipe):
         pipe.construct(1, analyze=0)
 
+    # Check if impl_space does not exist yet
+    @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                        reason="Cannot be pytested in MPI")
+    def test_impl_space_pre_anal(self, pipe):
+        assert pipe._get_impl_space(1) is None
+
+    # Check if this emulator is (in)compatible with certain versions
+    def test_future_compat(self, pipe):
+        assert pipe._emulator._check_future_compat('1.1.0', '13.13.0')
+        with pytest.warns(FutureWarning):
+            assert not pipe._emulator._check_future_compat('99.0.0', '13.13.0')
+
     # Check if the adjustment terms are correct
     # This tests that 'Cov(D_i, D) @ inv(Var(D)) = e_i' for all known samples
     def test_adj_terms(self, pipe):
@@ -174,16 +227,28 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if first iteration can be projected before analysis
     def test_project_pre_anal(self, pipe):
-        with switch_backend('Agg'):
+        if pipe._is_controller:
+            with pytest.warns(RequestWarning):
+                pipe.project(proj_par=(0), figure=False)
+                assert pipe._n_eval_sam[1]
+        else:
             pipe.project(proj_par=(0), figure=False)
-            pipe.project(proj_par=(0), figure=True, proj_type='both',
-                         show_cuts=True)
-            pipe.project(proj_par=(1), figure=True, align='row', smooth=True)
+        pipe.project(proj_par=(0), figure=True, proj_type='both',
+                     show_cuts=True)
+        pipe.project(proj_par=(1), figure=True, align='row',
+                     smooth=True)
 
     # Check if first iteration can be projected again (unforced)
     def test_reproject_unforced(self, pipe):
-        with switch_backend('Agg'):
-            pipe.project()
+        pipe.project()
+
+    # Check if first iteration can be reprojected (forced)
+    def test_reproject_forced(self, pipe):
+        pipe.project(force=True, smooth=True, use_par_space=True)
+
+    # Check if first iteration can be reconstructed forced
+    def test_reconstruct_force(self, pipe):
+        pipe.construct(1, analyze=0, force=1)
 
     # Check if pipeline data can be reloaded before analysis
     def test_reload(self, pipe):
@@ -194,27 +259,30 @@ class Test_Pipeline_Gaussian2D(object):
     def test_construct_analyze(self, pipe):
         pipe.construct(1)
 
-    # Check if first iteration can be reprojected (forced)
-    def test_reproject_forced(self, pipe):
-        with switch_backend('Agg'):
-            pipe.project(force=True, smooth=True)
+    # Check if impl_space exists after analysis
+    @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                        reason="Cannot be pytested in MPI")
+    def test_impl_space_post_anal(self, pipe):
+        assert pipe._get_impl_space(1) is not None
 
     # Check if figure data can be received
     def test_project_fig_data(self, pipe):
-        with switch_backend('Agg'):
-            pipe.project(smooth=True, figure=False)
+        pipe.project(smooth=True, figure=False)
 
     # Check if details overview of first iteration can be given
     def test_details(self, pipe):
         pipe.details()
 
-    # Check if first iteration can be reconstructed forced
-    def test_reconstruct_force(self, pipe):
+    # Check if first iteration can be reconstructed forced again
+    def test_reconstruct_force_2(self, pipe):
         pipe.construct(1, analyze=0, force=1)
 
     # Check if entire second iteration can be created
     def test_run(self, pipe):
-        with switch_backend('Agg'):
+        if pipe._is_controller:
+            with pytest.warns(RequestWarning):
+                pipe.run(2)
+        else:
             pipe.run(2)
 
     # Check if the adjustment terms are correct for second iteration
@@ -229,13 +297,20 @@ class Test_Pipeline_Gaussian2D(object):
                                             pipe._emulator._cov_mat_inv[2]):
                 assert np.allclose(cov_vec @ cov_mat_inv, exp_out)
 
+    # Test if impl_space of iteration 1 is emul_space of iteration 2
+    @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
+                        reason="Cannot be pytested in MPI")
+    def test_impl_space_emul(self, pipe):
+        assert np.allclose(pipe._get_impl_space(1),
+                           pipe._emulator._emul_space[2])
+
     # Try to access all Pipeline properties
     def test_access_pipe_props(self, pipe):
-        check_instance(pipe, Pipeline)
+        e13.check_instance(pipe, Pipeline)
 
     # Try to access all Emulator properties
     def test_access_emul_props(self, pipe):
-        check_instance(pipe._emulator, Emulator)
+        e13.check_instance(pipe._emulator, Emulator)
 
     # Try to reload and reanalyze the entire Pipeline using different impl_cut
     def test_reload_reanalyze_pipeline(self, pipe):
@@ -406,15 +481,14 @@ class Test_Pipeline_Gaussian3D(object):
 
     # Check if first iteration can be projected
     def test_project(self, pipe):
-        with switch_backend('Agg'):
-            pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
-                         fig_kwargs={'dpi': 10})
-            pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
-                         figure=False)
-            if pipe._is_controller:
-                os.remove(pipe._Projection__get_fig_path((1, 0, 1))[1])
-            pipe._comm.Barrier()
-            pipe.project(1, (0, 1), align='col', fig_kwargs={'dpi': 10})
+        pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
+                     fig_kwargs={'dpi': 10}, use_par_space=True)
+        pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
+                     figure=False)
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0, 1))[1])
+        pipe._comm.Barrier()
+        pipe.project(1, (0, 1), align='col', fig_kwargs={'dpi': 10})
 
     # Check if details overview of first iteration can be given
     def test_details(self, pipe):
@@ -422,11 +496,11 @@ class Test_Pipeline_Gaussian3D(object):
 
     # Try to access all Pipeline properties
     def test_access_pipe_props(self, pipe):
-        check_instance(pipe, Pipeline)
+        e13.check_instance(pipe, Pipeline)
 
     # Try to access all Emulator properties
     def test_access_emul_props(self, pipe):
-        check_instance(pipe._emulator, Emulator)
+        e13.check_instance(pipe._emulator, Emulator)
 
     # Check if representation can be called
     def test_repr2(self, pipe):
@@ -435,6 +509,7 @@ class Test_Pipeline_Gaussian3D(object):
 
 
 # Pytest for standard Pipeline class for 3D model with a single data point
+@pytest.mark.incremental
 class Test_Pipeline_Gaussian3D_1_data(object):
     # Test a 3D Gaussian model
     @pytest.fixture(scope='class')
@@ -480,15 +555,14 @@ class Test_Pipeline_Gaussian3D_1_data(object):
 
     # Check if first iteration can be projected
     def test_project(self, pipe):
-        with switch_backend('Agg'):
-            pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
-                         fig_kwargs={'dpi': 10})
-            pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
-                         figure=False)
-            if pipe._is_controller:
-                os.remove(pipe._Projection__get_fig_path((1, 0, 1))[1])
-            pipe._comm.Barrier()
-            pipe.project(1, (0, 1), align='col', fig_kwargs={'dpi': 10})
+        pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
+                     fig_kwargs={'dpi': 10})
+        pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
+                     figure=False)
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0, 1))[1])
+        pipe._comm.Barrier()
+        pipe.project(1, (0, 1), align='col', fig_kwargs={'dpi': 10})
 
     # Check if details overview of first iteration can be given
     def test_details(self, pipe):
@@ -496,11 +570,11 @@ class Test_Pipeline_Gaussian3D_1_data(object):
 
     # Try to access all Pipeline properties
     def test_access_pipe_props(self, pipe):
-        check_instance(pipe, Pipeline)
+        e13.check_instance(pipe, Pipeline)
 
     # Try to access all Emulator properties
     def test_access_emul_props(self, pipe):
-        check_instance(pipe._emulator, Emulator)
+        e13.check_instance(pipe._emulator, Emulator)
 
     # Check if representation can be called
     def test_repr2(self, pipe):
@@ -509,6 +583,7 @@ class Test_Pipeline_Gaussian3D_1_data(object):
 
 
 # Pytest for standard Pipeline class handling extreme outliers in model
+@pytest.mark.incremental
 class Test_Pipeline_ExtremeLink(object):
     # Test an extreme outliers model
     @pytest.fixture(scope='class')
@@ -590,19 +665,19 @@ class Test_Pipeline_Init_Exceptions(object):
 
     # Create a Pipeline object using an invalid Emulator class
     def test_invalid_Emulator(self, root_working_dir, modellink_obj):
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             Pipeline(modellink_obj, **root_working_dir,
                      prism_par=prism_dict_def, emul_type=InvalidEmulator)
 
     # Create a Pipeline object using not an Emulator class
     def test_no_Emulator(self, root_working_dir, modellink_obj):
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             Pipeline(modellink_obj, **root_working_dir,
                      prism_par=prism_dict_def, emul_type=Pipeline)
 
     # Create a Pipeline object using an improper ModelLink object
     def test_improper_ModelLink(self, root_working_dir):
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             modellink_obj = ImproperModelLink()
             Pipeline(modellink_obj, **root_working_dir,
                      prism_par=prism_dict_def)
@@ -617,7 +692,7 @@ class Test_Pipeline_Init_Exceptions(object):
     # pot_active_par. Also include an invalid pot_active_par
     def test_invalid_pot_act_par(self, root_working_dir, modellink_obj):
         prism_dict = get_prism_dict({'pot_active_par': [0, 'A', 'C']})
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             Pipeline(modellink_obj, **root_working_dir, prism_par=prism_dict)
 
     # Create a Pipeline object using alternate values for criterion and
@@ -636,7 +711,7 @@ class Test_Pipeline_Init_Exceptions(object):
     # Create a Pipeline object using an invalid string for criterion
     def test_nnormal_criterion(self, root_working_dir, modellink_obj):
         prism_dict = get_prism_dict({'criterion': 'test'})
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             Pipeline(modellink_obj, **root_working_dir, prism_par=prism_dict)
 
     # Create a Pipeline object using an invalid value for pot_active_par (bool)
@@ -654,14 +729,14 @@ class Test_Pipeline_Init_Exceptions(object):
     # Create a Pipeline object using an invalid root dir
     def test_invalid_root_dir(self, tmpdir, modellink_obj):
         working_dir = path.basename(tmpdir.strpath)
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             Pipeline(modellink_obj, root_dir=1, working_dir=working_dir,
                      prism_par=prism_dict_def)
 
     # Create a Pipeline object using an invalid working dir
     def test_invalid_working_dir(self, tmpdir, modellink_obj):
         root_dir = path.dirname(tmpdir.strpath)
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             Pipeline(modellink_obj, root_dir=root_dir, working_dir=1.0,
                      prism_par=prism_dict_def)
 
@@ -701,7 +776,7 @@ class Test_Pipeline_Init_Exceptions(object):
         prism_dict = get_prism_dict({'impl_cut': []})
         pipe = Pipeline(modellink_obj, **root_working_dir,
                         prism_par=prism_dict)
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             pipe.construct()
 
     # Create a Pipeline object using an impl_cut list with only wildcards
@@ -734,7 +809,7 @@ class Test_Pipeline_Init_Exceptions(object):
         pipe = Pipeline(modellink_obj, **root_working_dir,
                         prism_par=prism_dict_def)
         pipe.construct(1, analyze=0)
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             modellink_obj =\
                 GaussianLink3D(model_parameters=model_parameters_3D,
                                model_data=model_data_single)
@@ -775,12 +850,12 @@ class Test_Pipeline_User_Exceptions(object):
 
     # Try using an ext_real_set list with three elements
     def test_three_element_ext_real_set(self, pipe):
-        with pytest.raises(ShapeError):
+        with pytest.raises(e13.ShapeError):
             pipe.construct(1, analyze=0, ext_real_set=[1, 1, 1])
 
     # Try using an invalid ext_real_set "list"
     def test_invalid_ext_real_set_list(self, pipe):
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             pipe.construct(1, analyze=0, ext_real_set=InvalidLen2List([1]))
 
     # Try using an ext_real_set dict with no sam_set
@@ -795,14 +870,14 @@ class Test_Pipeline_User_Exceptions(object):
 
     # Try using an invalid ext_real_set "dict"
     def test_invalid_ext_real_set_dict(self, pipe):
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             pipe.construct(1, analyze=0,
                            ext_real_set=InvalidDict({'sam_set': 1,
                                                      'mod_set': 1}))
 
     # Try using an invalid ext_real_set (tuple)
     def test_invalid_ext_real_set(self, pipe):
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             pipe.construct(1, analyze=0, ext_real_set=(1))
 
     # Try using an ext_real_set with ext_sam_set list
@@ -822,7 +897,7 @@ class Test_Pipeline_User_Exceptions(object):
 
     # Try using an ext_real_set with inconsistent n_sam
     def test_ext_real_set_n_sam(self, pipe):
-        with pytest.raises(ShapeError):
+        with pytest.raises(e13.ShapeError):
             pipe.construct(1, analyze=0, ext_real_set=[
                 dict(zip(pipe._modellink._par_name,
                          np.ones([1, pipe._modellink._n_par]).T)),
@@ -844,12 +919,12 @@ class Test_Pipeline_User_Exceptions(object):
 
     # Try evaluating an 3D sam_set
     def test_3D_evaluate(self, pipe):
-        with pytest.raises(ShapeError):
+        with pytest.raises(e13.ShapeError):
             pipe.evaluate([[[2.5, 2]]])
 
     # Try evaluating a sam_set with wrong number of parameters
     def test_invalid_evaluate(self, pipe):
-        with pytest.raises(ShapeError):
+        with pytest.raises(e13.ShapeError):
             pipe.evaluate([2.5, 2, 1])
 
     # Try to call project with incorrect proj_type parameter
@@ -871,13 +946,13 @@ class Test_Pipeline_User_Exceptions(object):
 
     # Try to call project with an invalid impl_kwargs dict
     def test_invalid_impl_kwargs_dict(self, pipe):
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             pipe.project(1, (0, 1), fig_kwargs={'nrows': 1},
                          impl_kwargs_3D={'cmap': 1})
 
     # Try to call project with an invalid los_kwargs dict
     def test_invalid_los_kwargs_dict(self, pipe):
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             pipe.project(1, (0, 1), impl_kwargs_2D={'x': 1},
                          impl_kwargs_3D={'x': 1}, los_kwargs_3D={'cmap': 1})
 
@@ -887,7 +962,7 @@ class Test_Pipeline_User_Exceptions(object):
             with h5py.File(pipe._hdf5_file, 'r+') as file:
                 file.create_group('test')
         pipe._comm.Barrier()
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             modellink_obj = GaussianLink2D()
             pipe._emulator._load_emulator(modellink_obj)
         if pipe._is_controller:
@@ -1212,7 +1287,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         # Emulation methods
         pipe2D._emulator._method = 'gaussian'
         pipe2D.details()
-        check_instance(pipe2D, Pipeline)
+        e13.check_instance(pipe2D, Pipeline)
         pipe2D._emulator._method = 'regression'
         pipe2D.details()
         pipe2D._emulator._method = 'full'
@@ -1246,11 +1321,177 @@ class Test_Pipeline_ModelLink_Versatility(object):
         pipe3D._modellink._data_spc = ['ln', 'ln', 'ln']
         pipe3D._emulator._create_new_emulator()
 
+    # Test if an ext_real_set can be provided from a backup file
+    @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
+    def test_ext_real_set_backup_args(self, tmpdir):
+        # Initialize ModelLink class
+        modellink_obj = BackupModelLinkArgs(
+            model_parameters=model_parameters_3D,
+            model_data=model_data_single)
+
+        # Create pipeline
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        pipe = Pipeline(modellink_obj, root_dir=root_dir,
+                        working_dir=working_dir, prism_par=prism_dict_def)
+
+        # Test on controller only
+        if not MPI.COMM_WORLD.Get_rank():
+            # Create backup file
+            sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
+                              'center')
+            sam_dict = sdict(zip(modellink_obj._par_name,
+                                 sam_set[0]))
+            mod_set = modellink_obj.call_model(
+                emul_i=1, par_set=sam_dict, data_idx=modellink_obj._data_idx)
+
+            # Read in the backup file to retrieve its filename
+            filename, _ = modellink_obj._read_backup(1)
+
+            # Try to use the backup file as the ext_real_set
+            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, '')
+            assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
+            assert np.allclose(ext_mod_set, np.array(mod_set).T)
+
+            # Try again using the suffix
+            suffix = filename.partition('%s(' % (modellink_obj._name))[2][:-6]
+            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, suffix)
+            assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
+            assert np.allclose(ext_mod_set, np.array(mod_set).T)
+
+    # Test if an ext_real_set can be provided from a backup file
+    @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
+    def test_ext_real_set_backup_kwargs(self, tmpdir):
+        # Initialize ModelLink class
+        modellink_obj = BackupModelLinkKwargs(
+            model_parameters=model_parameters_3D,
+            model_data=model_data_single)
+
+        # Create pipeline
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        pipe = Pipeline(modellink_obj, root_dir=root_dir,
+                        working_dir=working_dir, prism_par=prism_dict_def)
+
+        # Test on controller only
+        if not MPI.COMM_WORLD.Get_rank():
+            # Create backup file
+            sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
+                              'center')
+            sam_dict = sdict(zip(modellink_obj._par_name,
+                                 sam_set[0]))
+            mod_set = modellink_obj.call_model(
+                emul_i=1, par_set=sam_dict, data_idx=modellink_obj._data_idx)
+
+            # Read in the backup file to retrieve its filename
+            filename, _ = modellink_obj._read_backup(1)
+
+            # Try to use the backup file as the ext_real_set
+            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, '')
+            assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
+            assert np.allclose(ext_mod_set, np.array(mod_set).T)
+
+            # Try again using the suffix
+            suffix = filename.partition('%s(' % (modellink_obj._name))[2][:-6]
+            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, suffix)
+            assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
+            assert np.allclose(ext_mod_set, np.array(mod_set).T)
+
+    # Test if an ext_real_set can be provided from a backup file
+    @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
+    def test_ext_real_set_backup_dict(self, tmpdir):
+        # Initialize ModelLink class
+        modellink_obj = BackupModelLinkDict(
+            model_parameters=model_parameters_3D,
+            model_data=model_data_single)
+
+        # Create pipeline
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        pipe = Pipeline(modellink_obj, root_dir=root_dir,
+                        working_dir=working_dir, prism_par=prism_dict_def)
+
+        # Test on controller only
+        if not MPI.COMM_WORLD.Get_rank():
+            # Create backup file
+            sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
+                              'center')
+            sam_dict = sdict(zip(modellink_obj._par_name,
+                                 sam_set[0]))
+            mod_set = modellink_obj.call_model(
+                emul_i=1, par_set=sam_dict, data_idx=modellink_obj._data_idx)
+
+            # Read in the backup file to retrieve its filename
+            filename, _ = modellink_obj._read_backup(1)
+
+            # Try to use the backup file as the ext_real_set
+            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, '')
+            assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
+            assert np.allclose(ext_mod_set, np.array(mod_set).T)
+
+            # Try again using the suffix
+            suffix = filename.partition('%s(' % (modellink_obj._name))[2][:-6]
+            ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, suffix)
+            assert np.allclose(ext_sam_set, np.array(sam_dict.values()).T)
+            assert np.allclose(ext_mod_set, np.array(mod_set).T)
+
+    # Test if an ext_real_set can be provided from a backup file
+    @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
+    def test_ext_real_set_backup_key(self, tmpdir):
+        # Initialize ModelLink class
+        modellink_obj = BackupModelLinkInvalid(
+            model_parameters=model_parameters_3D,
+            model_data=model_data_single)
+
+        # Create pipeline
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        pipe = Pipeline(modellink_obj, root_dir=root_dir,
+                        working_dir=working_dir, prism_par=prism_dict_def)
+
+        # Test on controller only
+        if not MPI.COMM_WORLD.Get_rank():
+            # Create backup file
+            sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
+                              'center')
+            sam_dict = sdict(zip(modellink_obj._par_name,
+                                 sam_set[0]))
+            modellink_obj.call_model(emul_i=1, par_set=sam_dict,
+                                     data_idx=modellink_obj._data_idx)
+
+            # Read in the backup file to retrieve its filename
+            filename, _ = modellink_obj._read_backup(1)
+
+            # Try to use the backup file as the ext_real_set
+            with pytest.raises(KeyError):
+                ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, '')
+
+    # Test if an ext_real_set can be provided from a backup file
+    @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
+    def test_ext_real_set_backup_invalid(self, tmpdir):
+        # Initialize ModelLink class
+        modellink_obj = BackupModelLinkArgs(
+            model_parameters=model_parameters_3D,
+            model_data=model_data_single)
+
+        # Create pipeline
+        root_dir = path.dirname(tmpdir.strpath)
+        working_dir = path.basename(tmpdir.strpath)
+        pipe = Pipeline(modellink_obj, root_dir=root_dir,
+                        working_dir=working_dir, prism_par=prism_dict_def)
+
+        # Test on controller only
+        if not MPI.COMM_WORLD.Get_rank():
+            # Try to use the backup file as the ext_real_set
+            with pytest.raises(e13.InputError):
+                ext_sam_set, ext_mod_set = pipe._get_ext_real_set(1, 'test')
+
     # Test if an ext_real_set bigger than n_sam_init can be provided
     def test_ext_real_set_large(self, pipe2D):
         # Create ext_real_set larger than n_sam_init
-        sam_set = lhd(pipe2D._n_sam_init*2, pipe2D._modellink._n_par,
-                      pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
+        sam_set = e13.lhd(pipe2D._n_sam_init*2, pipe2D._modellink._n_par,
+                          pipe2D._modellink._par_rng, 'center',
+                          pipe2D._criterion)
         sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
         mod_dict = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
@@ -1261,8 +1502,9 @@ class Test_Pipeline_ModelLink_Versatility(object):
     # Test if an ext_real_set smaller than n_sam_init can be provided
     def test_ext_real_set_small(self, pipe2D):
         # Create ext_real_set smaller than n_sam_init
-        sam_set = lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
-                      pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
+        sam_set = e13.lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
+                          pipe2D._modellink._par_rng, 'center',
+                          pipe2D._criterion)
         sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
         mod_dict = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
@@ -1273,8 +1515,9 @@ class Test_Pipeline_ModelLink_Versatility(object):
     # Test if an ext_real_set dict can be provided
     def test_ext_real_set_dict(self, pipe2D):
         # Create ext_real_set dict
-        sam_set = lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
-                      pipe2D._modellink._par_rng, 'center', pipe2D._criterion)
+        sam_set = e13.lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
+                          pipe2D._modellink._par_rng, 'center',
+                          pipe2D._criterion)
         sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
         mod_dict = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))

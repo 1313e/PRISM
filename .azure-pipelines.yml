@@ -28,41 +28,51 @@ schedules:
 strategy:
   matrix:
     linux-python35:
-      imageName: 'ubuntu-16.04'
+      imageName: 'ubuntu-latest'
       python.version: '3.5'
     linux-python36:
-      imageName: 'ubuntu-16.04'
+      imageName: 'ubuntu-latest'
       python.version: '3.6'
     linux-python37:
-      imageName: 'ubuntu-16.04'
+      imageName: 'ubuntu-latest'
       python.version: '3.7'
+    linux-python38:
+      imageName: 'ubuntu-latest'
+      python.version: '3.8'
       upload_coverage: true
-    mac-python37:
-      imageName: 'macos-10.13'
-      python.version: '3.7'
+    mac-python38:
+      imageName: 'macOS-latest'
+      python.version: '3.8'
       upload_coverage: true
     windows-x86-python35:
-      imageName: 'windows-2019'
+      imageName: 'windows-latest'
       python.version: '3.5'
       python.arch: 'x86'
     windows-x86-python36:
-      imageName: 'windows-2019'
+      imageName: 'windows-latest'
       python.version: '3.6'
       python.arch: 'x86'
     windows-x86-python37:
-      imageName: 'windows-2019'
+      imageName: 'windows-latest'
       python.version: '3.7'
+      python.arch: 'x86'
+    windows-x86-python38:
+      imageName: 'windows-latest'
+      python.version: '3.8'
       python.arch: 'x86'
       upload_coverage: true
     windows-x64-python35:
-      imageName: 'windows-2019'
+      imageName: 'windows-latest'
       python.version: '3.5'
     windows-x64-python36:
-      imageName: 'windows-2019'
+      imageName: 'windows-latest'
       python.version: '3.6'
     windows-x64-python37:
-      imageName: 'windows-2019'
+      imageName: 'windows-latest'
       python.version: '3.7'
+    windows-x64-python38:
+      imageName: 'windows-latest'
+      python.version: '3.8'
       upload_coverage: true
       deploy: true
   maxParallel: 10
@@ -86,8 +96,14 @@ steps:
   displayName: Install missing libraries required for Qt on Linux
 
 # Install dependencies and PRISM
-- script: |
+- bash: |
     python -m pip install --upgrade pip setuptools wheel
+    if [[ $BUILD_SOURCEBRANCH == refs/heads/* ]] && [[ $BUILD_SOURCEBRANCH != "refs/heads/master" ]]; then
+      git clone -b dev https://github.com/1313e/e13Tools ../e13Tools
+      cd ../e13Tools
+      pip install .
+      cd -
+    fi
     pip install -r requirements_dev.txt
   displayName: Install testing dependencies
 

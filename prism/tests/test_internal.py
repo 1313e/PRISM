@@ -8,7 +8,7 @@ from sys import platform
 import warnings
 
 # Package imports
-from e13tools.core import InputError, compare_versions
+import e13tools as e13
 import numpy as np
 import pytest
 
@@ -23,7 +23,7 @@ from prism._internal import (
 # %% GLOBALS
 DIR_PATH = path.dirname(__file__)                     # Path to file directory
 WIN32 = platform.startswith('win')                    # Bool if this is Windows
-NP1_16 = compare_versions(np.__version__, '1.16.0')   # NumPy 1.16.0+?
+NP1_16 = e13.compare_versions(np.__version__, '1.16.0')   # NumPy 1.16.0+?
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
@@ -202,13 +202,13 @@ class Test_check_val(object):
         assert array2.dtype.name == 'str32'
 
         # Check if providing an empty list raises an error
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             check_vals([], 'list', 'float')
 
         # Check if providing a dict or sequenced list raises an error
-        with pytest.raises(InputError):
+        with pytest.raises(e13.InputError):
             check_vals({}, 'dict', 'float')
-        with pytest.raises(TypeError if NP1_16 else InputError):
+        with pytest.raises(TypeError if NP1_16 else e13.InputError):
             check_vals([1, [2]], 'seq_list', 'float')
         with pytest.raises(TypeError):
             check_vals([[1, 2], [3, 4, 5]], 'seq_list', 'float')

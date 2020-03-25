@@ -15,9 +15,7 @@ from inspect import isfunction
 import warnings
 
 # Package imports
-from e13tools import InputError
-from e13tools.sampling import lhd
-from e13tools.utils import docstring_substitute
+import e13tools as e13
 import numpy as np
 from numpy.random import multivariate_normal
 from sortedcontainers import SortedDict as sdict
@@ -34,7 +32,7 @@ __all__ = ['get_hybrid_lnpost_fn', 'get_walkers']
 
 # %% FUNCTION DEFINITIONS
 # This function returns a hybrid version of the lnpost function
-@docstring_substitute(emul_i=user_emul_i_doc)
+@e13.docstring_substitute(emul_i=user_emul_i_doc)
 def get_hybrid_lnpost_fn(lnpost_fn, pipeline_obj, *, emul_i=None,
                          unit_space=False, impl_prior=True, par_dict=False):
     """
@@ -104,8 +102,8 @@ def get_hybrid_lnpost_fn(lnpost_fn, pipeline_obj, *, emul_i=None,
 
     # Check if lnpost_fn is a function
     if not isfunction(lnpost_fn):
-        raise InputError("Input argument 'lnpost_fn' is not a callable "
-                         "function definition!")
+        raise e13.InputError("Input argument 'lnpost_fn' is not a callable "
+                             "function definition!")
 
     # Make abbreviation for pipeline_obj
     pipe = pipeline_obj
@@ -117,8 +115,8 @@ def get_hybrid_lnpost_fn(lnpost_fn, pipeline_obj, *, emul_i=None,
 
     # Check if the provided pipeline_obj uses a default emulator
     if(pipe._emulator._emul_type != 'default'):
-        raise InputError("Input argument 'pipeline_obj' does not use a default"
-                         " emulator!")
+        raise e13.InputError("Input argument 'pipeline_obj' does not use a "
+                             "default emulator!")
 
     # Get emulator iteration
     emul_i = pipe._emulator._get_emul_i(emul_i)
@@ -210,7 +208,7 @@ def get_hybrid_lnpost_fn(lnpost_fn, pipeline_obj, *, emul_i=None,
 
 
 # This function returns a set of valid MCMC walkers
-@docstring_substitute(emul_i=user_emul_i_doc)
+@e13.docstring_substitute(emul_i=user_emul_i_doc)
 def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
                 req_n_walkers=None, unit_space=False, lnpost_fn=None,
                 **kwargs):
@@ -306,8 +304,8 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
 
     # Check if the provided pipeline_obj uses a default emulator
     if(pipe._emulator._emul_type != 'default'):
-        raise InputError("Input argument 'pipeline_obj' does not use a default"
-                         " emulator!")
+        raise e13.InputError("Input argument 'pipeline_obj' does not use a "
+                             "default emulator!")
 
     # Get emulator iteration
     emul_i = pipe._emulator._get_emul_i(emul_i)
@@ -329,8 +327,8 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
             hybrid_lnpost =\
                 get_hybrid_lnpost_fn(lnpost_fn, pipe, emul_i=emul_i,
                                      unit_space=unit_space, **kwargs)
-        except InputError:
-            raise InputError("Input argument 'lnpost_fn' is invalid!")
+        except e13.InputError:
+            raise e13.InputError("Input argument 'lnpost_fn' is invalid!")
 
     # If init_walkers is None, use impl_sam of emul_i
     if init_walkers is None:
@@ -363,9 +361,9 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
                 n_sam = check_vals(init_walkers, 'init_walkers', 'pos')
 
                 # Create LHD of provided size
-                init_walkers = lhd(n_sam, pipe._modellink._n_par,
-                                   pipe._modellink._par_rng, 'center',
-                                   pipe._criterion, 100)
+                init_walkers = e13.lhd(n_sam, pipe._modellink._n_par,
+                                       pipe._modellink._par_rng, 'center',
+                                       pipe._criterion, 100)
 
             # If init_walkers is not an int, it must be array_like or dict
             else:
@@ -399,8 +397,8 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
 
     # Check if init_walkers is not empty and raise error if it is
     if not p0_walkers.shape[0]:
-        raise InputError("Input argument 'init_walkers' contains no plausible "
-                         "samples!")
+        raise e13.InputError("Input argument 'init_walkers' contains no "
+                             "plausible samples!")
 
     # If req_n_walkers is not None, use MH MCMC to find all required walkers
     if req_n_walkers is not None:

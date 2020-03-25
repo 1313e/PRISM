@@ -42,6 +42,8 @@ An iteration data group (``'i'``) contains:
     - ``'emul_n'``: The data group that contains all data for a specific emulator system in this iteration.
       The value of ``'n'`` indicates which emulator system it is, not the data point.
       See below for its contents;
+    - ``'emul_space'``: The boundaries of the hypercube that encloses the parameter space in which this iteration is defined.
+      This is always equal to the plausible space of the previous iteration;
     - ``'impl_sam'``: The set of emulator evaluation samples that survived the implausibility checks and will be used to construct the next iteration;
     - ``'proj_hcube'``: The data group that contains all data for the (created) projections for this iteration, if at least one has been made. See below for its contents;
     - ``'sam_set'``: The set of model realization samples that were used to construct this iteration.
@@ -56,11 +58,12 @@ An iteration data group (``'i'``) contains:
 ----
 
 An emulator system data group (``'i/emul_n'``) contains:
-    - Attributes (5+): List the details about the model comparison data point used in this emulator system, including:
+    - Attributes (7+): List the details about the model comparison data point used in this emulator system, including:
 
         - Active parameters for this emulator system;
         - Data errors, identifiers, value space and value;
-        - Regression score and residual variance if regression was used.
+        - Regression score and residual variance if regression was used;
+        - The active and passive contributions to the residual variance (obtained from either the regression residual variance or the Gaussian sigma).
 
     - ``'cov_mat'``: The pre-calculated covariance matrix of all model evaluation samples in this emulator system.
       This data set is never used in *PRISM* and stored solely for user-convenience;
@@ -84,4 +87,5 @@ A projections data group (``'i/proj_hcube'``) contains individual projection dat
         - Projection depth and resolution.
 
     - ``'impl_los'``: The calculated line-of-sight depth for all grid points in this projection;
-    - ``'impl_min'``: The calculated minimum implausibility values for all grid points in this projection.
+    - ``'impl_min'``: The calculated minimum implausibility values for all grid points in this projection;
+    - ``'proj_space'``: The boundaries of the hypercube that encloses the defined parameter space of this projection.

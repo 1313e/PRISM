@@ -13,7 +13,7 @@ The window used for the kwargs dicts is defined in
 
 # %% IMPORTS
 # Package imports
-from e13tools.utils import docstring_substitute
+import e13tools as e13
 from qtpy import QtCore as QC, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict
 
@@ -45,7 +45,7 @@ class OptionsDialog(QW.QDialog):
     resetting = QC.Signal()
     discarding = QC.Signal()
 
-    @docstring_substitute(optional=kwargs_doc.format(
+    @e13.docstring_substitute(optional=kwargs_doc.format(
         'PyQt5.QtWidgets.QDialog'))
     def __init__(self, main_window_obj, *args, **kwargs):
         """
@@ -307,7 +307,7 @@ class OptionsDialog(QW.QDialog):
 
         return(self.create_group("Projection keywords",
                                  ['align', 'show_cuts', 'smooth',
-                                  'kwargs_dicts']))
+                                  'use_par_space', 'kwargs_dicts']))
 
     # INTERFACE GROUP
     def create_group_interface(self):
@@ -583,6 +583,25 @@ class OptionsDialog(QW.QDialog):
         # Return smooth box
         return('Smooth?', smooth_box)
 
+    # USE_PAR_SPACE OPTION
+    def create_option_use_par_space(self):
+        """
+        Creates the 'use_par_space' option and returns it.
+
+        This option sets the value of the 'use_par_space' projection parameter.
+
+        """
+
+        # Make check box for use_par_space
+        use_par_space_box = QW.QCheckBox()
+        use_par_space_box.setToolTip("Enable/disable using the model parameter"
+                                     " space as the axes limits.")
+        self.create_entry('use_par_space', use_par_space_box,
+                          self.proj_defaults['use_par_space'])
+
+        # Return use_par_space box
+        return('Use parameter space?', use_par_space_box)
+
     # KWARGS_DICTS OPTION
     def create_option_kwargs_dicts(self):
         """
@@ -602,46 +621,61 @@ class OptionsDialog(QW.QDialog):
 
         # Add all kwargs_dicts to it
         # FIG_KWARGS
+        tooltip = ("Keyword arguments used when creating the subplots figure "
+                   "(<i>plt.figure</i> kwargs)")
         kwargs_dict_box.add_dict(
-            "Figure", 'fig_kwargs',
+            "Figure", 'fig_kwargs', tooltip,
             std_entries=['dpi', 'figsize'],
             banned_entries=self.get_proj_attr('pop_fig_kwargs'))
 
         # IMPL_KWARGS_2D
+        tooltip = ("Keyword arguments used for making the 2D minimum "
+                   "implausibility plot (<i>plt.plot</i> kwargs)")
         kwargs_dict_box.add_dict(
-            "2D implausibility", 'impl_kwargs_2D',
+            "2D implausibility", 'impl_kwargs_2D', tooltip,
             std_entries=['linestyle', 'linewidth', 'marker', 'markersize',
                          'color', 'alpha'],
             banned_entries=[*self.get_proj_attr('pop_plt_kwargs'), 'cmap'])
 
         # IMPL_KWARGS_3D
+        tooltip = ("Keyword arguments used for making the 3D minimum "
+                   "implausibility plot (<i>plt.hexbin</i> kwargs)")
         kwargs_dict_box.add_dict(
-            "3D implausibility", 'impl_kwargs_3D',
+            "3D implausibility", 'impl_kwargs_3D', tooltip,
             std_entries=['cmap', 'alpha', 'xscale', 'yscale'],
             banned_entries=self.get_proj_attr('pop_plt_kwargs'))
 
         # LOS_KWARGS_2D
+        tooltip = ("Keyword arguments used for making the 2D line-of-sight "
+                   "plot (<i>plt.plot</i> kwargs)")
         kwargs_dict_box.add_dict(
-            "2D line-of-sight", 'los_kwargs_2D',
+            "2D line-of-sight", 'los_kwargs_2D', tooltip,
             std_entries=['linestyle', 'linewidth', 'marker', 'markersize',
                          'color', 'alpha'],
             banned_entries=[*self.get_proj_attr('pop_plt_kwargs'), 'cmap'])
 
         # LOS_KWARGS_3D
+        tooltip = ("Keyword arguments used for making the 3D line-of-sight "
+                   "plot (<i>plt.hexbin</i> kwargs)")
         kwargs_dict_box.add_dict(
-            "3D line-of-sight", 'los_kwargs_3D',
+            "3D line-of-sight", 'los_kwargs_3D', tooltip,
             std_entries=['cmap', 'alpha', 'xscale', 'yscale'],
             banned_entries=self.get_proj_attr('pop_plt_kwargs'))
 
         # LINE_KWARGS_EST
+        tooltip = ("Keyword arguments used for drawing the parameter estimate "
+                   "lines (<i>plt.plot</i> kwargs)")
         kwargs_dict_box.add_dict(
-            "Estimate lines", 'line_kwargs_est',
+            "Estimate lines", 'line_kwargs_est', tooltip,
             std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
             banned_entries=[])
 
         # LINE_KWARGS_CUT
+        tooltip = ("Keyword arguments used for drawing the implausibility "
+                   "cut-off line(s) in 2D projections (<i>plt.plot</i> kwargs)"
+                   )
         kwargs_dict_box.add_dict(
-            "Cut-off lines", 'line_kwargs_cut',
+            "Cut-off lines", 'line_kwargs_cut', tooltip,
             std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
             banned_entries=[])
 
@@ -682,7 +716,7 @@ class OptionsDialog(QW.QDialog):
 
     # This function saves the new options values
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def save_options(self):
         """
         Saves all current values of all option entries.
@@ -739,7 +773,7 @@ class OptionsDialog(QW.QDialog):
 
     # This function resets the options to default
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def reset_options(self):
         """
         Resets the saved and current values of all option entries back to their
@@ -757,7 +791,7 @@ class OptionsDialog(QW.QDialog):
 
     # This function discards all changes to the options
     @QC.Slot()
-    @docstring_substitute(qt_slot=qt_slot_doc)
+    @e13.docstring_substitute(qt_slot=qt_slot_doc)
     def discard_options(self):
         """
         Discards the current values of all option entries and sets them back to

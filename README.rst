@@ -190,8 +190,8 @@ Huge thanks to James Josephides for making the *PRISM* logo.
 .. |Azure| image:: https://img.shields.io/azure-devops/build/1313e/2f7c67c7-61eb-4e70-9ff3-7f54f8e39987/1?logo=azure-pipelines&logoColor=white&label=Azure
     :target: https://dev.azure.com/1313e/PRISM/_build/latest?definitionId=1
     :alt: Azure Pipelines - Build Status
-.. |ReadTheDocs| image:: https://img.shields.io/readthedocs/e13tools/latest.svg?logo=read%20the%20docs&logoColor=white&label=Docs
-    :target: https://e13tools.readthedocs.io/en/latest
+.. |ReadTheDocs| image:: https://img.shields.io/readthedocs/prism-tool/latest.svg?logo=read%20the%20docs&logoColor=white&label=Docs
+    :target: https://prism-tool.readthedocs.io/en/latest
     :alt: ReadTheDocs - Build Status
 .. |Coverage| image:: https://img.shields.io/codecov/c/github/1313e/PRISM/master.svg?logo=codecov&logoColor=white&label=Coverage
     :target: https://codecov.io/gh/1313e/PRISM/branches/master

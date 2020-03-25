@@ -53,8 +53,7 @@ setup(name='prism',
           'Documentation': ("https://prism-tool.readthedocs.io/en/v%s"
                             % (version)),
           'Method Paper': "https://arxiv.org/abs/1901.08725",
-          'Source Code': "https://github.com/1313e/PRISM/tree/v%s" % (version),
-          'Travis CI': "https://travis-ci.com/1313e/PRISM"
+          'Source Code': "https://github.com/1313e/PRISM/tree/v%s" % (version)
           },
       license='BSD-3',
       platforms=['Windows', 'Mac OS-X', 'Linux', 'Unix'],
@@ -72,6 +71,7 @@ setup(name='prism',
           'Programming Language :: Python :: 3.5',
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: 3.8',
           'Topic :: Scientific/Engineering',
           'Topic :: Software Development'
           ],

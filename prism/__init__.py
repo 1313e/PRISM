@@ -24,8 +24,7 @@ the *PRISM* pipeline and holds all information about this model.
 
 # %% IMPORTS
 # Package imports
-from e13tools import compare_versions as _compare_versions
-from e13tools.utils import aux_char_set
+from e13tools import aux_char_set, compare_versions as _compare_versions
 from mpi4pyd import MPI as _MPI
 
 # PRISM imports
