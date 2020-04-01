@@ -25,27 +25,27 @@ Citation
 This BibTeX-entry is also available in *PRISM* using :func:`~prism._internal.get_bibtex` (available as :pycode:`prism.get_bibtex()`).
 
 .. code-block:: none
-    
+
     @ARTICLE{2019ApJS..242...22V,
-       author = {{van der Velden}, Ellert and {Duffy}, Alan R. and {Croton}, Darren and
-         {Mutch}, Simon J. and {Sinha}, Manodeep},
-        title = "{Model Dispersion with PRISM: An Alternative to MCMC for Rapid Analysis of Models}",
-      journal = {\apjs},
-     keywords = {methods: data analysis, methods: numerical,
-        Astrophysics - Instrumentation and Methods for Astrophysics, Physics - Computational Physics},
-         year = 2019,
-        month = jun,
-       volume = {242},
-       number = {2},
-          eid = {22},
-        pages = {22},
-          doi = {10.3847/1538-4365/ab1f7d},
-archivePrefix = {arXiv},
-       eprint = {1901.08725},
- primaryClass = {astro-ph.IM},
-       adsurl = {https://ui.adsabs.harvard.edu/abs/2019ApJS..242...22V},
-      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
-}
+           author = {{van der Velden}, Ellert and {Duffy}, Alan R. and {Croton}, Darren and
+             {Mutch}, Simon J. and {Sinha}, Manodeep},
+            title = "{Model Dispersion with PRISM: An Alternative to MCMC for Rapid Analysis of Models}",
+          journal = {\apjs},
+         keywords = {methods: data analysis, methods: numerical,
+             Astrophysics - Instrumentation and Methods for Astrophysics, Physics - Computational Physics},
+             year = 2019,
+            month = jun,
+           volume = {242},
+           number = {2},
+              eid = {22},
+            pages = {22},
+              doi = {10.3847/1538-4365/ab1f7d},
+    archivePrefix = {arXiv},
+           eprint = {1901.08725},
+     primaryClass = {astro-ph.IM},
+           adsurl = {https://ui.adsabs.harvard.edu/abs/2019ApJS..242...22V},
+          adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+    }
 
 
 Additions
