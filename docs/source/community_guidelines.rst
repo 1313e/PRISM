@@ -13,6 +13,10 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 .. _GitHub issue: https://github.com/1313e/PRISM/issues
 .. _Gitter: https://gitter.im/1313e/PRISM
 
+.. role:: pycode(code)
+    :language: python3
+    :class: highlight
+
 
 License
 -------
