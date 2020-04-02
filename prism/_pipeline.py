@@ -625,8 +625,8 @@ class Pipeline(Projection, object):
             logger.info("Checking compatibility of provided implausibility "
                         "cut-off values.")
 
-            # Check if analyze() is calling this setter
-            caller_frame = e13.get_outer_frame(self.analyze)
+            # Check if _set_impl_par is calling this setter
+            caller_frame = e13.get_outer_frame(self._set_impl_par)
 
             # Check if the last iteration has already been analyzed
             try:
