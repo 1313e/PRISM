@@ -1750,10 +1750,13 @@ class Emulator(object):
             active_sam_set = self._sam_set[emul_i][
                 :, self._active_par_data[emul_i][emul_s]]
 
+            # Extract mod_set
+            mod_set = self._mod_set[emul_i][emul_s]
+
             # Wrap in try-statement to add additional info if error is raised
             try:
                 # Perform regression for this emulator system
-                pipe.fit(active_sam_set, self._mod_set[emul_i][emul_s])
+                pipe.fit(active_sam_set, mod_set)
             except Exception as error:      # pragma: no cover
                 # If an error is raised, add which emulator system that was
                 e13.raise_error(
@@ -1768,12 +1771,12 @@ class Emulator(object):
                 active_sam_set)[:, poly_idx]
 
             # Extract the residual variance
-            rsdl_var = mse(self._mod_set[emul_i][emul_s],
+            rsdl_var = mse(mod_set,
                            pipe.named_steps['linear'].predict(sam_set_poly))
 
             # Log the score of the regression process
-            regr_score = pipe.named_steps['linear'].score(
-                sam_set_poly, self._mod_set[emul_i][emul_s])
+            regr_score = pipe.named_steps['linear'].score(sam_set_poly,
+                                                          mod_set)
             logger.info("Regression score for emulator system %i: %f."
                         % (self._emul_s[emul_s], regr_score))
 
@@ -1786,7 +1789,9 @@ class Emulator(object):
                                   pipe.named_steps['linear'].intercept_, 0)
 
             # Check every polynomial coefficient if it is significant enough
-            poly_sign = ~np.isclose(poly_coef, 0)
+            max_sam_set_poly = np.insert(np.max(sam_set_poly, axis=0), 0, 1)
+            poly_sign = ~np.isclose(max_sam_set_poly*poly_coef/np.min(mod_set),
+                                    0)
 
             # Only include significant polynomial terms unless none of the
             # non-intercept terms are significant
