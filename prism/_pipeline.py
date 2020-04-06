@@ -2421,12 +2421,6 @@ class Pipeline(Projection, object):
             if impl_cut is not None:
                 self._set_impl_par(impl_cut)
 
-            # Save impl_par to hdf5
-            self._save_data({
-                'impl_par': {
-                    'impl_cut': self._impl_cut[emul_i],
-                    'cut_idx': self._cut_idx[emul_i]}})
-
             # Create an emulator evaluation sample set
             eval_sam_set = self._get_eval_sam_set(emul_i)
             n_eval_sam = eval_sam_set.shape[0]
@@ -2483,8 +2477,11 @@ class Pipeline(Projection, object):
                             % (n_impl_sam, self._emulator._n_sam[1]))
                 e13.raise_warning(warn_msg, RequestWarning, logger, 2)
 
-            # Save the results
+            # Save used impl_par and results
             self._save_data({
+                'impl_par': {
+                    'impl_cut': self._impl_cut[emul_i],
+                    'cut_idx': self._cut_idx[emul_i]},
                 'impl_sam': impl_sam,
                 'n_eval_sam': n_eval_sam})
 
