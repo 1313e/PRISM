@@ -3363,7 +3363,7 @@ class WorkerMode(object):
     # This function exits/disables the worker mode
     def __exit__(self, etype, value, tb):
         """
-        The provided :obj:`~prism.Pipeline` objects exits worker mode, making
+        The provided :obj:`~prism.Pipeline` object exits worker mode, making
         all worker ranks stop listening for calls from the controller rank and
         resume normal code execution.
 
@@ -3423,9 +3423,9 @@ class WorkerMode(object):
             # Then the controller sends received exec_fn to all workers
             if pipe._is_controller:
                 pipe._comm.bcast([exec_fn, args, kwargs], 0)
-            # Make sure workers never call anything directly in worker mode
+            # Make sure workers receive the call in worker mode
             else:
-                return
+                exec_fn, args, kwargs = pipe._comm.bcast([], 0)
 
         # Execute exec_fn on all callers as well
         return(WorkerMode._process_call(pipe, exec_fn, args, kwargs))
@@ -3442,9 +3442,9 @@ class WorkerMode(object):
             # Then the controller sends received exec_fn to all workers
             if pipe._is_controller:
                 pipe._comm.bcast([exec_fn, args, kwargs], 0)
-            # Make sure workers never call anything directly in worker mode
+            # Make sure workers receive the call in worker mode
             else:
-                return
+                exec_fn, args, kwargs = pipe._comm.bcast([], 0)
 
         # Execute exec_fn on all workers
         if pipe._is_worker:

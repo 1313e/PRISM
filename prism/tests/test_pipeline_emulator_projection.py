@@ -62,6 +62,25 @@ def raise_worker_mode_error(pipe):
     pipe._comm.bcast(None, 0)
 
 
+# Define function that returns True
+def returnTrue():
+    return(True)
+
+
+# Define function that makes a call
+def make_call(pipe):
+    assert pipe._make_call(returnTrue)
+
+
+# Define function that makes a workers call
+def make_call_workers(pipe):
+    out = pipe._make_call_workers(returnTrue)
+    if pipe._is_controller:
+        assert out is None
+    else:
+        assert out
+
+
 # Set the random seed of NumPy for this test module
 @pytest.fixture(scope='class', autouse=True)
 def set_numpy_random_seed():
@@ -383,6 +402,7 @@ class Test_Pipeline_Gaussian2D(object):
                 ranks = pipe._make_call('_make_call', 'pipe._comm.gather',
                                         'pipe._comm.rank', 0)
                 assert ranks == exp_ranks
+                pipe._make_call(make_call, 'pipe')
 
     # Test if initializing another worker mode works in worker mode
     def test_worker_mode_double(self, pipe):
@@ -402,7 +422,7 @@ class Test_Pipeline_Gaussian2D(object):
     def test_worker_mode_make_call_workers(self, pipe):
         with pipe.worker_mode:
             if pipe._is_controller:
-                pipe._make_call('_make_call_workers', print, 'pipe._comm.rank')
+                pipe._make_call(make_call_workers, 'pipe')
 
     # Test if make_call can be called outside worker mode
     def test_make_call(self, pipe):
@@ -410,12 +430,14 @@ class Test_Pipeline_Gaussian2D(object):
         assert pipe._make_call('_emulator._get_emul_i', 1, 0) == 1
         assert pipe._make_call('_evaluate_sam_set', 1, np.array([[2.5, 2]]),
                                ("", "", "", "", "")) is None
+        make_call(pipe)
 
     # Test if make_call_workers can be called outside worker mode
     def test_make_call_workers(self, pipe):
         rank = pipe._make_call_workers('_comm.__getattribute__', 'rank')
         if pipe._is_worker:
             assert (rank == pipe._comm.rank)
+        make_call_workers(pipe)
 
     # Test if raising an error in worker mode disables it properly
     def test_worker_mode_error(self, pipe):
