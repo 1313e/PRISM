@@ -115,7 +115,7 @@ For this, we need to define an `lnpost()` function, for which we will use a simp
         data_var = [err[0]**2 for err in pipe.modellink.data_err]
 
         # Calculate the posterior probability and return it
-        sigma_2 = md_var+data_var
+        sigma2 = md_var+data_var
         diff = pipe.modellink.data_val-mod_out
         return(-0.5*(np.sum(diff**2/sigma2)))
 
