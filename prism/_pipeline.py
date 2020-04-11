@@ -2140,25 +2140,24 @@ class Pipeline(Projection, object):
         pre_code = compile(dedent("""
             adj_exp_val = [[] for _ in range(n_sam)]
             adj_var_val = [[] for _ in range(n_sam)]
-            uni_impl_val_list = [[] for _ in range(n_sam)]
+            uni_impl_val = [[] for _ in range(n_sam)]
             emul_i_stop = np.zeros([n_sam], dtype=int)
             """), '<string>', 'exec')
         eval_code = compile(dedent("""
             adj_exp_val[sam_idx[j]] = adj_val[0]
             adj_var_val[sam_idx[j]] = adj_val[1]
-            uni_impl_val_list[sam_idx[j]] = uni_impl_vals[j]
+            uni_impl_val[sam_idx[j]] = uni_impl_vals[j]
             """), '<string>', 'exec')
         anal_code = compile("emul_i_stop[sam_idx] = i", '<string>', 'exec')
         post_code = compile(dedent("""
             adj_exp_val = self._comm.gather(np_array(adj_exp_val), 0)
             adj_var_val = self._comm.gather(np_array(adj_var_val), 0)
-            uni_impl_val_list = self._comm.gather(np_array(uni_impl_val_list),
-                                                  0)
+            uni_impl_val = self._comm.gather(np_array(uni_impl_val), 0)
             """), '<string>', 'exec')
         exit_code = compile(dedent("""
             adj_exp_val = np.concatenate(adj_exp_val, axis=1)
             adj_var_val = np.concatenate(adj_var_val, axis=1)
-            uni_impl_val = np.concatenate(uni_impl_val_list, axis=1)
+            uni_impl_val = np.concatenate(uni_impl_val, axis=1)
             results = (adj_exp_val, adj_var_val, uni_impl_val, emul_i_stop,
                        impl_check)
             """), '<string>', 'exec')
@@ -2327,17 +2326,16 @@ class Pipeline(Projection, object):
                     exec(eval_code)
 
                 # Gather the results on the controller after evaluating
-                uni_impl_vals_list = self._comm.gather(uni_impl_vals, 0)
+                uni_impl_vals = self._comm.gather(uni_impl_vals, 0)
 
                 # Controller performs implausibility analysis
                 if self._is_controller:
                     # Convert uni_impl_vals_list to an array
-                    uni_impl_vals_array =\
-                        np.concatenate(uni_impl_vals_list, axis=1)
+                    uni_impl_vals = np.concatenate(uni_impl_vals, axis=1)
 
                     # Perform implausibility cutoff check on all elements
                     impl_check_vals, impl_cut_vals =\
-                        self._do_impl_check(i, uni_impl_vals_array)
+                        self._do_impl_check(i, uni_impl_vals)
 
                     # Modify impl_check with obtained impl_check_val
                     impl_check[sam_idx] = impl_check_vals
