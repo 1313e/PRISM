@@ -1718,45 +1718,63 @@ class Pipeline(Projection, object):
             else:
                 return(self._modellink._get_sam_space(self._impl_sam))
 
-    # This function performs an implausibility cut-off check on a given sample
+    # This function performs an implausibility cut-off check on given samples
     # TODO: Implement dynamic impl_cut
     @e13.docstring_substitute(emul_i=std_emul_i_doc)
-    def _do_impl_check(self, emul_i, uni_impl_val):
+    def _do_impl_check(self, emul_i, uni_impl_vals):
         """
         Performs an implausibility cut-off check on the provided implausibility
-        values `uni_impl_val` at emulator iteration `emul_i`.
+        values `uni_impl_vals` at emulator iteration `emul_i`.
 
         Parameters
         ----------
         %(emul_i)s
-        uni_impl_val : 1D array_like
+        uni_impl_vals : 2D array_like
             Array containing all univariate implausibility values corresponding
-            to a certain parameter set for all data points.
+            to all parameter sets for all data points.
 
         Returns
         -------
-        result : bool
-            1 if check was successful, 0 if it was not.
-        impl_cut_val : float
-            Implausibility value at the first real implausibility cut-off.
+        impl_check_vals : 1D :obj:`~numpy.ndarray` object
+            Array containing whether the check was successful for that sample.
+        impl_cut_vals : 1D :obj:`~numpy.ndarray` object
+            Array containing the implausibility value at the first real
+            implausibility cut-off for every sample.
 
         """
 
-        # Sort impl_val to compare with the impl_cut list
-        sorted_impl_val = np.flip(np.sort(
-            uni_impl_val, axis=-1), axis=-1)[self._cut_idx[emul_i]:]
+        # Determine number of samples
+        n_sam = uni_impl_vals.shape[0]
 
-        # Save the implausibility value at the first real cut-off
-        impl_cut_val = sorted_impl_val[0]
+        # Sort impl_vals to compare with the impl_cut list
+        sorted_impl_vals = np.flip(np.sort(uni_impl_vals, axis=-1), axis=-1)
 
-        # Scan over all data points in this sample
-        for impl_val, cut_val in zip(sorted_impl_val, self._impl_cut[emul_i]):
-            # If impl_val is not below impl_cut, break
-            if(impl_val > cut_val):
-                return(0, impl_cut_val)
-        else:
-            # If for-loop ended in a normal way, the check was successful
-            return(1, impl_cut_val)
+        # Transpose sorted_impl_vals and extract only values with cut-offs
+        extracted_impl_vals = sorted_impl_vals.T[self._cut_idx[emul_i]:]
+
+        # Save the implausibility values at the first real cut-off
+        impl_cut_vals = extracted_impl_vals[0]
+
+        # Make a filled bool list containing which samples are plausible
+        impl_check_vals = np.ones(n_sam, dtype=bool)
+
+        # Make a list of plausible sample indices
+        sam_idx_full = np.arange(n_sam)
+        sam_idx = sam_idx_full[impl_check_vals]
+
+        # Scan over all data points in all samples
+        for impl_vals, cut_val in zip(extracted_impl_vals,
+                                      self._impl_cut[emul_i]):
+            # Check which of the samples satisfies this cut-off
+            impl_check_vals[sam_idx] = (impl_vals[sam_idx] <= cut_val)
+            sam_idx = sam_idx_full[impl_check_vals]
+
+            # If no sample is left plausible, break the loop
+            if not sam_idx.size:
+                break
+
+        # Return impl_check_vals and impl_cut_vals
+        return(impl_check_vals, impl_cut_vals)
 
     # This function calculates the univariate implausibility values
     # This is function 'I²(x)'
@@ -2130,7 +2148,7 @@ class Pipeline(Projection, object):
             adj_var_val[sam_idx[j]] = adj_val[1]
             uni_impl_val_list[sam_idx[j]] = uni_impl_vals[j]
             """), '<string>', 'exec')
-        anal_code = compile("emul_i_stop[sam_idx[j]] = i", '<string>', 'exec')
+        anal_code = compile("emul_i_stop[sam_idx] = i", '<string>', 'exec')
         post_code = compile(dedent("""
             adj_exp_val = self._comm.gather(np_array(adj_exp_val), 0)
             adj_var_val = self._comm.gather(np_array(adj_var_val), 0)
@@ -2154,8 +2172,8 @@ class Pipeline(Projection, object):
         pre_code = compile("lnprior = 0", '<string>', 'exec')
         eval_code = compile("", '<string>', 'exec')
         anal_code = compile(dedent("""
-            lnprior = (np.log(1-impl_cut_val/self._impl_cut[i][0]) if
-                       impl_check_val else -np.infty)
+            lnprior = (np.log(1-impl_cut_vals[0]/self._impl_cut[i][0]) if
+                       impl_check_vals[0] else -np.infty)
             """), '<string>', 'exec')
         post_code = compile(dedent("""
             lnprior = self._comm.bcast(lnprior, 0)
@@ -2171,7 +2189,7 @@ class Pipeline(Projection, object):
         # Define the various code snippets
         pre_code = compile("impl_cut = np.zeros([n_sam])", '<string>', 'exec')
         eval_code = compile("", '<string>', 'exec')
-        anal_code = compile("impl_cut[sam_idx[j]] = impl_cut_val", '<string>',
+        anal_code = compile("impl_cut[sam_idx] = impl_cut_vals", '<string>',
                             'exec')
         post_code = compile("", '<string>', 'exec')
         exit_code = compile("results = (impl_check, impl_cut)", '<string>',
@@ -2274,7 +2292,7 @@ class Pipeline(Projection, object):
         impl_check = np.ones(n_sam, dtype=bool)
 
         # Make a list of plausible sample indices
-        sam_idx_full = np_array(range(n_sam))
+        sam_idx_full = np.arange(n_sam)
         sam_idx = sam_idx_full[impl_check]
 
         # Mark all samples as plausible
@@ -2318,15 +2336,14 @@ class Pipeline(Projection, object):
                         np.concatenate(uni_impl_vals_list, axis=1)
 
                     # Perform implausibility cutoff check on all elements
-                    for j, uni_impl_val in enumerate(uni_impl_vals_array):
-                        impl_check_val, impl_cut_val =\
-                            self._do_impl_check(i, uni_impl_val)
+                    impl_check_vals, impl_cut_vals =\
+                        self._do_impl_check(i, uni_impl_vals_array)
 
-                        # Modify impl_check with obtained impl_check_val
-                        impl_check[sam_idx[j]] = impl_check_val
+                    # Modify impl_check with obtained impl_check_val
+                    impl_check[sam_idx] = impl_check_vals
 
-                        # Execute the anal_code snippet
-                        exec(anal_code)
+                    # Execute the anal_code snippet
+                    exec(anal_code)
 
                     # Modify sam_idx with those that are still plausible
                     sam_idx = sam_idx_full[impl_check]
