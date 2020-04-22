@@ -53,7 +53,7 @@ __all__ = ['Pipeline']
 # OPTIMIZE: Use the Numba package to speed up certain calculations?
 # TODO: Figure out how to do log-values properly for parameters as well.
 # TODO: Implement system tracer for catching errors and adding emulator system
-class Pipeline(Projection, object):
+class Pipeline(Projection):
     """
     Defines the :class:`~Pipeline` class of the *PRISM* package.
 
