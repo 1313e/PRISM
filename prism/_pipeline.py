@@ -13,6 +13,7 @@ Provides the definition of the main class of the *PRISM* package, the
 # Built-in imports
 from ast import literal_eval
 from inspect import isclass
+from itertools import chain
 import logging
 import os
 from os import path
@@ -1505,13 +1506,8 @@ class Pipeline(Projection):
 
         # Do some preparations on the controller
         if self._is_controller:
-            # Flatten the corresponding data_idx_to_core
-            data_idx_flat = []
-            n_data = []
-            for data_idx_rank in self._emulator._data_idx_to_core[emul_i]:
-                data_idx_rank = e13.delist(data_idx_rank)
-                data_idx_flat.extend(data_idx_rank)
-                n_data.append(len(data_idx_rank))
+            # Obtain the flattened data_idx
+            n_data, data_idx_flat = self._emulator._get_data_idx_flat(emul_i)
 
             # Sort ext_mod_set accordingly to data_idx_flat if provided
             if ext_mod_set.shape[0]:

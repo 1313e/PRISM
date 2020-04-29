@@ -12,6 +12,7 @@ package, the :class:`~Emulator` class.
 # %% IMPORTS
 # Built-in imports
 from collections import Counter
+from itertools import chain
 import os
 from os import path
 from struct import calcsize
@@ -984,6 +985,43 @@ class Emulator(object):
             # Else, save it normally
             else:
                 emul_s_group.attrs['data_idx'] = data_idx
+
+    # This function returns a list of all data_idx assigned to cores
+    @e13.docstring_substitute(emul_i=std_emul_i_doc)
+    def _get_data_idx_flat(self, emul_i):
+        """
+        Obtains the data point identifiers `data_idx` that are assigned to each
+        MPI rank for the provided emulator iteration `emul_i` and returns them
+        as a single list.
+        The number of data points assigned to each MPI rank is also returned.
+
+        Parameters
+        ----------
+        %(emul_i)s
+
+        Returns
+        -------
+        n_data_rank : list of int
+            The number of data points each MPI rank has assigned to it for
+            given `emul_i`. These values can be used to split `data_idx_flat`
+            up again into MPI rank-specific data point identifiers.
+        data_idx_flat : list of tuples
+            The data point identifiers that are assigned to an MPI rank for
+            given `emul_i`.
+
+        """
+
+        # Obtain the data_idx tuples on every rank
+        data_idx_ranks = list(map(e13.delist, self._data_idx_to_core[emul_i]))
+
+        # Flatten data_idx_ranks into a single list
+        data_idx_flat = list(chain(*data_idx_ranks))
+
+        # Calculate the number of data points assigned per core
+        n_data_rank = list(map(len, data_idx_ranks))
+
+        # Return both
+        return(n_data_rank, data_idx_flat)
 
     # This function matches data points with those in a previous iteration
     # TODO: Write this function and _assign_emul_s simpler and dependent
