@@ -128,6 +128,12 @@ It should therefore only be used when necessary.
     If :pycode:`False`, only the parameter space in which the emulator is defined is shown, which more often than not allows for more details to be seen in the projection figure.
     If :pycode:`True`, the full model parameter space is used for the axes limits, allowing projection figures from different iterations to be compared with each other more easily.
 
+.. versionadded:: 1.2.4
+    The `full_impl_rng` argument is a bool, which controls whether the lower limit for the minimum implausibility plot should be set to zero (:pycode:`True`) or to the lowest implausibility value plotted (:pycode:`False`), with the latter being the default.
+    If :pycode:`False`, only the implausibility range in which plausible samples are plotted will be used, which increases the amount of detail in the minimum implausibility plot.
+    If :pycode:`True`, the entire implausibility range that can hold plausible samples is used, allowing for the relative implausibility difference between samples to be interpreted correctly.
+    Set this value to :pycode:`True` if one wishes to have the same plotting behavior as in versions earlier than v1.2.4.
+
 The `force` argument is a bool, which controls what to do if a projection is requested for which data already exists.
 If :pycode:`False` (default), it will use the previously acquired projection data to create the projection figure if it does not exist, skip if it does or return the figure data if `figure` is :pycode:`False`.
 If :pycode:`True`, the projection data and all associated projection figures will be deleted, and the projection will be recalculated.

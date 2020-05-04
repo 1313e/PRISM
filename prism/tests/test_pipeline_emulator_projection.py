@@ -263,7 +263,8 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if first iteration can be reprojected (forced)
     def test_reproject_forced(self, pipe):
-        pipe.project(force=True, smooth=True, use_par_space=True)
+        pipe.project(force=True, smooth=True, use_par_space=True,
+                     full_impl_rng=True)
 
     # Check if first iteration can be reconstructed forced
     def test_reconstruct_force(self, pipe):
@@ -504,7 +505,8 @@ class Test_Pipeline_Gaussian3D(object):
     # Check if first iteration can be projected
     def test_project(self, pipe):
         pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
-                     fig_kwargs={'dpi': 10}, use_par_space=True)
+                     fig_kwargs={'dpi': 10}, use_par_space=True,
+                     full_impl_rng=True)
         pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
                      figure=False)
         if pipe._is_controller:

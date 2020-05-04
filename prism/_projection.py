@@ -119,6 +119,13 @@ class Projection(object):
             Controls whether to use the model parameter space (*True*) or the
             parameter space in which emulator iteration `emul_i` is defined
             (*False*) as the axes limits in the projection figure.
+        full_impl_rng : bool. Default: False
+            Controls whether to use zero (*True*) or the lowest plotted value
+            (*False*) as the lower bound for the minimum implausibility plot.
+            Set this to *True* for the same plotting behavior as in versions
+            earlier than v1.2.4.
+
+            .. versionadded:: 1.2.4
         force : bool. Default: False
             Controls what to do if a projection hypercube has been calculated
             at the emulator iteration `emul_i` before.
@@ -435,7 +442,8 @@ class Projection(object):
             # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
             ax0.plot(x, y_min, **self.__impl_kwargs_2D)
-            ax0_rng = [*axis_rng, 0, 1.5*impl_cut]
+            vmin = 0 if self.__full_impl_rng else max(0, np.min(y_min))
+            ax0_rng = [*axis_rng, vmin, 1.5*impl_cut]
             ax0.axis(ax0_rng)
 
             # Draw parameter estimate line
@@ -641,8 +649,9 @@ class Projection(object):
 
             # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
-            fig1 = ax0.hexbin(x, y, z_min, gridsize-1, vmin=0, vmax=impl_cut,
-                              **self.__impl_kwargs_3D)
+            vmin = 0 if self.__full_impl_rng else max(0, np.min(z_min))
+            fig1 = ax0.hexbin(x, y, z_min, gridsize-1, vmin=vmin,
+                              vmax=impl_cut, **self.__impl_kwargs_3D)
 
             # Draw parameter estimate lines
             ax0.axis(axes_rng)
@@ -1038,6 +1047,7 @@ class Projection(object):
                        'show_cuts': 0,
                        'smooth': 0,
                        'use_par_space': 0,
+                       'full_impl_rng': 0,
                        'force': 0,
                        'fig_kwargs': sdict(fig_kwargs),
                        'impl_kwargs_2D': sdict(impl_kwargs_2D),
@@ -1367,6 +1377,8 @@ class Projection(object):
             self.__smooth = check_vals(kwargs.pop('smooth'), 'smooth', 'bool')
             self.__use_par_space = check_vals(kwargs.pop('use_par_space'),
                                               'use_par_space', 'bool')
+            self.__full_impl_rng = check_vals(kwargs.pop('full_impl_rng'),
+                                              'full_impl_rng', 'bool')
             self.__force = check_vals(kwargs.pop('force'), 'force', 'bool')
 
             # Check if proj_type parameter is a valid string
@@ -1538,9 +1550,10 @@ class Projection(object):
             # Save all parameters and arguments in a dict (Projection GUI)
             kwarg_names = ['proj_res', 'proj_depth', 'emul_i', 'proj_2D',
                            'proj_3D', 'figure', 'align', 'show_cuts', 'smooth',
-                           'use_par_space', 'fig_kwargs', 'impl_kwargs_2D',
-                           'impl_kwargs_3D', 'los_kwargs_2D', 'los_kwargs_3D',
-                           'line_kwargs_est', 'line_kwargs_cut']
+                           'use_par_space', 'full_impl_rng', 'fig_kwargs',
+                           'impl_kwargs_2D', 'impl_kwargs_3D', 'los_kwargs_2D',
+                           'los_kwargs_3D', 'line_kwargs_est',
+                           'line_kwargs_cut']
             self.__proj_kwargs = {n: getattr(self, '_Projection__%s' % (n))
                                   for n in kwarg_names}
 

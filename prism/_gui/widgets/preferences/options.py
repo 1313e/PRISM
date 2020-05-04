@@ -307,7 +307,8 @@ class OptionsDialog(QW.QDialog):
 
         return(self.create_group("Projection keywords",
                                  ['align', 'show_cuts', 'smooth',
-                                  'use_par_space', 'kwargs_dicts']))
+                                  'use_par_space', 'full_impl_rng',
+                                  'kwargs_dicts']))
 
     # INTERFACE GROUP
     def create_group_interface(self):
@@ -601,6 +602,26 @@ class OptionsDialog(QW.QDialog):
 
         # Return use_par_space box
         return('Use parameter space?', use_par_space_box)
+
+    # FULL_IMPL_RNG OPTION
+    def create_option_full_impl_rng(self):
+        """
+        Creates the 'full_impl_rng' option and returns it.
+
+        This option sets the value of the 'full_impl_rng' projection parameter.
+
+        """
+
+        # Make check box for full_impl_rng
+        full_impl_rng_box = QW.QCheckBox()
+        full_impl_rng_box.setToolTip("Enable/disable using the full "
+                                     "implausibility value range as the axis "
+                                     "limit.")
+        self.create_entry('full_impl_rng', full_impl_rng_box,
+                          self.proj_defaults['full_impl_rng'])
+
+        # Return full_impl_rng box
+        return('Use full implausibility range?', full_impl_rng_box)
 
     # KWARGS_DICTS OPTION
     def create_option_kwargs_dicts(self):
