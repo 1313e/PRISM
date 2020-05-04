@@ -332,17 +332,19 @@ class Projection(object):
     # This function draws the 2D projection figure
     @e13.docstring_append(draw_proj_fig_doc.format("2D", "2"))
     def __draw_2D_proj_fig(self, hcube):
-        # Obtain emul_i and name of this projection hypercube
-        emul_i = hcube[0]
+        # Obtain name of this projection hypercube
         hcube_name = self.__get_hcube_name(hcube)
 
         # Obtain the projection data of this hcube
-        impl_min, impl_los, proj_res, _, proj_space =\
-            self.__get_proj_data(hcube)
+        proj_data = self.__get_proj_data(hcube)
 
-        # Make abbreviation for implausibility cut-off values
-        impl_cut = self._impl_cut[emul_i][0]
-        impl_cuts = self._impl_cut[emul_i]
+        # Extract required variables
+        impl_min = proj_data['impl_min']
+        impl_los = proj_data['impl_los']
+        proj_res = proj_data['proj_res']
+        proj_space = proj_data['proj_space']
+        impl_cuts = proj_data['impl_cut']
+        impl_cut = impl_cuts[0]
 
         # Start logger
         logger = getCLogger('PROJECTION')
@@ -505,16 +507,18 @@ class Projection(object):
     @e13.docstring_append(draw_proj_fig_doc.format("3D", "3"))
     # OPTIMIZE: (Re)Drawing a 3D projection figure takes up to 15 seconds
     def __draw_3D_proj_fig(self, hcube):
-        # Obtain emul_i and name of this projection hypercube
-        emul_i = hcube[0]
+        # Obtain name of this projection hypercube
         hcube_name = self.__get_hcube_name(hcube)
 
         # Obtain the projection data of this hcube
-        impl_min, impl_los, proj_res, _, proj_space =\
-            self.__get_proj_data(hcube)
+        proj_data = self.__get_proj_data(hcube)
 
-        # Make abbreviation for first implausibility cut-off value
-        impl_cut = self._impl_cut[emul_i][0]
+        # Extract required variables
+        impl_min = proj_data['impl_min']
+        impl_los = proj_data['impl_los']
+        proj_res = proj_data['proj_res']
+        proj_space = proj_data['proj_space']
+        impl_cut = proj_data['impl_cut'][0]
 
         # Start logger
         logger = getCLogger('PROJECTION')
@@ -711,7 +715,7 @@ class Projection(object):
                         % (hcube_name))
 
     # This function returns the projection data belonging to a proj_hcube
-    @e13.docstring_substitute(hcube=hcube_doc, proj_data=proj_data_doc)
+    @e13.docstring_substitute(hcube=hcube_doc)
     def __get_proj_data(self, hcube):
         """
         Returns the projection data belonging to the provided hypercube
@@ -723,16 +727,8 @@ class Projection(object):
 
         Returns
         -------
-        %(proj_data)s
-        proj_res : int
-            Number of emulator evaluations used to generate the grid for the
-            given hypercube.
-        proj_depth : int
-            Number of emulator evaluations used to generate the samples in
-            every grid point for the given hypercube.
-        proj_space : 2D :obj:`~numpy.ndarray` object
-            The boundaries of the hypercube that encloses the parameter space
-            in which the specified projection is defined.
+        proj_data : dict
+            Dict containing all the data associated with the specified `hcube`.
 
         """
 
@@ -748,21 +744,27 @@ class Projection(object):
             # Log that projection data is being obtained
             logger.info("Obtaining projection data %r." % (hcube_name))
 
-            # Obtain data
+            # Obtain proper dataset
             data_set = file['%i/proj_hcube/%s' % (emul_i, hcube_name)]
-            impl_min_hcube = data_set['impl_min'][()]
-            impl_los_hcube = data_set['impl_los'][()]
-            proj_space = self.__read_proj_space(data_set)
-            res_hcube = data_set.attrs['proj_res']
-            depth_hcube = data_set.attrs['proj_depth']
+
+            # Initialize proj_data dict
+            proj_data = {}
+
+            # Read in all the data
+            proj_data['impl_min'] = data_set['impl_min'][()]
+            proj_data['impl_los'] = data_set['impl_los'][()]
+            proj_data['proj_space'] = self.__read_proj_space(data_set)
+            proj_data['proj_res'] = data_set.attrs['proj_res']
+            proj_data['proj_depth'] = data_set.attrs['proj_depth']
+            proj_data['impl_cut'] = data_set.attrs['impl_cut']
+            proj_data['cut_idx'] = data_set.attrs['cut_idx']
 
             # Log that projection data was obtained successfully
             logger.info("Finished obtaining projection data %r."
                         % (hcube_name))
 
         # Return it
-        return(impl_min_hcube, impl_los_hcube, res_hcube, depth_hcube,
-               proj_space)
+        return(proj_data)
 
     # This function reads in and transforms the proj_space of a proj_hcube
     def __read_proj_space(self, hcube_group):
