@@ -23,7 +23,7 @@ from matplotlib import cm
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.interpolate import Rbf
+import scipy.interpolate as spi
 from sortedcontainers import SortedDict as sdict
 from tqdm import tqdm
 
@@ -370,10 +370,8 @@ class Projection(object):
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # point
-        # TODO: Allow user to set smooth parameter for Rbf function
-        # This probably means that smoothed figures have to be renamed
-        f_min = Rbf(x_proj, impl_min)
-        f_los = Rbf(x_proj, impl_los)
+        f_min = spi.UnivariateSpline(x_proj, impl_min, s=0)
+        f_los = spi.UnivariateSpline(x_proj, impl_los, s=0)
 
         # Set the size of the grid
         gridsize =\
@@ -442,6 +440,7 @@ class Projection(object):
             # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
             ax0.plot(x, y_min, **self.__impl_kwargs_2D)
+            ax0.scatter(np.linspace(*proj_space[par], proj_res), impl_min)
             vmin = 0 if self.__full_impl_rng else max(0, np.min(y_min))
             ax0_rng = [*axis_rng, vmin, 1.5*(impl_cut-vmin)+vmin]
             ax0.axis(ax0_rng)
@@ -544,16 +543,14 @@ class Projection(object):
         # Normalization is necessary for avoiding interpolation errors
         x_proj = np.linspace(0, 1, proj_res)
         y_proj = np.linspace(0, 1, proj_res)
-        X_proj, Y_proj = np.meshgrid(x_proj, y_proj, indexing='ij')
 
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # grid point
-        # TODO: Allow user to set smooth parameter for Rbf function
-        # This probably means that smoothed figures have to be renamed
-        # TODO: Should a KDE be used here instead?
-        f_min = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_min)
-        f_los = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_los)
+        f_min = spi.RectBivariateSpline(
+            x_proj, y_proj, impl_min.reshape(proj_res, proj_res), s=0)
+        f_los = spi.RectBivariateSpline(
+            x_proj, y_proj, impl_los.reshape(proj_res, proj_res), s=0)
 
         # Set the size of the hexbin grid
         gridsize =\
@@ -568,12 +565,9 @@ class Projection(object):
         y = np.linspace(0, 1, gridsize[1])
         X, Y = np.meshgrid(x, y, indexing='ij')
 
-        # Calculate impl_min and impl_los for X, Y
-        Z_min = np.zeros(gridsize)
-        Z_los = np.zeros(gridsize)
-        for i, (xi, yi) in enumerate(zip(X, Y)):
-            Z_min[i] = f_min(xi, yi)
-            Z_los[i] = f_los(xi, yi)
+        # Calculate impl_min and impl_los for x, y
+        Z_min = f_min(x, y)
+        Z_los = f_los(x, y)
 
         # Flatten the mesh grids
         x = X.ravel()

@@ -397,6 +397,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         """
         dict of list: The dict of model parameters as used by this
         :obj:`~ModelLink` instance.
+
         This dict can be used as the `model_parameters` argument when
         initializing this :class:`~ModelLink` subclass.
 
@@ -471,6 +472,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         """
         dict of list: The dict of model data points as used by this
         :obj:`~ModelLink` instance.
+
         This dict can be used as the `model_data` argument when initializing
         this :class:`~ModelLink` subclass.
 
@@ -781,6 +783,40 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         logger.info("Finished validating provided set of model parameter "
                     "samples %r." % (name))
         return(sam_set)
+
+    # This function converts a given sam_set to a sam_dict
+    def _get_sam_dict(self, sam_set):
+        """
+        Converts a provided set of model parameter samples `sam_set` to a dict
+        for use in this :obj:`~ModelLink` instance.
+
+        This dict can be used as the `par_set` argument in the
+        :meth:`~call_model` and :meth:`~get_md_var` methods.
+
+        Parameters
+        ----------
+        sam_set : 1D or 2D array_like
+            Parameter/sample set to convert for this :obj:`~ModelLink`
+            instance.
+
+        Returns
+        -------
+        sam_dict : dict of list
+            Dict of parameter samples.
+
+        """
+
+        # Make sure that sam_set is a NumPy array
+        sam_set = np_array(sam_set)
+
+        # Check how many dimensions sam_set has and act accordingly
+        if(sam_set.ndim == 1):
+            sam_dict = sdict(zip(self._par_name, sam_set))
+        else:
+            sam_dict = sdict(zip(self._par_name, sam_set.T))
+
+        # Return sam_dict
+        return(sam_dict)
 
     # This function checks if a provided md_var is valid
     def _check_md_var(self, md_var, name):

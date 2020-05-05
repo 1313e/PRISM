@@ -13,7 +13,6 @@ Provides the definition of the main class of the *PRISM* package, the
 # Built-in imports
 from ast import literal_eval
 from inspect import isclass
-from itertools import chain
 import logging
 import os
 from os import path
