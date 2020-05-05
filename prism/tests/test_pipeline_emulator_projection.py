@@ -1364,8 +1364,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
             # Create backup file
             sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
                               'center')
-            sam_dict = sdict(zip(modellink_obj._par_name,
-                                 sam_set[0]))
+            sam_dict = modellink_obj._get_sam_dict(sam_set[0])
             mod_set = modellink_obj.call_model(
                 emul_i=1, par_set=sam_dict, data_idx=modellink_obj._data_idx)
 
@@ -1402,8 +1401,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
             # Create backup file
             sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
                               'center')
-            sam_dict = sdict(zip(modellink_obj._par_name,
-                                 sam_set[0]))
+            sam_dict = modellink_obj._get_sam_dict(sam_set[0])
             mod_set = modellink_obj.call_model(
                 emul_i=1, par_set=sam_dict, data_idx=modellink_obj._data_idx)
 
@@ -1440,8 +1438,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
             # Create backup file
             sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
                               'center')
-            sam_dict = sdict(zip(modellink_obj._par_name,
-                                 sam_set[0]))
+            sam_dict = modellink_obj._get_sam_dict(sam_set[0])
             mod_set = modellink_obj.call_model(
                 emul_i=1, par_set=sam_dict, data_idx=modellink_obj._data_idx)
 
@@ -1478,8 +1475,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
             # Create backup file
             sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
                               'center')
-            sam_dict = sdict(zip(modellink_obj._par_name,
-                                 sam_set[0]))
+            sam_dict = modellink_obj._get_sam_dict(sam_set[0])
             modellink_obj.call_model(emul_i=1, par_set=sam_dict,
                                      data_idx=modellink_obj._data_idx)
 
@@ -1516,7 +1512,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         sam_set = e13.lhd(pipe2D._n_sam_init*2, pipe2D._modellink._n_par,
                           pipe2D._modellink._par_rng, 'center',
                           pipe2D._criterion)
-        sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
+        sam_dict = pipe2D._modellink._get_sam_dict(sam_set)
         mod_dict = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
@@ -1529,7 +1525,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         sam_set = e13.lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
                           pipe2D._modellink._par_rng, 'center',
                           pipe2D._criterion)
-        sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
+        sam_dict = pipe2D._modellink._get_sam_dict(sam_set)
         mod_dict = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
@@ -1542,7 +1538,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         sam_set = e13.lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
                           pipe2D._modellink._par_rng, 'center',
                           pipe2D._criterion)
-        sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
+        sam_dict = pipe2D._modellink._get_sam_dict(sam_set)
         mod_dict = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 

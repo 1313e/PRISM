@@ -28,7 +28,7 @@ def test_SineWaveLink():
 
     # Call model
     par_set = [4, 3, 5, 4.6]
-    par_dict = sdict(zip(modellink_obj._par_name, np.array(par_set)))
+    par_dict = modellink_obj._get_sam_dict(par_set)
     exp_mod_out = [3.9477019656331063, 4.268437351642151, 4.204589086020441,
                    3.8476310228828132, 3.7089682798878445]
     assert np.allclose(modellink_obj.call_model(

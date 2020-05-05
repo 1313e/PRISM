@@ -781,8 +781,7 @@ class Pipeline(Projection):
 
         # Make sure that sam_set is at least 2D, a NumPy array and sorted
         sam_set = np_array(sam_set, ndmin=2)
-        sam_set = e13.sort2D(sam_set,
-                             order=list(range(self._modellink._n_par)))
+        sam_set = e13.sort2D(sam_set, order=np.arange(self._modellink._n_par))
 
         # Check who needs to call the model
         if self._is_controller or self._modellink._MPI_call:
@@ -814,16 +813,16 @@ class Pipeline(Projection):
     @e13.docstring_append(call_model_doc_s)
     def _call_model(self, emul_i, par_set, data_idx):
         # Make sure par_set is at least 1D and a NumPy array
-        sam = np_array(par_set, ndmin=1)
+        par_set = np_array(par_set, ndmin=1)
 
         # Log that model is being called
         logger = getCLogger('CALL_MODEL')
-        logger.info("Calling model at parameters %s." % (sam))
+        logger.info("Calling model at parameters %s." % (par_set))
 
         # Obtain model output
         mod_out = self._modellink.call_model(
             emul_i=emul_i,
-            par_set=sdict(zip(self._modellink._par_name, sam)),
+            par_set=self._modellink._get_sam_dict(par_set),
             data_idx=data_idx)
 
         # If mod_out is a dict, convert it to a NumPy array
@@ -850,7 +849,7 @@ class Pipeline(Projection):
         # Obtain set of model outputs
         mod_set = self._modellink.call_model(
             emul_i=emul_i,
-            par_set=sdict(zip(self._modellink._par_name, sam_set.T)),
+            par_set=self._modellink._get_sam_dict(sam_set),
             data_idx=data_idx)
 
         # If mod_set is a dict, convert it to a NumPy array
@@ -1862,7 +1861,7 @@ class Pipeline(Projection):
         try:
             md_var = self._modellink.get_md_var(
                 emul_i=emul_i,
-                par_set=sdict(zip(self._modellink._par_name, par_set)),
+                par_set=self._modellink._get_sam_dict(par_set),
                 data_idx=e13.delist(self._emulator._data_idx[emul_i]))
 
         # If it was not user-defined, use a default value

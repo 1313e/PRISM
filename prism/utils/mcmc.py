@@ -413,7 +413,7 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
 
     # Check if p0_walkers needs to be returned as a dict
     if walker_dict:
-        p0_walkers = sdict(zip(pipe._modellink._par_name, p0_walkers.T))
+        p0_walkers = pipe._modellink._get_sam_dict(p0_walkers)
 
     # Check if hybrid_lnpost was requested and return it as well if so
     if lnpost_fn is not None:
