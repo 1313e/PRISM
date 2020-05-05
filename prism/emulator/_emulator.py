@@ -364,7 +364,7 @@ class Emulator(object):
     @property
     def poly_terms(self):
         """
-        dict of dicts: Overview of all polynomial terms with non-zero
+        dict of dict: Overview of all polynomial terms with non-zero
         coefficients in the regression function for every emulator system on
         this MPI rank.
         Empty if :attr:`~method` == 'gaussian'.

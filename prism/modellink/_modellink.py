@@ -205,39 +205,10 @@ class ModelLink(object, metaclass=abc.ABCMeta):
     # Define the representation of a ModelLink object
     def __repr__(self):
         # Obtain representation of model_parameters
-        par_repr = []
-        for name, rng, est in zip(self._par_name, self._par_rng,
-                                  self._par_est):
-            if est is None:
-                par_repr.append("%r: %r" % (name, rng))
-            else:
-                par_repr.append("%r: %r" % (name, [*rng, est]))
-        par_repr = "model_parameters={%s}" % (", ".join(map(str, par_repr)))
+        par_repr = "model_parameters=%s" % (self.model_parameters)
 
         # Obtain representation of model_data
-        data_repr = []
-        data_points = []
-
-        # Combine data points together, only adding non-default values
-        for val, err, spc in zip(self._data_val, self._data_err,
-                                 self._data_spc):
-            # Add data value
-            data_points.append([val])
-
-            # Add data error, add only one value if error is centered
-            if(err[0] == err[1]):
-                data_points[-1].append(err[0])
-            else:
-                data_points[-1].extend(err)
-
-            # Add data space if it is not 'lin'
-            if(spc != 'lin'):
-                data_points[-1].append(spc)
-
-        # Combine data points with data identifiers
-        for idx, point in zip(self._data_idx, data_points):
-            data_repr.append("%r: %r" % (idx, point))
-        data_repr = "model_data={%s}" % (", ".join(map(str, data_repr)))
+        data_repr = "model_data=%s" % (self.model_data)
 
         # Obtain non-default representation and add default ones
         str_repr = self.get_str_repr()
@@ -403,12 +374,12 @@ class ModelLink(object, metaclass=abc.ABCMeta):
     @property
     def par_rng(self):
         """
-        :obj:`~numpy.ndarray`: The lower and upper values of the model
+        dict of :obj:`~numpy.ndarray`: The lower and upper values of the model
         parameters.
 
         """
 
-        return(self._par_rng)
+        return(dict(zip(self._par_name, self._par_rng)))
 
     @property
     def par_est(self):
@@ -419,7 +390,33 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         """
 
-        return(sdict(zip(self._par_name, self._par_est)))
+        return(dict(zip(self._par_name, self._par_est)))
+
+    @property
+    def model_parameters(self):
+        """
+        dict of list: The dict of model parameters as used by this
+        :obj:`~ModelLink` instance.
+        This dict can be used as the `model_parameters` argument when
+        initializing this :class:`~ModelLink` subclass.
+
+        """
+
+        # Initialize empty dict of model parameters
+        model_parameters = {}
+
+        # Loop over all parameter properties and add them to the dict
+        for name, rng, est in zip(self._par_name, self._par_rng,
+                                  self._par_est):
+            # If estimate was not given, only add the parameter range
+            if est is None:
+                model_parameters[name] = [*rng]
+            # Else, add range and estimate
+            else:
+                model_parameters[name] = [*rng, est]
+
+        # Return model_parameters
+        return(model_parameters)
 
     # Model Data
     @property
@@ -434,31 +431,31 @@ class ModelLink(object, metaclass=abc.ABCMeta):
     @property
     def data_val(self):
         """
-        list of float: The values of provided data points.
+        dict of float: The values of provided data points.
 
         """
 
-        return(self._data_val)
+        return(dict(zip(self._data_idx, self._data_val)))
 
     @property
     def data_err(self):
         """
-        list of float: The upper and lower :math:`1\\sigma`-confidence levels
+        dict of float: The upper and lower :math:`1\\sigma`-confidence levels
         of provided data points.
 
         """
 
-        return(self._data_err)
+        return(dict(zip(self._data_idx, self._data_err)))
 
     @property
     def data_spc(self):
         """
-        list of str: The types of value space ({'lin', 'log', 'ln'}) of
+        dict of str: The types of value space ({'lin', 'log', 'ln'}) of
         provided data points.
 
         """
 
-        return(self._data_spc)
+        return(dict(zip(self._data_idx, self._data_spc)))
 
     @property
     def data_idx(self):
@@ -468,6 +465,41 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         """
 
         return(self._data_idx)
+
+    @property
+    def model_data(self):
+        """
+        dict of list: The dict of model data points as used by this
+        :obj:`~ModelLink` instance.
+        This dict can be used as the `model_data` argument when initializing
+        this :class:`~ModelLink` subclass.
+
+        """
+
+        # Initialize empty dict of model data
+        model_data = {}
+
+        # Combine data points together, only adding non-default values to dict
+        for idx, val, err, spc in zip(self._data_idx, self._data_val,
+                                      self._data_err, self._data_spc):
+            # Create data point
+            data_point = [val]
+
+            # Add data error, add only one value if error is centered
+            if(err[0] == err[1]):
+                data_point.append(err[0])
+            else:
+                data_point.extend(err)
+
+            # Add data space if it is not 'lin'
+            if(spc != 'lin'):
+                data_point.append(spc)
+
+            # Add data_point to model_data dict
+            model_data[idx] = data_point
+
+        # Return model_data
+        return(model_data)
 
     # %% GENERAL CLASS METHODS
     # This function returns non-default string representations of input args
