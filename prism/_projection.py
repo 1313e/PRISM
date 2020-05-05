@@ -443,7 +443,7 @@ class Projection(object):
             # Plot minimum implausibility
             ax0.plot(x, y_min, **self.__impl_kwargs_2D)
             vmin = 0 if self.__full_impl_rng else max(0, np.min(y_min))
-            ax0_rng = [*axis_rng, vmin, 1.5*impl_cut]
+            ax0_rng = [*axis_rng, vmin, 1.5*(impl_cut-vmin)+vmin]
             ax0.axis(ax0_rng)
 
             # Draw parameter estimate line
