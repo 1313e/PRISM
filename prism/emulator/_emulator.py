@@ -447,55 +447,60 @@ class Emulator(object):
     @property
     def sam_set(self):
         """
-        :obj:`~numpy.ndarray`: The model evaluation samples that have been/will
-        be used to construct the specified emulator iteration.
+        list of dict: The model evaluation samples that have been/will be used
+        to construct the specified emulator iteration.
 
         """
 
-        return(self._sam_set)
+        return([[sdict(zip(self._modellink._par_name, par_set)) for
+                 par_set in sam_set] for sam_set in self._sam_set])
 
     @property
     def emul_space(self):
         """
-        :obj:`~numpy.ndarray`: The boundaries of the hypercube that encloses
-        the parameter space in which the specified emulator iteration is
-        defined. This is always equal to the plausible space of the previous
+        dict of :obj:`~numpy.ndarray`: The boundaries of the hypercube that
+        encloses the parameter space in which the specified emulator iteration
+        is defined. This is always equal to the plausible space of the previous
         iteration.
 
         """
 
-        return(self._emul_space)
+        return([sdict(zip(self._modellink._par_name, emul_space)) for
+                emul_space in self._emul_space])
 
     @property
     def mod_set(self):
         """
-        list of :obj:`~numpy.ndarray`: The model outputs corresponding to the
+        dict of :obj:`~numpy.ndarray`: The model outputs corresponding to the
         samples in :attr:`~sam_set` for every emulator system on this MPI rank.
 
         """
 
-        return(self._mod_set)
+        return([dict(zip(data_idx, mod_set)) for data_idx, mod_set in
+                zip(self._data_idx, self._mod_set)])
 
     @property
     def cov_mat_inv(self):
         """
-        list of :obj:`~numpy.ndarray`: The inverses of the covariance matrices
+        dict of :obj:`~numpy.ndarray`: The inverses of the covariance matrices
         for every emulator system on this MPI rank.
 
         """
 
-        return(self._cov_mat_inv)
+        return([dict(zip(data_idx, cov_mat_inv)) for data_idx, cov_mat_inv in
+                zip(self._data_idx, self._cov_mat_inv)])
 
     @property
     def exp_dot_term(self):
         """
-        list of :obj:`~numpy.ndarray`: The second expectation adjustment
+        dict of :obj:`~numpy.ndarray`: The second expectation adjustment
         dot-term values of all model evaluation samples for every emulator
         system on this MPI rank.
 
         """
 
-        return(self._exp_dot_term)
+        return([dict(zip(data_idx, exp_dot_term)) for data_idx, exp_dot_term in
+                zip(self._data_idx, self._exp_dot_term)])
 
     # Covariances
     @property
@@ -512,14 +517,14 @@ class Emulator(object):
     @property
     def l_corr(self):
         """
-        :obj:`~numpy.ndarray`: The Gaussian correlation lengths for all model
+        dict of float: The Gaussian correlation lengths for all model
         parameters, which is defined as the maximum distance between two values
         of a specific model parameter within which the Gaussian contribution to
         the correlation between the values is still significant.
 
         """
 
-        return(self._l_corr)
+        return(sdict(zip(self._modellink._par_name, self._l_corr)))
 
     @property
     def f_infl(self):

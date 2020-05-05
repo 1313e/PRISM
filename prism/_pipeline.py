@@ -457,7 +457,7 @@ class Pipeline(Projection):
     @property
     def code_objects(self):
         """
-        dict of code objects: Collection of pre-compiled built-in code snippets
+        dict of code object: Collection of pre-compiled built-in code snippets
         that are used in the :meth:`~_evaluate_sam_set` method.
 
         """
@@ -723,12 +723,13 @@ class Pipeline(Projection):
     @property
     def impl_sam(self):
         """
-        :obj:`~numpy.ndarray`: The model evaluation samples that will be added
-        to the next emulator iteration.
+        list of dict: The model evaluation samples that will be added to the
+        next emulator iteration.
 
         """
 
-        return(self._impl_sam)
+        return([sdict(zip(self._modellink._par_name, par_set)) for
+                par_set in self._impl_sam])
 
     # %% GENERAL CLASS METHODS
     # Function that sends a code string to all workers and executes it
@@ -3234,19 +3235,11 @@ class Pipeline(Projection):
         logger.info("Evaluating emulator iteration %i for provided set of "
                     "model parameter samples." % (emul_i))
 
-        # Check if sam_set was provided as a dict
-        if isinstance(sam_set, dict):
-            # Make sure that sam_set is a SortedDict
-            sam_set = sdict(sam_set)
-
-            # Return it to normal
-            sam_set = np_array(sam_set.values()).T
+        # Check sam_set
+        sam_set = self._modellink._check_sam_set(sam_set, 'sam_set')
 
         # Controller checking the contents of sam_set
         if self._is_controller:
-            # Check sam_set
-            sam_set = self._modellink._check_sam_set(sam_set, 'sam_set')
-
             # If ndim == 1, convert to 2D array and print output later
             if(sam_set.ndim == 1):
                 sam_set = np_array(sam_set, ndmin=2)

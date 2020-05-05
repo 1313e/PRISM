@@ -11,8 +11,11 @@ Input arguments
 ###############
 Depending on the values of the :attr:`~prism.modellink.ModelLink.multi_call` and :attr:`~prism.modellink.ModelLink.MPI_call` flags (where the first is set by the :attr:`~prism.modellink.ModelLink.call_type` flag), the :obj:`~prism.Pipeline` instance will use the :meth:`~prism.modellink.ModelLink.call_model` method differently.
 As explained in :ref:`writing_modellink`, every model evaluation sample is requested individually in serial by default, which corresponds to :attr:`~prism.modellink.ModelLink.multi_call` is :pycode:`False` and :attr:`~prism.modellink.ModelLink.MPI_call` is :pycode:`False`.
-When single-calling a model, *PRISM* expects an array-like container back with shape :pycode:`(n_data)`, where the order of the elements is the same as the order of the requested :pycode:`data_idx`.
+When single-calling a model, *PRISM* expects an array-like container back with shape :pycode:`(n_data,)`, where the order of the elements is the same as the order of the requested :pycode:`data_idx`.
 If we assume that we have an instance of the :class:`LineLink` class (introduced in `line_link.py`_) called :pycode:`modellink_obj` and want to evaluate the model three times for all data points, then the model would be called as (solely by the controller rank)::
+
+    # Import SortedDict class
+    from sortedcontainers import SortedDict as sdict
 
     # Get emul_i, sam_set and data_idx
     emul_i = 1

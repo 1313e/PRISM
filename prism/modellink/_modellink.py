@@ -205,7 +205,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
     # Define the representation of a ModelLink object
     def __repr__(self):
         # Obtain representation of model_parameters
-        par_repr = "model_parameters=%s" % (self.model_parameters)
+        par_repr = "model_parameters=%s" % (dict(self.model_parameters))
 
         # Obtain representation of model_data
         data_repr = "model_data=%s" % (self.model_data)
@@ -379,7 +379,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         """
 
-        return(dict(zip(self._par_name, self._par_rng)))
+        return(sdict(zip(self._par_name, self._par_rng)))
 
     @property
     def par_est(self):
@@ -390,7 +390,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
 
         """
 
-        return(dict(zip(self._par_name, self._par_est)))
+        return(sdict(zip(self._par_name, self._par_est)))
 
     @property
     def model_parameters(self):
@@ -403,7 +403,7 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         """
 
         # Initialize empty dict of model parameters
-        model_parameters = {}
+        model_parameters = sdict()
 
         # Loop over all parameter properties and add them to the dict
         for name, rng, est in zip(self._par_name, self._par_rng,
