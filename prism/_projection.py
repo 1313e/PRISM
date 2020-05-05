@@ -367,10 +367,15 @@ class Projection(object):
         # Normalization is necessary for avoiding interpolation errors
         x_proj = np.linspace(0, 1, proj_res)
 
+        # Check if impl_min is requested to be smoothed
+        if self.__smooth:
+            # Set all impl_min to impl_cut if its impl_los is 0
+            impl_min[impl_los <= 0] = impl_cut
+
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # point
-        f_min = spi.UnivariateSpline(x_proj, impl_min, s=0)
+        f_min = spi.UnivariateSpline(x_proj, impl_min, s=0, k=1)
         f_los = spi.UnivariateSpline(x_proj, impl_los, s=0)
 
         # Set the size of the grid
@@ -387,19 +392,6 @@ class Projection(object):
         # Calculate y_min and y_los
         y_min = f_min(x)
         y_los = f_los(x)
-
-        # Obtain the 1D indices of the grid corners of all interpolated points
-        corners_1D = np.clip([x_proj.searchsorted(x)-1,
-                              x_proj.searchsorted(x, side='right')],
-                             0, proj_res-1).T
-
-        # If all corners of a point are zero, a point in between should be zero
-        y_los[~impl_los[corners_1D].any(axis=1)] = 0
-
-        # Check if y_min is requested to be smoothed
-        if self.__smooth:
-            # Set all y_min to impl_cut if its corresponding y_los is 0
-            y_min[y_los <= 0] = impl_cut
 
         # Create plotted parameter value array
         x = np.linspace(*proj_space[par], gridsize[0])
@@ -440,9 +432,8 @@ class Projection(object):
             # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
             ax0.plot(x, y_min, **self.__impl_kwargs_2D)
-            ax0.scatter(np.linspace(*proj_space[par], proj_res), impl_min)
             vmin = 0 if self.__full_impl_rng else max(0, np.min(y_min))
-            ax0_rng = [*axis_rng, vmin, 1.5*(impl_cut-vmin)+vmin]
+            ax0_rng = [*axis_rng, vmin, impl_cut]
             ax0.axis(ax0_rng)
 
             # Draw parameter estimate line
@@ -544,11 +535,22 @@ class Projection(object):
         x_proj = np.linspace(0, 1, proj_res)
         y_proj = np.linspace(0, 1, proj_res)
 
+        # Check if impl_min is requested to be smoothed
+        if self.__smooth:
+            # Calculate the highest impl_los that corresponds to 0 in color
+            # Matplotlib uses N segments in a specific colormap
+            # Therefore, values up to max(impl_los)/N has the color for 0
+            min_los = min(1, np.max(impl_los))/self.__los_kwargs_3D['cmap'].N
+
+            # Set all impl_min to impl_cut if its impl_los < min_los
+            impl_min[impl_los < min_los] = impl_cut
+
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # grid point
         f_min = spi.RectBivariateSpline(
-            x_proj, y_proj, impl_min.reshape(proj_res, proj_res), s=0)
+            x_proj, y_proj, impl_min.reshape(proj_res, proj_res), s=0,
+            kx=1, ky=1)
         f_los = spi.RectBivariateSpline(
             x_proj, y_proj, impl_los.reshape(proj_res, proj_res), s=0)
 
@@ -574,30 +576,6 @@ class Projection(object):
         y = Y.ravel()
         z_min = Z_min.ravel()
         z_los = Z_los.ravel()
-
-        # Obtain the 2D indices of the grid corners of all interpolated points
-        corners_2D = [
-            [x_proj.searchsorted(x)-1, x_proj.searchsorted(x, side='right'),
-             x_proj.searchsorted(x)-1, x_proj.searchsorted(x, side='right')],
-            [y_proj.searchsorted(y)-1, y_proj.searchsorted(y, side='right'),
-             y_proj.searchsorted(y, side='right'), y_proj.searchsorted(y)-1]]
-
-        # Convert 2D indices to 1D indices
-        corners_1D = np.ravel_multi_index(corners_2D, [proj_res, proj_res],
-                                          mode='clip').T
-
-        # If all corners of a point are zero, a point in between should be zero
-        z_los[~impl_los[corners_1D].any(axis=1)] = 0
-
-        # Check if z_min is requested to be smoothed
-        if self.__smooth:
-            # Calculate the highest z_los that corresponds to 0 in color
-            # Matplotlib uses N segments in a specific colormap
-            # Therefore, values up to max(z_los)/N has the color for 0
-            min_los = min(1, np.max(z_los))/self.__los_kwargs_3D['cmap'].N
-
-            # Set all z_min to impl_cut if its corresponding z_los < min_los
-            z_min[z_los < min_los] = impl_cut
 
         # Create plotted parameter value grid
         x = np.linspace(*proj_space[par1], gridsize[0])
