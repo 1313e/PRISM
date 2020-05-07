@@ -369,8 +369,11 @@ class Projection(object):
 
         # Check if impl_min is requested to be smoothed
         if self.__smooth:
-            # Set all impl_min to impl_cut if its impl_los is 0
+            # If so, set all impl_min to impl_cut if its impl_los is 0
             impl_min[impl_los <= 0] = impl_cut
+        else:
+            # Else, clip impl_min to impl_cut at the upper limit
+            impl_min = np.clip(impl_min, None, impl_cut)
 
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
@@ -537,13 +540,16 @@ class Projection(object):
 
         # Check if impl_min is requested to be smoothed
         if self.__smooth:
-            # Calculate the highest impl_los that corresponds to 0 in color
+            # If so, get the highest impl_los that corresponds to 0 in color
             # Matplotlib uses N segments in a specific colormap
             # Therefore, values up to max(impl_los)/N has the color for 0
             min_los = min(1, np.max(impl_los))/self.__los_kwargs_3D['cmap'].N
 
             # Set all impl_min to impl_cut if its impl_los < min_los
             impl_min[impl_los < min_los] = impl_cut
+        else:
+            # Else, clip impl_min to impl_cut at the upper limit
+            impl_min = np.clip(impl_min, None, impl_cut)
 
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
