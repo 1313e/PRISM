@@ -462,10 +462,22 @@ class Test_Pipeline_Gaussian2D(object):
     def test_proj_est_arrows(self, pipe):
         pipe._modellink._par_est = [-1, 10]
         pipe.project(1, force=True, fig_kwargs={'figsize': (4.8, 4.8)})
-        pipe.project(1, force=True, fig_kwargs={'figsize': (6.4, 6.4)})
-        pipe.project(1, force=True, fig_kwargs={'figsize': (3.2, 2.4)})
-        pipe.project(1, force=True, fig_kwargs={'figsize': (6, 3)})
-        pipe.project(1, force=True, fig_kwargs={'figsize': (7, 5)})
+
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0))[0])
+        pipe.project(1, fig_kwargs={'figsize': (6.4, 6.4)})
+
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0))[0])
+        pipe.project(1, fig_kwargs={'figsize': (3.2, 2.4)})
+
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0))[0])
+        pipe.project(1, fig_kwargs={'figsize': (6, 3)})
+
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0))[0])
+        pipe.project(1, fig_kwargs={'figsize': (7, 5)})
 
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model
@@ -542,16 +554,31 @@ class Test_Pipeline_Gaussian3D(object):
 
     # Test if an estimate out-of-range results in arrows in the projections
     def test_proj_est_arrows(self, pipe):
-        pipe._modellink._par_est = [-1, 10, 5]
-        pipe.project(1, (0, 1), proj_type='3D', force=True,
+        pipe._modellink._par_est = [-1, -1, -1]
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0, 1))[0])
+        pipe.project(1, (0, 1), proj_type='3D',
                      fig_kwargs={'figsize': (4.8, 4.8)})
-        pipe.project(1, (0, 1), proj_type='3D', force=True,
+
+        pipe._modellink._par_est = [10, 10, 10]
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0, 1))[0])
+        pipe.project(1, (0, 1), proj_type='3D',
                      fig_kwargs={'figsize': (6.4, 6.4)})
-        pipe.project(1, (0, 1), proj_type='3D', force=True,
+
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0, 1))[0])
+        pipe.project(1, (0, 1), proj_type='3D',
                      fig_kwargs={'figsize': (3.2, 2.4)})
-        pipe.project(1, (0, 1), proj_type='3D', force=True,
+
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0, 1))[0])
+        pipe.project(1, (0, 1), proj_type='3D',
                      fig_kwargs={'figsize': (6, 3)})
-        pipe.project(1, (0, 1), proj_type='3D', force=True,
+
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0, 1))[0])
+        pipe.project(1, (0, 1), proj_type='3D',
                      fig_kwargs={'figsize': (7, 5)})
 
 
