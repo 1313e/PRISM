@@ -678,6 +678,70 @@ class KwargsDictDialogPage(BaseBox):
         set_box_value(markersize_box, rcParams['lines.markersize'])
         return(markersize_box)
 
+    # This function creates a fh_arrowlength box
+    @e13.docstring_append(create_type_doc.format('fh_arrowlength'))
+    def create_type_fh_arrowlength(self):
+        # Make a double spinbox for arrow head length
+        head_length_box = QW_QDoubleSpinBox()
+        head_length_box.setRange(0, 9999999)
+        head_length_box.setDecimals(4)
+        head_length_box.setToolTip("Scaling factor for the length of the "
+                                   "plotted arrow head")
+        return(head_length_box)
+
+    # This function creates a ft_arrowlength box
+    @e13.docstring_append(create_type_doc.format('ft_arrowlength'))
+    def create_type_ft_arrowlength(self):
+        # Make a double spinbox for arrow tail length
+        tail_length_box = QW_QDoubleSpinBox()
+        tail_length_box.setRange(0, 9999999)
+        tail_length_box.setDecimals(2)
+        tail_length_box.setToolTip("Length of the plotted arrow tail relative "
+                                   "to the length of its head")
+        return(tail_length_box)
+
+    # This function creates a fh_arrowwidth box
+    @e13.docstring_append(create_type_doc.format('fh_arrowwidth'))
+    def create_type_fh_arrowwidth(self):
+        # Make a double spinbox for arrow head width
+        head_length_box = QW_QDoubleSpinBox()
+        head_length_box.setRange(0, 9999999)
+        head_length_box.setDecimals(4)
+        head_length_box.setToolTip("Scaling factor for the width of the "
+                                   "plotted arrow head")
+        return(head_length_box)
+
+    # This function creates a ft_arrowwidth box
+    @e13.docstring_append(create_type_doc.format('ft_arrowwidth'))
+    def create_type_ft_arrowwidth(self):
+        # Make a double spinbox for arrow tail width
+        tail_length_box = QW_QDoubleSpinBox()
+        tail_length_box.setRange(0, 9999999)
+        tail_length_box.setDecimals(4)
+        tail_length_box.setToolTip("Scaling factor for the width of the "
+                                   "plotted arrow tail")
+        return(tail_length_box)
+
+    # This function creates a rel_xpos box
+    @e13.docstring_append(create_type_doc.format('rel_xpos'))
+    def create_type_rel_xpos(self):
+        # Make a double spinbox for arrow relative x-position
+        x_pos_box = QW_QDoubleSpinBox()
+        x_pos_box.setRange(0, 1)
+        x_pos_box.setDecimals(4)
+        x_pos_box.setToolTip("Relative x-position of the arrow.")
+        return(x_pos_box)
+
+    # This function creates a rel_xpos box
+    @e13.docstring_append(create_type_doc.format('rel_ypos'))
+    def create_type_rel_ypos(self):
+        # Make a double spinbox for arrow relative y-position
+        y_pos_box = QW_QDoubleSpinBox()
+        y_pos_box.setRange(0, 1)
+        y_pos_box.setDecimals(4)
+        y_pos_box.setToolTip("Relative y-position of the arrow.")
+        return(y_pos_box)
+
     # This function creates a scale box
     def create_type_scale(self, axis):
         """

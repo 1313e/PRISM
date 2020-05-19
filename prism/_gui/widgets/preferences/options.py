@@ -691,6 +691,16 @@ class OptionsDialog(QW.QDialog):
             std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
             banned_entries=[])
 
+        # ARROW_KWARGS_EST
+        tooltip = ("Keyword arguments used for drawing the parameter estimate "
+                   "arrows (<i>plt.arrow</i> kwargs)")
+        kwargs_dict_box.add_dict(
+            "Estimate arrows", 'arrow_kwargs_est', tooltip,
+            std_entries=['color', 'alpha', 'fh_arrowlength', 'ft_arrowlength',
+                         'fh_arrowwidth', 'ft_arrowwidth', 'rel_xpos',
+                         'rel_ypos'],
+            banned_entries=self.get_proj_attr('pop_arrow_kwargs'))
+
         # LINE_KWARGS_CUT
         tooltip = ("Keyword arguments used for drawing the implausibility "
                    "cut-off line(s) in 2D projections (<i>plt.plot</i> kwargs)"

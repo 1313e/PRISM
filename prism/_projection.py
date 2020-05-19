@@ -65,6 +65,7 @@ class Projection(object):
         e13.raise_error(err_msg, RequestError, logger)
 
     # Function that creates all projection figures
+    # TODO: Allow for a list of specific figures to be requested
     @e13.docstring_substitute(emul_i=user_emul_i_doc, proj_par=proj_par_doc_d)
     def project(self, emul_i=None, proj_par=None, **kwargs):
         """
@@ -119,6 +120,8 @@ class Projection(object):
             Controls whether to use the model parameter space (*True*) or the
             parameter space in which emulator iteration `emul_i` is defined
             (*False*) as the axes limits in the projection figure.
+            If this is *True* and a parameter estimate is outside of the axes
+            limit, a parameter estimate arrow is used instead of a line.
         full_impl_rng : bool. Default: False
             Controls whether to use zero (*True*) or the lowest plotted value
             (*False*) as the lower bound for the minimum implausibility plot.
@@ -141,31 +144,37 @@ class Projection(object):
         impl_kwargs_2D : dict. Default: {}
             Dict of keyword arguments to be used for making the minimum
             implausibility (top/left) plot in the 2D projection figures. It
-            takes all arguments that can be provided to the
+            takes all optional arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
         impl_kwargs_3D : dict. Default: {'cmap': 'cmr.rainforest_r'}
             Dict of keyword arguments to be used for making the minimum
             implausibility (top/left) plot in the 3D projection figures. It
-            takes all arguments that can be provided to the
+            takes all optional arguments that can be provided to the
             :func:`~matplotlib.pyplot.hexbin` function.
         los_kwargs_2D : dict. Default: {}
             Dict of keyword arguments to be used for making the line-of-sight
             (bottom/right) plot in the 2D projection figures. It takes all
-            arguments that can be provided to the
+            optional arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
         los_kwargs_3D : dict. Default: {'cmap': 'cmr.freeze'}
             Dict of keyword arguments to be used for making the line-of-sight
             (bottom/right) plot in the 3D projection figures. It takes all
-            arguments that can be provided to the
+            optional arguments that can be provided to the
             :func:`~matplotlib.pyplot.hexbin` function.
         line_kwargs_est : dict. Default: {'linestyle': '--', 'color': 'grey'}
             Dict of keyword arguments to be used for drawing the parameter
-            estimate lines in both plots. It takes all arguments that can be
-            provided to the :func:`~matplotlib.pyplot.plot` function.
+            estimate lines in both plots. It takes all optional arguments that
+            can be provided to the :func:`~matplotlib.pyplot.plot` function.
+        arrow_kwargs_est : dict. Default: {'color': 'grey', \
+            'fh_arrowlength': 0.015, 'fh_arrowwidth': 0.03, 'ft_arrowlength': \
+            1.5, 'ft_arrowwidth': 0.002, 'rel_xpos': 0.5, 'rel_ypos': 0.5}
+            Dict of keyword arguments to be used for drawing the parameter
+            estimate arrows in both plots. It takes a special set of arguments
+            that are described in the `Notes`_.
         line_kwargs_cut : dict. Default: {'color': 'r'}
             Dict of keyword arguments to be used for drawing the implausibility
             cut-off line(s) in the top/left plot in the 2D projection figures.
-            It takes all arguments that can be provided to the
+            It takes all optional arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
 
         Returns (if `figure` is *False*)
@@ -205,13 +214,35 @@ class Projection(object):
 
         Notes
         -----
-        If given emulator iteration `emul_i` has been analyzed before, the
-        implausibility parameters of the last analysis are used. If not, then
-        the values are used that were read in when the emulator was loaded or
-        that have been set by the user.
-
-        All colormaps defined in the :mod:`~e13tools` package are loaded
+        All colormaps defined in the :mod:`~cmasher` package are loaded
         automatically when *PRISM* is imported and can be used.
+
+        The `arrow_kwargs_est` argument takes all optional arguments that
+        :func:`~matplotlib.pyplot.arrow` takes, plus a few special arguments
+        that are described below:
+
+            fh_arrowlength : float. Default: 0.015
+                The fraction of the appropriate axis limit used as the length
+                of the arrow head.
+            fh_arrowwidth : float. Default: 0.03
+                The fraction of the appropriate axis limit used as the width
+                of the arrow head.
+            ft_arrowlength : float. Default: 1.5
+                The relative length of the arrow tail compared to its head.
+            ft_arrowwidth : float. Default: 0.002
+                The fraction of the appropriate axis limit used as the width
+                of the arrow tail.
+            rel_xpos : float. Default: 0.5
+                The relative x-position of the arrow. Only used if the arrow is
+                drawn vertically.
+            rel_ypos : float. Default: 0.5
+                The relative y-position of the arrow. Only used if the arrow is
+                drawn horizontally.
+
+        As changing the size of the figure would also change the appearance of
+        the arrow, the fractional sizes are scaled such to make the arrow
+        appear as if it was plotted in a figure with size `(6.4, 4.8)` (which
+        is the default figure size).
 
         """
 
@@ -407,6 +438,36 @@ class Projection(object):
 
         # Create figure object if the figure is requested
         if self.__figure:
+            # Create a copy of the arrow_kwargs
+            arrow_kwargs = dict(self.__arrow_kwargs_est)
+
+            # Obtain the ratio of the figure size
+            ratio = ((4.8*self.__fig_kwargs['figsize'][0]) /
+                     (6.4*self.__fig_kwargs['figsize'][1]))
+            f_width = 1
+            f_height = 1
+
+            # Determine which dimension of the arrow must be resized
+            if(ratio > 1):
+                if(6.4 > self.__fig_kwargs['figsize'][0]):
+                    f_width *= ratio
+                else:
+                    f_width /= ratio
+            elif(ratio < 1):
+                if(4.8 < self.__fig_kwargs['figsize'][1]):
+                    f_height *= ratio
+                else:
+                    f_height /= ratio
+
+            # Set the width and length of the arrow head/tail
+            fh_length = arrow_kwargs.pop('fh_arrowlength')*f_width
+            ft_length = arrow_kwargs.pop('ft_arrowlength')*fh_length
+            fh_width = arrow_kwargs.pop('fh_arrowwidth')*f_height
+            ft_width = arrow_kwargs.pop('ft_arrowwidth')*f_height
+            _ = arrow_kwargs.pop('rel_xpos')
+            rel_ypos = arrow_kwargs.pop('rel_ypos')
+
+            # Check alignment and act accordingly
             if(self.__align == 'row'):
                 f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
                 w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
@@ -439,11 +500,6 @@ class Projection(object):
             ax0_rng = [*axis_rng, vmin, impl_cut]
             ax0.axis(ax0_rng)
 
-            # Draw parameter estimate line
-            if self._modellink._par_est[par] is not None:
-                e13.draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
-                                  line_kwargs=self.__line_kwargs_est)
-
             # Draw implausibility cut-off line(s)
             if self.__show_cuts:
                 # If all lines are requested, draw them
@@ -455,7 +511,7 @@ class Projection(object):
                 e13.draw_textline(r"", y=impl_cut, ax=ax0,
                                   line_kwargs=self.__line_kwargs_cut)
 
-            # Set axes and label
+            # Set axis and label
             ax0.axis(ax0_rng)
             ax0.set_ylabel("Min. Implausibility", fontsize='large')
 
@@ -465,14 +521,46 @@ class Projection(object):
             ax1_rng = [*axis_rng, 0, 1.05*min(1, np.max(y_los))]
             ax1.axis(ax1_rng)
 
-            # Draw parameter estimate line
-            if self._modellink._par_est[par] is not None:
-                e13.draw_textline(r"", x=self._modellink._par_est[par], ax=ax1,
-                                  line_kwargs=self.__line_kwargs_est)
-
-            # Set axes and label
-            ax1.axis(ax1_rng)
+            # Set label
             ax1.set_ylabel("Line-of-Sight Depth", fontsize='large')
+
+            # Draw parameter estimate lines/arrows
+            par_est = self._modellink._par_est[par]
+            if par_est is not None:
+                # Draw estimate line or arrow in both subplots
+                for ax, ax_rng in [(ax0, ax0_rng), (ax1, ax1_rng)]:
+                    # Draw line if estimate is in plausible range
+                    if (axis_rng[0] <= par_est) and (par_est <= axis_rng[1]):
+                        e13.draw_textline(
+                            r"", x=par_est, ax=ax,
+                            line_kwargs=self.__line_kwargs_est)
+
+                    # Else, draw an arrow pointing in the direction of the line
+                    else:
+                        # Calculate lengths, widths and heights
+                        h_length = np.diff(ax_rng[:2])[0]*fh_length
+                        t_length = np.diff(ax_rng[:2])[0]*ft_length
+                        h_width = np.diff(ax_rng[2:])[0]*fh_width
+                        t_width = np.diff(ax_rng[2:])[0]*ft_width
+
+                        # Calculate the length and y-coordinate of the arrow
+                        length = h_length+t_length
+                        y_arrow = ax_rng[2]+np.diff(ax_rng[2:])*rel_ypos
+
+                        # If par_est smaller than range, draw arrow to the left
+                        if(par_est < axis_rng[0]):
+                            ax.arrow(ax_rng[0]+length, y_arrow, -t_length, 0,
+                                     width=t_width, head_width=h_width,
+                                     head_length=h_length, **arrow_kwargs)
+
+                        # Else, draw arrow to the right
+                        else:
+                            ax.arrow(ax_rng[1]-length, y_arrow, t_length, 0,
+                                     width=t_width, head_width=h_width,
+                                     head_length=h_length, **arrow_kwargs)
+
+                    # Set axis
+                    ax.axis(ax_rng)
 
             # Make super axis label using dummy Axes object as an empty plot
             if(self.__align == 'row'):
@@ -599,6 +687,44 @@ class Projection(object):
 
         # Create figure object if the figure is requested
         if self.__figure:
+            # Create a copy of the arrow_kwargs
+            arrow_kwargs = dict(self.__arrow_kwargs_est)
+
+            # Obtain the ratio of the figure size
+            ratio = ((4.8*self.__fig_kwargs['figsize'][0]) /
+                     (6.4*self.__fig_kwargs['figsize'][1]))
+            f_width = 1
+            f_height = 1
+
+            # Determine which dimension of the arrow must be resized
+            if(ratio > 1):
+                if(6.4 > self.__fig_kwargs['figsize'][0]):
+                    f_width *= ratio
+                else:
+                    f_width /= ratio
+            elif(ratio < 1):
+                if(4.8 < self.__fig_kwargs['figsize'][1]):
+                    f_height *= ratio
+                else:
+                    f_height /= ratio
+
+            # Set the width and length of the arrow head/tail
+            fh_length = arrow_kwargs.pop('fh_arrowlength')
+            fhx_length = fh_length*f_width
+            fhy_length = fh_length*f_height*(6.4/2.4)
+            ft_length = arrow_kwargs.pop('ft_arrowlength')
+            ftx_length = ft_length*fhx_length
+            fty_length = ft_length*fhy_length
+            fh_width = arrow_kwargs.pop('fh_arrowwidth')
+            fhx_width = fh_width*f_height
+            fhy_width = fh_width*f_width/(6.4/2.4)
+            ft_width = arrow_kwargs.pop('ft_arrowwidth')
+            ftx_width = ft_width*f_height
+            fty_width = ft_width*f_width/(6.4/2.4)
+            rel_xpos = arrow_kwargs.pop('rel_xpos')
+            rel_ypos = arrow_kwargs.pop('rel_ypos')
+
+            # Create figure instance
             f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
             w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
 
@@ -628,42 +754,100 @@ class Projection(object):
             # MINIMUM IMPLAUSIBILITY PLOT
             # Plot minimum implausibility
             vmin = 0 if self.__full_impl_rng else max(0, np.min(z_min))
-            fig1 = ax0.hexbin(x, y, z_min, gridsize-1, vmin=vmin,
+            fig0 = ax0.hexbin(x, y, z_min, gridsize-1, vmin=vmin,
                               vmax=impl_cut, **self.__impl_kwargs_3D)
-
-            # Draw parameter estimate lines
             ax0.axis(axes_rng)
-            if self._modellink._par_est[par1] is not None:
-                e13.draw_textline(r"", x=self._modellink._par_est[par1],
-                                  ax=ax0, line_kwargs=self.__line_kwargs_est)
-            if self._modellink._par_est[par2] is not None:
-                e13.draw_textline(r"", y=self._modellink._par_est[par2],
-                                  ax=ax0, line_kwargs=self.__line_kwargs_est)
 
-            # Set axes and labels
-            ax0.axis(axes_rng)
-            plt.colorbar(fig1, ax=ax0, extend='max').set_label(
+            # Set labels
+            plt.colorbar(fig0, ax=ax0, extend='max').set_label(
                 "Min. Implausibility", fontsize='large')
 
             # LINE-OF-SIGHT DEPTH PLOT
             # Plot line-of-sight depth
-            fig2 = ax1.hexbin(x, y, z_los, gridsize-1, vmin=0,
+            fig1 = ax1.hexbin(x, y, z_los, gridsize-1, vmin=0,
                               vmax=min(1, np.max(z_los)),
                               **self.__los_kwargs_3D)
-
-            # Draw parameter estimate lines
             ax1.axis(axes_rng)
-            if self._modellink._par_est[par1] is not None:
-                e13.draw_textline(r"", x=self._modellink._par_est[par1],
-                                  ax=ax1, line_kwargs=self.__line_kwargs_est)
-            if self._modellink._par_est[par2] is not None:
-                e13.draw_textline(r"", y=self._modellink._par_est[par2],
-                                  ax=ax1, line_kwargs=self.__line_kwargs_est)
 
-            # Set axes and label
-            ax1.axis(axes_rng)
-            plt.colorbar(fig2, ax=ax1).set_label("Line-of-Sight Depth",
+            # Set label
+            plt.colorbar(fig1, ax=ax1).set_label("Line-of-Sight Depth",
                                                  fontsize='large')
+
+            # Draw parameter estimate lines/arrows for x-axis
+            par_est = self._modellink._par_est[par1]
+            if par_est is not None:
+                # Draw estimate line or arrow in both subplots
+                for ax in [ax0, ax1]:
+                    # Draw line if estimate is in plausible range
+                    if (axes_rng[0] <= par_est) and (par_est <= axes_rng[1]):
+                        e13.draw_textline(
+                            r"", x=par_est, ax=ax,
+                            line_kwargs=self.__line_kwargs_est)
+
+                    # Else, draw an arrow pointing in the direction of the line
+                    else:
+                        # Calculate lengths, widths and heights
+                        h_length = np.diff(axes_rng[:2])[0]*fhx_length
+                        t_length = np.diff(axes_rng[:2])[0]*ftx_length
+                        h_width = np.diff(axes_rng[2:])[0]*fhx_width
+                        t_width = np.diff(axes_rng[2:])[0]*ftx_width
+
+                        # Calculate the length and y-coordinate of the arrow
+                        length = h_length+t_length
+                        y_arrow = axes_rng[2]+np.diff(axes_rng[2:])*rel_ypos
+
+                        # If par_est smaller than range, draw arrow to the left
+                        if(par_est < axes_rng[0]):
+                            ax.arrow(axes_rng[0]+length, y_arrow, -t_length, 0,
+                                     width=t_width, head_width=h_width,
+                                     head_length=h_length, **arrow_kwargs)
+
+                        # Else, draw arrow to the right
+                        else:
+                            ax.arrow(axes_rng[1]-length, y_arrow, t_length, 0,
+                                     width=t_width, head_width=h_width,
+                                     head_length=h_length, **arrow_kwargs)
+
+                    # Set axis
+                    ax.axis(axes_rng)
+
+            # Draw parameter estimate lines/arrows for y-axis
+            par_est = self._modellink._par_est[par2]
+            if par_est is not None:
+                # Draw estimate line or arrow in both subplots
+                for ax in [ax0, ax1]:
+                    # Draw line if estimate is in plausible range
+                    if (axes_rng[2] <= par_est) and (par_est <= axes_rng[3]):
+                        e13.draw_textline(
+                            r"", y=par_est, ax=ax,
+                            line_kwargs=self.__line_kwargs_est)
+
+                    # Else, draw an arrow pointing in the direction of the line
+                    else:
+                        # Calculate lengths, widths and heights
+                        h_length = np.diff(axes_rng[2:])[0]*fhy_length
+                        t_length = np.diff(axes_rng[2:])[0]*fty_length
+                        h_width = np.diff(axes_rng[:2])[0]*fhy_width
+                        t_width = np.diff(axes_rng[:2])[0]*fty_width
+
+                        # Calculate the length and x-coordinate of the arrow
+                        length = h_length+t_length
+                        x_arrow = axes_rng[0]+np.diff(axes_rng[:2])*rel_xpos
+
+                        # If par_est smaller than range, draw arrow to bottom
+                        if(par_est < axes_rng[2]):
+                            ax.arrow(x_arrow, axes_rng[2]+length, 0, -t_length,
+                                     width=t_width, head_width=h_width,
+                                     head_length=h_length, **arrow_kwargs)
+
+                        # Else, draw arrow to top
+                        else:
+                            ax.arrow(x_arrow, axes_rng[3]-length, 0, t_length,
+                                     width=t_width, head_width=h_width,
+                                     head_length=h_length, **arrow_kwargs)
+
+                    # Set axis
+                    ax.axis(axes_rng)
 
             # Make super axis labels using dummy Axes object as an empty plot
             if(self.__align == 'row'):
@@ -1015,6 +1199,13 @@ class Projection(object):
         los_kwargs_3D = {'cmap': 'cmr.freeze'}
         line_kwargs_est = {'linestyle': '--',
                            'color': 'grey'}
+        arrow_kwargs_est = {'color': 'grey',
+                            'fh_arrowlength': 0.015,
+                            'ft_arrowlength': 1.5,
+                            'fh_arrowwidth': 0.03,
+                            'ft_arrowwidth': 0.002,
+                            'rel_xpos': 0.5,
+                            'rel_ypos': 0.5}
         line_kwargs_cut = {'color': 'r'}
 
         # Create input argument dict with default projection parameters
@@ -1033,6 +1224,7 @@ class Projection(object):
                        'los_kwargs_2D': sdict(los_kwargs_2D),
                        'los_kwargs_3D': sdict(los_kwargs_3D),
                        'line_kwargs_est': sdict(line_kwargs_est),
+                       'arrow_kwargs_est': sdict(arrow_kwargs_est),
                        'line_kwargs_cut': sdict(line_kwargs_cut),
                        'figsize_c': figsize_c,
                        'figsize_r': figsize_r}
@@ -1319,18 +1511,21 @@ class Projection(object):
         # Make dictionary with default argument values
         kwargs_dict = self.__get_default_input_arguments()
 
-        # Make list with forbidden figure and plot kwargs
+        # Make list with forbidden figure, plot and arrow kwargs
         # Save them as attributes for Projection GUI
         self.__pop_fig_kwargs = ['num', 'ncols', 'nrows', 'sharex', 'sharey',
                                  'constrained_layout']
         self.__pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax',
                                  'norm', 'fmt', 'mincnt']
+        self.__pop_arrow_kwargs = ['x', 'y', 'dx', 'dy', 'width',
+                                   'length_includes_head', 'head_width',
+                                   'head_length']
 
         # Update kwargs_dict with given kwargs
         for key, value in kwargs.items():
             if key in ('fig_kwargs', 'impl_kwargs_2D', 'impl_kwargs_3D',
                        'los_kwargs_2D', 'los_kwargs_3D', 'line_kwargs_est',
-                       'line_kwargs_cut'):
+                       'arrow_kwargs_est', 'line_kwargs_cut'):
                 if not isinstance(value, dict):
                     err_msg = ("Input argument %r is not of type 'dict'!"
                                % (key))
@@ -1398,6 +1593,7 @@ class Projection(object):
             los_kwargs_2D = kwargs.pop('los_kwargs_2D')
             los_kwargs_3D = kwargs.pop('los_kwargs_3D')
             line_kwargs_est = kwargs.pop('line_kwargs_est')
+            arrow_kwargs_est = kwargs.pop('arrow_kwargs_est')
             line_kwargs_cut = kwargs.pop('line_kwargs_cut')
 
             # FIG_KWARGS
@@ -1445,6 +1641,13 @@ class Projection(object):
                 if key in self.__pop_plt_kwargs:
                     los_kwargs_3D.pop(key)
 
+            # ARROW_KWARGS
+            # Check if any forbidden kwargs are given and remove them
+            arrow_keys = list(arrow_kwargs_est.keys())
+            for key in arrow_keys:
+                if key in self.__pop_arrow_kwargs:
+                    arrow_kwargs_est.pop(key)
+
             # Save kwargs dicts to memory
             self.__fig_kwargs = fig_kwargs
             self.__impl_kwargs_2D = impl_kwargs_2D
@@ -1452,6 +1655,7 @@ class Projection(object):
             self.__los_kwargs_2D = los_kwargs_2D
             self.__los_kwargs_3D = los_kwargs_3D
             self.__line_kwargs_est = line_kwargs_est
+            self.__arrow_kwargs_est = arrow_kwargs_est
             self.__line_kwargs_cut = line_kwargs_cut
 
         # MPI Barrier
@@ -1531,7 +1735,7 @@ class Projection(object):
                            'use_par_space', 'full_impl_rng', 'fig_kwargs',
                            'impl_kwargs_2D', 'impl_kwargs_3D', 'los_kwargs_2D',
                            'los_kwargs_3D', 'line_kwargs_est',
-                           'line_kwargs_cut']
+                           'arrow_kwargs_est', 'line_kwargs_cut']
             self.__proj_kwargs = {n: getattr(self, '_Projection__%s' % (n))
                                   for n in kwarg_names}
 

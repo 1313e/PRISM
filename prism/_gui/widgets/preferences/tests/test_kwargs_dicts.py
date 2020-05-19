@@ -263,7 +263,11 @@ class TestKwargsDictDialog_EntryTypes(object):
          ('impl_kwargs_2D', 'marker', QW.QComboBox, '*'),
          ('los_kwargs_2D', 'markersize', QW.QDoubleSpinBox, 42),
          ('los_kwargs_3D', 'xscale', QW.QComboBox, 'linear'),
-         ('impl_kwargs_3D', 'yscale', QW.QComboBox, 'log')])
+         ('impl_kwargs_3D', 'yscale', QW.QComboBox, 'log'),
+         ('arrow_kwargs_est', 'fh_arrowlength', QW.QDoubleSpinBox, 1),
+         ('arrow_kwargs_est', 'ft_arrowlength', QW.QDoubleSpinBox, 0.1),
+         ('arrow_kwargs_est', 'fh_arrowwidth', QW.QDoubleSpinBox, 17),
+         ('arrow_kwargs_est', 'ft_arrowwidth', QW.QDoubleSpinBox, 13.13)])
     def test_set_standard_entry(self, page_name, entry_type, field_type,
                                 field_value, option_entries, kwargs_dicts):
         # Obtain the proper page

@@ -458,6 +458,15 @@ class Test_Pipeline_Gaussian2D(object):
         # Manually exit worker mode
         wmode.__exit__(None, None, None)
 
+    # Test if an estimate out-of-range results in arrows in the projections
+    def test_proj_est_arrows(self, pipe):
+        pipe._modellink._par_est = [-1, 10]
+        pipe.project(1, force=True, fig_kwargs={'figsize': (4.8, 4.8)})
+        pipe.project(1, force=True, fig_kwargs={'figsize': (6.4, 6.4)})
+        pipe.project(1, force=True, fig_kwargs={'figsize': (3.2, 2.4)})
+        pipe.project(1, force=True, fig_kwargs={'figsize': (6, 3)})
+        pipe.project(1, force=True, fig_kwargs={'figsize': (7, 5)})
+
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model
 @pytest.mark.incremental
@@ -530,6 +539,20 @@ class Test_Pipeline_Gaussian3D(object):
     def test_repr2(self, pipe):
         pipe2 = eval(repr(pipe))
         assert pipe2._hdf5_file == pipe._hdf5_file
+
+    # Test if an estimate out-of-range results in arrows in the projections
+    def test_proj_est_arrows(self, pipe):
+        pipe._modellink._par_est = [-1, 10, 5]
+        pipe.project(1, (0, 1), proj_type='3D', force=True,
+                     fig_kwargs={'figsize': (4.8, 4.8)})
+        pipe.project(1, (0, 1), proj_type='3D', force=True,
+                     fig_kwargs={'figsize': (6.4, 6.4)})
+        pipe.project(1, (0, 1), proj_type='3D', force=True,
+                     fig_kwargs={'figsize': (3.2, 2.4)})
+        pipe.project(1, (0, 1), proj_type='3D', force=True,
+                     fig_kwargs={'figsize': (6, 3)})
+        pipe.project(1, (0, 1), proj_type='3D', force=True,
+                     fig_kwargs={'figsize': (7, 5)})
 
 
 # Pytest for standard Pipeline class for 3D model with a single data point
@@ -1160,7 +1183,8 @@ class Test_Internal_Exceptions(object):
         pipe._Projection__use_GUI = 0
         pipe._Projection__prepare_projections(None, None,
                                               los_kwargs_2D={'x': 1},
-                                              los_kwargs_3D={'x': 1})
+                                              los_kwargs_3D={'x': 1},
+                                              arrow_kwargs_est={'x': 1})
         if pipe._is_controller:
             with pytest.raises(ValueError):
                 pipe._Projection__save_data(1, {'test': []})

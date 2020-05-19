@@ -138,11 +138,12 @@ The `force` argument is a bool, which controls what to do if a projection is req
 If :pycode:`False` (default), it will use the previously acquired projection data to create the projection figure if it does not exist, skip if it does or return the figure data if `figure` is :pycode:`False`.
 If :pycode:`True`, the projection data and all associated projection figures will be deleted, and the projection will be recalculated.
 
-The remaining seven arguments are keyword argument dicts, that need to be passed to the various different plotting functions that are used for creating the projection figures.
+The remaining eight arguments are keyword argument dicts, that need to be passed to the various different plotting functions that are used for creating the projection figures.
 The `fig_kwargs` dict is passed to the :func:`~matplotlib.pyplot.figure` function when creating the projection figure instance.
 The `impl_kwargs_2D` and `los_kwargs_2D` dicts are passed to the :func:`~matplotlib.pyplot.plot` function when making the minimum implausibility and line-of-sight depth subplots, respectively, for the 2D projections.
 Similarly, the `impl_kwargs_3D` and `los_kwargs_3D` dicts are passed to the :func:`~matplotlib.pyplot.hexbin` function for 3D projections.
-And, finally, the `line_kwargs_est` and `line_kwargs_cut` dicts are passed to the :func:`~matplotlib.pyplot.draw` function for drawing the parameter estimate and implausibility cut-off lines.
+The `line_kwargs_est` and `line_kwargs_cut` dicts are passed to the :func:`~matplotlib.pyplot.draw` function for drawing the parameter estimate and implausibility cut-off lines.
+And, finally, the `arrow_kwargs_est` dict is passed to the :func:`~matplotlib.pyplot.arrow` function for drawing the parameter estimate arrow in case its line is out-of-range.
 
 Crystal (GUI)
 #############
