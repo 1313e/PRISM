@@ -504,12 +504,10 @@ class Projection(object):
             if self.__show_cuts:
                 # If all lines are requested, draw them
                 for cut in impl_cuts:
-                    e13.draw_textline(r"", y=cut, ax=ax0,
-                                      line_kwargs=self.__line_kwargs_cut)
+                    ax0.axhline(cut, **self.__line_kwargs_cut)
             else:
                 # Else, draw the first cut-off line
-                e13.draw_textline(r"", y=impl_cut, ax=ax0,
-                                  line_kwargs=self.__line_kwargs_cut)
+                ax0.axhline(impl_cut, **self.__line_kwargs_cut)
 
             # Set axis and label
             ax0.axis(ax0_rng)
@@ -531,9 +529,7 @@ class Projection(object):
                 for ax, ax_rng in [(ax0, ax0_rng), (ax1, ax1_rng)]:
                     # Draw line if estimate is in plausible range
                     if (axis_rng[0] <= par_est) and (par_est <= axis_rng[1]):
-                        e13.draw_textline(
-                            r"", x=par_est, ax=ax,
-                            line_kwargs=self.__line_kwargs_est)
+                        ax.axvline(par_est, **self.__line_kwargs_est)
 
                     # Else, draw an arrow pointing in the direction of the line
                     else:
@@ -780,9 +776,7 @@ class Projection(object):
                 for ax in [ax0, ax1]:
                     # Draw line if estimate is in plausible range
                     if (axes_rng[0] <= par_est) and (par_est <= axes_rng[1]):
-                        e13.draw_textline(
-                            r"", x=par_est, ax=ax,
-                            line_kwargs=self.__line_kwargs_est)
+                        ax.axvline(par_est, **self.__line_kwargs_est)
 
                     # Else, draw an arrow pointing in the direction of the line
                     else:
@@ -818,9 +812,7 @@ class Projection(object):
                 for ax in [ax0, ax1]:
                     # Draw line if estimate is in plausible range
                     if (axes_rng[2] <= par_est) and (par_est <= axes_rng[3]):
-                        e13.draw_textline(
-                            r"", y=par_est, ax=ax,
-                            line_kwargs=self.__line_kwargs_est)
+                        ax.axhline(par_est, **self.__line_kwargs_est)
 
                     # Else, draw an arrow pointing in the direction of the line
                     else:
