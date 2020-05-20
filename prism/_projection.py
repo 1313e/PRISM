@@ -239,10 +239,10 @@ class Projection(object):
                 The relative y-position of the arrow. Only used if the arrow is
                 drawn horizontally.
 
-        As changing the size of the figure would also change the appearance of
-        the arrow, the fractional sizes are scaled such to make the arrow
-        appear as if it was plotted in a figure with size `(6.4, 4.8)` (which
-        is the default figure size).
+        As changing the aspect ratio of the figure would also change the
+        appearance of the arrow, the fractional sizes are scaled such to make
+        the arrow appear as if it was plotted in a figure with size
+        `(6.4, 4.8)` (which is the default figure size).
 
         """
 
@@ -464,6 +464,7 @@ class Projection(object):
             ft_length = arrow_kwargs.pop('ft_arrowlength')*fh_length
             fh_width = arrow_kwargs.pop('fh_arrowwidth')*f_height
             ft_width = arrow_kwargs.pop('ft_arrowwidth')*f_height
+            full_length = fh_length+ft_length
             _ = arrow_kwargs.pop('rel_xpos')
             rel_ypos = arrow_kwargs.pop('rel_ypos')
 
@@ -533,27 +534,19 @@ class Projection(object):
 
                     # Else, draw an arrow pointing in the direction of the line
                     else:
-                        # Calculate lengths, widths and heights
-                        h_length = np.diff(ax_rng[:2])[0]*fh_length
-                        t_length = np.diff(ax_rng[:2])[0]*ft_length
-                        h_width = np.diff(ax_rng[2:])[0]*fh_width
-                        t_width = np.diff(ax_rng[2:])[0]*ft_width
-
-                        # Calculate the length and y-coordinate of the arrow
-                        length = h_length+t_length
-                        y_arrow = ax_rng[2]+np.diff(ax_rng[2:])*rel_ypos
-
                         # If par_est smaller than range, draw arrow to the left
                         if(par_est < axis_rng[0]):
-                            ax.arrow(ax_rng[0]+length, y_arrow, -t_length, 0,
-                                     width=t_width, head_width=h_width,
-                                     head_length=h_length, **arrow_kwargs)
+                            ax.arrow(full_length, rel_ypos, -ft_length, 0,
+                                     width=ft_width, head_width=fh_width,
+                                     head_length=fh_length,
+                                     transform=ax.transAxes, **arrow_kwargs)
 
                         # Else, draw arrow to the right
                         else:
-                            ax.arrow(ax_rng[1]-length, y_arrow, t_length, 0,
-                                     width=t_width, head_width=h_width,
-                                     head_length=h_length, **arrow_kwargs)
+                            ax.arrow(1-full_length, rel_ypos, ft_length, 0,
+                                     width=ft_width, head_width=fh_width,
+                                     head_length=fh_length,
+                                     transform=ax.transAxes, **arrow_kwargs)
 
                     # Set axis
                     ax.axis(ax_rng)
@@ -711,6 +704,8 @@ class Projection(object):
             ft_length = arrow_kwargs.pop('ft_arrowlength')
             ftx_length = ft_length*fhx_length
             fty_length = ft_length*fhy_length
+            fullx_length = fhx_length+ftx_length
+            fully_length = fhy_length+fty_length
             fh_width = arrow_kwargs.pop('fh_arrowwidth')
             fhx_width = fh_width*f_height
             fhy_width = fh_width*f_width/(6.4/2.4)
@@ -780,27 +775,19 @@ class Projection(object):
 
                     # Else, draw an arrow pointing in the direction of the line
                     else:
-                        # Calculate lengths, widths and heights
-                        h_length = np.diff(axes_rng[:2])[0]*fhx_length
-                        t_length = np.diff(axes_rng[:2])[0]*ftx_length
-                        h_width = np.diff(axes_rng[2:])[0]*fhx_width
-                        t_width = np.diff(axes_rng[2:])[0]*ftx_width
-
-                        # Calculate the length and y-coordinate of the arrow
-                        length = h_length+t_length
-                        y_arrow = axes_rng[2]+np.diff(axes_rng[2:])*rel_ypos
-
                         # If par_est smaller than range, draw arrow to the left
                         if(par_est < axes_rng[0]):
-                            ax.arrow(axes_rng[0]+length, y_arrow, -t_length, 0,
-                                     width=t_width, head_width=h_width,
-                                     head_length=h_length, **arrow_kwargs)
+                            ax.arrow(fullx_length, rel_ypos, -ftx_length, 0,
+                                     width=ftx_width, head_width=fhx_width,
+                                     head_length=fhx_length,
+                                     transform=ax.transAxes, **arrow_kwargs)
 
                         # Else, draw arrow to the right
                         else:
-                            ax.arrow(axes_rng[1]-length, y_arrow, t_length, 0,
-                                     width=t_width, head_width=h_width,
-                                     head_length=h_length, **arrow_kwargs)
+                            ax.arrow(1-fullx_length, rel_ypos, ftx_length, 0,
+                                     width=ftx_width, head_width=fhx_width,
+                                     head_length=fhx_length,
+                                     transform=ax.transAxes, **arrow_kwargs)
 
                     # Set axis
                     ax.axis(axes_rng)
@@ -816,27 +803,19 @@ class Projection(object):
 
                     # Else, draw an arrow pointing in the direction of the line
                     else:
-                        # Calculate lengths, widths and heights
-                        h_length = np.diff(axes_rng[2:])[0]*fhy_length
-                        t_length = np.diff(axes_rng[2:])[0]*fty_length
-                        h_width = np.diff(axes_rng[:2])[0]*fhy_width
-                        t_width = np.diff(axes_rng[:2])[0]*fty_width
-
-                        # Calculate the length and x-coordinate of the arrow
-                        length = h_length+t_length
-                        x_arrow = axes_rng[0]+np.diff(axes_rng[:2])*rel_xpos
-
                         # If par_est smaller than range, draw arrow to bottom
                         if(par_est < axes_rng[2]):
-                            ax.arrow(x_arrow, axes_rng[2]+length, 0, -t_length,
-                                     width=t_width, head_width=h_width,
-                                     head_length=h_length, **arrow_kwargs)
+                            ax.arrow(rel_xpos, fully_length, 0, -fty_length,
+                                     width=fty_width, head_width=fhy_width,
+                                     head_length=fhy_length,
+                                     transform=ax.transAxes, **arrow_kwargs)
 
                         # Else, draw arrow to top
                         else:
-                            ax.arrow(x_arrow, axes_rng[3]-length, 0, t_length,
-                                     width=t_width, head_width=h_width,
-                                     head_length=h_length, **arrow_kwargs)
+                            ax.arrow(rel_xpos, 1-fully_length, 0, fty_length,
+                                     width=fty_width, head_width=fhy_width,
+                                     head_length=fhy_length,
+                                     transform=ax.transAxes, **arrow_kwargs)
 
                     # Set axis
                     ax.axis(axes_rng)
@@ -1509,7 +1488,7 @@ class Projection(object):
                                  'constrained_layout']
         self.__pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax',
                                  'norm', 'fmt', 'mincnt']
-        self.__pop_arrow_kwargs = ['x', 'y', 'dx', 'dy', 'width',
+        self.__pop_arrow_kwargs = ['x', 'y', 'dx', 'dy', 'width', 'transform',
                                    'length_includes_head', 'head_width',
                                    'head_length']
 
