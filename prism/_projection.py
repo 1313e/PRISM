@@ -527,16 +527,7 @@ class Projection(object):
 
                 # Else, draw an arrow pointing in the direction of the line
                 else:
-                    # If par_est smaller than range, draw arrow to the left
-                    if(par_est < axis_rng[0]):
-                        self.__draw_estimate_arrow(ax, 'left')
-
-                    # Else, draw arrow to the right
-                    else:
-                        self.__draw_estimate_arrow(ax, 'right')
-
-                # Set axis
-                ax.axis(ax_rng)
+                    self.__draw_estimate_arrow(par_est, None, ax)
 
         # If called by the Projection GUI, return figure instance
         if self.__use_GUI:
@@ -723,184 +714,78 @@ class Projection(object):
         # Make sure that constrained layout has been applied
         f.execute_constrained_layout()
 
-        # Draw parameter estimate lines/arrows for x-axis
-        par_est = self._modellink._par_est[par1]
-        if par_est is not None:
-            # Draw estimate line or arrow in both subplots
-            for ax in [ax0, ax1]:
-                # Draw line if estimate is in plausible range
-                if (axes_rng[0] <= par_est) and (par_est <= axes_rng[1]):
-                    ax.axvline(par_est, **self.__line_kwargs_est)
-
-                # Else, draw an arrow pointing in the direction of the line
-                else:
-                    # If par_est smaller than range, draw arrow to the left
-                    if(par_est < axes_rng[0]):
-                        self.__draw_estimate_arrow(ax, 'left')
-
-                    # Else, draw arrow to the right
-                    else:
-                        self.__draw_estimate_arrow(ax, 'right')
-
-                # Set axis
-                ax.axis(axes_rng)
-
-        # Draw parameter estimate lines/arrows for y-axis
-        par_est = self._modellink._par_est[par2]
-        if par_est is not None:
-            # Draw estimate line or arrow in both subplots
-            for ax in [ax0, ax1]:
-                # Draw line if estimate is in plausible range
-                if (axes_rng[2] <= par_est) and (par_est <= axes_rng[3]):
-                    ax.axhline(par_est, **self.__line_kwargs_est)
-
-                # Else, draw an arrow pointing in the direction of the line
-                else:
-                    # If par_est smaller than range, draw arrow to bottom
-                    if(par_est < axes_rng[2]):
-                        self.__draw_estimate_arrow(ax, 'bottom')
-
-                    # Else, draw arrow to top
-                    else:
-                        self.__draw_estimate_arrow(ax, 'top')
-
-                # Set axis
-                ax.axis(axes_rng)
-
-
-#        # Obtain parameter estimates of both plotted parameters
-#        par_est1 = self._modellink._par_est[par1]
-#        par_est2 = self._modellink._par_est[par2]
-
-#        # Check if at least one parameter estimate is given
-#        if par_est1 is not None or par_est2 is not None:
-#            # Loop over both axes
+#        # Draw parameter estimate lines/arrows for x-axis
+#        par_est = self._modellink._par_est[par1]
+#        if par_est is not None:
+#            # Draw estimate line or arrow in both subplots
 #            for ax in [ax0, ax1]:
-#                # Check if both parameter estimates were given
-#                if par_est1 is not None and par_est2 is not None:
-#                    # Save that both estimates are not drawn yet
-#                    draw_est1 = False
-#                    draw_est2 = False
+#                # Draw line if estimate is in plausible range
+#                if (axes_rng[0] <= par_est) and (par_est <= axes_rng[1]):
+#                    ax.axvline(par_est, **self.__line_kwargs_est)
 #
-#                    # Check if par_est1 is within range and draw line if so
-#                    if (axes_rng[0] <= par_est1) and (par_est1 <= axes_rng[1]):
-#                        ax.axvline(par_est1, **self.__line_kwargs_est)
-#                        draw_est1 = True
-#
-#                    # Check if par_est2 is within range and draw line if so
-#                    if (axes_rng[2] <= par_est2) and (par_est2 <= axes_rng[3]):
-#                        ax.axhline(par_est2, **self.__line_kwargs_est)
-#                        draw_est2 = True
-#
-#                    # Check if at most one line has been drawn
-#                    if not draw_est1 or not draw_est2:
-#                        # Check if no lines have been drawn
-#                        if not draw_est1 and not draw_est2:
-#                            if(par_est1 < axes_rng[0]):
-#                                x_length = fullx_length
-#                                dx_length = -ftx_length
-#                            else:
-#                                x_length = 1-fullx_length
-#                                dx_length = ftx_length
-#
-#                            if(par_est2 < axes_rng[2]):
-#                                y_length = fully_length
-#                                dy_length = -fty_length
-#                            else:
-#                                y_length = 1-fully_length
-#                                dy_length = fty_length
-#
-#                            # Draw arrow
-#                            ax.arrow(x_length, y_length, dx_length, dy_length,
-#                                     width=ftx_width, head_width=fhx_width,
-#                                     head_length=fhx_length,
-#                                     transform=ax.transAxes, **arrow_kwargs)
-#
-#                        # Else, check if par_est1 has not been drawn yet
-#                        if not draw_est1:
-#                            # Set rel_pos as the position of par_est2
-#                            rel_pos = (par_est2-axes_rng[2])/(np.diff(axes_rng[2:]))
-#
-#                            # If par_est smaller than range, draw arrow to the left
-#                            if(par_est1 < axes_rng[0]):
-#                                ax.arrow(fullx_length, rel_pos, -ftx_length, 0,
-#                                         width=ftx_width, head_width=fhx_width,
-#                                         head_length=fhx_length,
-#                                         transform=ax.transAxes, **arrow_kwargs)
-#
-#                            # Else, draw arrow to the right
-#                            else:
-#                                ax.arrow(1-fullx_length, rel_pos, ftx_length, 0,
-#                                         width=ftx_width, head_width=fhx_width,
-#                                         head_length=fhx_length,
-#                                         transform=ax.transAxes, **arrow_kwargs)
-#
-#                        # Else, draw par_est2 arrow
-#                        else:
-#                            # Set rel_pos as the position of par_est1
-#                            rel_pos = (par_est1-axes_rng[0])/(np.diff(axes_rng[:2]))
-#
-#                            # If par_est smaller than range, draw arrow to bottom
-#                            if(par_est2 < axes_rng[2]):
-#                                ax.arrow(rel_pos, fully_length, 0, -fty_length,
-#                                         width=fty_width, head_width=fhy_width,
-#                                         head_length=fhy_length,
-#                                         transform=ax.transAxes, **arrow_kwargs)
-#
-#                            # Else, draw arrow to top
-#                            else:
-#                                ax.arrow(rel_pos, 1-fully_length, 0, fty_length,
-#                                         width=fty_width, head_width=fhy_width,
-#                                         head_length=fhy_length,
-#                                         transform=ax.transAxes, **arrow_kwargs)
-#
-#                # Else, check if par_est1 was given
-#                elif par_est1 is not None:
-#                    # Draw line if estimate is in plausible range
-#                    if (axes_rng[0] <= par_est1) and (par_est1 <= axes_rng[1]):
-#                        ax.axvline(par_est1, **self.__line_kwargs_est)
-#
-#                    # Else, draw an arrow pointing in the direction of the line
-#                    else:
-#                        # If par_est smaller than range, draw arrow to the left
-#                        if(par_est1 < axes_rng[0]):
-#                            ax.arrow(fullx_length, rel_ypos, -ftx_length, 0,
-#                                     width=ftx_width, head_width=fhx_width,
-#                                     head_length=fhx_length,
-#                                     transform=ax.transAxes, **arrow_kwargs)
-#
-#                        # Else, draw arrow to the right
-#                        else:
-#                            ax.arrow(1-fullx_length, rel_ypos, ftx_length, 0,
-#                                     width=ftx_width, head_width=fhx_width,
-#                                     head_length=fhx_length,
-#                                     transform=ax.transAxes, **arrow_kwargs)
-#
-#
-#                # Else, par_est2 must have been given
+#                # Else, draw an arrow pointing in the direction of the line
 #                else:
-#                    # Draw line if estimate is in plausible range
-#                    if (axes_rng[2] <= par_est2) and (par_est2 <= axes_rng[3]):
-#                        ax.axhline(par_est2, **self.__line_kwargs_est)
+#                    # If par_est smaller than range, draw arrow to the left
+#                    if(par_est < axes_rng[0]):
+#                        self.__draw_estimate_arrow(ax, 'left')
 #
-#                    # Else, draw an arrow pointing in the direction of the line
+#                    # Else, draw arrow to the right
 #                    else:
-#                        # If par_est smaller than range, draw arrow to bottom
-#                        if(par_est2 < axes_rng[2]):
-#                            ax.arrow(rel_xpos, fully_length, 0, -fty_length,
-#                                     width=fty_width, head_width=fhy_width,
-#                                     head_length=fhy_length,
-#                                     transform=ax.transAxes, **arrow_kwargs)
-#
-#                        # Else, draw arrow to top
-#                        else:
-#                            ax.arrow(rel_xpos, 1-fully_length, 0, fty_length,
-#                                     width=fty_width, head_width=fhy_width,
-#                                     head_length=fhy_length,
-#                                     transform=ax.transAxes, **arrow_kwargs)
+#                        self.__draw_estimate_arrow(ax, 'right')
 #
 #                # Set axis
 #                ax.axis(axes_rng)
+#
+#        # Draw parameter estimate lines/arrows for y-axis
+#        par_est = self._modellink._par_est[par2]
+#        if par_est is not None:
+#            # Draw estimate line or arrow in both subplots
+#            for ax in [ax0, ax1]:
+#                # Draw line if estimate is in plausible range
+#                if (axes_rng[2] <= par_est) and (par_est <= axes_rng[3]):
+#                    ax.axhline(par_est, **self.__line_kwargs_est)
+#
+#                # Else, draw an arrow pointing in the direction of the line
+#                else:
+#                    # If par_est smaller than range, draw arrow to bottom
+#                    if(par_est < axes_rng[2]):
+#                        self.__draw_estimate_arrow(ax, 'bottom')
+#
+#                    # Else, draw arrow to top
+#                    else:
+#                        self.__draw_estimate_arrow(ax, 'top')
+#
+#                # Set axis
+#                ax.axis(axes_rng)
+
+
+        # Obtain parameter estimates of both plotted parameters
+        par_est1 = self._modellink._par_est[par1]
+        par_est2 = self._modellink._par_est[par2]
+
+        # Check if at least one parameter estimate is given
+        if par_est1 is not None or par_est2 is not None:
+            # Loop over both axes
+            for ax in [ax0, ax1]:
+                # Save that both estimates are not drawn yet
+                draw_est1 = False
+                draw_est2 = False
+
+                # Check if par_est1 is within range and draw line if so
+                if(par_est1 is not None and (axes_rng[0] <= par_est1) and
+                   (par_est1 <= axes_rng[1])):
+                    ax.axvline(par_est1, **self.__line_kwargs_est)
+                    draw_est1 = True
+
+                # Check if par_est2 is within range and draw line if so
+                if(par_est2 is not None and (axes_rng[2] <= par_est2) and
+                   (par_est2 <= axes_rng[3])):
+                    ax.axhline(par_est2, **self.__line_kwargs_est)
+                    draw_est2 = True
+
+                # If at least one estimate has not been drawn yet, draw arrow
+                if not draw_est1 or draw_est2:
+                    self.__draw_estimate_arrow(par_est1, par_est2, ax)
 
 
         # If called by the Projection GUI, return figure instance
@@ -916,7 +801,7 @@ class Projection(object):
                     "%r." % (hcube_name))
 
     # This function draws an estimate arrow in the given Axis
-    def __draw_estimate_arrow(self, ax, direction):
+    def __draw_estimate_arrow(self, x, y, ax):
         """
 
 
@@ -932,6 +817,10 @@ class Projection(object):
         # Obtain the bbox of positions of the axis
         pos = ax.get_position(fig)
 
+        # Obtain the axis limits
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+
         # Set the width and length of the arrow head/tail
         fh_length = arrow_kwargs.pop('fh_arrowlength')*fig_size[0]
         ft_length = arrow_kwargs.pop('ft_arrowlength')*fh_length
@@ -941,26 +830,64 @@ class Projection(object):
         rel_xpos = arrow_kwargs.pop('rel_xpos')
         rel_ypos = arrow_kwargs.pop('rel_ypos')
 
-        if(direction == 'left'):
-            x = pos.x0*fig_size[0]+full_length
-            y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]
-            dx = -ft_length
-            dy = 0
-        elif(direction == 'right'):
-            x = pos.x1*fig_size[0]-full_length
-            y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]
-            dx = ft_length
-            dy = 0
-        elif(direction == 'top'):
+        # Check if x and y are inside the axis limits
+        x_in = bool(x is None or ((xlim[0] <= x) and (x <= xlim[1])))
+        y_in = bool(y is None or ((ylim[0] <= y) and (y <= ylim[1])))
+
+        # If both x and y are out of range, determine the arrow length
+        if not x_in and not y_in:
+            # Determine the range of x and y
+            x_size = np.diff(xlim)[0]
+            y_size = np.diff(ylim)[0]
+
+            if(x < xlim[0]):
+                xl = (xlim[0]-x)/x_size
+            else:
+                xl = (x-xlim[1])/x_size
+
+            if(y < ylim[0]):
+                yl = (ylim[0]-y)/y_size
+            else:
+                yl = (y-ylim[1])/y_size
+
+            tl = xl+yl
+            xf = np.sqrt(xl/tl)
+            yf = np.sqrt(yl/tl)
+
+            fullx_length = full_length*xf
+            ftx_length = ft_length*xf
+            fully_length = full_length*yf
+            fty_length = ft_length*yf
+
+        else:
+            fullx_length = full_length
+            ftx_length = ft_length
+            fully_length = full_length
+            fty_length = ft_length
+
+        if x_in:
+            if x is not None:
+                rel_xpos = (x-xlim[0])/(xlim[1]-xlim[0])
             x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]
-            y = pos.y1*fig_size[1]-full_length
             dx = 0
-            dy = ft_length
-        elif(direction == 'bottom'):
-            x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]
-            y = pos.y0*fig_size[1]+full_length
-            dx = 0
-            dy = -ft_length
+        elif(x < xlim[0]):
+            x = pos.x0*fig_size[0]+fullx_length
+            dx = -ftx_length
+        elif(xlim[1] < x):
+            x = pos.x1*fig_size[0]-fullx_length
+            dx = ftx_length
+
+        if y_in:
+            if y is not None:
+                rel_ypos = (y-ylim[0])/(ylim[1]-ylim[0])
+            y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]
+            dy = 0
+        elif(y < ylim[0]):
+            y = pos.y0*fig_size[1]+fully_length
+            dy = -fty_length
+        elif(ylim[1] < y):
+            y = pos.y1*fig_size[1]-fully_length
+            dy = fty_length
 
         ax.arrow(x, y, dx, dy,
                  width=ft_width, head_width=fh_width,
