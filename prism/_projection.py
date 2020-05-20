@@ -234,10 +234,10 @@ class Projection(object):
                 of the arrow tail.
             rel_xpos : float. Default: 0.5
                 The relative x-position of the arrow. Only used if the arrow is
-                drawn vertically.
+                drawn vertically and has no anchor in 3D projections.
             rel_ypos : float. Default: 0.5
                 The relative y-position of the arrow. Only used if the arrow is
-                drawn horizontally.
+                drawn horizontally and has no anchor in 3D projections.
 
         As changing the aspect ratio of the figure would also change the
         appearance of the arrow, the fractional sizes are scaled such to make
@@ -436,150 +436,119 @@ class Projection(object):
         else:
             axis_rng = proj_space[par]
 
-        # Create figure object if the figure is requested
-        if self.__figure:
-            # Create a copy of the arrow_kwargs
-            arrow_kwargs = dict(self.__arrow_kwargs_est)
-
-            # Obtain the ratio of the figure size
-            ratio = ((4.8*self.__fig_kwargs['figsize'][0]) /
-                     (6.4*self.__fig_kwargs['figsize'][1]))
-            f_width = 1
-            f_height = 1
-
-            # Determine which dimension of the arrow must be resized
-            if(ratio > 1):
-                if(6.4 > self.__fig_kwargs['figsize'][0]):
-                    f_width *= ratio
-                else:
-                    f_width /= ratio
-            elif(ratio < 1):
-                if(4.8 < self.__fig_kwargs['figsize'][1]):
-                    f_height *= ratio
-                else:
-                    f_height /= ratio
-
-            # Set the width and length of the arrow head/tail
-            fh_length = arrow_kwargs.pop('fh_arrowlength')*f_width
-            ft_length = arrow_kwargs.pop('ft_arrowlength')*fh_length
-            fh_width = arrow_kwargs.pop('fh_arrowwidth')*f_height
-            ft_width = arrow_kwargs.pop('ft_arrowwidth')*f_height
-            full_length = fh_length+ft_length
-            _ = arrow_kwargs.pop('rel_xpos')
-            rel_ypos = arrow_kwargs.pop('rel_ypos')
-
-            # Check alignment and act accordingly
-            if(self.__align == 'row'):
-                f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
-                w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
-
-                # Create GridSpec objects including a dummy Axes object
-                gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
-                ax0 = f.add_subplot(gsarr[0, 0])
-                ax1 = f.add_subplot(gsarr[0, 1])
-                label_ax = f.add_subplot(gsarr[1, :])
-
-                # Set padding to the bare minimum
-                f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
-                                              wspace=wspace, hspace=0)
-            else:
-                f, (ax0, ax1) = plt.subplots(2, constrained_layout=True,
-                                             **self.__fig_kwargs)
-                w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
-
-                # Set padding to the bare minimum
-                f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
-                                              wspace=0, hspace=hspace)
-
-            # Set super title
-            f.suptitle(r"Projection %s" % (hcube_name), fontsize='xx-large')
-
-            # MINIMUM IMPLAUSIBILITY PLOT
-            # Plot minimum implausibility
-            ax0.plot(x, y_min, **self.__impl_kwargs_2D)
-            vmin = 0 if self.__full_impl_rng else max(0, np.min(y_min))
-            ax0_rng = [*axis_rng, vmin, impl_cut]
-            ax0.axis(ax0_rng)
-
-            # Draw implausibility cut-off line(s)
-            if self.__show_cuts:
-                # If all lines are requested, draw them
-                for cut in impl_cuts:
-                    ax0.axhline(cut, **self.__line_kwargs_cut)
-            else:
-                # Else, draw the first cut-off line
-                ax0.axhline(impl_cut, **self.__line_kwargs_cut)
-
-            # Set axis and label
-            ax0.axis(ax0_rng)
-            ax0.set_ylabel("Min. Implausibility", fontsize='large')
-
-            # LINE-OF-SIGHT DEPTH PLOT
-            # Plot line-of-sight depth
-            ax1.plot(x, y_los, **self.__los_kwargs_2D)
-            ax1_rng = [*axis_rng, 0, 1.05*min(1, np.max(y_los))]
-            ax1.axis(ax1_rng)
-
-            # Set label
-            ax1.set_ylabel("Line-of-Sight Depth", fontsize='large')
-
-            # Draw parameter estimate lines/arrows
-            par_est = self._modellink._par_est[par]
-            if par_est is not None:
-                # Draw estimate line or arrow in both subplots
-                for ax, ax_rng in [(ax0, ax0_rng), (ax1, ax1_rng)]:
-                    # Draw line if estimate is in plausible range
-                    if (axis_rng[0] <= par_est) and (par_est <= axis_rng[1]):
-                        ax.axvline(par_est, **self.__line_kwargs_est)
-
-                    # Else, draw an arrow pointing in the direction of the line
-                    else:
-                        # If par_est smaller than range, draw arrow to the left
-                        if(par_est < axis_rng[0]):
-                            ax.arrow(full_length, rel_ypos, -ft_length, 0,
-                                     width=ft_width, head_width=fh_width,
-                                     head_length=fh_length,
-                                     transform=ax.transAxes, **arrow_kwargs)
-
-                        # Else, draw arrow to the right
-                        else:
-                            ax.arrow(1-full_length, rel_ypos, ft_length, 0,
-                                     width=ft_width, head_width=fh_width,
-                                     head_length=fh_length,
-                                     transform=ax.transAxes, **arrow_kwargs)
-
-                    # Set axis
-                    ax.axis(ax_rng)
-
-            # Make super axis label using dummy Axes object as an empty plot
-            if(self.__align == 'row'):
-                label_ax.set_frame_on(False)
-                label_ax.get_xaxis().set_ticks([])
-                label_ax.get_yaxis().set_ticks([])
-                label_ax.autoscale(tight=True)
-                label_ax.set_xlabel(par_name, fontsize='x-large', labelpad=0)
-            else:
-                ax1.set_xlabel(par_name, fontsize='x-large')
-
-            # If called by the Projection GUI, return figure instance
-            if self.__use_GUI:
-                return(f)
-            # Else, save and close the figure
-            else:
-                f.savefig(self.__get_fig_path(hcube)[self.__smooth])
-                plt.close(f)
-
-            # Log that this hypercube has been drawn
-            logger.info("Finished calculating and drawing projection figure "
-                        "%r." % (hcube_name))
-
-        # If the figure data has been requested instead
-        else:
+        # If figure data has been requested, save it and return
+        if not self.__figure:
+            # Save figure data
             self.__fig_data[hcube_name] = {
                 'impl_min': [x, y_min],
                 'impl_los': [x, y_los]}
             logger.info("Finished calculating projection figure %r."
                         % (hcube_name))
+
+            # Return
+            return
+
+        # Check alignment and act accordingly
+        if(self.__align == 'row'):
+            f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
+            w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
+
+            # Create GridSpec objects including a dummy Axes object
+            gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
+            ax0 = f.add_subplot(gsarr[0, 0])
+            ax1 = f.add_subplot(gsarr[0, 1])
+            label_ax = f.add_subplot(gsarr[1, :])
+
+            # Set padding to the bare minimum
+            f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
+                                          wspace=wspace, hspace=0)
+        else:
+            f, (ax0, ax1) = plt.subplots(2, constrained_layout=True,
+                                         **self.__fig_kwargs)
+            w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
+
+            # Set padding to the bare minimum
+            f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
+                                          wspace=0, hspace=hspace)
+
+        # Set super title
+        f.suptitle(r"Projection %s" % (hcube_name), fontsize='xx-large')
+
+        # MINIMUM IMPLAUSIBILITY PLOT
+        # Plot minimum implausibility
+        ax0.plot(x, y_min, **self.__impl_kwargs_2D)
+        vmin = 0 if self.__full_impl_rng else max(0, np.min(y_min))
+        ax0_rng = [*axis_rng, vmin, impl_cut]
+        ax0.axis(ax0_rng)
+
+        # Draw implausibility cut-off line(s)
+        if self.__show_cuts:
+            # If all lines are requested, draw them
+            for cut in impl_cuts:
+                ax0.axhline(cut, **self.__line_kwargs_cut)
+        else:
+            # Else, draw the first cut-off line
+            ax0.axhline(impl_cut, **self.__line_kwargs_cut)
+
+        # Set axis and label
+        ax0.axis(ax0_rng)
+        ax0.set_ylabel("Min. Implausibility", fontsize='large')
+
+        # LINE-OF-SIGHT DEPTH PLOT
+        # Plot line-of-sight depth
+        ax1.plot(x, y_los, **self.__los_kwargs_2D)
+        ax1_rng = [*axis_rng, 0, 1.05*min(1, np.max(y_los))]
+        ax1.axis(ax1_rng)
+
+        # Set label
+        ax1.set_ylabel("Line-of-Sight Depth", fontsize='large')
+
+        # Make super axis label using dummy Axes object as an empty plot
+        if(self.__align == 'row'):
+            label_ax.set_frame_on(False)
+            label_ax.get_xaxis().set_ticks([])
+            label_ax.get_yaxis().set_ticks([])
+            label_ax.autoscale(tight=True)
+            label_ax.set_xlabel(par_name, fontsize='x-large', labelpad=0)
+        else:
+            ax1.set_xlabel(par_name, fontsize='x-large')
+
+        # Make sure that constrained layout has been applied
+        f.execute_constrained_layout()
+
+        # Draw parameter estimate lines/arrows
+        par_est = self._modellink._par_est[par]
+        if par_est is not None:
+            # Draw estimate line or arrow in both subplots
+            for ax, ax_rng in [(ax0, ax0_rng), (ax1, ax1_rng)]:
+                # Draw line if estimate is in plausible range
+                if (axis_rng[0] <= par_est) and (par_est <= axis_rng[1]):
+                    ax.axvline(par_est, **self.__line_kwargs_est)
+
+                # Else, draw an arrow pointing in the direction of the line
+                else:
+                    # If par_est smaller than range, draw arrow to the left
+                    if(par_est < axis_rng[0]):
+                        self.__draw_estimate_arrow(ax, 'left')
+
+                    # Else, draw arrow to the right
+                    else:
+                        self.__draw_estimate_arrow(ax, 'right')
+
+                # Set axis
+                ax.axis(ax_rng)
+
+        # If called by the Projection GUI, return figure instance
+        if self.__use_GUI:
+            return(f)
+        # Else, save and close the figure
+        else:
+            f.savefig(self.__get_fig_path(hcube)[self.__smooth])
+            plt.close(f)
+
+        # Log that this hypercube has been drawn
+        logger.info("Finished calculating and drawing projection figure "
+                    "%r." % (hcube_name))
 
     # This function draws the 3D projection figure
     @e13.docstring_append(draw_proj_fig_doc.format("3D", "3"))
@@ -674,187 +643,329 @@ class Projection(object):
         else:
             axes_rng = [*proj_space[par1], *proj_space[par2]]
 
-        # Create figure object if the figure is requested
-        if self.__figure:
-            # Create a copy of the arrow_kwargs
-            arrow_kwargs = dict(self.__arrow_kwargs_est)
-
-            # Obtain the ratio of the figure size
-            ratio = ((4.8*self.__fig_kwargs['figsize'][0]) /
-                     (6.4*self.__fig_kwargs['figsize'][1]))
-            f_width = 1
-            f_height = 1
-
-            # Determine which dimension of the arrow must be resized
-            if(ratio > 1):
-                if(6.4 > self.__fig_kwargs['figsize'][0]):
-                    f_width *= ratio
-                else:
-                    f_width /= ratio
-            elif(ratio < 1):
-                if(4.8 < self.__fig_kwargs['figsize'][1]):
-                    f_height *= ratio
-                else:
-                    f_height /= ratio
-
-            # Set the width and length of the arrow head/tail
-            fh_length = arrow_kwargs.pop('fh_arrowlength')
-            fhx_length = fh_length*f_width
-            fhy_length = fh_length*f_height*(6.4/2.4)
-            ft_length = arrow_kwargs.pop('ft_arrowlength')
-            ftx_length = ft_length*fhx_length
-            fty_length = ft_length*fhy_length
-            fullx_length = fhx_length+ftx_length
-            fully_length = fhy_length+fty_length
-            fh_width = arrow_kwargs.pop('fh_arrowwidth')
-            fhx_width = fh_width*f_height
-            fhy_width = fh_width*f_width/(6.4/2.4)
-            ft_width = arrow_kwargs.pop('ft_arrowwidth')
-            ftx_width = ft_width*f_height
-            fty_width = ft_width*f_width/(6.4/2.4)
-            rel_xpos = arrow_kwargs.pop('rel_xpos')
-            rel_ypos = arrow_kwargs.pop('rel_ypos')
-
-            # Create figure instance
-            f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
-            w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
-
-            # Create GridSpec objects including a dummy Axes object
-            if(self.__align == 'row'):
-                gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
-                ax0 = f.add_subplot(gsarr[0, 0])
-                ax1 = f.add_subplot(gsarr[0, 1])
-                label_ax = f.add_subplot(gsarr[1, :])
-
-                # Set padding to the bare minimum
-                f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
-                                              wspace=wspace, hspace=0)
-            else:
-                gsarr = gs.GridSpec(2, 2, figure=f, width_ratios=[0.00001, 1])
-                label_ax = f.add_subplot(gsarr[:, 0])
-                ax0 = f.add_subplot(gsarr[0, 1])
-                ax1 = f.add_subplot(gsarr[1, 1])
-
-                # Set padding to the bare minimum
-                f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
-                                              wspace=0, hspace=hspace)
-
-            # Set super title
-            f.suptitle(r"Projection %s" % (hcube_name), fontsize='xx-large')
-
-            # MINIMUM IMPLAUSIBILITY PLOT
-            # Plot minimum implausibility
-            vmin = 0 if self.__full_impl_rng else max(0, np.min(z_min))
-            fig0 = ax0.hexbin(x, y, z_min, gridsize-1, vmin=vmin,
-                              vmax=impl_cut, **self.__impl_kwargs_3D)
-            ax0.axis(axes_rng)
-
-            # Set labels
-            plt.colorbar(fig0, ax=ax0, extend='max').set_label(
-                "Min. Implausibility", fontsize='large')
-
-            # LINE-OF-SIGHT DEPTH PLOT
-            # Plot line-of-sight depth
-            fig1 = ax1.hexbin(x, y, z_los, gridsize-1, vmin=0,
-                              vmax=min(1, np.max(z_los)),
-                              **self.__los_kwargs_3D)
-            ax1.axis(axes_rng)
-
-            # Set label
-            plt.colorbar(fig1, ax=ax1).set_label("Line-of-Sight Depth",
-                                                 fontsize='large')
-
-            # Draw parameter estimate lines/arrows for x-axis
-            par_est = self._modellink._par_est[par1]
-            if par_est is not None:
-                # Draw estimate line or arrow in both subplots
-                for ax in [ax0, ax1]:
-                    # Draw line if estimate is in plausible range
-                    if (axes_rng[0] <= par_est) and (par_est <= axes_rng[1]):
-                        ax.axvline(par_est, **self.__line_kwargs_est)
-
-                    # Else, draw an arrow pointing in the direction of the line
-                    else:
-                        # If par_est smaller than range, draw arrow to the left
-                        if(par_est < axes_rng[0]):
-                            ax.arrow(fullx_length, rel_ypos, -ftx_length, 0,
-                                     width=ftx_width, head_width=fhx_width,
-                                     head_length=fhx_length,
-                                     transform=ax.transAxes, **arrow_kwargs)
-
-                        # Else, draw arrow to the right
-                        else:
-                            ax.arrow(1-fullx_length, rel_ypos, ftx_length, 0,
-                                     width=ftx_width, head_width=fhx_width,
-                                     head_length=fhx_length,
-                                     transform=ax.transAxes, **arrow_kwargs)
-
-                    # Set axis
-                    ax.axis(axes_rng)
-
-            # Draw parameter estimate lines/arrows for y-axis
-            par_est = self._modellink._par_est[par2]
-            if par_est is not None:
-                # Draw estimate line or arrow in both subplots
-                for ax in [ax0, ax1]:
-                    # Draw line if estimate is in plausible range
-                    if (axes_rng[2] <= par_est) and (par_est <= axes_rng[3]):
-                        ax.axhline(par_est, **self.__line_kwargs_est)
-
-                    # Else, draw an arrow pointing in the direction of the line
-                    else:
-                        # If par_est smaller than range, draw arrow to bottom
-                        if(par_est < axes_rng[2]):
-                            ax.arrow(rel_xpos, fully_length, 0, -fty_length,
-                                     width=fty_width, head_width=fhy_width,
-                                     head_length=fhy_length,
-                                     transform=ax.transAxes, **arrow_kwargs)
-
-                        # Else, draw arrow to top
-                        else:
-                            ax.arrow(rel_xpos, 1-fully_length, 0, fty_length,
-                                     width=fty_width, head_width=fhy_width,
-                                     head_length=fhy_length,
-                                     transform=ax.transAxes, **arrow_kwargs)
-
-                    # Set axis
-                    ax.axis(axes_rng)
-
-            # Make super axis labels using dummy Axes object as an empty plot
-            if(self.__align == 'row'):
-                ax0.set_ylabel(par2_name, fontsize='x-large')
-                label_ax.set_frame_on(False)
-                label_ax.get_xaxis().set_ticks([])
-                label_ax.get_yaxis().set_ticks([])
-                label_ax.autoscale(tight=True)
-                label_ax.set_xlabel(par1_name, fontsize='x-large', labelpad=0)
-            else:
-                ax1.set_xlabel(par1_name, fontsize='x-large')
-                label_ax.set_frame_on(False)
-                label_ax.get_xaxis().set_ticks([])
-                label_ax.get_yaxis().set_ticks([])
-                label_ax.autoscale(tight=True)
-                label_ax.set_ylabel(par2_name, fontsize='x-large', labelpad=0)
-
-            # If called by the Projection GUI, return figure instance
-            if self.__use_GUI:
-                return(f)
-            # Else, save and close the figure
-            else:
-                f.savefig(self.__get_fig_path(hcube)[self.__smooth])
-                plt.close(f)
-
-            # Log that this hypercube has been drawn
-            logger.info("Finished calculating and drawing projection figure"
-                        "%r." % (hcube_name))
-
-        # If the figure data has been requested instead
-        else:
+        # If figure data has been requested, save it and return
+        if not self.__figure:
+            # Save figure data
             self.__fig_data[hcube_name] = {
                 'impl_min': [x, y, z_min],
                 'impl_los': [x, y, z_los]}
             logger.info("Finished calculating projection figure %r."
                         % (hcube_name))
+
+            # Return
+            return
+
+        # Create figure instance
+        f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
+        w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
+
+        # Create GridSpec objects including a dummy Axes object
+        if(self.__align == 'row'):
+            gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
+            ax0 = f.add_subplot(gsarr[0, 0])
+            ax1 = f.add_subplot(gsarr[0, 1])
+            label_ax = f.add_subplot(gsarr[1, :])
+
+            # Set padding to the bare minimum
+            f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
+                                          wspace=wspace, hspace=0)
+        else:
+            gsarr = gs.GridSpec(2, 2, figure=f, width_ratios=[0.00001, 1])
+            label_ax = f.add_subplot(gsarr[:, 0])
+            ax0 = f.add_subplot(gsarr[0, 1])
+            ax1 = f.add_subplot(gsarr[1, 1])
+
+            # Set padding to the bare minimum
+            f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
+                                          wspace=0, hspace=hspace)
+
+        # Set super title
+        f.suptitle(r"Projection %s" % (hcube_name), fontsize='xx-large')
+
+        # MINIMUM IMPLAUSIBILITY PLOT
+        # Plot minimum implausibility
+        vmin = 0 if self.__full_impl_rng else max(0, np.min(z_min))
+        fig0 = ax0.hexbin(x, y, z_min, gridsize-1, vmin=vmin,
+                          vmax=impl_cut, **self.__impl_kwargs_3D)
+        ax0.axis(axes_rng)
+
+        # Set labels
+        plt.colorbar(fig0, ax=ax0, extend='max').set_label(
+            "Min. Implausibility", fontsize='large')
+
+        # LINE-OF-SIGHT DEPTH PLOT
+        # Plot line-of-sight depth
+        fig1 = ax1.hexbin(x, y, z_los, gridsize-1, vmin=0,
+                          vmax=min(1, np.max(z_los)),
+                          **self.__los_kwargs_3D)
+        ax1.axis(axes_rng)
+
+        # Set label
+        plt.colorbar(fig1, ax=ax1).set_label("Line-of-Sight Depth",
+                                             fontsize='large')
+
+        # Make super axis labels using dummy Axes object as an empty plot
+        if(self.__align == 'row'):
+            ax0.set_ylabel(par2_name, fontsize='x-large')
+            label_ax.set_frame_on(False)
+            label_ax.get_xaxis().set_ticks([])
+            label_ax.get_yaxis().set_ticks([])
+            label_ax.autoscale(tight=True)
+            label_ax.set_xlabel(par1_name, fontsize='x-large', labelpad=0)
+        else:
+            ax1.set_xlabel(par1_name, fontsize='x-large')
+            label_ax.set_frame_on(False)
+            label_ax.get_xaxis().set_ticks([])
+            label_ax.get_yaxis().set_ticks([])
+            label_ax.autoscale(tight=True)
+            label_ax.set_ylabel(par2_name, fontsize='x-large', labelpad=0)
+
+        # Make sure that constrained layout has been applied
+        f.execute_constrained_layout()
+
+        # Draw parameter estimate lines/arrows for x-axis
+        par_est = self._modellink._par_est[par1]
+        if par_est is not None:
+            # Draw estimate line or arrow in both subplots
+            for ax in [ax0, ax1]:
+                # Draw line if estimate is in plausible range
+                if (axes_rng[0] <= par_est) and (par_est <= axes_rng[1]):
+                    ax.axvline(par_est, **self.__line_kwargs_est)
+
+                # Else, draw an arrow pointing in the direction of the line
+                else:
+                    # If par_est smaller than range, draw arrow to the left
+                    if(par_est < axes_rng[0]):
+                        self.__draw_estimate_arrow(ax, 'left')
+
+                    # Else, draw arrow to the right
+                    else:
+                        self.__draw_estimate_arrow(ax, 'right')
+
+                # Set axis
+                ax.axis(axes_rng)
+
+        # Draw parameter estimate lines/arrows for y-axis
+        par_est = self._modellink._par_est[par2]
+        if par_est is not None:
+            # Draw estimate line or arrow in both subplots
+            for ax in [ax0, ax1]:
+                # Draw line if estimate is in plausible range
+                if (axes_rng[2] <= par_est) and (par_est <= axes_rng[3]):
+                    ax.axhline(par_est, **self.__line_kwargs_est)
+
+                # Else, draw an arrow pointing in the direction of the line
+                else:
+                    # If par_est smaller than range, draw arrow to bottom
+                    if(par_est < axes_rng[2]):
+                        self.__draw_estimate_arrow(ax, 'bottom')
+
+                    # Else, draw arrow to top
+                    else:
+                        self.__draw_estimate_arrow(ax, 'top')
+
+                # Set axis
+                ax.axis(axes_rng)
+
+
+#        # Obtain parameter estimates of both plotted parameters
+#        par_est1 = self._modellink._par_est[par1]
+#        par_est2 = self._modellink._par_est[par2]
+
+#        # Check if at least one parameter estimate is given
+#        if par_est1 is not None or par_est2 is not None:
+#            # Loop over both axes
+#            for ax in [ax0, ax1]:
+#                # Check if both parameter estimates were given
+#                if par_est1 is not None and par_est2 is not None:
+#                    # Save that both estimates are not drawn yet
+#                    draw_est1 = False
+#                    draw_est2 = False
+#
+#                    # Check if par_est1 is within range and draw line if so
+#                    if (axes_rng[0] <= par_est1) and (par_est1 <= axes_rng[1]):
+#                        ax.axvline(par_est1, **self.__line_kwargs_est)
+#                        draw_est1 = True
+#
+#                    # Check if par_est2 is within range and draw line if so
+#                    if (axes_rng[2] <= par_est2) and (par_est2 <= axes_rng[3]):
+#                        ax.axhline(par_est2, **self.__line_kwargs_est)
+#                        draw_est2 = True
+#
+#                    # Check if at most one line has been drawn
+#                    if not draw_est1 or not draw_est2:
+#                        # Check if no lines have been drawn
+#                        if not draw_est1 and not draw_est2:
+#                            if(par_est1 < axes_rng[0]):
+#                                x_length = fullx_length
+#                                dx_length = -ftx_length
+#                            else:
+#                                x_length = 1-fullx_length
+#                                dx_length = ftx_length
+#
+#                            if(par_est2 < axes_rng[2]):
+#                                y_length = fully_length
+#                                dy_length = -fty_length
+#                            else:
+#                                y_length = 1-fully_length
+#                                dy_length = fty_length
+#
+#                            # Draw arrow
+#                            ax.arrow(x_length, y_length, dx_length, dy_length,
+#                                     width=ftx_width, head_width=fhx_width,
+#                                     head_length=fhx_length,
+#                                     transform=ax.transAxes, **arrow_kwargs)
+#
+#                        # Else, check if par_est1 has not been drawn yet
+#                        if not draw_est1:
+#                            # Set rel_pos as the position of par_est2
+#                            rel_pos = (par_est2-axes_rng[2])/(np.diff(axes_rng[2:]))
+#
+#                            # If par_est smaller than range, draw arrow to the left
+#                            if(par_est1 < axes_rng[0]):
+#                                ax.arrow(fullx_length, rel_pos, -ftx_length, 0,
+#                                         width=ftx_width, head_width=fhx_width,
+#                                         head_length=fhx_length,
+#                                         transform=ax.transAxes, **arrow_kwargs)
+#
+#                            # Else, draw arrow to the right
+#                            else:
+#                                ax.arrow(1-fullx_length, rel_pos, ftx_length, 0,
+#                                         width=ftx_width, head_width=fhx_width,
+#                                         head_length=fhx_length,
+#                                         transform=ax.transAxes, **arrow_kwargs)
+#
+#                        # Else, draw par_est2 arrow
+#                        else:
+#                            # Set rel_pos as the position of par_est1
+#                            rel_pos = (par_est1-axes_rng[0])/(np.diff(axes_rng[:2]))
+#
+#                            # If par_est smaller than range, draw arrow to bottom
+#                            if(par_est2 < axes_rng[2]):
+#                                ax.arrow(rel_pos, fully_length, 0, -fty_length,
+#                                         width=fty_width, head_width=fhy_width,
+#                                         head_length=fhy_length,
+#                                         transform=ax.transAxes, **arrow_kwargs)
+#
+#                            # Else, draw arrow to top
+#                            else:
+#                                ax.arrow(rel_pos, 1-fully_length, 0, fty_length,
+#                                         width=fty_width, head_width=fhy_width,
+#                                         head_length=fhy_length,
+#                                         transform=ax.transAxes, **arrow_kwargs)
+#
+#                # Else, check if par_est1 was given
+#                elif par_est1 is not None:
+#                    # Draw line if estimate is in plausible range
+#                    if (axes_rng[0] <= par_est1) and (par_est1 <= axes_rng[1]):
+#                        ax.axvline(par_est1, **self.__line_kwargs_est)
+#
+#                    # Else, draw an arrow pointing in the direction of the line
+#                    else:
+#                        # If par_est smaller than range, draw arrow to the left
+#                        if(par_est1 < axes_rng[0]):
+#                            ax.arrow(fullx_length, rel_ypos, -ftx_length, 0,
+#                                     width=ftx_width, head_width=fhx_width,
+#                                     head_length=fhx_length,
+#                                     transform=ax.transAxes, **arrow_kwargs)
+#
+#                        # Else, draw arrow to the right
+#                        else:
+#                            ax.arrow(1-fullx_length, rel_ypos, ftx_length, 0,
+#                                     width=ftx_width, head_width=fhx_width,
+#                                     head_length=fhx_length,
+#                                     transform=ax.transAxes, **arrow_kwargs)
+#
+#
+#                # Else, par_est2 must have been given
+#                else:
+#                    # Draw line if estimate is in plausible range
+#                    if (axes_rng[2] <= par_est2) and (par_est2 <= axes_rng[3]):
+#                        ax.axhline(par_est2, **self.__line_kwargs_est)
+#
+#                    # Else, draw an arrow pointing in the direction of the line
+#                    else:
+#                        # If par_est smaller than range, draw arrow to bottom
+#                        if(par_est2 < axes_rng[2]):
+#                            ax.arrow(rel_xpos, fully_length, 0, -fty_length,
+#                                     width=fty_width, head_width=fhy_width,
+#                                     head_length=fhy_length,
+#                                     transform=ax.transAxes, **arrow_kwargs)
+#
+#                        # Else, draw arrow to top
+#                        else:
+#                            ax.arrow(rel_xpos, 1-fully_length, 0, fty_length,
+#                                     width=fty_width, head_width=fhy_width,
+#                                     head_length=fhy_length,
+#                                     transform=ax.transAxes, **arrow_kwargs)
+#
+#                # Set axis
+#                ax.axis(axes_rng)
+
+
+        # If called by the Projection GUI, return figure instance
+        if self.__use_GUI:
+            return(f)
+        # Else, save and close the figure
+        else:
+            f.savefig(self.__get_fig_path(hcube)[self.__smooth])
+            plt.close(f)
+
+        # Log that this hypercube has been drawn
+        logger.info("Finished calculating and drawing projection figure"
+                    "%r." % (hcube_name))
+
+    # This function draws an estimate arrow in the given Axis
+    def __draw_estimate_arrow(self, ax, direction):
+        """
+
+
+        """
+
+        # Obtain the figure of this axis and its size
+        fig = ax.figure
+        fig_size = fig.get_size_inches()
+
+        # Obtain a copy of the arrow_kwargs_est
+        arrow_kwargs = dict(self.__arrow_kwargs_est)
+
+        # Obtain the bbox of positions of the axis
+        pos = ax.get_position(fig)
+
+        # Set the width and length of the arrow head/tail
+        fh_length = arrow_kwargs.pop('fh_arrowlength')*fig_size[0]
+        ft_length = arrow_kwargs.pop('ft_arrowlength')*fh_length
+        fh_width = arrow_kwargs.pop('fh_arrowwidth')*fig_size[1]
+        ft_width = arrow_kwargs.pop('ft_arrowwidth')*fig_size[1]
+        full_length = fh_length+ft_length
+        rel_xpos = arrow_kwargs.pop('rel_xpos')
+        rel_ypos = arrow_kwargs.pop('rel_ypos')
+
+        if(direction == 'left'):
+            x = pos.x0*fig_size[0]+full_length
+            y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]
+            dx = -ft_length
+            dy = 0
+        elif(direction == 'right'):
+            x = pos.x1*fig_size[0]-full_length
+            y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]
+            dx = ft_length
+            dy = 0
+        elif(direction == 'top'):
+            x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]
+            y = pos.y1*fig_size[1]-full_length
+            dx = 0
+            dy = ft_length
+        elif(direction == 'bottom'):
+            x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]
+            y = pos.y0*fig_size[1]+full_length
+            dx = 0
+            dy = -ft_length
+
+        ax.arrow(x, y, dx, dy,
+                 width=ft_width, head_width=fh_width,
+                 head_length=fh_length,
+                 transform=fig.dpi_scale_trans, **arrow_kwargs)
 
     # This function returns the projection data belonging to a proj_hcube
     @e13.docstring_substitute(hcube=hcube_doc)
@@ -1173,8 +1284,8 @@ class Projection(object):
         arrow_kwargs_est = {'color': 'grey',
                             'fh_arrowlength': 0.015,
                             'ft_arrowlength': 1.5,
-                            'fh_arrowwidth': 0.03,
-                            'ft_arrowwidth': 0.002,
+                            'fh_arrowwidth': 0.015,
+                            'ft_arrowwidth': 0.001,
                             'rel_xpos': 0.5,
                             'rel_ypos': 0.5}
         line_kwargs_cut = {'color': 'r'}
