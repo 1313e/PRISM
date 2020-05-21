@@ -166,8 +166,8 @@ class Projection(object):
             estimate lines in both plots. It takes all optional arguments that
             can be provided to the :func:`~matplotlib.pyplot.plot` function.
         arrow_kwargs_est : dict. Default: {'color': 'grey', \
-            'fh_arrowlength': 0.015, 'fh_arrowwidth': 0.03, 'ft_arrowlength': \
-            1.5, 'ft_arrowwidth': 0.002, 'rel_xpos': 0.5, 'rel_ypos': 0.5}
+            'fh_arrowlength': 0.015, 'fh_arrowwidth': 0.025, 'ft_arrowlength':\
+            1.5, 'ft_arrowwidth': 0.003, 'rel_xpos': 0.5, 'rel_ypos': 0.5}
             Dict of keyword arguments to be used for drawing the parameter
             estimate arrows in both plots. It takes a special set of arguments
             that are described in the `Notes`_.
@@ -800,16 +800,21 @@ class Projection(object):
             x_size = np.diff(xlim)[0]
             y_size = np.diff(ylim)[0]
 
-            if(x < xlim[0]):
-                xl = (xlim[0]-x)/x_size
-            else:
-                xl = (x-xlim[1])/x_size
+            xc = xlim[0]+x_size/2
+            yc = ylim[0]+y_size/2
+
+            dx = x-xc
+            dy = y-yc
+
+            a = abs(x_size/(2*dx))
+            b = abs(y_size/(2*dy))
+
+            ab = min(a, b)
+
+            xl = abs(dx)/x_size
             xl *= ((pos.x1-pos.x0)*fig_size[0])/((pos.y1-pos.y0)*fig_size[1])
 
-            if(y < ylim[0]):
-                yl = (ylim[0]-y)/y_size
-            else:
-                yl = (y-ylim[1])/y_size
+            yl = abs(dy)/y_size
 
             tl = xl+yl
             xf = np.sqrt(xl/tl)
@@ -817,36 +822,50 @@ class Projection(object):
 
             fullx_length = full_length*xf
             fully_length = full_length*yf
+
+            xp = ab*dx+xc
+            yp = ab*dy+yc
         else:
             fully_length = fh_length if x_in and x is not None else full_length
             fullx_length = fh_length if y_in and y is not None else full_length
+
+            xp = np.clip(x, *xlim) if x is not None else x
+            yp = np.clip(y, *ylim) if y is not None else y
 
         if x_in:
             if x is not None:
                 ax.axvline(x, snap=True, **self.__line_kwargs_est)
                 rel_xpos = (x-xlim[0])/(xlim[1]-xlim[0])
-                snap = True
+                snap = (self.__align == 'row')
             x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]
             dx = 0
         elif(x < xlim[0]):
-            x = pos.x0*fig_size[0]+fullx_length
+            rel_xpos = (xp-xlim[0])/(xlim[1]-xlim[0])
+            x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]+fullx_length
+            x += 1/fig.dpi
             dx = -fullx_length
         elif(xlim[1] < x):
-            x = pos.x1*fig_size[0]-fullx_length
+            rel_xpos = (xp-xlim[0])/(xlim[1]-xlim[0])
+            x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]-fullx_length
+            x -= 1/fig.dpi
             dx = fullx_length
 
         if y_in:
             if y is not None:
                 ax.axhline(y, snap=True, **self.__line_kwargs_est)
                 rel_ypos = (y-ylim[0])/(ylim[1]-ylim[0])
-                snap = True
+                snap = (self.__align == 'row')
             y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]
             dy = 0
         elif(y < ylim[0]):
-            y = pos.y0*fig_size[1]+fully_length
+            rel_ypos = (yp-ylim[0])/(ylim[1]-ylim[0])
+            y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]+fully_length
+            y += 1/fig.dpi
             dy = -fully_length
         elif(ylim[1] < y):
-            y = pos.y1*fig_size[1]-fully_length
+            rel_ypos = (yp-ylim[0])/(ylim[1]-ylim[0])
+            y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]-fully_length
+            y -= 1/fig.dpi
             dy = fully_length
 
         if not x_in or not y_in:
@@ -1172,8 +1191,8 @@ class Projection(object):
         arrow_kwargs_est = {'color': 'grey',
                             'fh_arrowlength': 0.015,
                             'ft_arrowlength': 1.5,
-                            'fh_arrowwidth': 0.015,
-                            'ft_arrowwidth': 0.001,
+                            'fh_arrowwidth': 0.025,
+                            'ft_arrowwidth': 0.003,
                             'rel_xpos': 0.5,
                             'rel_ypos': 0.5}
         line_kwargs_cut = {'color': 'r'}
