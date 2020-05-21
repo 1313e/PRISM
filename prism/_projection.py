@@ -779,7 +779,7 @@ class Projection(object):
         xlim = ax.get_xlim()
         ylim = ax.get_ylim()
 
-        # Set the width and length of the arrow head/tail
+        # Obtain the fractional widths and lengths of the arrow
         fh_length = arrow_kwargs.pop('fh_arrowlength')*6.4
         ft_length = arrow_kwargs.pop('ft_arrowlength')*fh_length
         fh_width = arrow_kwargs.pop('fh_arrowwidth')*4.78
@@ -795,80 +795,112 @@ class Projection(object):
         snap = False
         ax_lw = rcParams['axes.linewidth']/72
 
-        # If both x and y are out of range, determine the arrow length
+        # Determine the range of x and y
+        x_size = np.diff(xlim)[0]
+        y_size = np.diff(ylim)[0]
+
+        # Determine the center coordinates of the plot
+        xc = xlim[0]+x_size/2
+        yc = ylim[0]+y_size/2
+
+        # If both x and y are out of range, determine the length and position
+        # of the arrow in both directions
         if not x_in and not y_in:
-            # Determine the range of x and y
-            x_size = np.diff(xlim)[0]
-            y_size = np.diff(ylim)[0]
-
-            xc = xlim[0]+x_size/2
-            yc = ylim[0]+y_size/2
-
+            # Calculate the distance between the center and the intersect
             dx = x-xc
             dy = y-yc
 
-            a = abs(x_size/(2*dx))
-            b = abs(y_size/(2*dy))
-
-            ab = min(a, b)
-
+            # Calculate the part of the arrow that must be in either direction
             xl = abs(dx)/x_size
             xl *= ((pos.x1-pos.x0)*fig_size[0])/((pos.y1-pos.y0)*fig_size[1])
-
             yl = abs(dy)/y_size
-
             tl = xl+yl
+
+            # Calculate what fraction of the total length belongs to either
+            # direction
             xf = np.sqrt(xl/tl)
             yf = np.sqrt(yl/tl)
 
+            # Calculate the length of the arrow in both directions
             fullx_length = full_length*xf
             fully_length = full_length*yf
 
-            xp = ab*dx+xc
-            yp = ab*dy+yc
+            # Calculate how far away the border is in terms of the intersect
+            fx = abs(x_size/(2*dx))
+            fy = abs(y_size/(2*dy))
+
+            # Determine the lowest of the two directions
+            fxy = min(fx, fy)
+
+            # Determine the frame point of the arrow
+            xp = fxy*dx+xc
+            yp = fxy*dy+yc
         else:
+            # Determine the length of the arrow in both directions
             fully_length = fh_length if x_in and x is not None else full_length
             fullx_length = fh_length if y_in and y is not None else full_length
 
+            # Determine the frame point of the arrow
             xp = np.clip(x, *xlim) if x is not None else x
             yp = np.clip(y, *ylim) if y is not None else y
 
+        # Check if provided x is within range of not given at all
         if x_in:
+            # If so, draw estimate line if x was given
             if x is not None:
                 ax.axvline(x, snap=True, **self.__line_kwargs_est)
                 rel_xpos = (x-xlim[0])/(xlim[1]-xlim[0])
+
+                # Make sure to snap the arrow to the line when using row align
                 snap = (self.__align == 'row')
+
+            # Set the x and dx values for the arrow
             x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]
             dx = 0
-        elif(x < xlim[0]):
+        else:
+            # If not, calculate the x-coordinate of the frame point
             rel_xpos = (xp-xlim[0])/(xlim[1]-xlim[0])
-            x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]+fullx_length
-            x += ax_lw
-            dx = -fullx_length
-        elif(xlim[1] < x):
-            rel_xpos = (xp-xlim[0])/(xlim[1]-xlim[0])
-            x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]-fullx_length
-            x -= ax_lw
-            dx = fullx_length
+            x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]
 
+            # Check if x is to the left of the center of the plot
+            if(x < xc):
+                # If so, the end of the arrow must be moved to the right
+                x += fullx_length+ax_lw
+                dx = -fullx_length
+            else:
+                # Else, the end of the arrow must be moved to the left
+                x -= fullx_length+ax_lw
+                dx = fullx_length
+
+        # Check if provided y is within range or not given at all
         if y_in:
+            # If so, draw estimate line if y was given
             if y is not None:
                 ax.axhline(y, snap=True, **self.__line_kwargs_est)
                 rel_ypos = (y-ylim[0])/(ylim[1]-ylim[0])
+
+                # Make sure to snap the arrow to the line when using row align
                 snap = (self.__align == 'row')
+
+            # Set the y and dy values for the arrow
             y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]
             dy = 0
-        elif(y < ylim[0]):
+        else:
+            # If not, calculate the y-coordinate of the frame point
             rel_ypos = (yp-ylim[0])/(ylim[1]-ylim[0])
-            y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]+fully_length
-            y += ax_lw
-            dy = -fully_length
-        elif(ylim[1] < y):
-            rel_ypos = (yp-ylim[0])/(ylim[1]-ylim[0])
-            y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]-fully_length
-            y -= ax_lw
-            dy = fully_length
+            y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]
 
+            # Check if y is below the center of the plot
+            if(y < yc):
+                # If so, the end of the arrow must be raised
+                y += fully_length+ax_lw
+                dy = -fully_length
+            elif(ylim[1] < y):
+                # Else, the end of the arrow must be lowered
+                y -= fully_length+ax_lw
+                dy = fully_length
+
+        # If at least one estimate was not drawn, draw arrow
         if not x_in or not y_in:
             ax.arrow(x, y, dx, dy, length_includes_head=True,
                      width=ft_width, head_width=fh_width,
