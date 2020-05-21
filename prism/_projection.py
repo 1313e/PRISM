@@ -895,7 +895,7 @@ class Projection(object):
                 # If so, the end of the arrow must be raised
                 y += fully_length+ax_lw
                 dy = -fully_length
-            elif(ylim[1] < y):
+            else:
                 # Else, the end of the arrow must be lowered
                 y -= fully_length+ax_lw
                 dy = fully_length
