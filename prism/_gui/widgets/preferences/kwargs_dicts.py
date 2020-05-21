@@ -24,7 +24,7 @@ from prism._gui.widgets import (
     BaseBox, QW_QComboBox, QW_QDoubleSpinBox, QW_QEditableComboBox, QW_QLabel,
     QW_QSpinBox, get_box_value, set_box_value)
 from prism._gui.widgets.preferences.custom_boxes import (
-    ColorBox, ColorMapBox, DefaultBox, FigSizeBox)
+    ColorBox, ColorMapBox, DefaultBox)
 
 # All declaration
 __all__ = ['KwargsDictBoxLayout', 'KwargsDictDialog', 'KwargsDictDialogPage']
@@ -613,11 +613,6 @@ class KwargsDictDialogPage(BaseBox):
         dpi_box.setToolTip("DPI (dots per inch) to use for the projection "
                            "figure")
         return(dpi_box)
-
-    # This function creates a figsize box
-    @e13.docstring_append(create_type_doc.format('figsize'))
-    def create_type_figsize(self):
-        return(FigSizeBox())
 
     # This function creates a linestyle box
     @e13.docstring_append(create_type_doc.format('linestyle'))

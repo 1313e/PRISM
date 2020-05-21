@@ -243,11 +243,6 @@ class Projection(object):
                 The relative y-position of the arrow. Only used if the arrow is
                 drawn horizontally and has no anchor in 3D projections.
 
-        As changing the aspect ratio of the figure would also change the
-        appearance of the arrow, the fractional sizes are scaled such to make
-        the arrow appear as if it was plotted in a figure with size
-        `(6.4, 4.8)` (which is the default figure size).
-
         """
 
         # Log the start of the creation of the projection
@@ -785,10 +780,10 @@ class Projection(object):
         ylim = ax.get_ylim()
 
         # Set the width and length of the arrow head/tail
-        fh_length = arrow_kwargs.pop('fh_arrowlength')*fig_size[0]
+        fh_length = arrow_kwargs.pop('fh_arrowlength')*6.4
         ft_length = arrow_kwargs.pop('ft_arrowlength')*fh_length
-        fh_width = arrow_kwargs.pop('fh_arrowwidth')*fig_size[1]
-        ft_width = arrow_kwargs.pop('ft_arrowwidth')*fig_size[1]
+        fh_width = arrow_kwargs.pop('fh_arrowwidth')*4.78
+        ft_width = arrow_kwargs.pop('ft_arrowwidth')*4.78
         full_length = fh_length+ft_length
         rel_xpos = arrow_kwargs.pop('rel_xpos')
         rel_ypos = arrow_kwargs.pop('rel_ypos')
@@ -796,6 +791,8 @@ class Projection(object):
         # Check if x and y are inside the axis limits
         x_in = bool(x is None or ((xlim[0] <= x) and (x <= xlim[1])))
         y_in = bool(y is None or ((ylim[0] <= y) and (y <= ylim[1])))
+
+        snap = False
 
         # If both x and y are out of range, determine the arrow length
         if not x_in and not y_in:
@@ -821,13 +818,14 @@ class Projection(object):
             fullx_length = full_length*xf
             fully_length = full_length*yf
         else:
-            fully_length = fh_length if x_in else full_length
-            fullx_length = fh_length if y_in else full_length
+            fully_length = fh_length if x_in and x is not None else full_length
+            fullx_length = fh_length if y_in and y is not None else full_length
 
         if x_in:
             if x is not None:
-                ax.axvline(x, **self.__line_kwargs_est)
+                ax.axvline(x, snap=True, **self.__line_kwargs_est)
                 rel_xpos = (x-xlim[0])/(xlim[1]-xlim[0])
+                snap = True
             x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]
             dx = 0
         elif(x < xlim[0]):
@@ -839,8 +837,9 @@ class Projection(object):
 
         if y_in:
             if y is not None:
-                ax.axhline(y, **self.__line_kwargs_est)
+                ax.axhline(y, snap=True, **self.__line_kwargs_est)
                 rel_ypos = (y-ylim[0])/(ylim[1]-ylim[0])
+                snap = True
             y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]
             dy = 0
         elif(y < ylim[0]):
@@ -853,7 +852,7 @@ class Projection(object):
         if not x_in or not y_in:
             ax.arrow(x, y, dx, dy, length_includes_head=True,
                      width=ft_width, head_width=fh_width,
-                     head_length=fh_length,
+                     head_length=fh_length, snap=snap,
                      transform=fig.dpi_scale_trans, **arrow_kwargs)
 
     # This function returns the projection data belonging to a proj_hcube
@@ -1487,10 +1486,12 @@ class Projection(object):
         self.__pop_fig_kwargs = ['num', 'ncols', 'nrows', 'sharex', 'sharey',
                                  'constrained_layout', 'figsize']
         self.__pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax',
-                                 'norm', 'fmt', 'mincnt']
+                                 'norm', 'fmt', 'mincnt', 'snap']
+        self.__pop_line_kwargs = ['x', 'y', 'xmin', 'ymin', 'xmax', 'ymax',
+                                  'snap']
         self.__pop_arrow_kwargs = ['x', 'y', 'dx', 'dy', 'width', 'transform',
                                    'length_includes_head', 'head_width',
-                                   'head_length']
+                                   'head_length', 'snap']
 
         # Update kwargs_dict with given kwargs
         for key, value in kwargs.items():
@@ -1609,6 +1610,17 @@ class Projection(object):
             for key in los_keys:
                 if key in self.__pop_plt_kwargs:
                     los_kwargs_3D.pop(key)
+
+            # LINE_KWARGS
+            # Check if any forbidden kwargs are given and remove them
+            line_keys = list(line_kwargs_est.keys())
+            for key in line_keys:
+                if key in self.__pop_line_kwargs:
+                    line_kwargs_est.pop(key)
+            line_keys = list(line_kwargs_cut.keys())
+            for key in line_keys:
+                if key in self.__pop_line_kwargs:
+                    line_kwargs_cut.pop(key)
 
             # ARROW_KWARGS
             # Check if any forbidden kwargs are given and remove them

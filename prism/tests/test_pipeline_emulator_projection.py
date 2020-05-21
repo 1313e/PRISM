@@ -1178,7 +1178,9 @@ class Test_Internal_Exceptions(object):
         pipe._Projection__prepare_projections(None, None,
                                               los_kwargs_2D={'x': 1},
                                               los_kwargs_3D={'x': 1},
-                                              arrow_kwargs_est={'x': 1})
+                                              arrow_kwargs_est={'x': 1},
+                                              line_kwargs_est={'x': 1},
+                                              line_kwargs_cut={'x': 1})
         if pipe._is_controller:
             with pytest.raises(ValueError):
                 pipe._Projection__save_data(1, {'test': []})

@@ -646,7 +646,7 @@ class OptionsDialog(QW.QDialog):
                    "(<i>plt.figure</i> kwargs)")
         kwargs_dict_box.add_dict(
             "Figure", 'fig_kwargs', tooltip,
-            std_entries=['dpi', 'figsize'],
+            std_entries=['dpi'],
             banned_entries=self.get_proj_attr('pop_fig_kwargs'))
 
         # IMPL_KWARGS_2D
@@ -689,7 +689,7 @@ class OptionsDialog(QW.QDialog):
         kwargs_dict_box.add_dict(
             "Estimate lines", 'line_kwargs_est', tooltip,
             std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
-            banned_entries=[])
+            banned_entries=self.get_proj_attr('pop_line_kwargs'))
 
         # ARROW_KWARGS_EST
         tooltip = ("Keyword arguments used for drawing the parameter estimate "
@@ -708,7 +708,7 @@ class OptionsDialog(QW.QDialog):
         kwargs_dict_box.add_dict(
             "Cut-off lines", 'line_kwargs_cut', tooltip,
             std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
-            banned_entries=[])
+            banned_entries=self.get_proj_attr('pop_line_kwargs'))
 
         # Return kwargs_dict box
         return('Projection keyword dicts:', kwargs_dict_box)

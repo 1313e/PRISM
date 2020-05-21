@@ -12,7 +12,7 @@ from qtpy import QtCore as QC, QtWidgets as QW
 # PRISM imports
 from prism._gui.widgets.core import get_box_value, set_box_value
 from prism._gui.widgets.preferences.custom_boxes import (
-    ColorBox, ColorMapBox, DefaultBox, FigSizeBox)
+    ColorBox, ColorMapBox, DefaultBox)
 from prism._gui.widgets.preferences.kwargs_dicts import (
     KwargsDictBoxLayout, KwargsDictDialog, KwargsDictDialogPage)
 
@@ -257,7 +257,6 @@ class TestKwargsDictDialog_EntryTypes(object):
          ('impl_kwargs_3D', 'cmap', ColorMapBox, cm.get_cmap('cmr.freeze')),
          ('los_kwargs_2D', 'color', ColorBox, 'cyan'),
          ('fig_kwargs', 'dpi', QW.QSpinBox, 175),
-         ('fig_kwargs', 'figsize', FigSizeBox, (13, 13)),
          ('line_kwargs_est', 'linestyle', QW.QComboBox, '--'),
          ('line_kwargs_cut', 'linewidth', QW.QDoubleSpinBox, 6.9),
          ('impl_kwargs_2D', 'marker', QW.QComboBox, '*'),
