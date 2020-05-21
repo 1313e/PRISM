@@ -137,9 +137,9 @@ class Projection(object):
             If *True*, it will recalculate all the data required to create the
             projection figure. Note that this will also delete all associated
             projection figures.
-        fig_kwargs : dict. Default: {'figsize': (6.4, 4.8), 'dpi': 100}
+        fig_kwargs : dict. Default: {'dpi': 100}
             Dict of keyword arguments to be used when creating the subplots
-            figure. It takes all arguments that can be provided to the
+            figure. It takes all optional arguments that can be provided to the
             :func:`~matplotlib.pyplot.figure` function.
         impl_kwargs_2D : dict. Default: {}
             Dict of keyword arguments to be used for making the minimum
@@ -216,6 +216,10 @@ class Projection(object):
         -----
         All colormaps defined in the :mod:`~cmasher` package are loaded
         automatically when *PRISM* is imported and can be used.
+
+        Some `kwargs` dicts have a subset of arguments that are reserved for
+        this function (like `x`/`y` for `impl_kwargs_2D` and co.). These
+        arguments are ignored when provided.
 
         The `arrow_kwargs_est` argument takes all optional arguments that
         :func:`~matplotlib.pyplot.arrow` takes, plus a few special arguments
@@ -413,8 +417,7 @@ class Projection(object):
         f_los = spi.UnivariateSpline(x_proj, impl_los, s=0)
 
         # Set the size of the grid
-        gridsize =\
-            self.__fig_kwargs['dpi']*np_array(self.__fig_kwargs['figsize'])
+        gridsize = self.__fig_kwargs['dpi']*np_array(self.__figsize)
         gridsize = np_array(gridsize, dtype=int)
 
         # Multiply the longer axis by two
@@ -450,7 +453,8 @@ class Projection(object):
 
         # Check alignment and act accordingly
         if(self.__align == 'row'):
-            f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
+            f = plt.figure(figsize=self.__figsize, constrained_layout=True,
+                           **self.__fig_kwargs)
             w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
 
             # Create GridSpec objects including a dummy Axes object
@@ -463,7 +467,8 @@ class Projection(object):
             f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
                                           wspace=wspace, hspace=0)
         else:
-            f, (ax0, ax1) = plt.subplots(2, constrained_layout=True,
+            f, (ax0, ax1) = plt.subplots(2, figsize=self.__figsize,
+                                         constrained_layout=True,
                                          **self.__fig_kwargs)
             w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
 
@@ -472,7 +477,7 @@ class Projection(object):
                                           wspace=0, hspace=hspace)
 
         # Set super title
-        f.suptitle(r"Projection %s" % (hcube_name), fontsize='xx-large')
+        f.suptitle("Projection %s" % (hcube_name), fontsize='xx-large')
 
         # MINIMUM IMPLAUSIBILITY PLOT
         # Plot minimum implausibility
@@ -595,8 +600,7 @@ class Projection(object):
             x_proj, y_proj, impl_los.reshape(proj_res, proj_res), s=0)
 
         # Set the size of the hexbin grid
-        gridsize =\
-            self.__fig_kwargs['dpi']*np_array(self.__fig_kwargs['figsize'])
+        gridsize = self.__fig_kwargs['dpi']*np_array(self.__figsize)
         gridsize = np_array(gridsize, dtype=int)
 
         # Multiply the longer axis by two
@@ -644,7 +648,8 @@ class Projection(object):
             return
 
         # Create figure instance
-        f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
+        f = plt.figure(figsize=self.__figsize, constrained_layout=True,
+                       **self.__fig_kwargs)
         w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
 
         # Create GridSpec objects including a dummy Axes object
@@ -668,7 +673,7 @@ class Projection(object):
                                           wspace=0, hspace=hspace)
 
         # Set super title
-        f.suptitle(r"Projection %s" % (hcube_name), fontsize='xx-large')
+        f.suptitle("Projection %s" % (hcube_name), fontsize='xx-large')
 
         # MINIMUM IMPLAUSIBILITY PLOT
         # Plot minimum implausibility
@@ -802,6 +807,7 @@ class Projection(object):
                 xl = (xlim[0]-x)/x_size
             else:
                 xl = (x-xlim[1])/x_size
+            xl *= ((pos.x1-pos.x0)*fig_size[0])/((pos.y1-pos.y0)*fig_size[1])
 
             if(y < ylim[0]):
                 yl = (ylim[0]-y)/y_size
@@ -813,15 +819,10 @@ class Projection(object):
             yf = np.sqrt(yl/tl)
 
             fullx_length = full_length*xf
-            ftx_length = ft_length*xf
             fully_length = full_length*yf
-            fty_length = ft_length*yf
-
         else:
-            fullx_length = full_length
-            ftx_length = ft_length
-            fully_length = full_length
-            fty_length = ft_length
+            fully_length = fh_length if x_in else full_length
+            fullx_length = fh_length if y_in else full_length
 
         if x_in:
             if x is not None:
@@ -831,10 +832,10 @@ class Projection(object):
             dx = 0
         elif(x < xlim[0]):
             x = pos.x0*fig_size[0]+fullx_length
-            dx = -ftx_length
+            dx = -fullx_length
         elif(xlim[1] < x):
             x = pos.x1*fig_size[0]-fullx_length
-            dx = ftx_length
+            dx = fullx_length
 
         if y_in:
             if y is not None:
@@ -844,15 +845,16 @@ class Projection(object):
             dy = 0
         elif(y < ylim[0]):
             y = pos.y0*fig_size[1]+fully_length
-            dy = -fty_length
+            dy = -fully_length
         elif(ylim[1] < y):
             y = pos.y1*fig_size[1]-fully_length
-            dy = fty_length
+            dy = fully_length
 
-        ax.arrow(x, y, dx, dy,
-                 width=ft_width, head_width=fh_width,
-                 head_length=fh_length,
-                 transform=fig.dpi_scale_trans, **arrow_kwargs)
+        if not x_in or not y_in:
+            ax.arrow(x, y, dx, dy, length_includes_head=True,
+                     width=ft_width, head_width=fh_width,
+                     head_length=fh_length,
+                     transform=fig.dpi_scale_trans, **arrow_kwargs)
 
     # This function returns the projection data belonging to a proj_hcube
     @e13.docstring_substitute(hcube=hcube_doc)
@@ -1483,7 +1485,7 @@ class Projection(object):
         # Make list with forbidden figure, plot and arrow kwargs
         # Save them as attributes for Projection GUI
         self.__pop_fig_kwargs = ['num', 'ncols', 'nrows', 'sharex', 'sharey',
-                                 'constrained_layout']
+                                 'constrained_layout', 'figsize']
         self.__pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax',
                                  'norm', 'fmt', 'mincnt']
         self.__pop_arrow_kwargs = ['x', 'y', 'dx', 'dy', 'width', 'transform',
@@ -1544,12 +1546,10 @@ class Projection(object):
             align = str(kwargs.pop('align')).replace("'", '').replace('"', '')
             if align.lower() in ('r', 'row', 'h', 'horizontal'):
                 self.__align = 'row'
-                kwargs['fig_kwargs']['figsize'] =\
-                    kwargs['fig_kwargs'].pop('figsize', kwargs['figsize_r'])
+                self.__figsize = kwargs['figsize_r']
             elif align.lower() in ('c', 'col', 'column', 'v', 'vertical'):
                 self.__align = 'col'
-                kwargs['fig_kwargs']['figsize'] =\
-                    kwargs['fig_kwargs'].pop('figsize', kwargs['figsize_c'])
+                self.__figsize = kwargs['figsize_c']
             else:
                 err_msg = ("Input argument 'align' is invalid (%r)!"
                            % (align))
