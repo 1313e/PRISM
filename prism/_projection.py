@@ -516,18 +516,15 @@ class Projection(object):
         # Make sure that constrained layout has been applied
         f.execute_constrained_layout()
 
-        # Draw parameter estimate lines/arrows
+        # Obtain parameter estimate
         par_est = self._modellink._par_est[par]
-        if par_est is not None:
-            # Draw estimate line or arrow in both subplots
-            for ax, ax_rng in [(ax0, ax0_rng), (ax1, ax1_rng)]:
-                # Draw line if estimate is in plausible range
-                if (axis_rng[0] <= par_est) and (par_est <= axis_rng[1]):
-                    ax.axvline(par_est, **self.__line_kwargs_est)
 
-                # Else, draw an arrow pointing in the direction of the line
-                else:
-                    self.__draw_estimate_arrow(par_est, None, ax)
+        # If this is not None, draw estimate arrow/line
+        if par_est is not None:
+            # Loop over both subplots
+            for ax in [ax0, ax1]:
+                # Draw estimate arrow/line
+                self.__draw_estimate_arrowline(par_est, None, ax)
 
         # If called by the Projection GUI, return figure instance
         if self.__use_GUI:
@@ -714,79 +711,16 @@ class Projection(object):
         # Make sure that constrained layout has been applied
         f.execute_constrained_layout()
 
-#        # Draw parameter estimate lines/arrows for x-axis
-#        par_est = self._modellink._par_est[par1]
-#        if par_est is not None:
-#            # Draw estimate line or arrow in both subplots
-#            for ax in [ax0, ax1]:
-#                # Draw line if estimate is in plausible range
-#                if (axes_rng[0] <= par_est) and (par_est <= axes_rng[1]):
-#                    ax.axvline(par_est, **self.__line_kwargs_est)
-#
-#                # Else, draw an arrow pointing in the direction of the line
-#                else:
-#                    # If par_est smaller than range, draw arrow to the left
-#                    if(par_est < axes_rng[0]):
-#                        self.__draw_estimate_arrow(ax, 'left')
-#
-#                    # Else, draw arrow to the right
-#                    else:
-#                        self.__draw_estimate_arrow(ax, 'right')
-#
-#                # Set axis
-#                ax.axis(axes_rng)
-#
-#        # Draw parameter estimate lines/arrows for y-axis
-#        par_est = self._modellink._par_est[par2]
-#        if par_est is not None:
-#            # Draw estimate line or arrow in both subplots
-#            for ax in [ax0, ax1]:
-#                # Draw line if estimate is in plausible range
-#                if (axes_rng[2] <= par_est) and (par_est <= axes_rng[3]):
-#                    ax.axhline(par_est, **self.__line_kwargs_est)
-#
-#                # Else, draw an arrow pointing in the direction of the line
-#                else:
-#                    # If par_est smaller than range, draw arrow to bottom
-#                    if(par_est < axes_rng[2]):
-#                        self.__draw_estimate_arrow(ax, 'bottom')
-#
-#                    # Else, draw arrow to top
-#                    else:
-#                        self.__draw_estimate_arrow(ax, 'top')
-#
-#                # Set axis
-#                ax.axis(axes_rng)
-
-
         # Obtain parameter estimates of both plotted parameters
         par_est1 = self._modellink._par_est[par1]
         par_est2 = self._modellink._par_est[par2]
 
-        # Check if at least one parameter estimate is given
+        # If at least one of them is not None, draw estimate arrow/line
         if par_est1 is not None or par_est2 is not None:
-            # Loop over both axes
+            # Loop over both subplots
             for ax in [ax0, ax1]:
-                # Save that both estimates are not drawn yet
-                draw_est1 = False
-                draw_est2 = False
-
-                # Check if par_est1 is within range and draw line if so
-                if(par_est1 is not None and (axes_rng[0] <= par_est1) and
-                   (par_est1 <= axes_rng[1])):
-                    ax.axvline(par_est1, **self.__line_kwargs_est)
-                    draw_est1 = True
-
-                # Check if par_est2 is within range and draw line if so
-                if(par_est2 is not None and (axes_rng[2] <= par_est2) and
-                   (par_est2 <= axes_rng[3])):
-                    ax.axhline(par_est2, **self.__line_kwargs_est)
-                    draw_est2 = True
-
-                # If at least one estimate has not been drawn yet, draw arrow
-                if not draw_est1 or draw_est2:
-                    self.__draw_estimate_arrow(par_est1, par_est2, ax)
-
+                # Draw estimate arrow/line
+                self.__draw_estimate_arrowline(par_est1, par_est2, ax)
 
         # If called by the Projection GUI, return figure instance
         if self.__use_GUI:
@@ -800,12 +734,36 @@ class Projection(object):
         logger.info("Finished calculating and drawing projection figure"
                     "%r." % (hcube_name))
 
-    # This function draws an estimate arrow in the given Axis
-    def __draw_estimate_arrow(self, x, y, ax):
+    # This function draws an estimate arrow or line in the given Axis
+    def __draw_estimate_arrowline(self, par_est1, par_est2, ax):
+        """
+        Draws parameter estimate arrow and lines in the given `ax`, for the
+        provided estimates `par_est1` and `par_est2`.
+        Whether an arrow and/or a line is drawn, and what their layout and
+        position is, depends on the given estimate values.
+
+        Parameters
+        ----------
+        par_est1, par_est2 : float or None
+            The parameter estimates for which an arrow or line must be drawn.
+            If the estimate is within the axes limits, a line is drawn.
+            If the estimate is outside of the axes limits, an arrow is drawn in
+            the direction of `(par_est1, par_est2)`.
+            If *None*, a default value is used for the respective argument.
+        ax : :obj:`~matplotlib.axes.Axes` object
+            The Axes object in which the arrow and lines must be drawn.
+
+        Note
+        ----
+        Because the arrow is drawn using relative DPI-coordinates, the axes
+        limits and positions of `ax` must be final before calling this
+        function.
+
         """
 
-
-        """
+        # Save provided estimates as x and y
+        x = par_est1
+        y = par_est2
 
         # Obtain the figure of this axis and its size
         fig = ax.figure
@@ -867,6 +825,7 @@ class Projection(object):
 
         if x_in:
             if x is not None:
+                ax.axvline(x, **self.__line_kwargs_est)
                 rel_xpos = (x-xlim[0])/(xlim[1]-xlim[0])
             x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]
             dx = 0
@@ -879,6 +838,7 @@ class Projection(object):
 
         if y_in:
             if y is not None:
+                ax.axhline(y, **self.__line_kwargs_est)
                 rel_ypos = (y-ylim[0])/(ylim[1]-ylim[0])
             y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]
             dy = 0
