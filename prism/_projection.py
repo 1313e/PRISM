@@ -19,7 +19,7 @@ from time import time
 
 # Package imports
 import e13tools as e13
-from matplotlib import cm
+from matplotlib import cm, rcParams
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import numpy as np
@@ -793,6 +793,7 @@ class Projection(object):
         y_in = bool(y is None or ((ylim[0] <= y) and (y <= ylim[1])))
 
         snap = False
+        ax_lw = rcParams['axes.linewidth']/72
 
         # If both x and y are out of range, determine the arrow length
         if not x_in and not y_in:
@@ -842,12 +843,12 @@ class Projection(object):
         elif(x < xlim[0]):
             rel_xpos = (xp-xlim[0])/(xlim[1]-xlim[0])
             x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]+fullx_length
-            x += 1/fig.dpi
+            x += ax_lw
             dx = -fullx_length
         elif(xlim[1] < x):
             rel_xpos = (xp-xlim[0])/(xlim[1]-xlim[0])
             x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]-fullx_length
-            x -= 1/fig.dpi
+            x -= ax_lw
             dx = fullx_length
 
         if y_in:
@@ -860,12 +861,12 @@ class Projection(object):
         elif(y < ylim[0]):
             rel_ypos = (yp-ylim[0])/(ylim[1]-ylim[0])
             y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]+fully_length
-            y += 1/fig.dpi
+            y += ax_lw
             dy = -fully_length
         elif(ylim[1] < y):
             rel_ypos = (yp-ylim[0])/(ylim[1]-ylim[0])
             y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]-fully_length
-            y -= 1/fig.dpi
+            y -= ax_lw
             dy = fully_length
 
         if not x_in or not y_in:
