@@ -792,6 +792,7 @@ class Projection(object):
         x_in = bool(x is None or ((xlim[0] <= x) and (x <= xlim[1])))
         y_in = bool(y is None or ((ylim[0] <= y) and (y <= ylim[1])))
 
+        # Set parameters regarding plotting the arrow alongside the axes frame
         snap = False
         ax_lw = rcParams['axes.linewidth']/72
 
@@ -810,21 +811,6 @@ class Projection(object):
             dx = x-xc
             dy = y-yc
 
-            # Calculate the part of the arrow that must be in either direction
-            xl = abs(dx)/x_size
-            xl *= ((pos.x1-pos.x0)*fig_size[0])/((pos.y1-pos.y0)*fig_size[1])
-            yl = abs(dy)/y_size
-            tl = xl+yl
-
-            # Calculate what fraction of the total length belongs to either
-            # direction
-            xf = np.sqrt(xl/tl)
-            yf = np.sqrt(yl/tl)
-
-            # Calculate the length of the arrow in both directions
-            fullx_length = full_length*xf
-            fully_length = full_length*yf
-
             # Calculate how far away the border is in terms of the intersect
             fx = abs(x_size/(2*dx))
             fy = abs(y_size/(2*dy))
@@ -835,6 +821,26 @@ class Projection(object):
             # Determine the frame point of the arrow
             xp = fxy*dx+xc
             yp = fxy*dy+yc
+
+            # Calculate the part of the arrow that must be in either direction
+            xl = abs(xp-xc)
+            yl = abs(yp-yc)
+
+            # Scale xl to match the same value range DPI-wise as yl
+            xl *= (((pos.x1-pos.x0)*fig_size[0]*y_size) /
+                   ((pos.y1-pos.y0)*fig_size[1]*x_size))
+
+            # Calculate the vector length made up by (xl, yl)
+            tl = np.sqrt(xl**2+yl**2)
+
+            # Calculate what fraction of the total length belongs to either
+            # direction
+            xf = xl/tl
+            yf = yl/tl
+
+            # Calculate the length of the arrow in both directions
+            fullx_length = full_length*xf
+            fully_length = full_length*yf
         else:
             # Determine the length of the arrow in both directions
             fully_length = fh_length if x_in and x is not None else full_length
