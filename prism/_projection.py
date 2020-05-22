@@ -904,7 +904,7 @@ class Projection(object):
         if not x_in or not y_in:
             ax.arrow(x, y, dx, dy, length_includes_head=True,
                      width=ft_width, head_width=fh_width,
-                     head_length=fh_length, snap=snap,
+                     head_length=fh_length, snap=snap, zorder=100,
                      transform=fig.dpi_scale_trans, **arrow_kwargs)
 
     # This function returns the projection data belonging to a proj_hcube
@@ -1543,7 +1543,7 @@ class Projection(object):
                                   'snap']
         self.__pop_arrow_kwargs = ['x', 'y', 'dx', 'dy', 'width', 'transform',
                                    'length_includes_head', 'head_width',
-                                   'head_length', 'snap']
+                                   'head_length', 'snap', 'zorder']
 
         # Update kwargs_dict with given kwargs
         for key, value in kwargs.items():
