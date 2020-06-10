@@ -360,10 +360,17 @@ def get_walkers(pipeline_obj, *, emul_i=None, init_walkers=None,
                 # Check if provided integer is positive
                 n_sam = check_vals(init_walkers, 'init_walkers', 'pos')
 
+                # Obtain the par_space to sample in
+                par_space = pipe._get_impl_space(emul_i)
+
+                # If par_space is None, use the corresponding emul_space
+                if par_space is None:
+                    par_space = pipe._emulator._emul_space[emul_i]
+
                 # Create LHD of provided size
                 init_walkers = e13.lhd(n_sam, pipe._modellink._n_par,
-                                       pipe._modellink._par_rng, 'center',
-                                       pipe._criterion, 100)
+                                       par_space, 'center', pipe._criterion,
+                                       100)
 
             # If init_walkers is not an int, it must be array_like or dict
             else:

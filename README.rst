@@ -178,7 +178,7 @@ And, finally, if you use *PRISM* as part of your workflow in a scientific public
 
 Acknowledgements
 ================
-Special thanks to Alan Duffy, Darren Croton, Simon Mutch and Manodeep Sinha for providing many valuable suggestions and constructive feedback points.
+Special thanks to Darren Croton, Alan Duffy, Michael Goldstein, Simon Mutch, Manodeep Sinha and Ian Vernon for providing many valuable suggestions and constructive feedback points.
 Huge thanks to James Josephides for making the *PRISM* logo.
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/prism.svg?logo=pypi&logoColor=white&label=PyPI

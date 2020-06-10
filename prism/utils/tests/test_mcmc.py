@@ -123,6 +123,7 @@ class Test_get_walkers(object):
         if(pipe._size == 1):
             with pytest.raises(RequestError):
                 get_walkers(pipe)
+            get_walkers(pipe, init_walkers=10)
         pipe.analyze()
         get_walkers(pipe)
         pipe.construct()
