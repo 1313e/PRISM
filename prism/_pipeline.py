@@ -12,6 +12,7 @@ Provides the definition of the main class of the *PRISM* package, the
 # %% IMPORTS
 # Built-in imports
 from ast import literal_eval
+from glob import glob
 from inspect import isclass
 import logging
 import os
@@ -1081,22 +1082,14 @@ class Pipeline(Projection):
             if working_dir in (None, False):
                 logger.info("No working directory specified, trying to load "
                             "last one created.")
-                dirnames = next(os.walk(self._root_dir))[1]
-                emul_dirs = []
 
-                # Check which directories in the root_dir satisfy the default
+                # Obtain all directories in root_dir that satisfy the default
                 # naming scheme of the emulator directories
-                for dirname in dirnames:
-                    # If the prefix is the same as the scan prefix
-                    if dirname.startswith(prefix_scan):
-                        # Obtain full path to this directory
-                        dir_path = path.join(self._root_dir, dirname)
+                dirs = map(path.dirname, glob("%s/%s*/prism_log.log"
+                                              % (self._root_dir, prefix_scan)))
 
-                        # Check if this directory contains a 'prism_log.log'
-                        if 'prism_log.log' in os.listdir(dir_path):
-                            # Obtain creation time and append to emul_dirs
-                            ctime = path.getctime(dir_path)
-                            emul_dirs.append([dir_path, ctime])
+                # Obtain the creation times of all these directories
+                emul_dirs = list(map(lambda x: (x, path.getctime(x)), dirs))
 
                 # Sort list of emul_dirs on creation time
                 emul_dirs.sort(key=lambda x: x[1], reverse=True)
@@ -1130,19 +1123,11 @@ class Pipeline(Projection):
 
             # If one requested a new working directory
             elif working_dir is True:
-                # Obtain list of working directories that satisfy naming scheme
-                dirnames = next(os.walk(self._root_dir))[1]
-                n_dirs = 0
-
-                # Check if there are any directories with the same prefix
-                for dirname in dirnames:
-                    if dirname.startswith(prefix_scan):
-                        # Obtain full path to this directory
-                        dir_path = path.join(self._root_dir, dirname)
-
-                        # Check if this directory contains a 'prism_log.log'
-                        if 'prism_log.log' in os.listdir(dir_path):
-                            n_dirs += 1
+                # Obtain all directories in root_dir that satisfy the default
+                # naming scheme of the emulator directories
+                dirs = map(path.dirname, glob("%s/%s*/prism_log.log"
+                                              % (self._root_dir, prefix_scan)))
+                n_dirs = len(list(dirs))
 
                 # Check if working directories already exist with the same
                 # prefix and append a number to the name if this is the case

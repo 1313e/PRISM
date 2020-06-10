@@ -11,6 +11,7 @@ Provides the definition of the :class:`~ModelLink` abstract base class.
 # %% IMPORTS
 # Built-in imports
 import abc
+from glob import glob
 import os
 from os import path
 from tempfile import mktemp
@@ -927,29 +928,18 @@ class ModelLink(object, metaclass=abc.ABCMeta):
         elif isinstance(suffix, str):
             # If the string is empty, find the last created backup file
             if not suffix:
-                # Make list of all files in current directory
-                filenames = next(os.walk('.'))[2]
+                # Make list of all valid backup files in current directory
+                files = glob("%s/%s*" % (path.abspath('.'), prefix))
 
-                # Make empty list of all backup files
-                backup_files = []
+                # Make list of all backup files with their creation times
+                backups = list(map(lambda x: (x, path.getctime(x)), files))
 
-                # Loop over all filenames
-                for filename in filenames:
-                    # If the filename has the correct prefix
-                    if filename.startswith(prefix):
-                        # Obtain full path to the file
-                        filepath = path.abspath(path.join('.', filename))
+                # Sort backups list on creation time
+                backups.sort(key=lambda x: x[1], reverse=True)
 
-                        # Obtain creation time and append to backup_files
-                        ctime = path.getctime(filepath)
-                        backup_files.append([filepath, ctime])
-
-                # Sort backup_files list on creation time
-                backup_files.sort(key=lambda x: x[1], reverse=True)
-
-                # If backup_files is not empty, return last one created
-                if backup_files:
-                    return(backup_files[0][0])
+                # If backups is not empty, return last one created
+                if backups:
+                    return(backups[0][0])
                 # Else, raise error
                 else:
                     err_msg = ("No backup files can be found in the current "
