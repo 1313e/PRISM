@@ -496,12 +496,13 @@ class KwargsDictDialogPage(BaseBox):
             delete_but.setText('X')
 
         # Determine the number of entries currently in kwargs_grid
-        n_rows = self.kwargs_grid.count()//3
+        next_row = self.kwargs_grid.getItemPosition(
+            self.kwargs_grid.count()-1)[0]+1
 
         # Make a new editable entry
-        self.kwargs_grid.addWidget(delete_but, n_rows, 0)
-        self.kwargs_grid.addWidget(kwargs_box, n_rows, 1)
-        self.kwargs_grid.addWidget(QW.QLabel(''), n_rows, 2)
+        self.kwargs_grid.addWidget(delete_but, next_row, 0)
+        self.kwargs_grid.addWidget(kwargs_box, next_row, 1)
+        self.kwargs_grid.addWidget(QW.QLabel(''), next_row, 2)
 
     # This function deletes an editable entry
     @QC.Slot(QW.QComboBox)
