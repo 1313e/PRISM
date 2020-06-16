@@ -1088,14 +1088,8 @@ class Pipeline(Projection):
                 dirs = map(path.dirname, glob("%s/%s*/prism_log.log"
                                               % (self._root_dir, prefix_scan)))
 
-                # Obtain the creation times of all these directories
-                emul_dirs = list(map(lambda x: (x, path.getctime(x)), dirs))
-
-                # Sort list of emul_dirs on creation time
-                emul_dirs.sort(key=lambda x: x[1], reverse=True)
-
                 # If no working directory exists, create a new one
-                if not emul_dirs:
+                if not dirs:
                     working_dir = ''.join([prefix_new, '0'])
                     self._working_dir = path.join(self._root_dir, working_dir)
                     os.mkdir(self._working_dir)
@@ -1104,7 +1098,7 @@ class Pipeline(Projection):
 
                 # If working directories exist, load last one created
                 else:
-                    self._working_dir = emul_dirs[0][0]
+                    self._working_dir = max(dirs, key=path.getctime)
                     logger.info("Working directories found, set to %r."
                                 % (path.basename(self._working_dir)))
 

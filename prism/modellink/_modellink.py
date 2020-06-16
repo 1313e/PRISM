@@ -931,15 +931,9 @@ class ModelLink(object, metaclass=abc.ABCMeta):
                 # Make list of all valid backup files in current directory
                 files = glob("%s/%s*" % (path.abspath('.'), prefix))
 
-                # Make list of all backup files with their creation times
-                backups = list(map(lambda x: (x, path.getctime(x)), files))
-
-                # Sort backups list on creation time
-                backups.sort(key=lambda x: x[1], reverse=True)
-
-                # If backups is not empty, return last one created
-                if backups:
-                    return(backups[0][0])
+                # If files is not empty, return last one created
+                if files:
+                    return(max(files, key=path.getctime))
                 # Else, raise error
                 else:
                     err_msg = ("No backup files can be found in the current "
