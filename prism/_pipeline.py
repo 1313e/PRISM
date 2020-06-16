@@ -1085,8 +1085,8 @@ class Pipeline(Projection):
 
                 # Obtain all directories in root_dir that satisfy the default
                 # naming scheme of the emulator directories
-                dirs = map(path.dirname, glob("%s/%s*/prism_log.log"
-                                              % (self._root_dir, prefix_scan)))
+                dirs = list(map(path.dirname, glob(
+                    "%s/%s*/prism_log.log" % (self._root_dir, prefix_scan))))
 
                 # If no working directory exists, create a new one
                 if not dirs:
