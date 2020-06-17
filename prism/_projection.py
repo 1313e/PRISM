@@ -513,8 +513,9 @@ class Projection(object):
         else:
             ax1.set_xlabel(par_name, fontsize='x-large')
 
-        # Make sure that constrained layout has been applied
+        # Apply the constrained layout and then turn it off
         f.execute_constrained_layout()
+        f.set_constrained_layout(False)
 
         # Obtain parameter estimate
         par_est = self._modellink._par_est[par]
@@ -684,7 +685,8 @@ class Projection(object):
         ax0.axis(axes_rng)
 
         # Set labels
-        cbar = plt.colorbar(fig0, ax=ax0, extend='max', pad=0, aspect=aspect)
+        cbar = plt.colorbar(fig0, ax=ax0, extend='max', pad=0.01,
+                            aspect=aspect)
         cbar.set_label("Min. Implausibility", fontsize='large')
 
         # LINE-OF-SIGHT DEPTH PLOT
@@ -695,7 +697,7 @@ class Projection(object):
         ax1.axis(axes_rng)
 
         # Set label
-        cbar = plt.colorbar(fig1, ax=ax1, pad=0, aspect=aspect)
+        cbar = plt.colorbar(fig1, ax=ax1, pad=0.01, aspect=aspect)
         cbar.set_label("Line-of-Sight Depth", fontsize='large')
 
         # Make super axis labels using dummy Axes object as an empty plot
@@ -714,8 +716,9 @@ class Projection(object):
             label_ax.autoscale(tight=True)
             label_ax.set_ylabel(par2_name, fontsize='x-large', labelpad=0)
 
-        # Make sure that constrained layout has been applied
+        # Apply the constrained layout and then turn it off
         f.execute_constrained_layout()
+        f.set_constrained_layout(False)
 
         # Obtain parameter estimates of both plotted parameters
         par_est1 = self._modellink._par_est[par1]
@@ -800,7 +803,17 @@ class Projection(object):
 
         # Set parameters regarding plotting the arrow alongside the axes frame
         snap = False
+
+        # Calculate the width of the border in figure coordinates
         ax_lw = rcParams['axes.linewidth']/72
+        ax_lwx = ax_lw/fig_size[0]
+        ax_lwy = ax_lw/fig_size[1]
+
+        # Convert the bbox positions to only contain the inside of the figure
+        x0 = pos.x0+ax_lwx
+        y0 = pos.y0+ax_lwy
+        x1 = pos.x1-ax_lwx
+        y1 = pos.y1-ax_lwy
 
         # Determine the range of x and y
         x_size = np.diff(xlim)[0]
@@ -833,8 +846,7 @@ class Projection(object):
             yl = abs(yp-yc)
 
             # Scale xl to match the same value range DPI-wise as yl
-            xl *= (((pos.x1-pos.x0)*fig_size[0]*y_size) /
-                   ((pos.y1-pos.y0)*fig_size[1]*x_size))
+            xl *= (((x1-x0)*fig_size[0]*y_size)/((y1-y0)*fig_size[1]*x_size))
 
             # Calculate the vector length made up by (xl, yl)
             tl = np.sqrt(xl**2+yl**2)
@@ -856,7 +868,7 @@ class Projection(object):
             xp = np.clip(x, *xlim) if x is not None else x
             yp = np.clip(y, *ylim) if y is not None else y
 
-        # Check if provided x is within range of not given at all
+        # Check if provided x is within range or not given at all
         if x_in:
             # If so, draw estimate line if x was given
             if x is not None:
@@ -867,21 +879,21 @@ class Projection(object):
                 snap = (self.__align == 'row')
 
             # Set the x and dx values for the arrow
-            x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]
+            xa = (x0+rel_xpos*(x1-x0))*fig_size[0]
             dx = 0
         else:
             # If not, calculate the x-coordinate of the frame point
             rel_xpos = (xp-xlim[0])/(xlim[1]-xlim[0])
-            x = (pos.x0+rel_xpos*(pos.x1-pos.x0))*fig_size[0]
+            xa = (x0+rel_xpos*(x1-x0))*fig_size[0]
 
             # Check if x is to the left of the center of the plot
             if(x < xc):
                 # If so, the end of the arrow must be moved to the right
-                x += fullx_length+ax_lw
+                xa += fullx_length
                 dx = -fullx_length
             else:
                 # Else, the end of the arrow must be moved to the left
-                x -= fullx_length+ax_lw
+                xa -= fullx_length
                 dx = fullx_length
 
         # Check if provided y is within range or not given at all
@@ -895,26 +907,26 @@ class Projection(object):
                 snap = (self.__align == 'row')
 
             # Set the y and dy values for the arrow
-            y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]
+            ya = (y0+rel_ypos*(y1-y0))*fig_size[1]
             dy = 0
         else:
             # If not, calculate the y-coordinate of the frame point
             rel_ypos = (yp-ylim[0])/(ylim[1]-ylim[0])
-            y = (pos.y0+rel_ypos*(pos.y1-pos.y0))*fig_size[1]
+            ya = (y0+rel_ypos*(y1-y0))*fig_size[1]
 
             # Check if y is below the center of the plot
             if(y < yc):
                 # If so, the end of the arrow must be raised
-                y += fully_length+ax_lw
+                ya += fully_length
                 dy = -fully_length
             else:
                 # Else, the end of the arrow must be lowered
-                y -= fully_length+ax_lw
+                ya -= fully_length
                 dy = fully_length
 
         # If at least one estimate was not drawn, draw arrow
         if not x_in or not y_in:
-            ax.arrow(x, y, dx, dy, length_includes_head=True,
+            ax.arrow(xa, ya, dx, dy, length_includes_head=True,
                      width=ft_width, head_width=fh_width,
                      head_length=fh_length, snap=snap, zorder=100,
                      transform=fig.dpi_scale_trans, **arrow_kwargs)
