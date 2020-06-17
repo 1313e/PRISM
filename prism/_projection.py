@@ -657,6 +657,9 @@ class Projection(object):
             # Set padding to the bare minimum
             f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
                                           wspace=wspace, hspace=0)
+
+            # Set some properties for colorbars
+            aspect = 80
         else:
             gsarr = gs.GridSpec(2, 2, figure=f, width_ratios=[0.00001, 1])
             label_ax = f.add_subplot(gsarr[:, 0])
@@ -666,6 +669,9 @@ class Projection(object):
             # Set padding to the bare minimum
             f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
                                           wspace=0, hspace=hspace)
+
+            # Set some properties for colorbars
+            aspect = 20
 
         # Set super title
         f.suptitle("Projection %s" % (hcube_name), fontsize='xx-large')
@@ -678,8 +684,8 @@ class Projection(object):
         ax0.axis(axes_rng)
 
         # Set labels
-        plt.colorbar(fig0, ax=ax0, extend='max').set_label(
-            "Min. Implausibility", fontsize='large')
+        cbar = plt.colorbar(fig0, ax=ax0, extend='max', pad=0, aspect=aspect)
+        cbar.set_label("Min. Implausibility", fontsize='large')
 
         # LINE-OF-SIGHT DEPTH PLOT
         # Plot line-of-sight depth
@@ -689,8 +695,8 @@ class Projection(object):
         ax1.axis(axes_rng)
 
         # Set label
-        plt.colorbar(fig1, ax=ax1).set_label("Line-of-Sight Depth",
-                                             fontsize='large')
+        cbar = plt.colorbar(fig1, ax=ax1, pad=0, aspect=aspect)
+        cbar.set_label("Line-of-Sight Depth", fontsize='large')
 
         # Make super axis labels using dummy Axes object as an empty plot
         if(self.__align == 'row'):
