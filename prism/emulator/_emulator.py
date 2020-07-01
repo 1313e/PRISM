@@ -704,10 +704,7 @@ class Emulator(object):
         """
 
         # If emul_i is 1, the defined emulator space is model parameter space
-        # This is true for all emul_i if emulator was made before v1.2.3.dev1
-        # FIXME: Change in v1.3.0
-        if((emul_i == 1) or
-           not self._check_future_compat('1.2.3.dev1', '1.3.0')):
+        if(emul_i == 1):
             return(self._modellink._par_rng.copy())
 
         # Else, it is defined as the plausible space of the previous iteration
@@ -2565,13 +2562,9 @@ class Emulator(object):
                     self._n_sam.append(group.attrs['n_sam'])
                     self._sam_set.append(group['sam_set'][()])
                     self._sam_set[-1].dtype = float
-                    # FIXME: Remove in v1.3.0
-                    if self._check_future_compat('1.2.3.dev1', '1.3.0'):
-                        emul_space = group['emul_space'][()]
-                        emul_space.dtype = float
-                        self._emul_space.append(emul_space.T.copy())
-                    else:   # pragma: no cover
-                        self._emul_space.append(self._get_emul_space(i))
+                    emul_space = group['emul_space'][()]
+                    emul_space.dtype = float
+                    self._emul_space.append(emul_space.T.copy())
                 except KeyError:
                     self._n_sam.append(0)
                     self._sam_set.append([])
@@ -2745,12 +2738,6 @@ class Emulator(object):
                 # Controller saving the received data_idx_list
                 if self._is_controller:
                     self._data_idx_to_core.append(data_idx_list)
-
-        # FIXME: Remove in v1.3.0
-        # If solely rsdl_vars are missing, add them silently
-        for i in range(1, emul_i+1):
-            if(e13.delist(self._ccheck[i]) == [['rsdl_var']]*self._n_data[i]):
-                self._get_rsdl_var(i, self._active_emul_s[i])
 
         # If ccheck has no solely empty lists, decrease emul_i by 1
         if e13.delist(self._ccheck[-1]):
@@ -2998,11 +2985,7 @@ class Emulator(object):
             self._prism_version = prism_version
             self._sigma = file.attrs['sigma']
             self._l_corr = file.attrs['l_corr']
-            # FIXME: Remove in v1.3.0
-            if self._check_future_compat('1.2.2.dev0', '1.3.0'):
-                self._f_infl = file.attrs['f_infl']
-            else:   # pragma: no cover
-                self._f_infl = 0.0
+            self._f_infl = file.attrs['f_infl']
             self._method = file.attrs['method'].decode('utf-8')
             self._use_regr_cov = int(file.attrs['use_regr_cov'])
             self._poly_order = file.attrs['poly_order']

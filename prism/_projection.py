@@ -1002,14 +1002,10 @@ class Projection(object):
 
         """
 
-        # FIXME: Remove in v1.3.0
-        if self._emulator._check_future_compat('1.2.3.dev1', '1.3.0'):
-            proj_space = hcube_group['proj_space'][()]
-            proj_space.dtype = float
-            proj_space = proj_space.T.copy()
-        else:   # pragma: no cover
-            emul_i = int(hcube_group.name.split('/')[1])
-            proj_space = self.__get_proj_space(emul_i)
+        # Obtain proj_space and return
+        proj_space = hcube_group['proj_space'][()]
+        proj_space.dtype = float
+        proj_space = proj_space.T.copy()
         return(proj_space)
 
     # This function determines the projection hypercubes to be analyzed
@@ -1833,11 +1829,7 @@ class Projection(object):
 
         """
 
-        # FIXME: Remove in v1.3.0
-        if self._emulator._check_future_compat('1.2.3.dev1', '1.3.0'):
-            return(self._get_impl_space(emul_i))
-        else:   # pragma: no cover
-            return(self._modellink._par_rng.copy())
+        return(self._get_impl_space(emul_i))
 
     # This function saves projection data to hdf5
     @e13.docstring_substitute(save_data=save_data_doc_pr)

@@ -13,4 +13,4 @@ Stores the different versions of the *PRISM* package.
 __version__ = '1.3.0'
 
 # Compatibility versions
-compat_version = ['1.0.0rc12']
+compat_version = ['1.0.0rc12', '1.2.2']
