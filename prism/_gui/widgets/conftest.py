@@ -5,13 +5,17 @@
 from os import path
 
 # Package imports
-from qtpy import QtWidgets as QW
+from qtpy import QtCore as QC, QtWidgets as QW
 import pytest
 
 # PRISM imports
 from prism import Pipeline
 from prism._gui.widgets.main import MainViewerWindow
 from prism.modellink.tests.modellink import GaussianLink3D
+
+
+# Set the default Locale to English
+QC.QLocale.setDefault(QC.QLocale(31))
 
 
 # %% GLOBALS

@@ -177,6 +177,7 @@ def check_compatibility(emul_version):
                     "the current version of PRISM cannot be guaranteed."
                     % (emul_version))
         e13.raise_warning(warn_msg, RequestWarning, logger, 2)
+        return
 
     # Loop over all compatibility versions
     for version in compat_version:

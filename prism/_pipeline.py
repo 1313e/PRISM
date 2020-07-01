@@ -12,6 +12,7 @@ Provides the definition of the main class of the *PRISM* package, the
 # %% IMPORTS
 # Built-in imports
 from ast import literal_eval
+from glob import glob
 from inspect import isclass
 import logging
 import os
@@ -53,7 +54,7 @@ __all__ = ['Pipeline']
 # OPTIMIZE: Use the Numba package to speed up certain calculations?
 # TODO: Figure out how to do log-values properly for parameters as well.
 # TODO: Implement system tracer for catching errors and adding emulator system
-class Pipeline(Projection, object):
+class Pipeline(Projection):
     """
     Defines the :class:`~Pipeline` class of the *PRISM* package.
 
@@ -456,7 +457,7 @@ class Pipeline(Projection, object):
     @property
     def code_objects(self):
         """
-        dict of code objects: Collection of pre-compiled built-in code snippets
+        dict of code object: Collection of pre-compiled built-in code snippets
         that are used in the :meth:`~_evaluate_sam_set` method.
 
         """
@@ -625,8 +626,8 @@ class Pipeline(Projection, object):
             logger.info("Checking compatibility of provided implausibility "
                         "cut-off values.")
 
-            # Check if analyze() is calling this setter
-            caller_frame = e13.get_outer_frame(self.analyze)
+            # Check if _set_impl_par is calling this setter
+            caller_frame = e13.get_outer_frame(self._set_impl_par)
 
             # Check if the last iteration has already been analyzed
             try:
@@ -722,12 +723,13 @@ class Pipeline(Projection, object):
     @property
     def impl_sam(self):
         """
-        :obj:`~numpy.ndarray`: The model evaluation samples that will be added
-        to the next emulator iteration.
+        list of dict: The model evaluation samples that will be added to the
+        next emulator iteration.
 
         """
 
-        return(self._impl_sam)
+        return([sdict(zip(self._modellink._par_name, par_set)) for
+                par_set in self._impl_sam])
 
     # %% GENERAL CLASS METHODS
     # Function that sends a code string to all workers and executes it
@@ -779,8 +781,7 @@ class Pipeline(Projection, object):
 
         # Make sure that sam_set is at least 2D, a NumPy array and sorted
         sam_set = np_array(sam_set, ndmin=2)
-        sam_set = e13.sort2D(sam_set,
-                             order=list(range(self._modellink._n_par)))
+        sam_set = e13.sort2D(sam_set, order=np.arange(self._modellink._n_par))
 
         # Check who needs to call the model
         if self._is_controller or self._modellink._MPI_call:
@@ -812,16 +813,16 @@ class Pipeline(Projection, object):
     @e13.docstring_append(call_model_doc_s)
     def _call_model(self, emul_i, par_set, data_idx):
         # Make sure par_set is at least 1D and a NumPy array
-        sam = np_array(par_set, ndmin=1)
+        par_set = np_array(par_set, ndmin=1)
 
         # Log that model is being called
         logger = getCLogger('CALL_MODEL')
-        logger.info("Calling model at parameters %s." % (sam))
+        logger.info("Calling model at parameters %s." % (par_set))
 
         # Obtain model output
         mod_out = self._modellink.call_model(
             emul_i=emul_i,
-            par_set=sdict(zip(self._modellink._par_name, sam)),
+            par_set=self._modellink._get_sam_dict(par_set),
             data_idx=data_idx)
 
         # If mod_out is a dict, convert it to a NumPy array
@@ -848,7 +849,7 @@ class Pipeline(Projection, object):
         # Obtain set of model outputs
         mod_set = self._modellink.call_model(
             emul_i=emul_i,
-            par_set=sdict(zip(self._modellink._par_name, sam_set.T)),
+            par_set=self._modellink._get_sam_dict(sam_set),
             data_idx=data_idx)
 
         # If mod_set is a dict, convert it to a NumPy array
@@ -1081,28 +1082,14 @@ class Pipeline(Projection, object):
             if working_dir in (None, False):
                 logger.info("No working directory specified, trying to load "
                             "last one created.")
-                dirnames = next(os.walk(self._root_dir))[1]
-                emul_dirs = []
 
-                # Check which directories in the root_dir satisfy the default
+                # Obtain all directories in root_dir that satisfy the default
                 # naming scheme of the emulator directories
-                for dirname in dirnames:
-                    # If the prefix is the same as the scan prefix
-                    if dirname.startswith(prefix_scan):
-                        # Obtain full path to this directory
-                        dir_path = path.join(self._root_dir, dirname)
-
-                        # Check if this directory contains a 'prism_log.log'
-                        if 'prism_log.log' in os.listdir(dir_path):
-                            # Obtain creation time and append to emul_dirs
-                            ctime = path.getctime(dir_path)
-                            emul_dirs.append([dir_path, ctime])
-
-                # Sort list of emul_dirs on creation time
-                emul_dirs.sort(key=lambda x: x[1], reverse=True)
+                dirs = list(map(path.dirname, glob(
+                    "%s/%s*/prism_log.log" % (self._root_dir, prefix_scan))))
 
                 # If no working directory exists, create a new one
-                if not emul_dirs:
+                if not dirs:
                     working_dir = ''.join([prefix_new, '0'])
                     self._working_dir = path.join(self._root_dir, working_dir)
                     os.mkdir(self._working_dir)
@@ -1111,7 +1098,7 @@ class Pipeline(Projection, object):
 
                 # If working directories exist, load last one created
                 else:
-                    self._working_dir = emul_dirs[0][0]
+                    self._working_dir = max(dirs, key=path.getctime)
                     logger.info("Working directories found, set to %r."
                                 % (path.basename(self._working_dir)))
 
@@ -1130,19 +1117,11 @@ class Pipeline(Projection, object):
 
             # If one requested a new working directory
             elif working_dir is True:
-                # Obtain list of working directories that satisfy naming scheme
-                dirnames = next(os.walk(self._root_dir))[1]
-                n_dirs = 0
-
-                # Check if there are any directories with the same prefix
-                for dirname in dirnames:
-                    if dirname.startswith(prefix_scan):
-                        # Obtain full path to this directory
-                        dir_path = path.join(self._root_dir, dirname)
-
-                        # Check if this directory contains a 'prism_log.log'
-                        if 'prism_log.log' in os.listdir(dir_path):
-                            n_dirs += 1
+                # Obtain all directories in root_dir that satisfy the default
+                # naming scheme of the emulator directories
+                dirs = map(path.dirname, glob("%s/%s*/prism_log.log"
+                                              % (self._root_dir, prefix_scan)))
+                n_dirs = len(list(dirs))
 
                 # Check if working directories already exist with the same
                 # prefix and append a number to the name if this is the case
@@ -1505,13 +1484,8 @@ class Pipeline(Projection, object):
 
         # Do some preparations on the controller
         if self._is_controller:
-            # Flatten the corresponding data_idx_to_core
-            data_idx_flat = []
-            n_data = []
-            for data_idx_rank in self._emulator._data_idx_to_core[emul_i]:
-                data_idx_rank = e13.delist(data_idx_rank)
-                data_idx_flat.extend(data_idx_rank)
-                n_data.append(len(data_idx_rank))
+            # Obtain the flattened data_idx
+            n_data, data_idx_flat = self._emulator._get_data_idx_flat(emul_i)
 
             # Sort ext_mod_set accordingly to data_idx_flat if provided
             if ext_mod_set.shape[0]:
@@ -1718,45 +1692,63 @@ class Pipeline(Projection, object):
             else:
                 return(self._modellink._get_sam_space(self._impl_sam))
 
-    # This function performs an implausibility cut-off check on a given sample
+    # This function performs an implausibility cut-off check on given samples
     # TODO: Implement dynamic impl_cut
     @e13.docstring_substitute(emul_i=std_emul_i_doc)
-    def _do_impl_check(self, emul_i, uni_impl_val):
+    def _do_impl_check(self, emul_i, uni_impl_vals):
         """
         Performs an implausibility cut-off check on the provided implausibility
-        values `uni_impl_val` at emulator iteration `emul_i`.
+        values `uni_impl_vals` at emulator iteration `emul_i`.
 
         Parameters
         ----------
         %(emul_i)s
-        uni_impl_val : 1D array_like
+        uni_impl_vals : 2D array_like
             Array containing all univariate implausibility values corresponding
-            to a certain parameter set for all data points.
+            to all parameter sets for all data points.
 
         Returns
         -------
-        result : bool
-            1 if check was successful, 0 if it was not.
-        impl_cut_val : float
-            Implausibility value at the first real implausibility cut-off.
+        impl_check_vals : 1D :obj:`~numpy.ndarray` object
+            Array containing whether the check was successful for that sample.
+        impl_cut_vals : 1D :obj:`~numpy.ndarray` object
+            Array containing the implausibility value at the first real
+            implausibility cut-off for every sample.
 
         """
 
-        # Sort impl_val to compare with the impl_cut list
-        sorted_impl_val = np.flip(np.sort(
-            uni_impl_val, axis=-1), axis=-1)[self._cut_idx[emul_i]:]
+        # Determine number of samples
+        n_sam = uni_impl_vals.shape[0]
 
-        # Save the implausibility value at the first real cut-off
-        impl_cut_val = sorted_impl_val[0]
+        # Sort impl_vals to compare with the impl_cut list
+        sorted_impl_vals = np.flip(np.sort(uni_impl_vals, axis=-1), axis=-1)
 
-        # Scan over all data points in this sample
-        for impl_val, cut_val in zip(sorted_impl_val, self._impl_cut[emul_i]):
-            # If impl_val is not below impl_cut, break
-            if(impl_val > cut_val):
-                return(0, impl_cut_val)
-        else:
-            # If for-loop ended in a normal way, the check was successful
-            return(1, impl_cut_val)
+        # Transpose sorted_impl_vals and extract only values with cut-offs
+        extracted_impl_vals = sorted_impl_vals.T[self._cut_idx[emul_i]:]
+
+        # Save the implausibility values at the first real cut-off
+        impl_cut_vals = extracted_impl_vals[0]
+
+        # Make a filled bool list containing which samples are plausible
+        impl_check_vals = np.ones(n_sam, dtype=bool)
+
+        # Make a list of plausible sample indices
+        sam_idx_full = np.arange(n_sam)
+        sam_idx = sam_idx_full[impl_check_vals]
+
+        # Scan over all data points in all samples
+        for impl_vals, cut_val in zip(extracted_impl_vals,
+                                      self._impl_cut[emul_i]):
+            # Check which of the samples satisfies this cut-off
+            impl_check_vals[sam_idx] = (impl_vals[sam_idx] <= cut_val)
+            sam_idx = sam_idx_full[impl_check_vals]
+
+            # If no sample is left plausible, break the loop
+            if not sam_idx.size:
+                break
+
+        # Return impl_check_vals and impl_cut_vals
+        return(impl_check_vals, impl_cut_vals)
 
     # This function calculates the univariate implausibility values
     # This is function 'I²(x)'
@@ -1847,7 +1839,7 @@ class Pipeline(Projection, object):
         try:
             md_var = self._modellink.get_md_var(
                 emul_i=emul_i,
-                par_set=sdict(zip(self._modellink._par_name, par_set)),
+                par_set=self._modellink._get_sam_dict(par_set),
                 data_idx=e13.delist(self._emulator._data_idx[emul_i]))
 
         # If it was not user-defined, use a default value
@@ -2122,25 +2114,24 @@ class Pipeline(Projection, object):
         pre_code = compile(dedent("""
             adj_exp_val = [[] for _ in range(n_sam)]
             adj_var_val = [[] for _ in range(n_sam)]
-            uni_impl_val_list = [[] for _ in range(n_sam)]
+            uni_impl_val = [[] for _ in range(n_sam)]
             emul_i_stop = np.zeros([n_sam], dtype=int)
             """), '<string>', 'exec')
         eval_code = compile(dedent("""
             adj_exp_val[sam_idx[j]] = adj_val[0]
             adj_var_val[sam_idx[j]] = adj_val[1]
-            uni_impl_val_list[sam_idx[j]] = uni_impl_vals[j]
+            uni_impl_val[sam_idx[j]] = uni_impl_vals[j]
             """), '<string>', 'exec')
-        anal_code = compile("emul_i_stop[sam_idx[j]] = i", '<string>', 'exec')
+        anal_code = compile("emul_i_stop[sam_idx] = i", '<string>', 'exec')
         post_code = compile(dedent("""
             adj_exp_val = self._comm.gather(np_array(adj_exp_val), 0)
             adj_var_val = self._comm.gather(np_array(adj_var_val), 0)
-            uni_impl_val_list = self._comm.gather(np_array(uni_impl_val_list),
-                                                  0)
+            uni_impl_val = self._comm.gather(np_array(uni_impl_val), 0)
             """), '<string>', 'exec')
         exit_code = compile(dedent("""
             adj_exp_val = np.concatenate(adj_exp_val, axis=1)
             adj_var_val = np.concatenate(adj_var_val, axis=1)
-            uni_impl_val = np.concatenate(uni_impl_val_list, axis=1)
+            uni_impl_val = np.concatenate(uni_impl_val, axis=1)
             results = (adj_exp_val, adj_var_val, uni_impl_val, emul_i_stop,
                        impl_check)
             """), '<string>', 'exec')
@@ -2154,8 +2145,8 @@ class Pipeline(Projection, object):
         pre_code = compile("lnprior = 0", '<string>', 'exec')
         eval_code = compile("", '<string>', 'exec')
         anal_code = compile(dedent("""
-            lnprior = (np.log(1-impl_cut_val/self._impl_cut[i][0]) if
-                       impl_check_val else -np.infty)
+            lnprior = (np.log(1-impl_cut_vals[0]/self._impl_cut[i][0]) if
+                       impl_check_vals[0] else -np.infty)
             """), '<string>', 'exec')
         post_code = compile(dedent("""
             lnprior = self._comm.bcast(lnprior, 0)
@@ -2171,7 +2162,7 @@ class Pipeline(Projection, object):
         # Define the various code snippets
         pre_code = compile("impl_cut = np.zeros([n_sam])", '<string>', 'exec')
         eval_code = compile("", '<string>', 'exec')
-        anal_code = compile("impl_cut[sam_idx[j]] = impl_cut_val", '<string>',
+        anal_code = compile("impl_cut[sam_idx] = impl_cut_vals", '<string>',
                             'exec')
         post_code = compile("", '<string>', 'exec')
         exit_code = compile("results = (impl_check, impl_cut)", '<string>',
@@ -2274,7 +2265,7 @@ class Pipeline(Projection, object):
         impl_check = np.ones(n_sam, dtype=bool)
 
         # Make a list of plausible sample indices
-        sam_idx_full = np_array(range(n_sam))
+        sam_idx_full = np.arange(n_sam)
         sam_idx = sam_idx_full[impl_check]
 
         # Mark all samples as plausible
@@ -2309,24 +2300,22 @@ class Pipeline(Projection, object):
                     exec(eval_code)
 
                 # Gather the results on the controller after evaluating
-                uni_impl_vals_list = self._comm.gather(uni_impl_vals, 0)
+                uni_impl_vals = self._comm.gather(uni_impl_vals, 0)
 
                 # Controller performs implausibility analysis
                 if self._is_controller:
                     # Convert uni_impl_vals_list to an array
-                    uni_impl_vals_array =\
-                        np.concatenate(uni_impl_vals_list, axis=1)
+                    uni_impl_vals = np.concatenate(uni_impl_vals, axis=1)
 
                     # Perform implausibility cutoff check on all elements
-                    for j, uni_impl_val in enumerate(uni_impl_vals_array):
-                        impl_check_val, impl_cut_val =\
-                            self._do_impl_check(i, uni_impl_val)
+                    impl_check_vals, impl_cut_vals =\
+                        self._do_impl_check(i, uni_impl_vals)
 
-                        # Modify impl_check with obtained impl_check_val
-                        impl_check[sam_idx[j]] = impl_check_val
+                    # Modify impl_check with obtained impl_check_val
+                    impl_check[sam_idx] = impl_check_vals
 
-                        # Execute the anal_code snippet
-                        exec(anal_code)
+                    # Execute the anal_code snippet
+                    exec(anal_code)
 
                     # Modify sam_idx with those that are still plausible
                     sam_idx = sam_idx_full[impl_check]
@@ -2421,12 +2410,6 @@ class Pipeline(Projection, object):
             if impl_cut is not None:
                 self._set_impl_par(impl_cut)
 
-            # Save impl_par to hdf5
-            self._save_data({
-                'impl_par': {
-                    'impl_cut': self._impl_cut[emul_i],
-                    'cut_idx': self._cut_idx[emul_i]}})
-
             # Create an emulator evaluation sample set
             eval_sam_set = self._get_eval_sam_set(emul_i)
             n_eval_sam = eval_sam_set.shape[0]
@@ -2483,8 +2466,11 @@ class Pipeline(Projection, object):
                             % (n_impl_sam, self._emulator._n_sam[1]))
                 e13.raise_warning(warn_msg, RequestWarning, logger, 2)
 
-            # Save the results
+            # Save used impl_par and results
             self._save_data({
+                'impl_par': {
+                    'impl_cut': self._impl_cut[emul_i],
+                    'cut_idx': self._cut_idx[emul_i]},
                 'impl_sam': impl_sam,
                 'n_eval_sam': n_eval_sam})
 
@@ -3226,19 +3212,11 @@ class Pipeline(Projection, object):
         logger.info("Evaluating emulator iteration %i for provided set of "
                     "model parameter samples." % (emul_i))
 
-        # Check if sam_set was provided as a dict
-        if isinstance(sam_set, dict):
-            # Make sure that sam_set is a SortedDict
-            sam_set = sdict(sam_set)
-
-            # Return it to normal
-            sam_set = np_array(sam_set.values()).T
+        # Check sam_set
+        sam_set = self._modellink._check_sam_set(sam_set, 'sam_set')
 
         # Controller checking the contents of sam_set
         if self._is_controller:
-            # Check sam_set
-            sam_set = self._modellink._check_sam_set(sam_set, 'sam_set')
-
             # If ndim == 1, convert to 2D array and print output later
             if(sam_set.ndim == 1):
                 sam_set = np_array(sam_set, ndmin=2)
@@ -3366,7 +3344,7 @@ class WorkerMode(object):
     # This function exits/disables the worker mode
     def __exit__(self, etype, value, tb):
         """
-        The provided :obj:`~prism.Pipeline` objects exits worker mode, making
+        The provided :obj:`~prism.Pipeline` object exits worker mode, making
         all worker ranks stop listening for calls from the controller rank and
         resume normal code execution.
 
@@ -3426,9 +3404,9 @@ class WorkerMode(object):
             # Then the controller sends received exec_fn to all workers
             if pipe._is_controller:
                 pipe._comm.bcast([exec_fn, args, kwargs], 0)
-            # Make sure workers never call anything directly in worker mode
+            # Make sure workers receive the call in worker mode
             else:
-                return
+                exec_fn, args, kwargs = pipe._comm.bcast([], 0)
 
         # Execute exec_fn on all callers as well
         return(WorkerMode._process_call(pipe, exec_fn, args, kwargs))
@@ -3445,9 +3423,9 @@ class WorkerMode(object):
             # Then the controller sends received exec_fn to all workers
             if pipe._is_controller:
                 pipe._comm.bcast([exec_fn, args, kwargs], 0)
-            # Make sure workers never call anything directly in worker mode
+            # Make sure workers receive the call in worker mode
             else:
-                return
+                exec_fn, args, kwargs = pipe._comm.bcast([], 0)
 
         # Execute exec_fn on all workers
         if pipe._is_worker:

@@ -19,11 +19,11 @@ from time import time
 
 # Package imports
 import e13tools as e13
-from matplotlib import cm
+from matplotlib import cm, rcParams
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.interpolate import Rbf
+import scipy.interpolate as spi
 from sortedcontainers import SortedDict as sdict
 from tqdm import tqdm
 
@@ -65,6 +65,7 @@ class Projection(object):
         e13.raise_error(err_msg, RequestError, logger)
 
     # Function that creates all projection figures
+    # TODO: Allow for a list of specific figures to be requested
     @e13.docstring_substitute(emul_i=user_emul_i_doc, proj_par=proj_par_doc_d)
     def project(self, emul_i=None, proj_par=None, **kwargs):
         """
@@ -119,6 +120,15 @@ class Projection(object):
             Controls whether to use the model parameter space (*True*) or the
             parameter space in which emulator iteration `emul_i` is defined
             (*False*) as the axes limits in the projection figure.
+            If this is *True* and a parameter estimate is outside of the axes
+            limit, a parameter estimate arrow is used instead of a line.
+        full_impl_rng : bool. Default: False
+            Controls whether to use zero (*True*) or the lowest plotted value
+            (*False*) as the lower bound for the minimum implausibility plot.
+            Set this to *True* for the same plotting behavior as in versions
+            earlier than v1.2.4.
+
+            .. versionadded:: 1.2.4
         force : bool. Default: False
             Controls what to do if a projection hypercube has been calculated
             at the emulator iteration `emul_i` before.
@@ -127,38 +137,44 @@ class Projection(object):
             If *True*, it will recalculate all the data required to create the
             projection figure. Note that this will also delete all associated
             projection figures.
-        fig_kwargs : dict. Default: {'figsize': (6.4, 4.8), 'dpi': 100}
+        fig_kwargs : dict. Default: {'dpi': 100}
             Dict of keyword arguments to be used when creating the subplots
-            figure. It takes all arguments that can be provided to the
+            figure. It takes all optional arguments that can be provided to the
             :func:`~matplotlib.pyplot.figure` function.
         impl_kwargs_2D : dict. Default: {}
             Dict of keyword arguments to be used for making the minimum
             implausibility (top/left) plot in the 2D projection figures. It
-            takes all arguments that can be provided to the
+            takes all optional arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
         impl_kwargs_3D : dict. Default: {'cmap': 'cmr.rainforest_r'}
             Dict of keyword arguments to be used for making the minimum
             implausibility (top/left) plot in the 3D projection figures. It
-            takes all arguments that can be provided to the
+            takes all optional arguments that can be provided to the
             :func:`~matplotlib.pyplot.hexbin` function.
         los_kwargs_2D : dict. Default: {}
             Dict of keyword arguments to be used for making the line-of-sight
             (bottom/right) plot in the 2D projection figures. It takes all
-            arguments that can be provided to the
+            optional arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
         los_kwargs_3D : dict. Default: {'cmap': 'cmr.freeze'}
             Dict of keyword arguments to be used for making the line-of-sight
             (bottom/right) plot in the 3D projection figures. It takes all
-            arguments that can be provided to the
+            optional arguments that can be provided to the
             :func:`~matplotlib.pyplot.hexbin` function.
         line_kwargs_est : dict. Default: {'linestyle': '--', 'color': 'grey'}
             Dict of keyword arguments to be used for drawing the parameter
-            estimate lines in both plots. It takes all arguments that can be
-            provided to the :func:`~matplotlib.pyplot.plot` function.
+            estimate lines in both plots. It takes all optional arguments that
+            can be provided to the :func:`~matplotlib.pyplot.plot` function.
+        arrow_kwargs_est : dict. Default: {'color': 'grey', \
+            'fh_arrowlength': 0.015, 'fh_arrowwidth': 0.025, 'ft_arrowlength':\
+            1.5, 'ft_arrowwidth': 0.003, 'rel_xpos': 0.5, 'rel_ypos': 0.5}
+            Dict of keyword arguments to be used for drawing the parameter
+            estimate arrows in both plots. It takes a special set of arguments
+            that are described in the `Notes`_.
         line_kwargs_cut : dict. Default: {'color': 'r'}
             Dict of keyword arguments to be used for drawing the implausibility
             cut-off line(s) in the top/left plot in the 2D projection figures.
-            It takes all arguments that can be provided to the
+            It takes all optional arguments that can be provided to the
             :func:`~matplotlib.pyplot.plot` function.
 
         Returns (if `figure` is *False*)
@@ -198,13 +214,34 @@ class Projection(object):
 
         Notes
         -----
-        If given emulator iteration `emul_i` has been analyzed before, the
-        implausibility parameters of the last analysis are used. If not, then
-        the values are used that were read in when the emulator was loaded or
-        that have been set by the user.
-
-        All colormaps defined in the :mod:`~e13tools` package are loaded
+        All colormaps defined in the :mod:`~cmasher` package are loaded
         automatically when *PRISM* is imported and can be used.
+
+        Some `kwargs` dicts have a subset of arguments that are reserved for
+        this function (like `x`/`y` for `impl_kwargs_2D` and co.). These
+        arguments are ignored when provided.
+
+        The `arrow_kwargs_est` argument takes all optional arguments that
+        :func:`~matplotlib.pyplot.arrow` takes, plus a few special arguments
+        that are described below:
+
+            fh_arrowlength : float. Default: 0.015
+                The fraction of the appropriate axis limit used as the length
+                of the arrow head.
+            fh_arrowwidth : float. Default: 0.03
+                The fraction of the appropriate axis limit used as the width
+                of the arrow head.
+            ft_arrowlength : float. Default: 1.5
+                The relative length of the arrow tail compared to its head.
+            ft_arrowwidth : float. Default: 0.002
+                The fraction of the appropriate axis limit used as the width
+                of the arrow tail.
+            rel_xpos : float. Default: 0.5
+                The relative x-position of the arrow. Only used if the arrow is
+                drawn vertically and has no anchor in 3D projections.
+            rel_ypos : float. Default: 0.5
+                The relative y-position of the arrow. Only used if the arrow is
+                drawn horizontally and has no anchor in 3D projections.
 
         """
 
@@ -332,17 +369,19 @@ class Projection(object):
     # This function draws the 2D projection figure
     @e13.docstring_append(draw_proj_fig_doc.format("2D", "2"))
     def __draw_2D_proj_fig(self, hcube):
-        # Obtain emul_i and name of this projection hypercube
-        emul_i = hcube[0]
+        # Obtain name of this projection hypercube
         hcube_name = self.__get_hcube_name(hcube)
 
         # Obtain the projection data of this hcube
-        impl_min, impl_los, proj_res, _, proj_space =\
-            self.__get_proj_data(hcube)
+        proj_data = self.__get_proj_data(hcube)
 
-        # Make abbreviation for implausibility cut-off values
-        impl_cut = self._impl_cut[emul_i][0]
-        impl_cuts = self._impl_cut[emul_i]
+        # Extract required variables
+        impl_min = proj_data['impl_min']
+        impl_los = proj_data['impl_los']
+        proj_res = proj_data['proj_res']
+        proj_space = proj_data['proj_space']
+        impl_cuts = proj_data['impl_cut']
+        impl_cut = impl_cuts[0]
 
         # Start logger
         logger = getCLogger('PROJECTION')
@@ -358,17 +397,22 @@ class Projection(object):
         # Normalization is necessary for avoiding interpolation errors
         x_proj = np.linspace(0, 1, proj_res)
 
+        # Check if impl_min is requested to be smoothed
+        if self.__smooth:
+            # If so, set all impl_min to impl_cut if its impl_los is 0
+            impl_min[impl_los <= 0] = impl_cut
+        else:
+            # Else, clip impl_min to impl_cut at the upper limit
+            impl_min = np.clip(impl_min, None, impl_cut)
+
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # point
-        # TODO: Allow user to set smooth parameter for Rbf function
-        # This probably means that smoothed figures have to be renamed
-        f_min = Rbf(x_proj, impl_min)
-        f_los = Rbf(x_proj, impl_los)
+        f_min = spi.UnivariateSpline(x_proj, impl_min, s=0, k=1)
+        f_los = spi.UnivariateSpline(x_proj, impl_los, s=0)
 
         # Set the size of the grid
-        gridsize =\
-            self.__fig_kwargs['dpi']*np_array(self.__fig_kwargs['figsize'])
+        gridsize = self.__fig_kwargs['dpi']*np_array(self.__figsize)
         gridsize = np_array(gridsize, dtype=int)
 
         # Multiply the longer axis by two
@@ -381,19 +425,6 @@ class Projection(object):
         y_min = f_min(x)
         y_los = f_los(x)
 
-        # Obtain the 1D indices of the grid corners of all interpolated points
-        corners_1D = np.clip([x_proj.searchsorted(x)-1,
-                              x_proj.searchsorted(x, side='right')],
-                             0, proj_res-1).T
-
-        # If all corners of a point are zero, a point in between should be zero
-        y_los[~impl_los[corners_1D].any(axis=1)] = 0
-
-        # Check if y_min is requested to be smoothed
-        if self.__smooth:
-            # Set all y_min to impl_cut if its corresponding y_los is 0
-            y_min[y_los <= 0] = impl_cut
-
         # Create plotted parameter value array
         x = np.linspace(*proj_space[par], gridsize[0])
 
@@ -403,118 +434,127 @@ class Projection(object):
         else:
             axis_rng = proj_space[par]
 
-        # Create figure object if the figure is requested
-        if self.__figure:
-            if(self.__align == 'row'):
-                f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
-                w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
-
-                # Create GridSpec objects including a dummy Axes object
-                gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
-                ax0 = f.add_subplot(gsarr[0, 0])
-                ax1 = f.add_subplot(gsarr[0, 1])
-                label_ax = f.add_subplot(gsarr[1, :])
-
-                # Set padding to the bare minimum
-                f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
-                                              wspace=wspace, hspace=0)
-            else:
-                f, (ax0, ax1) = plt.subplots(2, constrained_layout=True,
-                                             **self.__fig_kwargs)
-                w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
-
-                # Set padding to the bare minimum
-                f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
-                                              wspace=0, hspace=hspace)
-
-            # Set super title
-            f.suptitle(r"Projection %s" % (hcube_name), fontsize='xx-large')
-
-            # MINIMUM IMPLAUSIBILITY PLOT
-            # Plot minimum implausibility
-            ax0.plot(x, y_min, **self.__impl_kwargs_2D)
-            ax0_rng = [*axis_rng, 0, 1.5*impl_cut]
-            ax0.axis(ax0_rng)
-
-            # Draw parameter estimate line
-            if self._modellink._par_est[par] is not None:
-                e13.draw_textline(r"", x=self._modellink._par_est[par], ax=ax0,
-                                  line_kwargs=self.__line_kwargs_est)
-
-            # Draw implausibility cut-off line(s)
-            if self.__show_cuts:
-                # If all lines are requested, draw them
-                for cut in impl_cuts:
-                    e13.draw_textline(r"", y=cut, ax=ax0,
-                                      line_kwargs=self.__line_kwargs_cut)
-            else:
-                # Else, draw the first cut-off line
-                e13.draw_textline(r"", y=impl_cut, ax=ax0,
-                                  line_kwargs=self.__line_kwargs_cut)
-
-            # Set axes and label
-            ax0.axis(ax0_rng)
-            ax0.set_ylabel("Min. Implausibility", fontsize='large')
-
-            # LINE-OF-SIGHT DEPTH PLOT
-            # Plot line-of-sight depth
-            ax1.plot(x, y_los, **self.__los_kwargs_2D)
-            ax1_rng = [*axis_rng, 0, 1.05*min(1, np.max(y_los))]
-            ax1.axis(ax1_rng)
-
-            # Draw parameter estimate line
-            if self._modellink._par_est[par] is not None:
-                e13.draw_textline(r"", x=self._modellink._par_est[par], ax=ax1,
-                                  line_kwargs=self.__line_kwargs_est)
-
-            # Set axes and label
-            ax1.axis(ax1_rng)
-            ax1.set_ylabel("Line-of-Sight Depth", fontsize='large')
-
-            # Make super axis label using dummy Axes object as an empty plot
-            if(self.__align == 'row'):
-                label_ax.set_frame_on(False)
-                label_ax.get_xaxis().set_ticks([])
-                label_ax.get_yaxis().set_ticks([])
-                label_ax.autoscale(tight=True)
-                label_ax.set_xlabel(par_name, fontsize='x-large', labelpad=0)
-            else:
-                ax1.set_xlabel(par_name, fontsize='x-large')
-
-            # If called by the Projection GUI, return figure instance
-            if self.__use_GUI:
-                return(f)
-            # Else, save and close the figure
-            else:
-                f.savefig(self.__get_fig_path(hcube)[self.__smooth])
-                plt.close(f)
-
-            # Log that this hypercube has been drawn
-            logger.info("Finished calculating and drawing projection figure "
-                        "%r." % (hcube_name))
-
-        # If the figure data has been requested instead
-        else:
+        # If figure data has been requested, save it and return
+        if not self.__figure:
+            # Save figure data
             self.__fig_data[hcube_name] = {
                 'impl_min': [x, y_min],
                 'impl_los': [x, y_los]}
             logger.info("Finished calculating projection figure %r."
                         % (hcube_name))
 
+            # Return
+            return
+
+        # Check alignment and act accordingly
+        if(self.__align == 'row'):
+            f = plt.figure(figsize=self.__figsize, constrained_layout=True,
+                           **self.__fig_kwargs)
+            w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
+
+            # Create GridSpec objects including a dummy Axes object
+            gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
+            ax0 = f.add_subplot(gsarr[0, 0])
+            ax1 = f.add_subplot(gsarr[0, 1])
+            label_ax = f.add_subplot(gsarr[1, :])
+
+            # Set padding to the bare minimum
+            f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
+                                          wspace=wspace, hspace=0)
+        else:
+            f, (ax0, ax1) = plt.subplots(2, figsize=self.__figsize,
+                                         constrained_layout=True,
+                                         **self.__fig_kwargs)
+            w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
+
+            # Set padding to the bare minimum
+            f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
+                                          wspace=0, hspace=hspace)
+
+        # Set super title
+        f.suptitle("Projection %s" % (hcube_name), fontsize='xx-large')
+
+        # MINIMUM IMPLAUSIBILITY PLOT
+        # Plot minimum implausibility
+        ax0.plot(x, y_min, **self.__impl_kwargs_2D)
+        vmin = 0 if self.__full_impl_rng else max(0, np.min(y_min))
+        ax0_rng = [*axis_rng, vmin, impl_cut]
+        ax0.axis(ax0_rng)
+
+        # Draw implausibility cut-off line(s)
+        if self.__show_cuts:
+            # If all lines are requested, draw them
+            for cut in impl_cuts:
+                ax0.axhline(cut, **self.__line_kwargs_cut)
+        else:
+            # Else, draw the first cut-off line
+            ax0.axhline(impl_cut, **self.__line_kwargs_cut)
+
+        # Set axis and label
+        ax0.axis(ax0_rng)
+        ax0.set_ylabel("Min. Implausibility", fontsize='large')
+
+        # LINE-OF-SIGHT DEPTH PLOT
+        # Plot line-of-sight depth
+        ax1.plot(x, y_los, **self.__los_kwargs_2D)
+        ax1_rng = [*axis_rng, 0, 1.05*min(1, np.max(y_los))]
+        ax1.axis(ax1_rng)
+
+        # Set label
+        ax1.set_ylabel("Line-of-Sight Depth", fontsize='large')
+
+        # Make super axis label using dummy Axes object as an empty plot
+        if(self.__align == 'row'):
+            label_ax.set_frame_on(False)
+            label_ax.get_xaxis().set_ticks([])
+            label_ax.get_yaxis().set_ticks([])
+            label_ax.autoscale(tight=True)
+            label_ax.set_xlabel(par_name, fontsize='x-large', labelpad=0)
+        else:
+            ax1.set_xlabel(par_name, fontsize='x-large')
+
+        # Apply the constrained layout and then turn it off
+        f.execute_constrained_layout()
+        f.set_constrained_layout(False)
+
+        # Obtain parameter estimate
+        par_est = self._modellink._par_est[par]
+
+        # If this is not None, draw estimate arrow/line
+        if par_est is not None:
+            # Loop over both subplots
+            for ax in [ax0, ax1]:
+                # Draw estimate arrow/line
+                self.__draw_estimate_arrowline(par_est, None, ax)
+
+        # If called by the Projection GUI, return figure instance
+        if self.__use_GUI:
+            return(f)
+        # Else, save and close the figure
+        else:
+            f.savefig(self.__get_fig_path(hcube)[self.__smooth])
+            plt.close(f)
+
+        # Log that this hypercube has been drawn
+        logger.info("Finished calculating and drawing projection figure "
+                    "%r." % (hcube_name))
+
     # This function draws the 3D projection figure
     @e13.docstring_append(draw_proj_fig_doc.format("3D", "3"))
     # OPTIMIZE: (Re)Drawing a 3D projection figure takes up to 15 seconds
     def __draw_3D_proj_fig(self, hcube):
-        # Obtain emul_i and name of this projection hypercube
-        emul_i = hcube[0]
+        # Obtain name of this projection hypercube
         hcube_name = self.__get_hcube_name(hcube)
 
         # Obtain the projection data of this hcube
-        impl_min, impl_los, proj_res, _, proj_space =\
-            self.__get_proj_data(hcube)
+        proj_data = self.__get_proj_data(hcube)
 
-        # Make abbreviation for first implausibility cut-off value
-        impl_cut = self._impl_cut[emul_i][0]
+        # Extract required variables
+        impl_min = proj_data['impl_min']
+        impl_los = proj_data['impl_los']
+        proj_res = proj_data['proj_res']
+        proj_space = proj_data['proj_space']
+        impl_cut = proj_data['impl_cut'][0]
 
         # Start logger
         logger = getCLogger('PROJECTION')
@@ -532,20 +572,31 @@ class Projection(object):
         # Normalization is necessary for avoiding interpolation errors
         x_proj = np.linspace(0, 1, proj_res)
         y_proj = np.linspace(0, 1, proj_res)
-        X_proj, Y_proj = np.meshgrid(x_proj, y_proj, indexing='ij')
+
+        # Check if impl_min is requested to be smoothed
+        if self.__smooth:
+            # If so, get the highest impl_los that corresponds to 0 in color
+            # Matplotlib uses N segments in a specific colormap
+            # Therefore, values up to max(impl_los)/N has the color for 0
+            min_los = min(1, np.max(impl_los))/self.__los_kwargs_3D['cmap'].N
+
+            # Set all impl_min to impl_cut if its impl_los < min_los
+            impl_min[impl_los < min_los] = impl_cut
+        else:
+            # Else, clip impl_min to impl_cut at the upper limit
+            impl_min = np.clip(impl_min, None, impl_cut)
 
         # Get the interpolated functions describing the minimum
         # implausibility and line-of-sight depth obtained in every
         # grid point
-        # TODO: Allow user to set smooth parameter for Rbf function
-        # This probably means that smoothed figures have to be renamed
-        # TODO: Should a KDE be used here instead?
-        f_min = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_min)
-        f_los = Rbf(X_proj.ravel(), Y_proj.ravel(), impl_los)
+        f_min = spi.RectBivariateSpline(
+            x_proj, y_proj, impl_min.reshape(proj_res, proj_res), s=0,
+            kx=1, ky=1)
+        f_los = spi.RectBivariateSpline(
+            x_proj, y_proj, impl_los.reshape(proj_res, proj_res), s=0)
 
         # Set the size of the hexbin grid
-        gridsize =\
-            self.__fig_kwargs['dpi']*np_array(self.__fig_kwargs['figsize'])
+        gridsize = self.__fig_kwargs['dpi']*np_array(self.__figsize)
         gridsize = np_array(gridsize, dtype=int)
 
         # Multiply the longer axis by two
@@ -556,42 +607,15 @@ class Projection(object):
         y = np.linspace(0, 1, gridsize[1])
         X, Y = np.meshgrid(x, y, indexing='ij')
 
-        # Calculate impl_min and impl_los for X, Y
-        Z_min = np.zeros(gridsize)
-        Z_los = np.zeros(gridsize)
-        for i, (xi, yi) in enumerate(zip(X, Y)):
-            Z_min[i] = f_min(xi, yi)
-            Z_los[i] = f_los(xi, yi)
+        # Calculate impl_min and impl_los for x, y
+        Z_min = f_min(x, y)
+        Z_los = f_los(x, y)
 
         # Flatten the mesh grids
         x = X.ravel()
         y = Y.ravel()
         z_min = Z_min.ravel()
         z_los = Z_los.ravel()
-
-        # Obtain the 2D indices of the grid corners of all interpolated points
-        corners_2D = [
-            [x_proj.searchsorted(x)-1, x_proj.searchsorted(x, side='right'),
-             x_proj.searchsorted(x)-1, x_proj.searchsorted(x, side='right')],
-            [y_proj.searchsorted(y)-1, y_proj.searchsorted(y, side='right'),
-             y_proj.searchsorted(y, side='right'), y_proj.searchsorted(y)-1]]
-
-        # Convert 2D indices to 1D indices
-        corners_1D = np.ravel_multi_index(corners_2D, [proj_res, proj_res],
-                                          mode='clip').T
-
-        # If all corners of a point are zero, a point in between should be zero
-        z_los[~impl_los[corners_1D].any(axis=1)] = 0
-
-        # Check if z_min is requested to be smoothed
-        if self.__smooth:
-            # Calculate the highest z_los that corresponds to 0 in color
-            # Matplotlib uses N segments in a specific colormap
-            # Therefore, values up to max(z_los)/N has the color for 0
-            min_los = min(1, np.max(z_los))/self.__los_kwargs_3D['cmap'].N
-
-            # Set all z_min to impl_cut if its corresponding z_los < min_los
-            z_min[z_los < min_los] = impl_cut
 
         # Create plotted parameter value grid
         x = np.linspace(*proj_space[par1], gridsize[0])
@@ -607,111 +631,308 @@ class Projection(object):
         else:
             axes_rng = [*proj_space[par1], *proj_space[par2]]
 
-        # Create figure object if the figure is requested
-        if self.__figure:
-            f = plt.figure(constrained_layout=True, **self.__fig_kwargs)
-            w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
-
-            # Create GridSpec objects including a dummy Axes object
-            if(self.__align == 'row'):
-                gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
-                ax0 = f.add_subplot(gsarr[0, 0])
-                ax1 = f.add_subplot(gsarr[0, 1])
-                label_ax = f.add_subplot(gsarr[1, :])
-
-                # Set padding to the bare minimum
-                f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
-                                              wspace=wspace, hspace=0)
-            else:
-                gsarr = gs.GridSpec(2, 2, figure=f, width_ratios=[0.00001, 1])
-                label_ax = f.add_subplot(gsarr[:, 0])
-                ax0 = f.add_subplot(gsarr[0, 1])
-                ax1 = f.add_subplot(gsarr[1, 1])
-
-                # Set padding to the bare minimum
-                f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
-                                              wspace=0, hspace=hspace)
-
-            # Set super title
-            f.suptitle(r"Projection %s" % (hcube_name), fontsize='xx-large')
-
-            # MINIMUM IMPLAUSIBILITY PLOT
-            # Plot minimum implausibility
-            fig1 = ax0.hexbin(x, y, z_min, gridsize-1, vmin=0, vmax=impl_cut,
-                              **self.__impl_kwargs_3D)
-
-            # Draw parameter estimate lines
-            ax0.axis(axes_rng)
-            if self._modellink._par_est[par1] is not None:
-                e13.draw_textline(r"", x=self._modellink._par_est[par1],
-                                  ax=ax0, line_kwargs=self.__line_kwargs_est)
-            if self._modellink._par_est[par2] is not None:
-                e13.draw_textline(r"", y=self._modellink._par_est[par2],
-                                  ax=ax0, line_kwargs=self.__line_kwargs_est)
-
-            # Set axes and labels
-            ax0.axis(axes_rng)
-            plt.colorbar(fig1, ax=ax0, extend='max').set_label(
-                "Min. Implausibility", fontsize='large')
-
-            # LINE-OF-SIGHT DEPTH PLOT
-            # Plot line-of-sight depth
-            fig2 = ax1.hexbin(x, y, z_los, gridsize-1, vmin=0,
-                              vmax=min(1, np.max(z_los)),
-                              **self.__los_kwargs_3D)
-
-            # Draw parameter estimate lines
-            ax1.axis(axes_rng)
-            if self._modellink._par_est[par1] is not None:
-                e13.draw_textline(r"", x=self._modellink._par_est[par1],
-                                  ax=ax1, line_kwargs=self.__line_kwargs_est)
-            if self._modellink._par_est[par2] is not None:
-                e13.draw_textline(r"", y=self._modellink._par_est[par2],
-                                  ax=ax1, line_kwargs=self.__line_kwargs_est)
-
-            # Set axes and label
-            ax1.axis(axes_rng)
-            plt.colorbar(fig2, ax=ax1).set_label("Line-of-Sight Depth",
-                                                 fontsize='large')
-
-            # Make super axis labels using dummy Axes object as an empty plot
-            if(self.__align == 'row'):
-                ax0.set_ylabel(par2_name, fontsize='x-large')
-                label_ax.set_frame_on(False)
-                label_ax.get_xaxis().set_ticks([])
-                label_ax.get_yaxis().set_ticks([])
-                label_ax.autoscale(tight=True)
-                label_ax.set_xlabel(par1_name, fontsize='x-large', labelpad=0)
-            else:
-                ax1.set_xlabel(par1_name, fontsize='x-large')
-                label_ax.set_frame_on(False)
-                label_ax.get_xaxis().set_ticks([])
-                label_ax.get_yaxis().set_ticks([])
-                label_ax.autoscale(tight=True)
-                label_ax.set_ylabel(par2_name, fontsize='x-large', labelpad=0)
-
-            # If called by the Projection GUI, return figure instance
-            if self.__use_GUI:
-                return(f)
-            # Else, save and close the figure
-            else:
-                f.savefig(self.__get_fig_path(hcube)[self.__smooth])
-                plt.close(f)
-
-            # Log that this hypercube has been drawn
-            logger.info("Finished calculating and drawing projection figure"
-                        "%r." % (hcube_name))
-
-        # If the figure data has been requested instead
-        else:
+        # If figure data has been requested, save it and return
+        if not self.__figure:
+            # Save figure data
             self.__fig_data[hcube_name] = {
                 'impl_min': [x, y, z_min],
                 'impl_los': [x, y, z_los]}
             logger.info("Finished calculating projection figure %r."
                         % (hcube_name))
 
+            # Return
+            return
+
+        # Create figure instance
+        f = plt.figure(figsize=self.__figsize, constrained_layout=True,
+                       **self.__fig_kwargs)
+        w_pad, h_pad, wspace, hspace = f.get_constrained_layout_pads()
+
+        # Create GridSpec objects including a dummy Axes object
+        if(self.__align == 'row'):
+            gsarr = gs.GridSpec(2, 2, figure=f, height_ratios=[1, 0.00001])
+            ax0 = f.add_subplot(gsarr[0, 0])
+            ax1 = f.add_subplot(gsarr[0, 1])
+            label_ax = f.add_subplot(gsarr[1, :])
+
+            # Set padding to the bare minimum
+            f.set_constrained_layout_pads(w_pad=w_pad, h_pad=h_pad/2,
+                                          wspace=wspace, hspace=0)
+
+            # Set some properties for colorbars
+            aspect = 80
+        else:
+            gsarr = gs.GridSpec(2, 2, figure=f, width_ratios=[0.00001, 1])
+            label_ax = f.add_subplot(gsarr[:, 0])
+            ax0 = f.add_subplot(gsarr[0, 1])
+            ax1 = f.add_subplot(gsarr[1, 1])
+
+            # Set padding to the bare minimum
+            f.set_constrained_layout_pads(w_pad=w_pad/2, h_pad=h_pad,
+                                          wspace=0, hspace=hspace)
+
+            # Set some properties for colorbars
+            aspect = 20
+
+        # Set super title
+        f.suptitle("Projection %s" % (hcube_name), fontsize='xx-large')
+
+        # MINIMUM IMPLAUSIBILITY PLOT
+        # Plot minimum implausibility
+        vmin = 0 if self.__full_impl_rng else max(0, np.min(z_min))
+        fig0 = ax0.hexbin(x, y, z_min, gridsize-1, vmin=vmin,
+                          vmax=impl_cut, **self.__impl_kwargs_3D)
+        ax0.axis(axes_rng)
+
+        # Set labels
+        cbar = plt.colorbar(fig0, ax=ax0, extend='max', pad=0.01,
+                            aspect=aspect)
+        cbar.set_label("Min. Implausibility", fontsize='large')
+
+        # LINE-OF-SIGHT DEPTH PLOT
+        # Plot line-of-sight depth
+        fig1 = ax1.hexbin(x, y, z_los, gridsize-1, vmin=0,
+                          vmax=min(1, np.max(z_los)),
+                          **self.__los_kwargs_3D)
+        ax1.axis(axes_rng)
+
+        # Set label
+        cbar = plt.colorbar(fig1, ax=ax1, pad=0.01, aspect=aspect)
+        cbar.set_label("Line-of-Sight Depth", fontsize='large')
+
+        # Make super axis labels using dummy Axes object as an empty plot
+        if(self.__align == 'row'):
+            ax0.set_ylabel(par2_name, fontsize='x-large')
+            label_ax.set_frame_on(False)
+            label_ax.get_xaxis().set_ticks([])
+            label_ax.get_yaxis().set_ticks([])
+            label_ax.autoscale(tight=True)
+            label_ax.set_xlabel(par1_name, fontsize='x-large', labelpad=0)
+        else:
+            ax1.set_xlabel(par1_name, fontsize='x-large')
+            label_ax.set_frame_on(False)
+            label_ax.get_xaxis().set_ticks([])
+            label_ax.get_yaxis().set_ticks([])
+            label_ax.autoscale(tight=True)
+            label_ax.set_ylabel(par2_name, fontsize='x-large', labelpad=0)
+
+        # Apply the constrained layout and then turn it off
+        f.execute_constrained_layout()
+        f.set_constrained_layout(False)
+
+        # Obtain parameter estimates of both plotted parameters
+        par_est1 = self._modellink._par_est[par1]
+        par_est2 = self._modellink._par_est[par2]
+
+        # If at least one of them is not None, draw estimate arrow/line
+        if par_est1 is not None or par_est2 is not None:
+            # Loop over both subplots
+            for ax in [ax0, ax1]:
+                # Draw estimate arrow/line
+                self.__draw_estimate_arrowline(par_est1, par_est2, ax)
+
+        # If called by the Projection GUI, return figure instance
+        if self.__use_GUI:
+            return(f)
+        # Else, save and close the figure
+        else:
+            f.savefig(self.__get_fig_path(hcube)[self.__smooth])
+            plt.close(f)
+
+        # Log that this hypercube has been drawn
+        logger.info("Finished calculating and drawing projection figure"
+                    "%r." % (hcube_name))
+
+    # This function draws an estimate arrow or line in the given Axis
+    def __draw_estimate_arrowline(self, par_est1, par_est2, ax):
+        """
+        Draws parameter estimate arrow and lines in the given `ax`, for the
+        provided estimates `par_est1` and `par_est2`.
+        Whether an arrow and/or a line is drawn, and what their layout and
+        position is, depends on the given estimate values.
+
+        Parameters
+        ----------
+        par_est1, par_est2 : float or None
+            The parameter estimates for which an arrow or line must be drawn.
+            If the estimate is within the axes limits, a line is drawn.
+            If the estimate is outside of the axes limits, an arrow is drawn in
+            the direction of `(par_est1, par_est2)`.
+            If *None*, a default value is used for the respective argument.
+        ax : :obj:`~matplotlib.axes.Axes` object
+            The Axes object in which the arrow and lines must be drawn.
+
+        Note
+        ----
+        Because the arrow is drawn using relative DPI-coordinates, the axes
+        limits and positions of `ax` must be final before calling this
+        function.
+
+        """
+
+        # Save provided estimates as x and y
+        x = par_est1
+        y = par_est2
+
+        # Obtain the figure of this axis and its size
+        fig = ax.figure
+        fig_size = fig.get_size_inches()
+
+        # Obtain a copy of the arrow_kwargs_est
+        arrow_kwargs = dict(self.__arrow_kwargs_est)
+
+        # Obtain the bbox of positions of the axis
+        pos = ax.get_position(fig)
+
+        # Obtain the axis limits
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+
+        # Obtain the fractional widths and lengths of the arrow
+        fh_length = arrow_kwargs.pop('fh_arrowlength')*6.4
+        ft_length = arrow_kwargs.pop('ft_arrowlength')*fh_length
+        fh_width = arrow_kwargs.pop('fh_arrowwidth')*4.78
+        ft_width = arrow_kwargs.pop('ft_arrowwidth')*4.78
+        full_length = fh_length+ft_length
+        rel_xpos = arrow_kwargs.pop('rel_xpos')
+        rel_ypos = arrow_kwargs.pop('rel_ypos')
+
+        # Check if x and y are inside the axis limits
+        x_in = bool(x is None or ((xlim[0] <= x) and (x <= xlim[1])))
+        y_in = bool(y is None or ((ylim[0] <= y) and (y <= ylim[1])))
+
+        # Set parameters regarding plotting the arrow alongside the axes frame
+        snap = False
+
+        # Calculate the width of the border in figure coordinates
+        ax_lw = rcParams['axes.linewidth']/72
+        ax_lwx = ax_lw/fig_size[0]
+        ax_lwy = ax_lw/fig_size[1]
+
+        # Convert the bbox positions to only contain the inside of the figure
+        x0 = pos.x0+ax_lwx
+        y0 = pos.y0+ax_lwy
+        x1 = pos.x1-ax_lwx
+        y1 = pos.y1-ax_lwy
+
+        # Determine the range of x and y
+        x_size = np.diff(xlim)[0]
+        y_size = np.diff(ylim)[0]
+
+        # Determine the center coordinates of the plot
+        xc = xlim[0]+x_size/2
+        yc = ylim[0]+y_size/2
+
+        # If both x and y are out of range, determine the length and position
+        # of the arrow in both directions
+        if not x_in and not y_in:
+            # Calculate the distance between the center and the intersect
+            dx = x-xc
+            dy = y-yc
+
+            # Calculate how far away the border is in terms of the intersect
+            fx = abs(x_size/(2*dx))
+            fy = abs(y_size/(2*dy))
+
+            # Determine the lowest of the two directions
+            fxy = min(fx, fy)
+
+            # Determine the frame point of the arrow
+            xp = fxy*dx+xc
+            yp = fxy*dy+yc
+
+            # Calculate the part of the arrow that must be in either direction
+            xl = abs(xp-xc)
+            yl = abs(yp-yc)
+
+            # Scale xl to match the same value range DPI-wise as yl
+            xl *= (((x1-x0)*fig_size[0]*y_size)/((y1-y0)*fig_size[1]*x_size))
+
+            # Calculate the vector length made up by (xl, yl)
+            tl = np.sqrt(xl**2+yl**2)
+
+            # Calculate what fraction of the total length belongs to either
+            # direction
+            xf = xl/tl
+            yf = yl/tl
+
+            # Calculate the length of the arrow in both directions
+            fullx_length = full_length*xf
+            fully_length = full_length*yf
+        else:
+            # Determine the length of the arrow in both directions
+            fully_length = fh_length if x_in and x is not None else full_length
+            fullx_length = fh_length if y_in and y is not None else full_length
+
+            # Determine the frame point of the arrow
+            xp = np.clip(x, *xlim) if x is not None else x
+            yp = np.clip(y, *ylim) if y is not None else y
+
+        # Check if provided x is within range or not given at all
+        if x_in:
+            # If so, draw estimate line if x was given
+            if x is not None:
+                ax.axvline(x, snap=True, **self.__line_kwargs_est)
+                rel_xpos = (x-xlim[0])/(xlim[1]-xlim[0])
+
+                # Make sure to snap the arrow to the line when using row align
+                snap = (self.__align == 'row')
+
+            # Set the x and dx values for the arrow
+            xa = (x0+rel_xpos*(x1-x0))*fig_size[0]
+            dx = 0
+        else:
+            # If not, calculate the x-coordinate of the frame point
+            rel_xpos = (xp-xlim[0])/(xlim[1]-xlim[0])
+            xa = (x0+rel_xpos*(x1-x0))*fig_size[0]
+
+            # Check if x is to the left of the center of the plot
+            if(x < xc):
+                # If so, the end of the arrow must be moved to the right
+                xa += fullx_length
+                dx = -fullx_length
+            else:
+                # Else, the end of the arrow must be moved to the left
+                xa -= fullx_length
+                dx = fullx_length
+
+        # Check if provided y is within range or not given at all
+        if y_in:
+            # If so, draw estimate line if y was given
+            if y is not None:
+                ax.axhline(y, snap=True, **self.__line_kwargs_est)
+                rel_ypos = (y-ylim[0])/(ylim[1]-ylim[0])
+
+                # Make sure to snap the arrow to the line when using row align
+                snap = (self.__align == 'row')
+
+            # Set the y and dy values for the arrow
+            ya = (y0+rel_ypos*(y1-y0))*fig_size[1]
+            dy = 0
+        else:
+            # If not, calculate the y-coordinate of the frame point
+            rel_ypos = (yp-ylim[0])/(ylim[1]-ylim[0])
+            ya = (y0+rel_ypos*(y1-y0))*fig_size[1]
+
+            # Check if y is below the center of the plot
+            if(y < yc):
+                # If so, the end of the arrow must be raised
+                ya += fully_length
+                dy = -fully_length
+            else:
+                # Else, the end of the arrow must be lowered
+                ya -= fully_length
+                dy = fully_length
+
+        # If at least one estimate was not drawn, draw arrow
+        if not x_in or not y_in:
+            ax.arrow(xa, ya, dx, dy, length_includes_head=True,
+                     width=ft_width, head_width=fh_width,
+                     head_length=fh_length, snap=snap, zorder=100,
+                     transform=fig.dpi_scale_trans, **arrow_kwargs)
+
     # This function returns the projection data belonging to a proj_hcube
-    @e13.docstring_substitute(hcube=hcube_doc, proj_data=proj_data_doc)
+    @e13.docstring_substitute(hcube=hcube_doc)
     def __get_proj_data(self, hcube):
         """
         Returns the projection data belonging to the provided hypercube
@@ -723,16 +944,8 @@ class Projection(object):
 
         Returns
         -------
-        %(proj_data)s
-        proj_res : int
-            Number of emulator evaluations used to generate the grid for the
-            given hypercube.
-        proj_depth : int
-            Number of emulator evaluations used to generate the samples in
-            every grid point for the given hypercube.
-        proj_space : 2D :obj:`~numpy.ndarray` object
-            The boundaries of the hypercube that encloses the parameter space
-            in which the specified projection is defined.
+        proj_data : dict
+            Dict containing all the data associated with the specified `hcube`.
 
         """
 
@@ -748,21 +961,27 @@ class Projection(object):
             # Log that projection data is being obtained
             logger.info("Obtaining projection data %r." % (hcube_name))
 
-            # Obtain data
+            # Obtain proper dataset
             data_set = file['%i/proj_hcube/%s' % (emul_i, hcube_name)]
-            impl_min_hcube = data_set['impl_min'][()]
-            impl_los_hcube = data_set['impl_los'][()]
-            proj_space = self.__read_proj_space(data_set)
-            res_hcube = data_set.attrs['proj_res']
-            depth_hcube = data_set.attrs['proj_depth']
+
+            # Initialize proj_data dict
+            proj_data = {}
+
+            # Read in all the data
+            proj_data['impl_min'] = data_set['impl_min'][()]
+            proj_data['impl_los'] = data_set['impl_los'][()]
+            proj_data['proj_space'] = self.__read_proj_space(data_set)
+            proj_data['proj_res'] = data_set.attrs['proj_res']
+            proj_data['proj_depth'] = data_set.attrs['proj_depth']
+            proj_data['impl_cut'] = data_set.attrs['impl_cut']
+            proj_data['cut_idx'] = data_set.attrs['cut_idx']
 
             # Log that projection data was obtained successfully
             logger.info("Finished obtaining projection data %r."
                         % (hcube_name))
 
         # Return it
-        return(impl_min_hcube, impl_los_hcube, res_hcube, depth_hcube,
-               proj_space)
+        return(proj_data)
 
     # This function reads in and transforms the proj_space of a proj_hcube
     def __read_proj_space(self, hcube_group):
@@ -783,14 +1002,10 @@ class Projection(object):
 
         """
 
-        # FIXME: Remove in v1.3.0
-        if self._emulator._check_future_compat('1.2.3.dev1', '1.3.0'):
-            proj_space = hcube_group['proj_space'][()]
-            proj_space.dtype = float
-            proj_space = proj_space.T.copy()
-        else:   # pragma: no cover
-            emul_i = int(hcube_group.name.split('/')[1])
-            proj_space = self.__get_proj_space(emul_i)
+        # Obtain proj_space and return
+        proj_space = hcube_group['proj_space'][()]
+        proj_space.dtype = float
+        proj_space = proj_space.T.copy()
         return(proj_space)
 
     # This function determines the projection hypercubes to be analyzed
@@ -1026,6 +1241,13 @@ class Projection(object):
         los_kwargs_3D = {'cmap': 'cmr.freeze'}
         line_kwargs_est = {'linestyle': '--',
                            'color': 'grey'}
+        arrow_kwargs_est = {'color': 'grey',
+                            'fh_arrowlength': 0.015,
+                            'ft_arrowlength': 1.5,
+                            'fh_arrowwidth': 0.025,
+                            'ft_arrowwidth': 0.003,
+                            'rel_xpos': 0.5,
+                            'rel_ypos': 0.5}
         line_kwargs_cut = {'color': 'r'}
 
         # Create input argument dict with default projection parameters
@@ -1036,6 +1258,7 @@ class Projection(object):
                        'show_cuts': 0,
                        'smooth': 0,
                        'use_par_space': 0,
+                       'full_impl_rng': 0,
                        'force': 0,
                        'fig_kwargs': sdict(fig_kwargs),
                        'impl_kwargs_2D': sdict(impl_kwargs_2D),
@@ -1043,6 +1266,7 @@ class Projection(object):
                        'los_kwargs_2D': sdict(los_kwargs_2D),
                        'los_kwargs_3D': sdict(los_kwargs_3D),
                        'line_kwargs_est': sdict(line_kwargs_est),
+                       'arrow_kwargs_est': sdict(arrow_kwargs_est),
                        'line_kwargs_cut': sdict(line_kwargs_cut),
                        'figsize_c': figsize_c,
                        'figsize_r': figsize_r}
@@ -1329,18 +1553,23 @@ class Projection(object):
         # Make dictionary with default argument values
         kwargs_dict = self.__get_default_input_arguments()
 
-        # Make list with forbidden figure and plot kwargs
+        # Make list with forbidden figure, plot and arrow kwargs
         # Save them as attributes for Projection GUI
         self.__pop_fig_kwargs = ['num', 'ncols', 'nrows', 'sharex', 'sharey',
-                                 'constrained_layout']
+                                 'constrained_layout', 'figsize']
         self.__pop_plt_kwargs = ['x', 'y', 'C', 'gridsize', 'vmin', 'vmax',
-                                 'norm', 'fmt', 'mincnt']
+                                 'norm', 'fmt', 'mincnt', 'snap']
+        self.__pop_line_kwargs = ['x', 'y', 'xmin', 'ymin', 'xmax', 'ymax',
+                                  'snap']
+        self.__pop_arrow_kwargs = ['x', 'y', 'dx', 'dy', 'width', 'transform',
+                                   'length_includes_head', 'head_width',
+                                   'head_length', 'snap', 'zorder']
 
         # Update kwargs_dict with given kwargs
         for key, value in kwargs.items():
             if key in ('fig_kwargs', 'impl_kwargs_2D', 'impl_kwargs_3D',
                        'los_kwargs_2D', 'los_kwargs_3D', 'line_kwargs_est',
-                       'line_kwargs_cut'):
+                       'arrow_kwargs_est', 'line_kwargs_cut'):
                 if not isinstance(value, dict):
                     err_msg = ("Input argument %r is not of type 'dict'!"
                                % (key))
@@ -1365,6 +1594,8 @@ class Projection(object):
             self.__smooth = check_vals(kwargs.pop('smooth'), 'smooth', 'bool')
             self.__use_par_space = check_vals(kwargs.pop('use_par_space'),
                                               'use_par_space', 'bool')
+            self.__full_impl_rng = check_vals(kwargs.pop('full_impl_rng'),
+                                              'full_impl_rng', 'bool')
             self.__force = check_vals(kwargs.pop('force'), 'force', 'bool')
 
             # Check if proj_type parameter is a valid string
@@ -1388,12 +1619,10 @@ class Projection(object):
             align = str(kwargs.pop('align')).replace("'", '').replace('"', '')
             if align.lower() in ('r', 'row', 'h', 'horizontal'):
                 self.__align = 'row'
-                kwargs['fig_kwargs']['figsize'] =\
-                    kwargs['fig_kwargs'].pop('figsize', kwargs['figsize_r'])
+                self.__figsize = kwargs['figsize_r']
             elif align.lower() in ('c', 'col', 'column', 'v', 'vertical'):
                 self.__align = 'col'
-                kwargs['fig_kwargs']['figsize'] =\
-                    kwargs['fig_kwargs'].pop('figsize', kwargs['figsize_c'])
+                self.__figsize = kwargs['figsize_c']
             else:
                 err_msg = ("Input argument 'align' is invalid (%r)!"
                            % (align))
@@ -1406,6 +1635,7 @@ class Projection(object):
             los_kwargs_2D = kwargs.pop('los_kwargs_2D')
             los_kwargs_3D = kwargs.pop('los_kwargs_3D')
             line_kwargs_est = kwargs.pop('line_kwargs_est')
+            arrow_kwargs_est = kwargs.pop('arrow_kwargs_est')
             line_kwargs_cut = kwargs.pop('line_kwargs_cut')
 
             # FIG_KWARGS
@@ -1453,6 +1683,24 @@ class Projection(object):
                 if key in self.__pop_plt_kwargs:
                     los_kwargs_3D.pop(key)
 
+            # LINE_KWARGS
+            # Check if any forbidden kwargs are given and remove them
+            line_keys = list(line_kwargs_est.keys())
+            for key in line_keys:
+                if key in self.__pop_line_kwargs:
+                    line_kwargs_est.pop(key)
+            line_keys = list(line_kwargs_cut.keys())
+            for key in line_keys:
+                if key in self.__pop_line_kwargs:
+                    line_kwargs_cut.pop(key)
+
+            # ARROW_KWARGS
+            # Check if any forbidden kwargs are given and remove them
+            arrow_keys = list(arrow_kwargs_est.keys())
+            for key in arrow_keys:
+                if key in self.__pop_arrow_kwargs:
+                    arrow_kwargs_est.pop(key)
+
             # Save kwargs dicts to memory
             self.__fig_kwargs = fig_kwargs
             self.__impl_kwargs_2D = impl_kwargs_2D
@@ -1460,6 +1708,7 @@ class Projection(object):
             self.__los_kwargs_2D = los_kwargs_2D
             self.__los_kwargs_3D = los_kwargs_3D
             self.__line_kwargs_est = line_kwargs_est
+            self.__arrow_kwargs_est = arrow_kwargs_est
             self.__line_kwargs_cut = line_kwargs_cut
 
         # MPI Barrier
@@ -1536,9 +1785,10 @@ class Projection(object):
             # Save all parameters and arguments in a dict (Projection GUI)
             kwarg_names = ['proj_res', 'proj_depth', 'emul_i', 'proj_2D',
                            'proj_3D', 'figure', 'align', 'show_cuts', 'smooth',
-                           'use_par_space', 'fig_kwargs', 'impl_kwargs_2D',
-                           'impl_kwargs_3D', 'los_kwargs_2D', 'los_kwargs_3D',
-                           'line_kwargs_est', 'line_kwargs_cut']
+                           'use_par_space', 'full_impl_rng', 'fig_kwargs',
+                           'impl_kwargs_2D', 'impl_kwargs_3D', 'los_kwargs_2D',
+                           'los_kwargs_3D', 'line_kwargs_est',
+                           'arrow_kwargs_est', 'line_kwargs_cut']
             self.__proj_kwargs = {n: getattr(self, '_Projection__%s' % (n))
                                   for n in kwarg_names}
 
@@ -1579,11 +1829,7 @@ class Projection(object):
 
         """
 
-        # FIXME: Remove in v1.3.0
-        if self._emulator._check_future_compat('1.2.3.dev1', '1.3.0'):
-            return(self._get_impl_space(emul_i))
-        else:   # pragma: no cover
-            return(self._modellink._par_rng.copy())
+        return(self._get_impl_space(emul_i))
 
     # This function saves projection data to hdf5
     @e13.docstring_substitute(save_data=save_data_doc_pr)

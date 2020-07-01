@@ -109,4 +109,4 @@ class GaussianLink(ModelLink):
         return(mod_set.T)
 
     def get_md_var(self, emul_i, par_set, data_idx):
-        return(pow(0.1*np.ones_like(data_idx), 2))
+        return(0.01*np.ones_like(data_idx))

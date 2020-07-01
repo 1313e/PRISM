@@ -1,7 +1,7 @@
 -e .
 check-manifest
 emcee>=2.2.1
-pytest>=3.8.0
+pytest>=4.6.0
 pytest-cov
 pytest-mpl>=0.10.0
 pytest-ordering
