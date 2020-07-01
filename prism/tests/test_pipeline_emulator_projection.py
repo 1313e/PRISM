@@ -539,10 +539,11 @@ class Test_Pipeline_Gaussian3D(object):
 
     # Test if an estimate out-of-range results in arrows in the projections
     def test_proj_est_arrows(self, pipe):
-        pipe._modellink._par_est = [-1, -1, -1]
+        pipe._modellink._par_est = [-1, -1, 15]
         if pipe._is_controller:
             os.remove(pipe._Projection__get_fig_path((1, 0, 1))[0])
         pipe.project(1, (0, 1), proj_type='3D')
+        pipe.project(1, (0, 2), proj_type='3D')
 
         if pipe._is_controller:
             os.remove(pipe._Projection__get_fig_path((1, 0, 1))[0])
