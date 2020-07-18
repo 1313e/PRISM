@@ -5,7 +5,7 @@ hickle>=3.4.0
 matplotlib>=2.2.4
 mlxtend>=0.16.0
 mpi4pyd>=0.3.1
-numpy>=1.12.0
+numpy>=1.16.0
 pyqt5==5.12.*
 qtpy>=1.9.0
 scikit-learn>=0.22
