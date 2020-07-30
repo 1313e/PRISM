@@ -12,7 +12,6 @@ Provides the definition of the :class:`~ModelLink` abstract base class.
 # Built-in imports
 import abc
 from glob import glob
-import os
 from os import path
 from tempfile import mktemp
 import warnings
