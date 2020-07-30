@@ -31,7 +31,7 @@ class PolyLink(ModelLink):
 
     Formatting data_idx
     -------------------
-    x : int
+    x : float
         The value that needs to be used for :math:`x` in the function
         :math:`\\sum_i C_ix^i` to obtain the data value.
 

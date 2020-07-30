@@ -31,7 +31,7 @@ class GaussianLink(ModelLink):
 
     Formatting data_idx
     -------------------
-    x : int
+    x : float
         The value that needs to be used for :math:`x` in the function
         :math:`\\sum_i A_i\\exp\\left(-\\frac{(x-B_i)^2}{2C_i^2}\\right)` to
         obtain the data value.
