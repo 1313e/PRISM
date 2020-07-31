@@ -20,6 +20,7 @@ import cmasher as cmr
 import e13tools as e13
 from matplotlib import cm, rcParams
 from matplotlib.colors import BASE_COLORS, CSS4_COLORS, to_rgba
+import matplotlib.pyplot as plt
 import numpy as np
 from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
@@ -455,9 +456,10 @@ class ColorMapBox(BaseBox):
         std_cmaps_r = sset([cmap+'_r' for cmap in std_cmaps])
 
         # Obtain a list with all colormaps and their reverses
-        all_cmaps = sset([cmap for cmap in cm.cmap_d
+        all_cmaps = sset([cmap for cmap in plt.colormaps()
                           if not cmap.endswith('_r')])
-        all_cmaps_r = sset([cmap for cmap in cm.cmap_d if cmap.endswith('_r')])
+        all_cmaps_r = sset([cmap for cmap in plt.colormaps()
+                            if cmap.endswith('_r')])
 
         # Gather all sets together
         cmaps = (std_cmaps, std_cmaps_r, all_cmaps, all_cmaps_r)
