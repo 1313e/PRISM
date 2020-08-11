@@ -81,7 +81,7 @@ class GaussianLink(ModelLink):
     # %% GAUSSIANLINK CLASS METHODS
     def get_str_repr(self):
         return(['n_gaussians=%r' % (self._n_gaussians)] if(
-                self._n_gaussians != 1) else [])
+               self._n_gaussians != 1) else [])
 
     def get_default_model_parameters(self):
         # Set default parameters for every Gaussian

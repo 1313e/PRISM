@@ -2646,7 +2646,7 @@ class Emulator(object):
                     try:
                         par_i = [self._modellink._par_name.index(
                             par.decode('utf-8')) for par in
-                                 data_set.attrs['active_par_data']]
+                            data_set.attrs['active_par_data']]
                         active_par_data.append(np_array(par_i))
                     except KeyError:
                         active_par_data.append([])
