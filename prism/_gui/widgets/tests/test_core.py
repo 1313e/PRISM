@@ -11,7 +11,7 @@ from qtpy import QtWidgets as QW
 
 # PRISM imports
 from prism._gui.widgets.core import (
-     BaseBox, get_box_value, get_modified_box_signal, set_box_value)
+    BaseBox, get_box_value, get_modified_box_signal, set_box_value)
 
 
 # Skip this entire module for any rank that is not the controller

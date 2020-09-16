@@ -30,7 +30,7 @@ class SineWaveLink(ModelLink):
 
     Formatting data_idx
     -------------------
-    x : int
+    x : float
         The value that needs to be used for :math:`x` in the function
         :math:`A+0.1*B*\\sin(C*x+D)` to obtain the data value.
 

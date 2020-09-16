@@ -31,7 +31,7 @@ class GaussianLink(ModelLink):
 
     Formatting data_idx
     -------------------
-    x : int
+    x : float
         The value that needs to be used for :math:`x` in the function
         :math:`\\sum_i A_i\\exp\\left(-\\frac{(x-B_i)^2}{2C_i^2}\\right)` to
         obtain the data value.
@@ -81,7 +81,7 @@ class GaussianLink(ModelLink):
     # %% GAUSSIANLINK CLASS METHODS
     def get_str_repr(self):
         return(['n_gaussians=%r' % (self._n_gaussians)] if(
-                self._n_gaussians != 1) else [])
+               self._n_gaussians != 1) else [])
 
     def get_default_model_parameters(self):
         # Set default parameters for every Gaussian

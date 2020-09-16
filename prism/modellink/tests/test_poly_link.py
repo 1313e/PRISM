@@ -34,10 +34,8 @@ def test_PolyLink():
     par_dict = modellink_obj._get_sam_dict(par_set)
     exp_mod_out = [8.0, 85.0, 186.5]
     assert np.allclose(modellink_obj.call_model(
-                        1, par_dict, sorted(modellink_obj._data_idx)),
-                       exp_mod_out)
+        1, par_dict, sorted(modellink_obj._data_idx)), exp_mod_out)
 
     # Retrieve model discrepancy variance
     assert np.allclose(modellink_obj.get_md_var(
-                        1, par_dict, modellink_obj._data_idx),
-                       [0.01, 0.01, 0.01])
+        1, par_dict, modellink_obj._data_idx), [0.01, 0.01, 0.01])
