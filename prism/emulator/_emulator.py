@@ -999,7 +999,7 @@ class Emulator(object):
             # TODO: Remove this in v1.4.0
             if self._check_future_compat('1.3.1', '1.4.0'):
                 emul_s_group.attrs['data_idx'] =\
-                    "{!r}".format(idx).encode('ascii', 'ignore')
+                    "{!r}".format(data_idx).encode('ascii', 'ignore')
 
             # If part is a string, encode and save it
             elif isinstance(data_idx, str):
