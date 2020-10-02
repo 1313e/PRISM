@@ -12,6 +12,7 @@ package, the :class:`~Emulator` class.
 # %% IMPORTS
 # Built-in imports
 from collections import Counter
+from itertools import chain
 import os
 from os import path
 from struct import calcsize
@@ -363,7 +364,7 @@ class Emulator(object):
     @property
     def poly_terms(self):
         """
-        dict of dicts: Overview of all polynomial terms with non-zero
+        dict of dict: Overview of all polynomial terms with non-zero
         coefficients in the regression function for every emulator system on
         this MPI rank.
         Empty if :attr:`~method` == 'gaussian'.
@@ -446,55 +447,60 @@ class Emulator(object):
     @property
     def sam_set(self):
         """
-        :obj:`~numpy.ndarray`: The model evaluation samples that have been/will
-        be used to construct the specified emulator iteration.
+        list of dict: The model evaluation samples that have been/will be used
+        to construct the specified emulator iteration.
 
         """
 
-        return(self._sam_set)
+        return([[sdict(zip(self._modellink._par_name, par_set)) for
+                 par_set in sam_set] for sam_set in self._sam_set])
 
     @property
     def emul_space(self):
         """
-        :obj:`~numpy.ndarray`: The boundaries of the hypercube that encloses
-        the parameter space in which the specified emulator iteration is
-        defined. This is always equal to the plausible space of the previous
+        dict of :obj:`~numpy.ndarray`: The boundaries of the hypercube that
+        encloses the parameter space in which the specified emulator iteration
+        is defined. This is always equal to the plausible space of the previous
         iteration.
 
         """
 
-        return(self._emul_space)
+        return([sdict(zip(self._modellink._par_name, emul_space)) for
+                emul_space in self._emul_space])
 
     @property
     def mod_set(self):
         """
-        list of :obj:`~numpy.ndarray`: The model outputs corresponding to the
+        dict of :obj:`~numpy.ndarray`: The model outputs corresponding to the
         samples in :attr:`~sam_set` for every emulator system on this MPI rank.
 
         """
 
-        return(self._mod_set)
+        return([dict(zip(data_idx, mod_set)) for data_idx, mod_set in
+                zip(self._data_idx, self._mod_set)])
 
     @property
     def cov_mat_inv(self):
         """
-        list of :obj:`~numpy.ndarray`: The inverses of the covariance matrices
+        dict of :obj:`~numpy.ndarray`: The inverses of the covariance matrices
         for every emulator system on this MPI rank.
 
         """
 
-        return(self._cov_mat_inv)
+        return([dict(zip(data_idx, cov_mat_inv)) for data_idx, cov_mat_inv in
+                zip(self._data_idx, self._cov_mat_inv)])
 
     @property
     def exp_dot_term(self):
         """
-        list of :obj:`~numpy.ndarray`: The second expectation adjustment
+        dict of :obj:`~numpy.ndarray`: The second expectation adjustment
         dot-term values of all model evaluation samples for every emulator
         system on this MPI rank.
 
         """
 
-        return(self._exp_dot_term)
+        return([dict(zip(data_idx, exp_dot_term)) for data_idx, exp_dot_term in
+                zip(self._data_idx, self._exp_dot_term)])
 
     # Covariances
     @property
@@ -511,14 +517,14 @@ class Emulator(object):
     @property
     def l_corr(self):
         """
-        :obj:`~numpy.ndarray`: The Gaussian correlation lengths for all model
+        dict of float: The Gaussian correlation lengths for all model
         parameters, which is defined as the maximum distance between two values
         of a specific model parameter within which the Gaussian contribution to
         the correlation between the values is still significant.
 
         """
 
-        return(self._l_corr)
+        return(sdict(zip(self._modellink._par_name, self._l_corr)))
 
     @property
     def f_infl(self):
@@ -698,10 +704,7 @@ class Emulator(object):
         """
 
         # If emul_i is 1, the defined emulator space is model parameter space
-        # This is true for all emul_i if emulator was made before v1.2.3.dev1
-        # FIXME: Change in v1.3.0
-        if((emul_i == 1) or
-           not self._check_future_compat('1.2.3.dev1', '1.3.0')):
+        if(emul_i == 1):
             return(self._modellink._par_rng.copy())
 
         # Else, it is defined as the plausible space of the previous iteration
@@ -984,6 +987,43 @@ class Emulator(object):
             # Else, save it normally
             else:
                 emul_s_group.attrs['data_idx'] = data_idx
+
+    # This function returns a list of all data_idx assigned to cores
+    @e13.docstring_substitute(emul_i=std_emul_i_doc)
+    def _get_data_idx_flat(self, emul_i):
+        """
+        Obtains the data point identifiers `data_idx` that are assigned to each
+        MPI rank for the provided emulator iteration `emul_i` and returns them
+        as a single list.
+        The number of data points assigned to each MPI rank is also returned.
+
+        Parameters
+        ----------
+        %(emul_i)s
+
+        Returns
+        -------
+        n_data_rank : list of int
+            The number of data points each MPI rank has assigned to it for
+            given `emul_i`. These values can be used to split `data_idx_flat`
+            up again into MPI rank-specific data point identifiers.
+        data_idx_flat : list of tuples
+            The data point identifiers that are assigned to an MPI rank for
+            given `emul_i`.
+
+        """
+
+        # Obtain the data_idx tuples on every rank
+        data_idx_ranks = list(map(e13.delist, self._data_idx_to_core[emul_i]))
+
+        # Flatten data_idx_ranks into a single list
+        data_idx_flat = list(chain(*data_idx_ranks))
+
+        # Calculate the number of data points assigned per core
+        n_data_rank = list(map(len, data_idx_ranks))
+
+        # Return both
+        return(n_data_rank, data_idx_flat)
 
     # This function matches data points with those in a previous iteration
     # TODO: Write this function and _assign_emul_s simpler and dependent
@@ -1750,10 +1790,13 @@ class Emulator(object):
             active_sam_set = self._sam_set[emul_i][
                 :, self._active_par_data[emul_i][emul_s]]
 
+            # Extract mod_set
+            mod_set = self._mod_set[emul_i][emul_s]
+
             # Wrap in try-statement to add additional info if error is raised
             try:
                 # Perform regression for this emulator system
-                pipe.fit(active_sam_set, self._mod_set[emul_i][emul_s])
+                pipe.fit(active_sam_set, mod_set)
             except Exception as error:      # pragma: no cover
                 # If an error is raised, add which emulator system that was
                 e13.raise_error(
@@ -1768,12 +1811,12 @@ class Emulator(object):
                 active_sam_set)[:, poly_idx]
 
             # Extract the residual variance
-            rsdl_var = mse(self._mod_set[emul_i][emul_s],
+            rsdl_var = mse(mod_set,
                            pipe.named_steps['linear'].predict(sam_set_poly))
 
             # Log the score of the regression process
-            regr_score = pipe.named_steps['linear'].score(
-                sam_set_poly, self._mod_set[emul_i][emul_s])
+            regr_score = pipe.named_steps['linear'].score(sam_set_poly,
+                                                          mod_set)
             logger.info("Regression score for emulator system %i: %f."
                         % (self._emul_s[emul_s], regr_score))
 
@@ -1786,7 +1829,9 @@ class Emulator(object):
                                   pipe.named_steps['linear'].intercept_, 0)
 
             # Check every polynomial coefficient if it is significant enough
-            poly_sign = ~np.isclose(poly_coef, 0)
+            max_sam_set_poly = np.insert(np.max(sam_set_poly, axis=0), 0, 1)
+            poly_sign = ~np.isclose(max_sam_set_poly*poly_coef/np.min(mod_set),
+                                    0)
 
             # Only include significant polynomial terms unless none of the
             # non-intercept terms are significant
@@ -2517,13 +2562,9 @@ class Emulator(object):
                     self._n_sam.append(group.attrs['n_sam'])
                     self._sam_set.append(group['sam_set'][()])
                     self._sam_set[-1].dtype = float
-                    # FIXME: Remove in v1.3.0
-                    if self._check_future_compat('1.2.3.dev1', '1.3.0'):
-                        emul_space = group['emul_space'][()]
-                        emul_space.dtype = float
-                        self._emul_space.append(emul_space.T.copy())
-                    else:   # pragma: no cover
-                        self._emul_space.append(self._get_emul_space(i))
+                    emul_space = group['emul_space'][()]
+                    emul_space.dtype = float
+                    self._emul_space.append(emul_space.T.copy())
                 except KeyError:
                     self._n_sam.append(0)
                     self._sam_set.append([])
@@ -2605,7 +2646,7 @@ class Emulator(object):
                     try:
                         par_i = [self._modellink._par_name.index(
                             par.decode('utf-8')) for par in
-                                 data_set.attrs['active_par_data']]
+                            data_set.attrs['active_par_data']]
                         active_par_data.append(np_array(par_i))
                     except KeyError:
                         active_par_data.append([])
@@ -2697,12 +2738,6 @@ class Emulator(object):
                 # Controller saving the received data_idx_list
                 if self._is_controller:
                     self._data_idx_to_core.append(data_idx_list)
-
-        # FIXME: Remove in v1.3.0
-        # If solely rsdl_vars are missing, add them silently
-        for i in range(1, emul_i+1):
-            if(e13.delist(self._ccheck[i]) == [['rsdl_var']]*self._n_data[i]):
-                self._get_rsdl_var(i, self._active_emul_s[i])
 
         # If ccheck has no solely empty lists, decrease emul_i by 1
         if e13.delist(self._ccheck[-1]):
@@ -2950,11 +2985,7 @@ class Emulator(object):
             self._prism_version = prism_version
             self._sigma = file.attrs['sigma']
             self._l_corr = file.attrs['l_corr']
-            # FIXME: Remove in v1.3.0
-            if self._check_future_compat('1.2.2.dev0', '1.3.0'):
-                self._f_infl = file.attrs['f_infl']
-            else:   # pragma: no cover
-                self._f_infl = 0.0
+            self._f_infl = file.attrs['f_infl']
             self._method = file.attrs['method'].decode('utf-8')
             self._use_regr_cov = int(file.attrs['use_regr_cov'])
             self._poly_order = file.attrs['poly_order']

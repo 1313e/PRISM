@@ -128,15 +128,22 @@ It should therefore only be used when necessary.
     If :pycode:`False`, only the parameter space in which the emulator is defined is shown, which more often than not allows for more details to be seen in the projection figure.
     If :pycode:`True`, the full model parameter space is used for the axes limits, allowing projection figures from different iterations to be compared with each other more easily.
 
+.. versionadded:: 1.2.4
+    The `full_impl_rng` argument is a bool, which controls whether the lower limit for the minimum implausibility plot should be set to zero (:pycode:`True`) or to the lowest implausibility value plotted (:pycode:`False`), with the latter being the default.
+    If :pycode:`False`, only the implausibility range in which plausible samples are plotted will be used, which increases the amount of detail in the minimum implausibility plot.
+    If :pycode:`True`, the entire implausibility range that can hold plausible samples is used, allowing for the relative implausibility difference between samples to be interpreted correctly.
+    Set this value to :pycode:`True` if one wishes to have the same plotting behavior as in versions earlier than v1.2.4.
+
 The `force` argument is a bool, which controls what to do if a projection is requested for which data already exists.
 If :pycode:`False` (default), it will use the previously acquired projection data to create the projection figure if it does not exist, skip if it does or return the figure data if `figure` is :pycode:`False`.
 If :pycode:`True`, the projection data and all associated projection figures will be deleted, and the projection will be recalculated.
 
-The remaining seven arguments are keyword argument dicts, that need to be passed to the various different plotting functions that are used for creating the projection figures.
+The remaining eight arguments are keyword argument dicts, that need to be passed to the various different plotting functions that are used for creating the projection figures.
 The `fig_kwargs` dict is passed to the :func:`~matplotlib.pyplot.figure` function when creating the projection figure instance.
 The `impl_kwargs_2D` and `los_kwargs_2D` dicts are passed to the :func:`~matplotlib.pyplot.plot` function when making the minimum implausibility and line-of-sight depth subplots, respectively, for the 2D projections.
 Similarly, the `impl_kwargs_3D` and `los_kwargs_3D` dicts are passed to the :func:`~matplotlib.pyplot.hexbin` function for 3D projections.
-And, finally, the `line_kwargs_est` and `line_kwargs_cut` dicts are passed to the :func:`~matplotlib.pyplot.draw` function for drawing the parameter estimate and implausibility cut-off lines.
+The `line_kwargs_est` and `line_kwargs_cut` dicts are passed to the :func:`~matplotlib.pyplot.draw` function for drawing the parameter estimate and implausibility cut-off lines.
+And, finally, the `arrow_kwargs_est` dict is passed to the :func:`~matplotlib.pyplot.arrow` function for drawing the parameter estimate arrow in case its line is out-of-range.
 
 Crystal (GUI)
 #############

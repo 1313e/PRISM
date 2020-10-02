@@ -20,6 +20,7 @@ import cmasher as cmr
 import e13tools as e13
 from matplotlib import cm, rcParams
 from matplotlib.colors import BASE_COLORS, CSS4_COLORS, to_rgba
+import matplotlib.pyplot as plt
 import numpy as np
 from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 from sortedcontainers import SortedDict as sdict, SortedSet as sset
@@ -31,7 +32,7 @@ from prism._gui.widgets import (
     QW_QSpinBox, get_box_value, set_box_value)
 
 # All declaration
-__all__ = ['ColorBox', 'ColorMapBox', 'DefaultBox', 'FigSizeBox']
+__all__ = ['ColorBox', 'ColorMapBox', 'DefaultBox']
 
 
 # %% CLASS DEFINITIONS
@@ -455,9 +456,10 @@ class ColorMapBox(BaseBox):
         std_cmaps_r = sset([cmap+'_r' for cmap in std_cmaps])
 
         # Obtain a list with all colormaps and their reverses
-        all_cmaps = sset([cmap for cmap in cm.cmap_d
+        all_cmaps = sset([cmap for cmap in plt.colormaps()
                           if not cmap.endswith('_r')])
-        all_cmaps_r = sset([cmap for cmap in cm.cmap_d if cmap.endswith('_r')])
+        all_cmaps_r = sset([cmap for cmap in plt.colormaps()
+                            if cmap.endswith('_r')])
 
         # Gather all sets together
         cmaps = (std_cmaps, std_cmaps_r, all_cmaps, all_cmaps_r)
@@ -804,106 +806,3 @@ class DefaultBox(BaseBox):
 
         set_box_value(self.type_box, self.type_dict[type(value)])
         set_box_value(self.value_box, value)
-
-
-# Make class with a special box for setting the figsize
-class FigSizeBox(BaseBox):
-    """
-    Defines the :class:`~FigSizeBox` class.
-
-    This class is used for making the 'figsize' entry in the
-    :class:`~prism._gui.widgets.preferences.KwargsDictDialogPage` class.
-
-    """
-
-    @e13.docstring_substitute(optional=kwargs_doc.format(
-        'prism._gui.widgets.core.BaseBox'))
-    def __init__(self, *args, **kwargs):
-        """
-        Initialize an instance of the :class:`~FigSizeBox` class.
-
-        %(optional)s
-
-        """
-
-        # Call super constructor
-        super().__init__(*args, **kwargs)
-
-        # Create the figsize box
-        self.init()
-
-    # This function creates the figsize box
-    def init(self):
-        """
-        Sets up the figure size entry after it has been initialized.
-
-        This function is mainly responsible for simply creating the two double
-        spinboxes that allow for the width and height to be set.
-
-        """
-
-        # Create the box_layout
-        box_layout = QW.QHBoxLayout(self)
-        box_layout.setContentsMargins(0, 0, 0, 0)
-        self.setToolTip("Figure size dimensions to use for the projection "
-                        "figure")
-
-        # Create two double spinboxes for the width and height
-        # WIDTH
-        width_box = QW_QDoubleSpinBox()
-        width_box.setRange(1, 9999999)
-        width_box.setSuffix("'")
-        width_box.setStepType(width_box.AdaptiveDecimalStepType)
-        width_box.setToolTip("Width (in inches) of projection figure")
-        self.width_box = width_box
-
-        # HEIGHT
-        height_box = QW_QDoubleSpinBox()
-        height_box.setRange(1, 9999999)
-        height_box.setSuffix("'")
-        height_box.setToolTip("Height (in inches) of projection figure")
-        self.height_box = height_box
-
-        # Also create a textlabel with 'X'
-        x_label = QW.QLabel('X')
-        x_label.setSizePolicy(QW.QSizePolicy.Fixed, QW.QSizePolicy.Fixed)
-
-        # Add everything to the box_layout
-        box_layout.addWidget(width_box)
-        box_layout.addWidget(x_label)
-        box_layout.addWidget(height_box)
-
-        # Set default value
-        set_box_value(self, rcParams['figure.figsize'])
-
-    # This function retrieves a value of this special box
-    def get_box_value(self):
-        """
-        Returns the current width and height of this figsize box and returns
-        it.
-
-        Returns
-        -------
-        figsize : tuple
-            A tuple containing the width and height values of the figsize,
-            formatted as `(width, height)`.
-
-        """
-
-        return((get_box_value(self.width_box), get_box_value(self.height_box)))
-
-    # This function sets the value of this special box
-    def set_box_value(self, value):
-        """
-        Sets the current value of the figsize box to `value`.
-
-        Parameters
-        ----------
-        value : tuple
-            A tuple containing the width and height values of the figsize,
-            formatted as `(width, height)`.
-
-        """
-
-        set_box_value(self.width_box, value[0])
-        set_box_value(self.height_box, value[1])

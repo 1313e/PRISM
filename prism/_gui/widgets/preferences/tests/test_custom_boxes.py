@@ -14,7 +14,7 @@ from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
 # PRISM imports
 from prism._gui.widgets.core import get_box_value, set_box_value
 from prism._gui.widgets.preferences.custom_boxes import (
-    ColorBox, ColorMapBox, DefaultBox, FigSizeBox)
+    ColorBox, ColorMapBox, DefaultBox)
 
 
 # Skip this entire module for any rank that is not the controller
@@ -245,60 +245,3 @@ class TestDefaultBox(object):
         # Set the box value to a string and check
         set_box_value(box, "More Te3t1ng! -.-")
         assert (get_box_value(box.type_box) == 'str')
-
-
-# Pytest for FigSizeBox
-class TestFigSizeBox(object):
-    # Test a figsize box
-    @pytest.fixture(scope='function')
-    def box(self, qtbot):
-        # Create a FigSizeBox instance
-        box = FigSizeBox()
-        qtbot.addWidget(box)
-
-        # Return box
-        return(box)
-
-    # Test if figsize box comes with two spinboxes
-    def test_size_boxes(self, box):
-        # Test presence of width box
-        assert hasattr(box, 'width_box')
-        assert isinstance(box.width_box, QW.QDoubleSpinBox)
-
-        # Test presence of height box
-        assert hasattr(box, 'height_box')
-        assert isinstance(box.height_box, QW.QDoubleSpinBox)
-
-    # Test setting the width
-    def test_set_width(self, qtbot, box):
-        # Remove the current value in the box
-        qtbot.keyClick(box.width_box, QC.Qt.Key_A, QC.Qt.ControlModifier)
-        qtbot.keyClick(box.width_box, QC.Qt.Key_Delete)
-
-        # Try to set the value of the spinbox
-        with qtbot.waitSignal(box.modified):
-            qtbot.keyClicks(box.width_box, '13.13')
-
-        # Check that the value is now 13.13
-        assert (get_box_value(box.width_box) == 13.13)
-
-    # Test setting the height
-    def test_set_height(self, qtbot, box):
-        # Remove the current value in the box
-        qtbot.keyClick(box.height_box, QC.Qt.Key_A, QC.Qt.ControlModifier)
-        qtbot.keyClick(box.height_box, QC.Qt.Key_Delete)
-
-        # Try to set the value of the spinbox
-        with qtbot.waitSignal(box.modified):
-            qtbot.keyClicks(box.height_box, '42.10')
-
-        # Check that the value is now 42.10
-        assert (get_box_value(box.height_box) == 42.10)
-
-    # Test setting both simultaneously
-    def test_set_sizes(self, box):
-        # Set the value of the figsize box
-        set_box_value(box, (13.13, 42.10))
-
-        # Check that this is now the current value of the box
-        assert (get_box_value(box) == (13.13, 42.10))

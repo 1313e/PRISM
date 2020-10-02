@@ -384,7 +384,7 @@ def test_subclass(subclass, *args, **kwargs):
             if modellink_obj._multi_call:
                 mod_set = modellink_obj.call_model(
                     emul_i=0,
-                    par_set=sdict(zip(modellink_obj._par_name, sam_set.T)),
+                    par_set=modellink_obj._get_sam_dict(sam_set),
                     data_idx=modellink_obj._data_idx)
 
             # Single-call
@@ -396,7 +396,7 @@ def test_subclass(subclass, *args, **kwargs):
                 for i, par_set in enumerate(sam_set):
                     mod_set[i] = modellink_obj.call_model(
                         emul_i=0,
-                        par_set=sdict(zip(modellink_obj._par_name, par_set)),
+                        par_set=modellink_obj._get_sam_dict(par_set),
                         data_idx=modellink_obj._data_idx)
 
     # If call_model was not overridden, catch NotImplementedError
@@ -413,7 +413,7 @@ def test_subclass(subclass, *args, **kwargs):
     try:
         md_var = modellink_obj.get_md_var(
             emul_i=0,
-            par_set=sdict(zip(modellink_obj._par_name, sam_set[0])),
+            par_set=modellink_obj._get_sam_dict(sam_set[0]),
             data_idx=modellink_obj._data_idx)
 
     # If get_md_var was not overridden, catch NotImplementedError

@@ -50,7 +50,7 @@ def lnpost(par_set, pipe):
     # Obtain mod_out
     emul_i = pipe._emulator._emul_i
     if not isinstance(par_set, dict):
-        par_dict = sdict(zip(pipe._modellink._par_name, par_set))
+        par_dict = pipe._modellink._get_sam_dict(par_set)
     else:
         par_dict = par_set
     mod_out = pipe._modellink.call_model(emul_i, par_dict,
@@ -112,8 +112,8 @@ class Test_get_hybrid_lnpost_fn(object):
         hybrid_lnpost = get_hybrid_lnpost_fn(lnpost, pipe, par_dict=True,
                                              unit_space=True, impl_prior=False)
         assert hybrid_lnpost({'A': 0.5, 'B': 0.5}, pipe) == -np.infty
-        hybrid_lnpost(sdict(zip(pipe._modellink._par_name,
-                                pipe._modellink._par_est)), pipe)
+        hybrid_lnpost(pipe._modellink._get_sam_dict(pipe._modellink._par_est),
+                      pipe)
 
 
 # Pytest for get_walkers
@@ -123,6 +123,7 @@ class Test_get_walkers(object):
         if(pipe._size == 1):
             with pytest.raises(RequestError):
                 get_walkers(pipe)
+            get_walkers(pipe, init_walkers=10)
         pipe.analyze()
         get_walkers(pipe)
         pipe.construct()
@@ -156,7 +157,7 @@ class Test_get_walkers(object):
     def test_init_walkers_dict(self, pipe):
         sam_set = e13.lhd(10, pipe._modellink._n_par, pipe._modellink._par_rng,
                           'center', pipe._criterion, 100)
-        sam_dict = sdict(zip(pipe._modellink._par_name, sam_set.T))
+        sam_dict = pipe._modellink._get_sam_dict(sam_set)
         p0_walkers = get_walkers(pipe, init_walkers=sam_dict)[1]
         if pipe._is_controller:
             assert isinstance(p0_walkers, dict)

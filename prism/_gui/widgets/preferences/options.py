@@ -307,7 +307,8 @@ class OptionsDialog(QW.QDialog):
 
         return(self.create_group("Projection keywords",
                                  ['align', 'show_cuts', 'smooth',
-                                  'use_par_space', 'kwargs_dicts']))
+                                  'use_par_space', 'full_impl_rng',
+                                  'kwargs_dicts']))
 
     # INTERFACE GROUP
     def create_group_interface(self):
@@ -602,6 +603,26 @@ class OptionsDialog(QW.QDialog):
         # Return use_par_space box
         return('Use parameter space?', use_par_space_box)
 
+    # FULL_IMPL_RNG OPTION
+    def create_option_full_impl_rng(self):
+        """
+        Creates the 'full_impl_rng' option and returns it.
+
+        This option sets the value of the 'full_impl_rng' projection parameter.
+
+        """
+
+        # Make check box for full_impl_rng
+        full_impl_rng_box = QW.QCheckBox()
+        full_impl_rng_box.setToolTip("Enable/disable using the full "
+                                     "implausibility value range as the axis "
+                                     "limit.")
+        self.create_entry('full_impl_rng', full_impl_rng_box,
+                          self.proj_defaults['full_impl_rng'])
+
+        # Return full_impl_rng box
+        return('Use full implausibility range?', full_impl_rng_box)
+
     # KWARGS_DICTS OPTION
     def create_option_kwargs_dicts(self):
         """
@@ -625,7 +646,7 @@ class OptionsDialog(QW.QDialog):
                    "(<i>plt.figure</i> kwargs)")
         kwargs_dict_box.add_dict(
             "Figure", 'fig_kwargs', tooltip,
-            std_entries=['dpi', 'figsize'],
+            std_entries=['dpi'],
             banned_entries=self.get_proj_attr('pop_fig_kwargs'))
 
         # IMPL_KWARGS_2D
@@ -668,7 +689,17 @@ class OptionsDialog(QW.QDialog):
         kwargs_dict_box.add_dict(
             "Estimate lines", 'line_kwargs_est', tooltip,
             std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
-            banned_entries=[])
+            banned_entries=self.get_proj_attr('pop_line_kwargs'))
+
+        # ARROW_KWARGS_EST
+        tooltip = ("Keyword arguments used for drawing the parameter estimate "
+                   "arrows (<i>plt.arrow</i> kwargs)")
+        kwargs_dict_box.add_dict(
+            "Estimate arrows", 'arrow_kwargs_est', tooltip,
+            std_entries=['color', 'alpha', 'fh_arrowlength', 'ft_arrowlength',
+                         'fh_arrowwidth', 'ft_arrowwidth', 'rel_xpos',
+                         'rel_ypos'],
+            banned_entries=self.get_proj_attr('pop_arrow_kwargs'))
 
         # LINE_KWARGS_CUT
         tooltip = ("Keyword arguments used for drawing the implausibility "
@@ -677,7 +708,7 @@ class OptionsDialog(QW.QDialog):
         kwargs_dict_box.add_dict(
             "Cut-off lines", 'line_kwargs_cut', tooltip,
             std_entries=['linestyle', 'color', 'alpha', 'linewidth'],
-            banned_entries=[])
+            banned_entries=self.get_proj_attr('pop_line_kwargs'))
 
         # Return kwargs_dict box
         return('Projection keyword dicts:', kwargs_dict_box)

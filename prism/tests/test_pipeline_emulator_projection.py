@@ -62,6 +62,25 @@ def raise_worker_mode_error(pipe):
     pipe._comm.bcast(None, 0)
 
 
+# Define function that returns True
+def returnTrue():
+    return(True)
+
+
+# Define function that makes a call
+def make_call(pipe):
+    assert pipe._make_call(returnTrue)
+
+
+# Define function that makes a workers call
+def make_call_workers(pipe):
+    out = pipe._make_call_workers(returnTrue)
+    if pipe._is_controller:
+        assert out is None
+    else:
+        assert out
+
+
 # Set the random seed of NumPy for this test module
 @pytest.fixture(scope='class', autouse=True)
 def set_numpy_random_seed():
@@ -244,7 +263,8 @@ class Test_Pipeline_Gaussian2D(object):
 
     # Check if first iteration can be reprojected (forced)
     def test_reproject_forced(self, pipe):
-        pipe.project(force=True, smooth=True, use_par_space=True)
+        pipe.project(force=True, smooth=True, use_par_space=True,
+                     full_impl_rng=True)
 
     # Check if first iteration can be reconstructed forced
     def test_reconstruct_force(self, pipe):
@@ -383,6 +403,7 @@ class Test_Pipeline_Gaussian2D(object):
                 ranks = pipe._make_call('_make_call', 'pipe._comm.gather',
                                         'pipe._comm.rank', 0)
                 assert ranks == exp_ranks
+                pipe._make_call(make_call, 'pipe')
 
     # Test if initializing another worker mode works in worker mode
     def test_worker_mode_double(self, pipe):
@@ -402,7 +423,7 @@ class Test_Pipeline_Gaussian2D(object):
     def test_worker_mode_make_call_workers(self, pipe):
         with pipe.worker_mode:
             if pipe._is_controller:
-                pipe._make_call('_make_call_workers', print, 'pipe._comm.rank')
+                pipe._make_call(make_call_workers, 'pipe')
 
     # Test if make_call can be called outside worker mode
     def test_make_call(self, pipe):
@@ -410,12 +431,14 @@ class Test_Pipeline_Gaussian2D(object):
         assert pipe._make_call('_emulator._get_emul_i', 1, 0) == 1
         assert pipe._make_call('_evaluate_sam_set', 1, np.array([[2.5, 2]]),
                                ("", "", "", "", "")) is None
+        make_call(pipe)
 
     # Test if make_call_workers can be called outside worker mode
     def test_make_call_workers(self, pipe):
         rank = pipe._make_call_workers('_comm.__getattribute__', 'rank')
         if pipe._is_worker:
             assert (rank == pipe._comm.rank)
+        make_call_workers(pipe)
 
     # Test if raising an error in worker mode disables it properly
     def test_worker_mode_error(self, pipe):
@@ -434,6 +457,12 @@ class Test_Pipeline_Gaussian2D(object):
 
         # Manually exit worker mode
         wmode.__exit__(None, None, None)
+
+    # Test if an estimate out-of-range results in arrows in the projections
+    def test_proj_est_arrows(self, pipe):
+        pipe._modellink._par_est = [-1, 10]
+        pipe.project(1, force=True)
+        pipe.project(1, align='row', force=True)
 
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model
@@ -482,7 +511,8 @@ class Test_Pipeline_Gaussian3D(object):
     # Check if first iteration can be projected
     def test_project(self, pipe):
         pipe.project(1, (0, 1), align='row', smooth=True, proj_type='3D',
-                     fig_kwargs={'dpi': 10}, use_par_space=True)
+                     fig_kwargs={'dpi': 10}, use_par_space=True,
+                     full_impl_rng=True)
         pipe.project(1, (0, 1), proj_type='3D', fig_kwargs={'dpi': 10},
                      figure=False)
         if pipe._is_controller:
@@ -506,6 +536,18 @@ class Test_Pipeline_Gaussian3D(object):
     def test_repr2(self, pipe):
         pipe2 = eval(repr(pipe))
         assert pipe2._hdf5_file == pipe._hdf5_file
+
+    # Test if an estimate out-of-range results in arrows in the projections
+    def test_proj_est_arrows(self, pipe):
+        pipe._modellink._par_est = [-1, -1, 15]
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0, 1))[0])
+        pipe.project(1, (0, 1), proj_type='3D')
+        pipe.project(1, (0, 2), proj_type='3D')
+
+        if pipe._is_controller:
+            os.remove(pipe._Projection__get_fig_path((1, 0, 1))[0])
+        pipe.project(1, (0, 1), proj_type='3D', align='row')
 
 
 # Pytest for standard Pipeline class for 3D model with a single data point
@@ -1136,7 +1178,10 @@ class Test_Internal_Exceptions(object):
         pipe._Projection__use_GUI = 0
         pipe._Projection__prepare_projections(None, None,
                                               los_kwargs_2D={'x': 1},
-                                              los_kwargs_3D={'x': 1})
+                                              los_kwargs_3D={'x': 1},
+                                              arrow_kwargs_est={'x': 1},
+                                              line_kwargs_est={'x': 1},
+                                              line_kwargs_cut={'x': 1})
         if pipe._is_controller:
             with pytest.raises(ValueError):
                 pipe._Projection__save_data(1, {'test': []})
@@ -1340,8 +1385,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
             # Create backup file
             sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
                               'center')
-            sam_dict = sdict(zip(modellink_obj._par_name,
-                                 sam_set[0]))
+            sam_dict = modellink_obj._get_sam_dict(sam_set[0])
             mod_set = modellink_obj.call_model(
                 emul_i=1, par_set=sam_dict, data_idx=modellink_obj._data_idx)
 
@@ -1378,8 +1422,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
             # Create backup file
             sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
                               'center')
-            sam_dict = sdict(zip(modellink_obj._par_name,
-                                 sam_set[0]))
+            sam_dict = modellink_obj._get_sam_dict(sam_set[0])
             mod_set = modellink_obj.call_model(
                 emul_i=1, par_set=sam_dict, data_idx=modellink_obj._data_idx)
 
@@ -1416,8 +1459,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
             # Create backup file
             sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
                               'center')
-            sam_dict = sdict(zip(modellink_obj._par_name,
-                                 sam_set[0]))
+            sam_dict = modellink_obj._get_sam_dict(sam_set[0])
             mod_set = modellink_obj.call_model(
                 emul_i=1, par_set=sam_dict, data_idx=modellink_obj._data_idx)
 
@@ -1454,8 +1496,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
             # Create backup file
             sam_set = e13.lhd(1, modellink_obj._n_par, modellink_obj._par_rng,
                               'center')
-            sam_dict = sdict(zip(modellink_obj._par_name,
-                                 sam_set[0]))
+            sam_dict = modellink_obj._get_sam_dict(sam_set[0])
             modellink_obj.call_model(emul_i=1, par_set=sam_dict,
                                      data_idx=modellink_obj._data_idx)
 
@@ -1492,7 +1533,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         sam_set = e13.lhd(pipe2D._n_sam_init*2, pipe2D._modellink._n_par,
                           pipe2D._modellink._par_rng, 'center',
                           pipe2D._criterion)
-        sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
+        sam_dict = pipe2D._modellink._get_sam_dict(sam_set)
         mod_dict = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
@@ -1505,7 +1546,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         sam_set = e13.lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
                           pipe2D._modellink._par_rng, 'center',
                           pipe2D._criterion)
-        sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
+        sam_dict = pipe2D._modellink._get_sam_dict(sam_set)
         mod_dict = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 
@@ -1518,7 +1559,7 @@ class Test_Pipeline_ModelLink_Versatility(object):
         sam_set = e13.lhd(pipe2D._n_sam_init//2, pipe2D._modellink._n_par,
                           pipe2D._modellink._par_rng, 'center',
                           pipe2D._criterion)
-        sam_dict = sdict(zip(pipe2D._modellink._par_name, sam_set.T))
+        sam_dict = pipe2D._modellink._get_sam_dict(sam_set)
         mod_dict = pipe2D._modellink.call_model(
             1, sam_dict, np.array(pipe2D._modellink._data_idx))
 

@@ -31,13 +31,11 @@ def test_GaussianLink():
 
     # Call model
     par_set = [2.5, 2, 1, 2.5, 3, 1, 2.5, 4, 1]
-    par_dict = sdict(zip(modellink_obj._par_name, np.array(par_set)))
+    par_dict = modellink_obj._get_sam_dict(par_set)
     exp_mod_out = [4.853169333697371, 4.5858319665035, 4.0377509940191105]
     assert np.allclose(modellink_obj.call_model(
-                        1, par_dict, sorted(modellink_obj._data_idx)),
-                       exp_mod_out)
+        1, par_dict, sorted(modellink_obj._data_idx)), exp_mod_out)
 
     # Retrieve model discrepancy variance
     assert np.allclose(modellink_obj.get_md_var(
-                        1, par_dict, modellink_obj._data_idx),
-                       [0.01, 0.01, 0.01])
+        1, par_dict, modellink_obj._data_idx), [0.01, 0.01, 0.01])

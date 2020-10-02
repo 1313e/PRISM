@@ -30,7 +30,7 @@ class SineWaveLink(ModelLink):
 
     Formatting data_idx
     -------------------
-    x : int
+    x : float
         The value that needs to be used for :math:`x` in the function
         :math:`A+0.1*B*\\sin(C*x+D)` to obtain the data value.
 
@@ -62,4 +62,4 @@ class SineWaveLink(ModelLink):
         return(mod_set.T)
 
     def get_md_var(self, emul_i, par_set, data_idx):
-        return(pow(0.1*np.ones_like(data_idx), 2))
+        return(0.01*np.ones_like(data_idx))
