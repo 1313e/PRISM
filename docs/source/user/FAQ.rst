@@ -23,10 +23,9 @@ A list of the most commonly used terms in *PRISM* can be found on the :ref:`term
 
 Where can I get PRISM's colormaps?
 ----------------------------------
-The *rainforest* and *freeze* colormaps that are used for drawing *PRISM*'s projection figures, are freely available in the `e13Tools`_ package.
-Importing e13Tools will automatically add both colormaps (and their reverses) to the list of available colormaps in Matplotlib.
-One can then access them directly in the :mod:`~matplotlib.cm` module or by using the :func:`~matplotlib.cm.get_cmap` function.
-More information on the colormaps in e13Tools can be found in its `documentation`_.
+The *rainforest* and *freeze* colormaps that are used for drawing *PRISM*'s projection figures, are freely available in the `CMasher`_ package.
+Importing *CMasher* will automatically add both colormaps (and their reverses) to the list of available colormaps in Matplotlib, among many others.
+More information on the colormaps in *CMasher* can be found in its `documentation`_.
 
 Which OSs are supported?
 ------------------------
@@ -34,7 +33,8 @@ Which OSs are supported?
 Compatibility is currently tested for Linux 16.04 (Xenial)/Mac OS-X using `Travis CI`_, Windows 32-bit/64-bit using `AppVeyor`_ and all OSs using `Azure Pipelines`_.
 
 .. _e13Tools: https://github.com/1313e/e13Tools
-.. _documentation: https://e13tools.readthedocs.io/en/latest/user/colormaps.html
+.. _CMasher: https://github.com/1313e/CMasher
+.. _documentation: https://cmasher.readthedocs.io
 .. _Travis CI: https://travis-ci.com/1313e/PRISM
 .. _AppVeyor: https://ci.appveyor.com/project/1313e/PRISM
 .. _Azure Pipelines: https://dev.azure.com/1313e/PRISM/_build/latest?definitionId=1
