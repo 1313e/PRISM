@@ -782,7 +782,7 @@ class Projection(object):
         arrow_kwargs = dict(self.__arrow_kwargs_est)
 
         # Obtain the bbox of positions of the axis
-        pos = ax.get_position(fig)
+        pos = ax.get_position()
 
         # Obtain the axis limits
         xlim = ax.get_xlim()
@@ -791,8 +791,8 @@ class Projection(object):
         # Obtain the fractional widths and lengths of the arrow
         fh_length = arrow_kwargs.pop('fh_arrowlength')*6.4
         ft_length = arrow_kwargs.pop('ft_arrowlength')*fh_length
-        fh_width = arrow_kwargs.pop('fh_arrowwidth')*4.78
-        ft_width = arrow_kwargs.pop('ft_arrowwidth')*4.78
+        fh_width = arrow_kwargs.pop('fh_arrowwidth')*4.8
+        ft_width = arrow_kwargs.pop('ft_arrowwidth')*4.8
         full_length = fh_length+ft_length
         rel_xpos = arrow_kwargs.pop('rel_xpos')
         rel_ypos = arrow_kwargs.pop('rel_ypos')
