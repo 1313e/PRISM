@@ -30,11 +30,9 @@ More information on the colormaps in *CMasher* can be found in its `documentatio
 Which OSs are supported?
 ------------------------
 *PRISM* should be compatible with all Windows, Mac OS and UNIX-based machines, as long as they support one of the required Python versions.
-Compatibility is currently tested for Linux 16.04 (Xenial)/Mac OS-X using `Travis CI`_, Windows 32-bit/64-bit using `AppVeyor`_ and all OSs using `Azure Pipelines`_.
+Compatibility is currently tested for all OSs using `Azure Pipelines`_.
 
 .. _e13Tools: https://github.com/1313e/e13Tools
 .. _CMasher: https://github.com/1313e/CMasher
 .. _documentation: https://cmasher.readthedocs.io
-.. _Travis CI: https://travis-ci.com/1313e/PRISM
-.. _AppVeyor: https://ci.appveyor.com/project/1313e/PRISM
 .. _Azure Pipelines: https://dev.azure.com/1313e/PRISM/_build/latest?definitionId=1
