@@ -8,10 +8,11 @@ Users are highly encouraged to make contributions to the package or request new 
 If you would like to contribute to the package, but do not know what, then there are quite a few ToDos in the code that may give you some inspiration.
 As with contributions, if you find a problem or issue with *PRISM*, please do not hesitate to open a `GitHub issue`_ about it or post it on `Gitter`_.
 
-And, finally, if you use *PRISM* as part of your workflow in a scientific publication, please consider including an acknowledgement like *"Parts of the results in this work were derived using the PRISM Python package."* and citing the *PRISM* pipeline paper using the BibTeX-entry below.
+And, finally, if you use *PRISM* as part of your workflow in a scientific publication, please consider including an acknowledgement like *"Parts of the results in this work were derived using the PRISM Python package."* and citing the *PRISM* pipeline `paper`_ using the BibTeX-entry below.
 
 .. _GitHub issue: https://github.com/1313e/PRISM/issues
 .. _Gitter: https://gitter.im/1313e/PRISM
+.. _paper: https://arxiv.org/abs/1901.08725
 
 .. role:: pycode(code)
     :language: python3
