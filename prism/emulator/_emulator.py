@@ -924,10 +924,11 @@ class Emulator(object):
                     emul_s_group.attrs['data_idx'].decode('utf-8'))
 
             # If part is an encoded string, decode and save it
-            elif isinstance(emul_s_group.attrs['data_idx'], bytes):
+            elif isinstance(emul_s_group.attrs['data_idx'],
+                            bytes):  # pragma: no cover
                 data_idx = emul_s_group.attrs['data_idx'].decode('utf-8')
             # Else, save it normally
-            else:
+            else:  # pragma: no cover
                 data_idx = emul_s_group.attrs['data_idx']
 
         # If there are multiple parts, add all of them to a list
@@ -946,11 +947,12 @@ class Emulator(object):
                         emul_s_group.attrs[key].decode('utf-8')))
 
                 # If part is an encoded string, decode and save it
-                elif isinstance(emul_s_group.attrs[key], bytes):
+                elif isinstance(emul_s_group.attrs[key],
+                                bytes):  # pragma: no cover
                     idx_str = emul_s_group.attrs[key].decode('utf-8')
                     data_idx.append(idx_str)
                 # Else, save it normally
-                else:
+                else:  # pragma: no cover
                     data_idx.append(emul_s_group.attrs[key])
 
             # Convert data_idx from list to tuple
@@ -988,10 +990,10 @@ class Emulator(object):
                         "{!r}".format(idx).encode('ascii', 'ignore')
 
                 # If part is a string, encode and save it
-                elif isinstance(idx, str):
+                elif isinstance(idx, str):  # pragma: no cover
                     emul_s_group.attrs[key] = idx.encode('ascii', 'ignore')
                 # Else, save it normally
-                else:
+                else:  # pragma: no cover
                     emul_s_group.attrs[key] = idx
 
         # If data_idx contains a single part, save it
@@ -1002,11 +1004,11 @@ class Emulator(object):
                     "{!r}".format(data_idx).encode('ascii', 'ignore')
 
             # If part is a string, encode and save it
-            elif isinstance(data_idx, str):
+            elif isinstance(data_idx, str):  # pragma: no cover
                 emul_s_group.attrs['data_idx'] =\
                     data_idx.encode('ascii', 'ignore')
             # Else, save it normally
-            else:
+            else:  # pragma: no cover
                 emul_s_group.attrs['data_idx'] = data_idx
 
     # This function returns a list of all data_idx assigned to cores
