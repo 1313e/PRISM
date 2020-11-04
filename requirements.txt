@@ -1,6 +1,6 @@
 cmasher>=1.0.5
 e13tools>=0.9.1
-h5py>=2.8.0
+h5py>=2.8.0,<3.0.0
 hickle>=3.4.0
 matplotlib>=2.2.4
 mlxtend>=0.16.0

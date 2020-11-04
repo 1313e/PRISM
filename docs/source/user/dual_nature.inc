@@ -9,7 +9,7 @@ In order to use *PRISM* in parallel with a parallelized model, this code would h
 
 Therefore, *PRISM* has a `dual execution/call nature`, where it can be switched between two different modes.
 In the default mode, *PRISM* works as described before, where all MPI ranks call the same user-code.
-However, by using the :class:`~prism._pipeline.WorkerMode` context manager, accessed through :meth:`~prism.Pipeline.worker_mode`, all code within will be executed in worker mode.
+However, by using the :class:`~prism._pipeline.WorkerMode` context manager, accessed through :attr:`~prism.Pipeline.worker_mode`, all code within will be executed in worker mode.
 When in worker mode, all worker ranks are continously listening for calls from the controller rank, made with the :meth:`~prism.Pipeline._make_call` and :meth:`~prism.Pipeline._make_call_workers` methods.
 They will continue to do so until the controller exits :class:`~prism._pipeline.WorkerMode` with :meth:`~prism._pipeline.WorkerMode.__exit__`.
 Manually exiting should solely be done in advanced use-cases.
@@ -26,7 +26,7 @@ In :attr:`~prism.Pipeline.worker_mode`, one uses the following structure (assumi
 
 .. note::
     All code that is inside the :attr:`~prism.Pipeline.worker_mode` context manager should solely be executed by the controller rank.
-    If not, all worker ranks will execute this code after the controller ranks exits the context manager.
+    If not, all worker ranks will execute this code after the controller rank exits the context manager.
     Currently, it is not possible to make a context manager handle this automatically (the rejected :PEP:`377` describes this perfectly).
 
 The :meth:`~prism.Pipeline._make_call` method accepts almost anything that can be called.
@@ -65,12 +65,9 @@ However, by supplying the :meth:`~prism.Pipeline._make_call` method with a calla
     # Enable worker mode
     with pipe.worker_mode:
         if pipe.is_controller:
-            # Import print function that prepends MPI rank to message
-            from prism._internal import rprint
-
-            # Make call to use this function
-            # Equivalent to 'rprint("Reporting in.")'
-            pipe._make_call(rprint, "Reporting in.")
+            # Make call to print rank
+            # Equivalent to 'print("My rank is %i." % (pipe.comm.rank))'
+            pipe._make_call(lambda x: print("My rank is %i." % (x)), 'pipe.comm.rank')
 
 This is especially useful when one combines a serial code with *PRISM*, but wants *PRISM* to execute in MPI.
 An application example of this is :ref:`hybrid_sampling`.
