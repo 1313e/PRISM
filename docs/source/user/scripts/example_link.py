@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# Future imports
-from __future__ import absolute_import, division, print_function
-
 # Package imports
 import numpy as np
 
@@ -39,7 +36,7 @@ class ExampleLink(ModelLink):
         # Following is provided:
         # 'emul_i': Requested iteration
         # 'par_set': Requested sample(s) dict
-        # 'data_idx': Requested data point(s)
+        # 'data_idx': Requested data points
         pass
 
     # Override get_md_var abstract method
@@ -48,5 +45,5 @@ class ExampleLink(ModelLink):
         # Following is provided:
         # 'emul_i': Requested iteration
         # 'par_set': Requested sample dict
-        # 'data_idx': Requested data point(s)
+        # 'data_idx': Requested data points
         pass

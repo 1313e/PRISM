@@ -408,6 +408,9 @@ class KwargsDictDialogPage(BaseBox):
 
         """
 
+        # Hide the page
+        self.hide()
+
         # Make empty dict containing all current valid entries
         cur_entry_dict = sdict()
 
@@ -458,6 +461,9 @@ class KwargsDictDialogPage(BaseBox):
             # Set the value of the corresponding field
             set_box_value(self.kwargs_grid.itemAtPosition(row, 2).widget(),
                           field_value)
+
+        # Show the page
+        self.show()
 
     # This function creates an editable entry
     @QC.Slot()

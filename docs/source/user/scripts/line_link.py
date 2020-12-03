@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# Future imports
-from __future__ import absolute_import, division, print_function
-
 # Package imports
 import numpy as np
 
@@ -23,16 +20,21 @@ class LineLink(ModelLink):
     # Define default model parameters (optional)
     def get_default_model_parameters(self):
         par_dict = {
-            'A': [-10, 10, 3],  # Intercept in [-10, 10] with estimate of 3
-            'B': [0, 5, 1.5]}   # Slope in [0, 5] with estimate of 1.5
+            # Intercept in [-10, 10], guess of 3
+            'A': [-10, 10, 3],
+            # Slope in [0, 5], guess of 1.5
+            'B': [0, 5, 1.5]}
         return(par_dict)
 
     # Define default model data (optional)
     def get_default_model_data(self):
         data_dict = {
-            1: [4.5, 0.1],    # f(1) = 4.5 +- 0.1
-            2.5: [6.8, 0.1],  # f(2.5) = 6.8 +- 0.1
-            -2: [0, 0.1]}     # f(-2) = 0 +- 0.1
+            # f(1) = 4.5 +- 0.1
+            1: [4.5, 0.1],
+            # f(2.5) = 6.8 +- 0.1
+            2.5: [6.8, 0.1],
+            # f(-2) = 0 +- 0.1
+            -2: [0, 0.1]}
         return(data_dict)
 
     # Override call_model abstract method
