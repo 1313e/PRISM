@@ -185,7 +185,7 @@ Huge thanks to James Josephides for making the *PRISM* logo.
 .. |PyPI| image:: https://img.shields.io/pypi/v/prism.svg?logo=pypi&logoColor=white&label=PyPI
     :target: https://pypi.python.org/pypi/prism
     :alt: PyPI - Latest Release
-.. |Python| image:: https://img.shields.io/badge/Python-3.5%2B-blue?logo=python&logoColor=white
+.. |Python| image:: https://img.shields.io/badge/Python-3.6%2B-blue?logo=python&logoColor=white
     :target: https://pypi.python.org/pypi/prism
     :alt: PyPI - Python Versions
 .. |Azure| image:: https://img.shields.io/azure-devops/build/1313e/2f7c67c7-61eb-4e70-9ff3-7f54f8e39987/1?logo=azure-pipelines&logoColor=white&label=Azure
