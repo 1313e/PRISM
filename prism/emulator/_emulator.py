@@ -3064,8 +3064,23 @@ class Emulator(object):
                                  'sigma', 'float', 'nzero')
 
         # Gaussian correlation length
-        l_corr = check_vals(e13.split_seq(par_dict['l_corr']), 'l_corr',
-                            'float', 'pos', 'normal')
+        l_corr = e13.split_seq(par_dict['l_corr'])
+
+        # Check if l_corr contains twice the number of values
+        if(len(l_corr) == 2*self._modellink._n_par):
+            # If so, check if all names are properly provided
+            if not (set(l_corr[0::2]) == set(self._modellink._par_name)):
+                # If not, raise error
+                err_msg = ("Input argument 'l_corr' is formatted incorrectly!")
+                e13.raise_error(err_msg, ValueError, logger)
+
+            # Sort the values in the proper order
+            values = list(l_corr[1::2])
+            values.sort(key=lambda x: l_corr[0::2][l_corr[1::2].index(x)])
+            l_corr = values
+
+        # Obtain l_corr
+        l_corr = check_vals(l_corr, 'l_corr', 'float', 'pos', 'normal')
         self._l_corr = l_corr*abs(self._modellink._par_rng[:, 1] -
                                   self._modellink._par_rng[:, 0])
 
@@ -3111,7 +3126,6 @@ class Emulator(object):
             e13.raise_error(err_msg, ValueError, logger)
 
         # Check whether or not mock data should be used
-        # TODO: Allow entire dicts to be given as mock_data (configparser?)
         use_mock = e13.split_seq(par_dict['use_mock'])
 
         # If use_mock contains a single element, check if it is a bool
@@ -3119,8 +3133,15 @@ class Emulator(object):
             mock_par = None
             use_mock = check_vals(use_mock[0], 'use_mock', 'bool')
 
-        # If not, it must be an array of mock parameter values
+        # If not, it must be an array or dict of mock parameter values
         else:
+            # Check if use_mock contains twice the number of values
+            if(len(use_mock) == 2*self._modellink._n_par):
+                # If so, it was a dict
+                use_mock = {key: value for key, value in zip(
+                    use_mock[0::2], use_mock[1::2])}
+
+            # Obtain mock_par array
             mock_par = self._modellink._check_sam_set(use_mock, 'mock_par')
             use_mock = True
 

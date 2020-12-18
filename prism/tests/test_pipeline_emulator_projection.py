@@ -794,6 +794,14 @@ class Test_Pipeline_Init_Exceptions(object):
             Pipeline(modellink_obj, **root_working_dir,
                      prism_par=prism_dict_def, prefix=1)
 
+    # Create a Pipeline object using invalid l_corr dict
+    def test_invalid_l_corr_dict(self, root_working_dir, modellink_obj):
+        prism_dict = get_prism_dict({'l_corr': {'A': 0.1, 'C': 0.3}})
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict)
+        with pytest.raises(ValueError):
+            pipe._emulator._create_new_emulator()
+
     # Create a Pipeline object using invalid mock data spaces
     def test_invalid_mock_data_spc_predef(self, root_working_dir,
                                           modellink_obj):
@@ -1200,22 +1208,22 @@ class Test_Pipeline_Init_Versatility(object):
     def modellink_obj(self):
         return(GaussianLink2D())
 
+    @pytest.fixture(scope='function')
+    def root_working_dir(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test_init_versatility')
+        return({'root_dir': path.dirname(tmpdir.strpath),
+                'working_dir': path.basename(tmpdir.strpath)})
+
     # Create a Pipeline object using a custom Emulator class
-    def test_custom_Emulator(self, tmpdir, modellink_obj):
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict_def,
-                        emul_type=CustomEmulator)
+    def test_custom_Emulator(self, root_working_dir, modellink_obj):
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict_def, emul_type=CustomEmulator)
         repr(pipe)
 
     # Create a Pipeline object using custom pot_active_par
-    def test_custom_pot_act_par(self, tmpdir, modellink_obj):
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
+    def test_custom_pot_act_par(self, root_working_dir, modellink_obj):
         prism_dict = get_prism_dict({'pot_active_par': [0, 1]})
-        Pipeline(modellink_obj, root_dir=root_dir, working_dir=working_dir,
-                 prism_par=prism_dict)
+        Pipeline(modellink_obj, **root_working_dir, prism_par=prism_dict)
 
     # Create a Pipeline object using no defined paths
     def test_default_paths(self, tmpdir, modellink_obj):
@@ -1244,28 +1252,22 @@ class Test_Pipeline_Init_Versatility(object):
                  prefix='test_', prism_par=prism_dict_def)
 
     # Create a Pipeline object using a relative path to a PRISM file
-    def test_rel_path_PRISM_file(self, tmpdir, modellink_obj):
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
-        shutil.copy(prism_file_default, root_dir)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par='prism_default.txt')
+    def test_rel_path_PRISM_file(self, root_working_dir, modellink_obj):
+        shutil.copy(prism_file_default, root_working_dir['root_dir'])
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par='prism_default.txt')
         repr(pipe)
 
     # Create a Pipeline object using a PRISM parameters dict
-    def test_PRISM_par_dict(self, tmpdir, modellink_obj):
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par={'criterion': 1})
+    def test_PRISM_par_dict(self, root_working_dir, modellink_obj):
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par={'criterion': 1})
         repr(pipe)
 
     # Create a Pipeline object using a PRISM parameters array_like
-    def test_PRISM_par_array_like(self, tmpdir, modellink_obj):
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=[['criterion', 1]])
+    def test_PRISM_par_array_like(self, root_working_dir, modellink_obj):
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=[['criterion', 1]])
         repr(pipe)
 
     # Create a Pipeline object requesting a new working dir two times
@@ -1289,26 +1291,28 @@ class Test_Pipeline_Init_Versatility(object):
 
 # Pytest for Pipeline + ModelLink versatility
 class Test_Pipeline_ModelLink_Versatility(object):
-    # Create a universal Pipeline object for testing request exceptions
     @pytest.fixture(scope='function')
-    def pipe2D(self, tmpdir):
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
-        modellink_obj = GaussianLink2D()
-        with pytest.warns(RequestWarning):
-            modellink_obj.call_type = 'single'
-        return(Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict_def))
+    def root_working_dir(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test_modellink_versatility')
+        return({'root_dir': path.dirname(tmpdir.strpath),
+                'working_dir': path.basename(tmpdir.strpath)})
 
     # Create a universal Pipeline object for testing request exceptions
     @pytest.fixture(scope='function')
-    def pipe3D(self, tmpdir):
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
+    def pipe2D(self, root_working_dir):
+        modellink_obj = GaussianLink2D()
+        with pytest.warns(RequestWarning):
+            modellink_obj.call_type = 'single'
+        return(Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict_def))
+
+    # Create a universal Pipeline object for testing request exceptions
+    @pytest.fixture(scope='function')
+    def pipe3D(self, root_working_dir):
         modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
                                        model_data=model_data_single)
-        return(Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict_def))
+        return(Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict_def))
 
     # Test if interrupted construction can be continued
     def test_continue_interrupt(self, pipe2D):
@@ -1368,17 +1372,15 @@ class Test_Pipeline_ModelLink_Versatility(object):
 
     # Test if an ext_real_set can be provided from a backup file
     @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
-    def test_ext_real_set_backup_args(self, tmpdir):
+    def test_ext_real_set_backup_args(self, root_working_dir):
         # Initialize ModelLink class
         modellink_obj = BackupModelLinkArgs(
             model_parameters=model_parameters_3D,
             model_data=model_data_single)
 
         # Create pipeline
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict_def)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict_def)
 
         # Test on controller only
         if not MPI.COMM_WORLD.Get_rank():
@@ -1405,17 +1407,15 @@ class Test_Pipeline_ModelLink_Versatility(object):
 
     # Test if an ext_real_set can be provided from a backup file
     @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
-    def test_ext_real_set_backup_kwargs(self, tmpdir):
+    def test_ext_real_set_backup_kwargs(self, root_working_dir):
         # Initialize ModelLink class
         modellink_obj = BackupModelLinkKwargs(
             model_parameters=model_parameters_3D,
             model_data=model_data_single)
 
         # Create pipeline
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict_def)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict_def)
 
         # Test on controller only
         if not MPI.COMM_WORLD.Get_rank():
@@ -1442,17 +1442,15 @@ class Test_Pipeline_ModelLink_Versatility(object):
 
     # Test if an ext_real_set can be provided from a backup file
     @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
-    def test_ext_real_set_backup_dict(self, tmpdir):
+    def test_ext_real_set_backup_dict(self, root_working_dir):
         # Initialize ModelLink class
         modellink_obj = BackupModelLinkDict(
             model_parameters=model_parameters_3D,
             model_data=model_data_single)
 
         # Create pipeline
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict_def)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict_def)
 
         # Test on controller only
         if not MPI.COMM_WORLD.Get_rank():
@@ -1479,17 +1477,15 @@ class Test_Pipeline_ModelLink_Versatility(object):
 
     # Test if an ext_real_set can be provided from a backup file
     @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
-    def test_ext_real_set_backup_key(self, tmpdir):
+    def test_ext_real_set_backup_key(self, root_working_dir):
         # Initialize ModelLink class
         modellink_obj = BackupModelLinkInvalid(
             model_parameters=model_parameters_3D,
             model_data=model_data_single)
 
         # Create pipeline
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict_def)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict_def)
 
         # Test on controller only
         if not MPI.COMM_WORLD.Get_rank():
@@ -1509,17 +1505,15 @@ class Test_Pipeline_ModelLink_Versatility(object):
 
     # Test if an ext_real_set can be provided from a backup file
     @pytest.mark.filterwarnings("ignore::prism._internal.FeatureWarning")
-    def test_ext_real_set_backup_invalid(self, tmpdir):
+    def test_ext_real_set_backup_invalid(self, root_working_dir):
         # Initialize ModelLink class
         modellink_obj = BackupModelLinkArgs(
             model_parameters=model_parameters_3D,
             model_data=model_data_single)
 
         # Create pipeline
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict_def)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict_def)
 
         # Test on controller only
         if not MPI.COMM_WORLD.Get_rank():
@@ -1568,78 +1562,86 @@ class Test_Pipeline_ModelLink_Versatility(object):
             'sam_set': sam_dict, 'mod_set': mod_dict})
 
     # Test if double md_var values can be returned
-    def test_double_md_var(self, tmpdir):
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
+    def test_double_md_var(self, root_working_dir):
         modellink_obj =\
             DoubleMdVarModelLink(model_parameters=model_parameters_3D,
                                  model_data=model_data_single)
         prism_dict = get_prism_dict({'impl_cut': [0.001, 0.001, 0.001]})
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict)
         np.random.seed(0)
         pipe.construct(1, analyze=0)
 
 
 class Test_Pipeline_Emulator_Versatility(object):
+    @pytest.fixture(scope='function')
+    def root_working_dir(self, tmpdir_factory):
+        tmpdir = tmpdir_factory.mktemp('test_emulator_versatility')
+        return({'root_dir': path.dirname(tmpdir.strpath),
+                'working_dir': path.basename(tmpdir.strpath)})
+
     # Test if emulator can be constructed with only regression
-    def test_regression_method(self, tmpdir):
+    def test_regression_method(self, root_working_dir):
         prism_dict = get_prism_dict({'method': 'regression'})
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
         modellink_obj = GaussianLink2D()
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict)
         pipe.construct(1)
         pipe._emulator._load_data(1)
 
     # Test if emulator can be constructed using chosen mock estimates
-    def test_chosen_mock(self, tmpdir):
+    def test_chosen_mock_array(self, root_working_dir):
         prism_dict = get_prism_dict({'use_mock': [2, 2]})
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
         modellink_obj = GaussianLink2D()
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict)
+        pipe.construct(1)
+
+    # Test if emulator can be constructed using chosen mock estimates
+    def test_chosen_mock_dict(self, root_working_dir):
+        prism_dict = get_prism_dict({'use_mock': {'A': 2, 'B': 2}})
+        modellink_obj = GaussianLink2D()
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict)
+        pipe.construct(1)
+
+    # Test if emulator can be constructed using chosen l_corr values
+    def test_chosen_l_corr_dict(self, root_working_dir):
+        prism_dict = get_prism_dict({'l_corr': {'A': 0.2, 'B': 0.2}})
+        modellink_obj = GaussianLink2D()
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict)
         pipe.construct(1)
 
     # Test if emulator can be constructed with only gaussian
-    def test_gaussian_method(self, tmpdir):
+    def test_gaussian_method(self, root_working_dir):
         prism_dict = get_prism_dict({'method': 'gaussian'})
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
         modellink_obj = GaussianLink2D()
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict)
         pipe.construct(1)
 
     # Test if emulator can be constructed with no active analysis
-    def test_no_active_par_analysis(self, tmpdir):
+    def test_no_active_par_analysis(self, root_working_dir):
         prism_dict = get_prism_dict({'do_active_anal': False})
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
         modellink_obj = GaussianLink2D()
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict)
         pipe.construct(1)
 
     # Test if different data_idx sequences can be loaded properly
-    def test_data_idx_seq(self, tmpdir):
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
+    def test_data_idx_seq(self, root_working_dir):
         model_data = {(1, 'A'): [1, 0.05, 'lin'],
                       'A': [2, 0.05, 'lin'],
                       4.: [3, 0.05, 'lin']}
         modellink_obj = CustomModelLink(model_parameters=model_parameters_3D,
                                         model_data=model_data)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict_def)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict_def)
         pipe._emulator._create_new_emulator()
 
     # Test if different model_data can be used in different iterations
-    def test_change_data(self, tmpdir):
-        root_dir = path.dirname(tmpdir.strpath)
-        working_dir = path.basename(tmpdir.strpath)
+    def test_change_data(self, root_working_dir):
         prism_dict = get_prism_dict({'use_mock': False})
         model_data = {2: [1, 0.05, 'lin'],
                       3: [2, 0.05, 'lin'],
@@ -1647,8 +1649,8 @@ class Test_Pipeline_Emulator_Versatility(object):
                       5: [3, 0.05, 'lin']}
         modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
                                        model_data=model_data)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict)
         pipe.construct(1)
 
         # Change data for first iteration
@@ -1657,8 +1659,8 @@ class Test_Pipeline_Emulator_Versatility(object):
                       4: [3, 0.05, 'lin']}
         modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
                                        model_data=model_data)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict)
         pipe.construct(1, force=1)
 
         # Change data back again for second iteration
@@ -1668,8 +1670,8 @@ class Test_Pipeline_Emulator_Versatility(object):
                       5: [3, 0.05, 'lin']}
         modellink_obj = GaussianLink3D(model_parameters=model_parameters_3D,
                                        model_data=model_data)
-        pipe = Pipeline(modellink_obj, root_dir=root_dir,
-                        working_dir=working_dir, prism_par=prism_dict)
+        pipe = Pipeline(modellink_obj, **root_working_dir,
+                        prism_par=prism_dict)
         pipe.construct(2, analyze=0)
 
         # Change a data value
