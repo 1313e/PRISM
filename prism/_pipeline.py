@@ -2437,7 +2437,7 @@ class Pipeline(Projection):
             n_impl_sam = len(impl_sam)
 
             # If only a single sample is plausible, remove it
-            if(n_impl_sam == 1):
+            if(n_impl_sam == 1):  # pragma: no cover
                 n_impl_sam = 0
                 impl_sam = impl_sam[[]]
 

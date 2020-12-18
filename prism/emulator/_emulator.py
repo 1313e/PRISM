@@ -919,7 +919,7 @@ class Emulator(object):
         # If there is a single part, save it instead of a tuple
         if(idx_len == 1):
             # TODO: Remove this in v1.4.0
-            if self._check_future_compat('1.3.2', '1.4.0'):
+            if self._check_future_compat('1.3.2.dev0', '1.4.0'):
                 data_idx = literal_eval(
                     emul_s_group.attrs['data_idx'].decode('utf-8'))
 
@@ -942,7 +942,7 @@ class Emulator(object):
             # Loop over all parts
             for key in idx_keys:
                 # TODO: Remove this in v1.4.0
-                if self._check_future_compat('1.3.2', '1.4.0'):
+                if self._check_future_compat('1.3.2.dev0', '1.4.0'):
                     data_idx.append(literal_eval(
                         emul_s_group.attrs[key].decode('utf-8')))
 
@@ -985,7 +985,7 @@ class Emulator(object):
             # Loop over all parts
             for key, idx in zip(idx_keys, data_idx):
                 # TODO: Remove this in v1.4.0
-                if self._check_future_compat('1.3.2', '1.4.0'):
+                if self._check_future_compat('1.3.2.dev0', '1.4.0'):
                     emul_s_group.attrs[key] =\
                         "{!r}".format(idx).encode('ascii', 'ignore')
 
@@ -999,7 +999,7 @@ class Emulator(object):
         # If data_idx contains a single part, save it
         else:
             # TODO: Remove this in v1.4.0
-            if self._check_future_compat('1.3.2', '1.4.0'):
+            if self._check_future_compat('1.3.2.dev0', '1.4.0'):
                 emul_s_group.attrs['data_idx'] =\
                     "{!r}".format(data_idx).encode('ascii', 'ignore')
 
