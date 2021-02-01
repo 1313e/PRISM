@@ -7,7 +7,7 @@ How do I contribute?
 Contributing to *PRISM* is done through pull requests in the `repository`_.
 If you have an idea on what to contribute, it is recommended to open a `GitHub issue`_ about it, such that the maintainers can give their advice or help.
 If you want to contribute but do not really know what, then you can take a look at the ToDos that are scattered throughout the code.
-When making a contribution, please keep in mind that it must be compatible with all Python versions that *PRISM* supports (3.5+), and preferably with all operating systems as well.
+When making a contribution, please keep in mind that it must be compatible with all Python versions that *PRISM* supports (3.6+), and preferably with all operating systems as well.
 
 .. _repository: https://github.com/1313e/PRISM
 .. _GitHub issue: https://github.com/1313e/PRISM/issues

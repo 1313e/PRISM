@@ -27,9 +27,6 @@ schedules:
 
 strategy:
   matrix:
-    linux-python35:
-      imageName: 'ubuntu-latest'
-      python.version: '3.5'
     linux-python36:
       imageName: 'ubuntu-latest'
       python.version: '3.6'
@@ -44,10 +41,6 @@ strategy:
       imageName: 'macOS-latest'
       python.version: '3.8'
       upload_coverage: true
-    windows-x86-python35:
-      imageName: 'windows-latest'
-      python.version: '3.5'
-      python.arch: 'x86'
     windows-x86-python36:
       imageName: 'windows-latest'
       python.version: '3.6'
@@ -61,9 +54,6 @@ strategy:
       python.version: '3.8'
       python.arch: 'x86'
       upload_coverage: true
-    windows-x64-python35:
-      imageName: 'windows-latest'
-      python.version: '3.5'
     windows-x64-python36:
       imageName: 'windows-latest'
       python.version: '3.6'

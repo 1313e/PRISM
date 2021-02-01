@@ -212,20 +212,20 @@ def convert_parameters(model_parameters):
         values = e13.split_seq(values_str)
 
         # Check if provided name is a string
-        name = check_vals(name, 'par_name[%s]' % (name), 'str')
+        name = check_vals(name, 'par_name[%r]' % (name), 'str')
 
         # Check if provided range consists of two floats
-        par_rng = check_vals(values[:2], 'par_rng[%s]' % (name), 'float')
+        par_rng = check_vals(values[:2], 'par_rng[%r]' % (name), 'float')
 
         # Check if provided lower bound is lower than the upper bound
         if(par_rng[0] >= par_rng[1]):
-            raise ValueError("Input argument 'par_rng[%s]' does not define a "
+            raise ValueError("Input argument 'par_rng[%r]' does not define a "
                              "valid parameter range (%f !< %f)!"
                              % (name, par_rng[0], par_rng[1]))
 
         # Check if a float parameter estimate was provided
         try:
-            est = check_vals(values[2], 'par_est[%s]' % (name), 'float')
+            est = check_vals(values[2], 'par_est[%r]' % (name), 'float')
         # If no estimate was provided, save it as None
         except IndexError:
             est = None
@@ -240,7 +240,7 @@ def convert_parameters(model_parameters):
         # If a float was provided, check if it is within parameter range
         else:
             if not(values[0] <= est <= values[1]):
-                raise ValueError("Input argument 'par_est[%s]' is outside "
+                raise ValueError("Input argument 'par_est[%r]' is outside "
                                  "of defined parameter range!" % (name))
 
         # Add parameter to par_dict

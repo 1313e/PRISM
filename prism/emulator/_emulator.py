@@ -11,6 +11,7 @@ package, the :class:`~Emulator` class.
 
 # %% IMPORTS
 # Built-in imports
+from ast import literal_eval
 from collections import Counter
 from itertools import chain
 import os
@@ -917,11 +918,17 @@ class Emulator(object):
 
         # If there is a single part, save it instead of a tuple
         if(idx_len == 1):
+            # TODO: Remove this in v1.4.0
+            if self._check_future_compat('1.3.2.dev0', '1.4.0'):
+                data_idx = literal_eval(
+                    emul_s_group.attrs['data_idx'].decode('utf-8'))
+
             # If part is an encoded string, decode and save it
-            if isinstance(emul_s_group.attrs['data_idx'], bytes):
+            elif isinstance(emul_s_group.attrs['data_idx'],
+                            bytes):  # pragma: no cover
                 data_idx = emul_s_group.attrs['data_idx'].decode('utf-8')
             # Else, save it normally
-            else:
+            else:  # pragma: no cover
                 data_idx = emul_s_group.attrs['data_idx']
 
         # If there are multiple parts, add all of them to a list
@@ -934,12 +941,18 @@ class Emulator(object):
 
             # Loop over all parts
             for key in idx_keys:
+                # TODO: Remove this in v1.4.0
+                if self._check_future_compat('1.3.2.dev0', '1.4.0'):
+                    data_idx.append(literal_eval(
+                        emul_s_group.attrs[key].decode('utf-8')))
+
                 # If part is an encoded string, decode and save it
-                if isinstance(emul_s_group.attrs[key], bytes):
+                elif isinstance(emul_s_group.attrs[key],
+                                bytes):  # pragma: no cover
                     idx_str = emul_s_group.attrs[key].decode('utf-8')
                     data_idx.append(idx_str)
                 # Else, save it normally
-                else:
+                else:  # pragma: no cover
                     data_idx.append(emul_s_group.attrs[key])
 
             # Convert data_idx from list to tuple
@@ -971,21 +984,31 @@ class Emulator(object):
 
             # Loop over all parts
             for key, idx in zip(idx_keys, data_idx):
+                # TODO: Remove this in v1.4.0
+                if self._check_future_compat('1.3.2.dev0', '1.4.0'):
+                    emul_s_group.attrs[key] =\
+                        "{!r}".format(idx).encode('ascii', 'ignore')
+
                 # If part is a string, encode and save it
-                if isinstance(idx, str):
+                elif isinstance(idx, str):  # pragma: no cover
                     emul_s_group.attrs[key] = idx.encode('ascii', 'ignore')
                 # Else, save it normally
-                else:
+                else:  # pragma: no cover
                     emul_s_group.attrs[key] = idx
 
         # If data_idx contains a single part, save it
         else:
+            # TODO: Remove this in v1.4.0
+            if self._check_future_compat('1.3.2.dev0', '1.4.0'):
+                emul_s_group.attrs['data_idx'] =\
+                    "{!r}".format(data_idx).encode('ascii', 'ignore')
+
             # If part is a string, encode and save it
-            if isinstance(data_idx, str):
+            elif isinstance(data_idx, str):  # pragma: no cover
                 emul_s_group.attrs['data_idx'] =\
                     data_idx.encode('ascii', 'ignore')
             # Else, save it normally
-            else:
+            else:  # pragma: no cover
                 emul_s_group.attrs['data_idx'] = data_idx
 
     # This function returns a list of all data_idx assigned to cores
@@ -3041,8 +3064,23 @@ class Emulator(object):
                                  'sigma', 'float', 'nzero')
 
         # Gaussian correlation length
-        l_corr = check_vals(e13.split_seq(par_dict['l_corr']), 'l_corr',
-                            'float', 'pos', 'normal')
+        l_corr = e13.split_seq(par_dict['l_corr'])
+
+        # Check if l_corr contains twice the number of values
+        if(len(l_corr) == 2*self._modellink._n_par):
+            # If so, check if all names are properly provided
+            if not (set(l_corr[0::2]) == set(self._modellink._par_name)):
+                # If not, raise error
+                err_msg = ("Input argument 'l_corr' is formatted incorrectly!")
+                e13.raise_error(err_msg, ValueError, logger)
+
+            # Sort the values in the proper order
+            values = list(l_corr[1::2])
+            values.sort(key=lambda x: l_corr[0::2][l_corr[1::2].index(x)])
+            l_corr = values
+
+        # Obtain l_corr
+        l_corr = check_vals(l_corr, 'l_corr', 'float', 'pos', 'normal')
         self._l_corr = l_corr*abs(self._modellink._par_rng[:, 1] -
                                   self._modellink._par_rng[:, 0])
 
@@ -3088,7 +3126,6 @@ class Emulator(object):
             e13.raise_error(err_msg, ValueError, logger)
 
         # Check whether or not mock data should be used
-        # TODO: Allow entire dicts to be given as mock_data (configparser?)
         use_mock = e13.split_seq(par_dict['use_mock'])
 
         # If use_mock contains a single element, check if it is a bool
@@ -3096,8 +3133,15 @@ class Emulator(object):
             mock_par = None
             use_mock = check_vals(use_mock[0], 'use_mock', 'bool')
 
-        # If not, it must be an array of mock parameter values
+        # If not, it must be an array or dict of mock parameter values
         else:
+            # Check if use_mock contains twice the number of values
+            if(len(use_mock) == 2*self._modellink._n_par):
+                # If so, it was a dict
+                use_mock = {key: value for key, value in zip(
+                    use_mock[0::2], use_mock[1::2])}
+
+            # Obtain mock_par array
             mock_par = self._modellink._check_sam_set(use_mock, 'mock_par')
             use_mock = True
 

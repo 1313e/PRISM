@@ -36,7 +36,7 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
 :attr:`~prism.emulator.Emulator.l_corr` (Default: 0.3)
     The normalized amplitude(s) of the Gaussian correlation length.
     This number is multiplied by the difference between the upper and lower value boundaries of the model parameters to obtain the Gaussian correlation length for every model parameter.
-    This value must be positive, normalized and either a scalar or a list of :attr:`~prism.modellink.ModelLink.n_par` scalars (where the values correspond to the sorted list of model parameters).
+    This value must be positive, normalized and either a scalar or a list/dict of :attr:`~prism.modellink.ModelLink.n_par` scalars (where the values correspond to the sorted list of model parameters for the list).
 
 :attr:`~prism.emulator.Emulator.f_infl` (Default: 0.2)
     .. versionadded:: 1.2.2
@@ -116,6 +116,6 @@ Below are descriptions of all the parameters that can be provided to *PRISM* in 
     Mock data is calculated by evaluating the model for a specific set of parameter values, and adding the model discrepancy variances as noise to the returned data values.
     This set of parameter values is either the provided set, or a randomly chosen one if not.
     When using mock data for an emulator, it is not possible to change the comparison data in later emulator iterations.
-    This value must be a bool or a list of :attr:`~prism.modellink.ModelLink.n_par` scalars (where the values correspond to the sorted list of model parameters).
+    This value must be a bool or a list/dict of :attr:`~prism.modellink.ModelLink.n_par` scalars (where the values correspond to the sorted list of model parameters for the list).
 
 .. _e13Tools: https://github.com/1313e/e13Tools

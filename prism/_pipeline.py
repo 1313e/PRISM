@@ -66,8 +66,7 @@ class Pipeline(Projection):
 
     @e13.docstring_substitute(paths=paths_doc_d)
     def __init__(self, modellink_obj, *, root_dir=None, working_dir=None,
-                 prefix=None, prism_par=None, emul_type=None, comm=None,
-                 **kwargs):
+                 prefix=None, prism_par=None, emul_type=None, comm=None):
         """
         Initialize an instance of the :class:`~Pipeline` class.
 
@@ -2438,7 +2437,7 @@ class Pipeline(Projection):
             n_impl_sam = len(impl_sam)
 
             # If only a single sample is plausible, remove it
-            if(n_impl_sam == 1):
+            if(n_impl_sam == 1):  # pragma: no cover
                 n_impl_sam = 0
                 impl_sam = impl_sam[[]]
 
