@@ -37,10 +37,16 @@ strategy:
       imageName: 'ubuntu-latest'
       python.version: '3.8'
       upload_coverage: true
+    linux-python39:
+      imageName: 'ubuntu-latest'
+      python.version: '3.9'
     mac-python38:
       imageName: 'macOS-latest'
       python.version: '3.8'
       upload_coverage: true
+    mac-python39:
+      imageName: 'macOS-latest'
+      python.version: '3.9'
     windows-x86-python36:
       imageName: 'windows-latest'
       python.version: '3.6'
@@ -54,6 +60,10 @@ strategy:
       python.version: '3.8'
       python.arch: 'x86'
       upload_coverage: true
+    windows-x86-python39:
+      imageName: 'windows-latest'
+      python.version: '3.9'
+      python.arch: 'x86'
     windows-x64-python36:
       imageName: 'windows-latest'
       python.version: '3.6'
@@ -65,6 +75,9 @@ strategy:
       python.version: '3.8'
       upload_coverage: true
       deploy: true
+    windows-x64-python39:
+      imageName: 'windows-latest'
+      python.version: '3.9'
   maxParallel: 10
 
 pool:
