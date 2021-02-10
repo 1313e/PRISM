@@ -33,7 +33,7 @@ def overview(main_window):
 
 # %% PYTEST CLASSES AND FUNCTIONS
 # Pytest for the overview dock widget, main properties
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class TestOverviewDockWidget_Main(object):
     # Test if it is bound to main_window
     def test_bound_main(self, main_window, overview):
@@ -103,7 +103,7 @@ class TestOverviewDockWidget_Main(object):
 
 
 # Pytest for testing the drawn list
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class TestOverviewListWidget_Drawn(object):
     # Make abbreviation for proj_list
     @pytest.fixture(scope='class')
@@ -273,7 +273,7 @@ class TestOverviewListWidget_Drawn(object):
 
 
 # Pytest for testing the available list
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class TestOverviewListWidget_Available(object):
     # Make abbreviation for proj_list
     @pytest.fixture(scope='class')

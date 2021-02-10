@@ -30,7 +30,7 @@ def kwargs_dicts(options):
 
 # %% PYTEST CLASSES AND FUNCTIONS
 # Pytest for the kwargs dict box
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class TestKwargsDictBoxLayout(object):
     # Test if it is bound to options
     def test_bound_options(self, options):
@@ -43,7 +43,7 @@ class TestKwargsDictBoxLayout(object):
 
 
 # Pytest for the kwargs dict dialog
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class TestKwargsDictDialog_Main(object):
     # Test if it is bound to options
     def test_bound_options(self, options, kwargs_dicts):

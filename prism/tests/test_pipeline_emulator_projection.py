@@ -190,7 +190,7 @@ class InvalidDict(dict):
 
 # %% PYTEST CLASSES AND FUNCTIONS
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 2D model
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class Test_Pipeline_Gaussian2D(object):
     # Test a 2D Gaussian model
     @pytest.fixture(scope='class')
@@ -466,7 +466,7 @@ class Test_Pipeline_Gaussian2D(object):
 
 
 # Pytest for standard Pipeline class (+Emulator, +Projection) for 3D model
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class Test_Pipeline_Gaussian3D(object):
     # Test a 3D Gaussian model
     @pytest.fixture(scope='class')
@@ -551,7 +551,7 @@ class Test_Pipeline_Gaussian3D(object):
 
 
 # Pytest for standard Pipeline class for 3D model with a single data point
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class Test_Pipeline_Gaussian3D_1_data(object):
     # Test a 3D Gaussian model
     @pytest.fixture(scope='class')
@@ -625,7 +625,7 @@ class Test_Pipeline_Gaussian3D_1_data(object):
 
 
 # Pytest for standard Pipeline class handling extreme outliers in model
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class Test_Pipeline_ExtremeLink(object):
     # Test an extreme outliers model
     @pytest.fixture(scope='class')
@@ -886,7 +886,7 @@ class Test_Pipeline_Init_Exceptions(object):
 # Pytest for Pipeline class user exception handling
 @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
                     reason="Cannot be pytested in MPI")
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class Test_Pipeline_User_Exceptions(object):
     # Create a universal Pipeline object for testing request exceptions
     @pytest.fixture(scope='class')
@@ -1023,7 +1023,7 @@ class Test_Pipeline_User_Exceptions(object):
 # Pytest for Pipeline class request exception handling
 @pytest.mark.skipif(MPI.COMM_WORLD.Get_size() > 1,
                     reason="Cannot be pytested in MPI")
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class Test_Pipeline_Request_Exceptions(object):
     # Create a universal Pipeline object for testing request exceptions
     @pytest.fixture(scope='class')
@@ -1156,7 +1156,7 @@ class Test_Pipeline_Request_Exceptions(object):
 
 
 # Pytest for Pipeline class internal exception handling
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class Test_Internal_Exceptions(object):
     # Create a universal Pipeline object for testing request exceptions
     @pytest.fixture(scope='class')

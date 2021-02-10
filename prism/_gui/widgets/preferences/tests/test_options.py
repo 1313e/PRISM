@@ -19,7 +19,7 @@ DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
 
 # %% PYTEST CLASSES AND FUNCTIONS
 # Pytest for the options dialog widget, main properties
-@pytest.mark.incremental
+@pytest.mark.run_on_pass
 class TestOptionsDialog_Main(object):
     # Test if it is bound to main_window
     def test_bound_main(self, main_window, options):
