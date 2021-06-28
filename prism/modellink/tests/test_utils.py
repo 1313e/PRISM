@@ -27,7 +27,7 @@ model_parameters_3D = path.join(DIR_PATH, 'data/parameters_gaussian_3D.txt')
 # Custom invalid ModelLink class
 class InvalidModelLink(ModelLink):
     def __init__(self, *args, **kwargs):
-        pass
+        pass                                    # pragma: no cover
 
 
 # Custom improper ModelLink class
@@ -36,10 +36,10 @@ class ImproperModelLink(ModelLink):
         pass
 
     def call_model(self, *args, **kwargs):
-        super().call_model(*args, **kwargs)
+        super().call_model(*args, **kwargs)     # pragma: no cover
 
     def get_md_var(self, *args, **kwargs):
-        super().get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)     # pragma: no cover
 
 
 # Custom ModelLink class with no call_model
@@ -52,7 +52,7 @@ class NoCallModelLink(ModelLink):
         super().call_model(emul_i, par_set, data_idx)
 
     def get_md_var(self, emul_i, par_set, data_idx):
-        super().get_md_var(emul_i, par_set, data_idx)
+        super().get_md_var(emul_i, par_set, data_idx)   # pragma: no cover
 
 
 # Custom ModelLink class that does not accept the correct call_model arguments
@@ -62,10 +62,10 @@ class WrongCallModelLink(ModelLink):
         super().__init__(*args, **kwargs)
 
     def call_model(self, emul_i):
-        pass
+        pass                                    # pragma: no cover
 
     def get_md_var(self, *args, **kwargs):
-        super().get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)     # pragma: no cover
 
 
 # Custom ModelLink class that accepts too many call_model arguments
@@ -75,10 +75,10 @@ class ManyCallModelLink(ModelLink):
         super().__init__(*args, **kwargs)
 
     def call_model(self, emul_i, par_set, data_idx, test):
-        pass
+        pass                                    # pragma: no cover
 
     def get_md_var(self, *args, **kwargs):
-        super().get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)     # pragma: no cover
 
 
 # Custom ModelLink class with no get_md_var()
@@ -93,19 +93,19 @@ class NoMdVarModelLink(ModelLink):
 # Custom ModelLink class that does not accept the correct get_md_var arguments
 class WrongMdVarModelLink(ModelLink):
     def call_model(self, emul_i, par_set, data_idx):
-        return([1]*len(data_idx))
+        return([1]*len(data_idx))               # pragma: no cover
 
     def get_md_var(self, emul_i):
-        pass
+        pass                                    # pragma: no cover
 
 
 # Custom ModelLink class that accepts too many get_md_var arguments
 class ManyMdVarModelLink(ModelLink):
     def call_model(self, emul_i, par_set, data_idx):
-        return([1]*len(data_idx))
+        return([1]*len(data_idx))               # pragma: no cover
 
     def get_md_var(self, emul_i, par_set, data_idx, test):
-        pass
+        pass                                    # pragma: no cover
 
 
 # %% PYTEST CLASSES AND FUNCTIONS

@@ -41,7 +41,7 @@ class BackupModelLink(ModelLink):
         return(mod_set)
 
     def get_md_var(self, *args, **kwargs):
-        super().get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)             # pragma: no cover
 
 
 # %% PYTEST CLASSES AND FUNCTIONS

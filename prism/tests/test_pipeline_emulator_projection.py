@@ -107,10 +107,10 @@ class ImproperModelLink(ModelLink):
         pass
 
     def call_model(self, *args, **kwargs):
-        super().call_model(*args, **kwargs)
+        super().call_model(*args, **kwargs)         # pragma: no cover
 
     def get_md_var(self, *args, **kwargs):
-        super().get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)         # pragma: no cover
 
 
 # Custom ModelLink class with double md_var values
@@ -140,7 +140,7 @@ class BackupModelLinkArgs(ModelLink):
         return(mod_set)
 
     def get_md_var(self, *args, **kwargs):
-        super().get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)         # pragma: no cover
 
 
 # Custom ModelLink class that uses the backup system
@@ -151,7 +151,7 @@ class BackupModelLinkKwargs(ModelLink):
         return(mod_set)
 
     def get_md_var(self, *args, **kwargs):
-        super().get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)         # pragma: no cover
 
 
 # Custom ModelLink class that uses the backup system
@@ -162,7 +162,7 @@ class BackupModelLinkDict(ModelLink):
         return(mod_set)
 
     def get_md_var(self, *args, **kwargs):
-        super().get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)         # pragma: no cover
 
 
 # Custom ModelLink class that uses the backup system
@@ -173,7 +173,7 @@ class BackupModelLinkInvalid(ModelLink):
         return(mod_set)
 
     def get_md_var(self, *args, **kwargs):
-        super().get_md_var(*args, **kwargs)
+        super().get_md_var(*args, **kwargs)         # pragma: no cover
 
 
 # Custom List class that reports wrong length

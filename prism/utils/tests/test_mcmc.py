@@ -49,10 +49,7 @@ def pipe(tmpdir_factory):
 def lnpost(par_set, pipe):
     # Obtain mod_out
     emul_i = pipe._emulator._emul_i
-    if not isinstance(par_set, dict):
-        par_dict = pipe._modellink._get_sam_dict(par_set)
-    else:
-        par_dict = par_set
+    par_dict = pipe._modellink._get_sam_dict(par_set)
     mod_out = pipe._modellink.call_model(emul_i, par_dict,
                                          pipe._modellink._data_idx)
 

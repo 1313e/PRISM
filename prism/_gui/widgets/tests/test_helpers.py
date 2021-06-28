@@ -20,12 +20,12 @@ DIR_PATH = path.abspath(path.dirname(__file__))     # Path to tests directory
 # %% HELPER FUNCTIONS
 # Basic function for testing the ThreadedProgressDialog
 def do_operation(n):
-    print(n)
+    print(n)                        # pragma: no cover
 
 
 # Basic function for testing exceptions in the ThreadedProgressDialog
 def do_exception(n):
-    raise Exception
+    raise Exception                 # pragma: no cover
 
 
 # %% PYTEST CLASSES AND FUNCTIONS
